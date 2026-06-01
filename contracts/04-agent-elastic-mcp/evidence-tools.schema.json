@@ -1,0 +1,427 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://launchpilot.local/contracts/evidence-tools.schema.json",
+  "title": "LaunchPilot Evidence Tool Schemas",
+  "type": "object",
+  "$defs": {
+    "channel": {
+      "type": "string",
+      "enum": ["youtube", "tiktok", "instagram", "x", "unknown"]
+    },
+    "dateRange": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["start", "end"],
+      "properties": {
+        "start": {
+          "type": "string",
+          "format": "date"
+        },
+        "end": {
+          "type": "string",
+          "format": "date"
+        }
+      }
+    },
+    "commonRequestFields": {
+      "type": "object",
+      "required": ["agent_run_id", "workspace_id", "campaign_id"],
+      "properties": {
+        "agent_run_id": {
+          "type": "string",
+          "pattern": "^run_[A-Za-z0-9_]+$"
+        },
+        "workspace_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "campaign_id": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "evidenceRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ref_id",
+        "ref_type",
+        "source_index",
+        "title",
+        "summary",
+        "score"
+      ],
+      "properties": {
+        "ref_id": {
+          "type": "string",
+          "pattern": "^(post|metric|note|brief)_[A-Za-z0-9_]+$"
+        },
+        "ref_type": {
+          "type": "string",
+          "enum": ["content_post", "metric_aggregate", "team_note", "growth_brief"]
+        },
+        "source_index": {
+          "type": "string",
+          "enum": ["content_posts", "team_notes", "growth_briefs", "virtual_metric_aggregate"]
+        },
+        "title": {
+          "type": "string"
+        },
+        "summary": {
+          "type": "string"
+        },
+        "timestamp": {
+          "type": ["string", "null"],
+          "format": "date-time"
+        },
+        "score": {
+          "type": "number",
+          "minimum": 0
+        },
+        "metrics": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    "metricFilter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["metric_name", "operator", "value"],
+      "properties": {
+        "metric_name": {
+          "type": "string"
+        },
+        "operator": {
+          "type": "string",
+          "enum": ["gt", "gte", "lt", "lte", "eq"]
+        },
+        "value": {
+          "type": "number"
+        }
+      }
+    },
+    "toolError": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "message", "retryable"],
+      "properties": {
+        "code": {
+          "type": "string",
+          "enum": [
+            "INVALID_TOOL_REQUEST",
+            "MCP_TOOL_FAILED",
+            "INDEX_UNAVAILABLE",
+            "ESQL_FAILED",
+            "SEARCH_FAILED",
+            "NO_EVIDENCE_FOUND"
+          ]
+        },
+        "message": {
+          "type": "string"
+        },
+        "retryable": {
+          "type": "boolean"
+        }
+      }
+    },
+    "searchContentPostsRequest": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/commonRequestFields"
+        },
+        {
+          "type": "object",
+          "required": ["date_range", "limit"],
+          "properties": {
+            "date_range": {
+              "$ref": "#/$defs/dateRange"
+            },
+            "channels": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/channel"
+              }
+            },
+            "query": {
+              "type": ["string", "null"]
+            },
+            "metric_filters": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/metricFilter"
+              }
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50
+            }
+          }
+        }
+      ]
+    },
+    "searchContentPostsResponse": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ok", "tool_name", "mcp_tool", "evidence_refs", "duration_ms"],
+      "properties": {
+        "ok": {
+          "type": "boolean",
+          "const": true
+        },
+        "tool_name": {
+          "type": "string",
+          "const": "search_content_posts"
+        },
+        "mcp_tool": {
+          "type": "string",
+          "const": "search"
+        },
+        "evidence_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/evidenceRef"
+          }
+        },
+        "duration_ms": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "queryMetricBaselineRequest": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/commonRequestFields"
+        },
+        {
+          "type": "object",
+          "required": ["metric_name", "channel", "current_window", "baseline_window"],
+          "properties": {
+            "metric_name": {
+              "type": "string"
+            },
+            "channel": {
+              "$ref": "#/$defs/channel"
+            },
+            "current_window": {
+              "$ref": "#/$defs/dateRange"
+            },
+            "baseline_window": {
+              "$ref": "#/$defs/dateRange"
+            }
+          }
+        }
+      ]
+    },
+    "queryMetricBaselineResponse": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ok",
+        "tool_name",
+        "mcp_tool",
+        "metric_name",
+        "current_value",
+        "baseline_value",
+        "lift_ratio",
+        "evidence_refs",
+        "duration_ms"
+      ],
+      "properties": {
+        "ok": {
+          "type": "boolean",
+          "const": true
+        },
+        "tool_name": {
+          "type": "string",
+          "const": "query_metric_baseline"
+        },
+        "mcp_tool": {
+          "type": "string",
+          "const": "esql"
+        },
+        "metric_name": {
+          "type": "string"
+        },
+        "current_value": {
+          "type": "number"
+        },
+        "baseline_value": {
+          "type": "number"
+        },
+        "lift_ratio": {
+          "type": "number"
+        },
+        "evidence_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/evidenceRef"
+          }
+        },
+        "duration_ms": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "searchTeamNotesRequest": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/commonRequestFields"
+        },
+        {
+          "type": "object",
+          "required": ["query", "limit"],
+          "properties": {
+            "query": {
+              "type": "string",
+              "minLength": 1
+            },
+            "date_range": {
+              "$ref": "#/$defs/dateRange"
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50
+            }
+          }
+        }
+      ]
+    },
+    "searchTeamNotesResponse": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ok", "tool_name", "mcp_tool", "evidence_refs", "duration_ms"],
+      "properties": {
+        "ok": {
+          "type": "boolean",
+          "const": true
+        },
+        "tool_name": {
+          "type": "string",
+          "const": "search_team_notes"
+        },
+        "mcp_tool": {
+          "type": "string",
+          "const": "search"
+        },
+        "evidence_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/evidenceRef"
+          }
+        },
+        "duration_ms": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "loadGrowthBriefContextRequest": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/commonRequestFields"
+        },
+        {
+          "type": "object",
+          "required": ["parent_brief_id"],
+          "properties": {
+            "parent_brief_id": {
+              "type": "string",
+              "pattern": "^brief_[A-Za-z0-9_]+$"
+            }
+          }
+        }
+      ]
+    },
+    "loadGrowthBriefContextResponse": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ok", "tool_name", "mcp_tool", "evidence_refs", "duration_ms"],
+      "properties": {
+        "ok": {
+          "type": "boolean",
+          "const": true
+        },
+        "tool_name": {
+          "type": "string",
+          "const": "load_growth_brief_context"
+        },
+        "mcp_tool": {
+          "type": "string",
+          "const": "search"
+        },
+        "evidence_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/evidenceRef"
+          }
+        },
+        "duration_ms": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "toolErrorResponse": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ok", "tool_name", "mcp_tool", "error", "duration_ms"],
+      "properties": {
+        "ok": {
+          "type": "boolean",
+          "const": false
+        },
+        "tool_name": {
+          "type": "string"
+        },
+        "mcp_tool": {
+          "type": "string",
+          "enum": ["search", "esql", "get_mappings", "list_indices", "get_shards"]
+        },
+        "error": {
+          "$ref": "#/$defs/toolError"
+        },
+        "duration_ms": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    }
+  },
+  "oneOf": [
+    {
+      "$ref": "#/$defs/searchContentPostsRequest"
+    },
+    {
+      "$ref": "#/$defs/searchContentPostsResponse"
+    },
+    {
+      "$ref": "#/$defs/queryMetricBaselineRequest"
+    },
+    {
+      "$ref": "#/$defs/queryMetricBaselineResponse"
+    },
+    {
+      "$ref": "#/$defs/searchTeamNotesRequest"
+    },
+    {
+      "$ref": "#/$defs/searchTeamNotesResponse"
+    },
+    {
+      "$ref": "#/$defs/loadGrowthBriefContextRequest"
+    },
+    {
+      "$ref": "#/$defs/loadGrowthBriefContextResponse"
+    },
+    {
+      "$ref": "#/$defs/toolErrorResponse"
+    }
+  ]
+}

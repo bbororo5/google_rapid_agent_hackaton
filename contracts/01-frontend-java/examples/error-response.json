@@ -1,0 +1,12 @@
+{
+  "ok": false,
+  "error": {
+    "code": "RUN_NOT_APPROVABLE",
+    "message": "Agent run is not waiting for approval.",
+    "details": {
+      "agent_run_id": "run_20260601_001",
+      "status": "RUNNING_EVIDENCE_SEARCH"
+    },
+    "request_id": "req_20260601_001"
+  }
+}

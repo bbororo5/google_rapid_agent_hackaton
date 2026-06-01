@@ -1,0 +1,18 @@
+{
+  "ok": true,
+  "tool_name": "search_team_notes",
+  "mcp_tool": "search",
+  "evidence_refs": [
+    {
+      "ref_id": "note_006",
+      "ref_type": "team_note",
+      "source_index": "team_notes",
+      "title": "Fan comments after practice clip",
+      "summary": "Team noted unusually strong fan reaction to raw practice footage and face-first hooks.",
+      "timestamp": "2026-05-29T11:20:00+09:00",
+      "score": 0.84,
+      "metrics": {}
+    }
+  ],
+  "duration_ms": 310
+}

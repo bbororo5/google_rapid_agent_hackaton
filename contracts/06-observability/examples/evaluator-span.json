@@ -1,0 +1,26 @@
+{
+  "span_id": "span_eval_001",
+  "trace_id": "trc_20260601_001",
+  "parent_span_id": "span_guardrail_001",
+  "name": "launchpilot.validation",
+  "attributes": {
+    "openinference.span.kind": "EVALUATOR",
+    "input.mime_type": "application/json",
+    "input.value": "{\"known_evidence_refs\":[\"post_014\",\"post_017\",\"metric_20260601_001\",\"note_006\"]}",
+    "output.mime_type": "application/json",
+    "output.value": "{\"passed\":true,\"checks\":[\"schema\",\"evidence_refs\",\"id_links\"]}",
+    "metadata": {
+      "agent_run_id": "run_20260601_001",
+      "workspace_id": "demo_workspace",
+      "campaign_id": "camp_comeback_teaser",
+      "worker": "Reviewer Gate Component",
+      "stage": "VALIDATING",
+      "retry_count": 0,
+      "parent_brief_id": null,
+      "validator_passed": true,
+      "backtrack_count": 0
+    },
+    "session.id": "demo_workspace:camp_comeback_teaser"
+  },
+  "events": []
+}

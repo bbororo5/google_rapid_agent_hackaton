@@ -1,0 +1,24 @@
+{
+  "signals": [
+    {
+      "id": "sig_001",
+      "type": "content_outperformance",
+      "title": "BTS shorts outperformed recent baseline",
+      "description": "Two behind-the-scenes TikTok shorts showed save rates 2.8x above the 30-day channel baseline.",
+      "metric_name": "save_rate",
+      "current_value": 0.074,
+      "baseline_value": 0.026,
+      "lift_ratio": 2.8,
+      "date_window": {
+        "start": "2026-05-25",
+        "end": "2026-06-01"
+      },
+      "confidence": "high",
+      "evidence_refs": [
+        "post_014",
+        "post_017",
+        "metric_20260601_001"
+      ]
+    }
+  ]
+}

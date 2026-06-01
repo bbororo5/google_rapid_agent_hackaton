@@ -1,0 +1,490 @@
+openapi: 3.1.0
+info:
+  title: LaunchPilot Java-Python Agent Internal API
+  version: 0.1.0
+  description: >
+    Internal service-to-service contract between the Java Spring Boot backend
+    and the Python FastAPI Agent Service.
+servers:
+  - url: http://agent-service:8000/internal/agent
+tags:
+  - name: InternalAgent
+paths:
+  /runs:
+    post:
+      tags: [InternalAgent]
+      operationId: startInternalAgentRun
+      summary: Start a Python agent run using a Java-generated run ID.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InternalAgentRunRequest"
+      responses:
+        "202":
+          description: Agent run accepted by Python.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InternalAgentRunAcceptedResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "409":
+          description: Same agent_run_id was already started with a different request body.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /runs/{agent_run_id}:
+    get:
+      tags: [InternalAgent]
+      operationId: getInternalAgentRun
+      summary: Poll Python for current agent state and candidate payload.
+      parameters:
+        - $ref: "#/components/parameters/AgentRunId"
+      responses:
+        "200":
+          description: Current internal run state.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InternalAgentRunStatusResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /runs/{agent_run_id}/cancel:
+    post:
+      tags: [InternalAgent]
+      operationId: cancelInternalAgentRun
+      summary: Best-effort cancellation for an internal agent run.
+      parameters:
+        - $ref: "#/components/parameters/AgentRunId"
+      responses:
+        "202":
+          description: Cancellation accepted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InternalAgentRunCancelledResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+components:
+  parameters:
+    AgentRunId:
+      name: agent_run_id
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: "^run_[A-Za-z0-9_]+$"
+  responses:
+    BadRequest:
+      description: Invalid request.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    NotFound:
+      description: Resource not found.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+  schemas:
+    DateRange:
+      type: object
+      additionalProperties: false
+      required: [start, end]
+      properties:
+        start:
+          type: string
+          format: date
+        end:
+          type: string
+          format: date
+    Channel:
+      type: string
+      enum: [youtube, tiktok, instagram, x, unknown]
+    Confidence:
+      type: string
+      enum: [low, medium, medium_high, high]
+    AgentRunStatus:
+      type: string
+      enum:
+        - PENDING
+        - RUNNING_SIGNAL_DETECTION
+        - RUNNING_EVIDENCE_SEARCH
+        - RUNNING_HYPOTHESIS_GENERATION
+        - RUNNING_EXPERIMENT_GENERATION
+        - WAITING_FOR_APPROVAL
+        - SUCCESS
+        - FAILED
+    TraceContext:
+      type: object
+      additionalProperties: false
+      required: [request_id, source]
+      properties:
+        request_id:
+          type: string
+          pattern: "^req_[A-Za-z0-9_]+$"
+        source:
+          type: string
+          enum: [java-backend]
+        otel_trace_id:
+          type:
+            - string
+            - "null"
+    InternalAgentRunRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - agent_run_id
+        - workspace_id
+        - campaign_id
+        - question
+        - date_range
+        - trace_context
+      properties:
+        agent_run_id:
+          type: string
+          pattern: "^run_[A-Za-z0-9_]+$"
+        workspace_id:
+          type: string
+          minLength: 1
+        campaign_id:
+          type: string
+          minLength: 1
+        question:
+          type: string
+          minLength: 1
+          maxLength: 2000
+        date_range:
+          $ref: "#/components/schemas/DateRange"
+        parent_brief_id:
+          type:
+            - string
+            - "null"
+          pattern: "^brief_[A-Za-z0-9_]+$"
+        trace_context:
+          $ref: "#/components/schemas/TraceContext"
+    InternalAgentRunAcceptedResponse:
+      type: object
+      additionalProperties: false
+      required: [ok, agent_run_id, status, accepted_at]
+      properties:
+        ok:
+          type: boolean
+          const: true
+        agent_run_id:
+          type: string
+          pattern: "^run_[A-Za-z0-9_]+$"
+        status:
+          type: string
+          const: PENDING
+        accepted_at:
+          type: string
+          format: date-time
+    InternalAgentRunStatusResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - agent_run_id
+        - status
+        - current_stage
+        - retry_count
+        - error_message
+        - payload
+        - tool_call_logs
+        - agent_diagnostics
+        - started_at
+        - updated_at
+        - completed_at
+      properties:
+        agent_run_id:
+          type: string
+          pattern: "^run_[A-Za-z0-9_]+$"
+        status:
+          $ref: "#/components/schemas/AgentRunStatus"
+        current_stage:
+          type:
+            - string
+            - "null"
+        retry_count:
+          type: integer
+          minimum: 0
+        error_message:
+          type:
+            - string
+            - "null"
+        payload:
+          oneOf:
+            - $ref: "#/components/schemas/AgentResultPayload"
+            - type: "null"
+        tool_call_logs:
+          type: array
+          items:
+            $ref: "#/components/schemas/ToolCallLog"
+        agent_diagnostics:
+          $ref: "#/components/schemas/AgentDiagnostics"
+        started_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        completed_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+    InternalAgentRunCancelledResponse:
+      type: object
+      additionalProperties: false
+      required: [ok, agent_run_id, status, cancelled_at]
+      properties:
+        ok:
+          type: boolean
+          const: true
+        agent_run_id:
+          type: string
+          pattern: "^run_[A-Za-z0-9_]+$"
+        status:
+          type: string
+          const: FAILED
+        cancelled_at:
+          type: string
+          format: date-time
+    AgentDiagnostics:
+      type: object
+      additionalProperties: false
+      required:
+        - worker
+        - validator_passed
+        - backtrack_count
+        - phoenix_reflection_used
+        - trace_id
+      properties:
+        worker:
+          type:
+            - string
+            - "null"
+        validator_passed:
+          type:
+            - boolean
+            - "null"
+        backtrack_count:
+          type: integer
+          minimum: 0
+        phoenix_reflection_used:
+          type: boolean
+        trace_id:
+          type:
+            - string
+            - "null"
+          pattern: "^trc_[A-Za-z0-9_]+$"
+    AgentResultPayload:
+      type: object
+      additionalProperties: false
+      required: [signals, hypotheses, experiment_plan]
+      properties:
+        signals:
+          type: array
+          items:
+            $ref: "#/components/schemas/Signal"
+        hypotheses:
+          type: array
+          items:
+            $ref: "#/components/schemas/Hypothesis"
+        experiment_plan:
+          $ref: "#/components/schemas/ExperimentPlan"
+    Signal:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - type
+        - title
+        - description
+        - metric_name
+        - current_value
+        - baseline_value
+        - lift_ratio
+        - date_window
+        - confidence
+        - evidence_refs
+      properties:
+        id:
+          type: string
+          pattern: "^sig_[A-Za-z0-9_]+$"
+        type:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        metric_name:
+          type: string
+        current_value:
+          type: number
+        baseline_value:
+          type: number
+        lift_ratio:
+          type: number
+        date_window:
+          $ref: "#/components/schemas/DateRange"
+        confidence:
+          $ref: "#/components/schemas/Confidence"
+        evidence_refs:
+          type: array
+          items:
+            type: string
+    Hypothesis:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - signal_ids
+        - statement
+        - rationale
+        - confidence
+        - supporting_evidence_refs
+        - caveats
+      properties:
+        id:
+          type: string
+          pattern: "^hyp_[A-Za-z0-9_]+$"
+        signal_ids:
+          type: array
+          items:
+            type: string
+            pattern: "^sig_[A-Za-z0-9_]+$"
+        statement:
+          type: string
+        rationale:
+          type: string
+        confidence:
+          $ref: "#/components/schemas/Confidence"
+        supporting_evidence_refs:
+          type: array
+          items:
+            type: string
+        caveats:
+          type: array
+          items:
+            type: string
+    ExperimentPlan:
+      type: object
+      additionalProperties: false
+      required: [id, summary, overall_confidence, items]
+      properties:
+        id:
+          type: string
+          pattern: "^plan_[A-Za-z0-9_]+$"
+        summary:
+          type: string
+        overall_confidence:
+          $ref: "#/components/schemas/Confidence"
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ExperimentItem"
+    ExperimentItem:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - hypothesis_id
+        - title
+        - channel
+        - content_format
+        - hook
+        - cta
+        - target_metric
+        - success_criteria
+        - scheduled_at
+        - production_brief
+      properties:
+        id:
+          type: string
+          pattern: "^exp_[A-Za-z0-9_]+$"
+        hypothesis_id:
+          type: string
+          pattern: "^hyp_[A-Za-z0-9_]+$"
+        title:
+          type: string
+        channel:
+          $ref: "#/components/schemas/Channel"
+        content_format:
+          type: string
+        hook:
+          type: string
+        cta:
+          type: string
+        target_metric:
+          type: string
+        success_criteria:
+          type: string
+        scheduled_at:
+          type: string
+          format: date-time
+        production_brief:
+          type: string
+    ToolCallStatus:
+      type: string
+      enum: [PENDING, RUNNING, SUCCESS, FAILED]
+    ToolCallLog:
+      type: object
+      additionalProperties: false
+      required: [sequence, tool_name, status, duration_ms]
+      properties:
+        sequence:
+          type: integer
+          minimum: 1
+        tool_name:
+          type: string
+        status:
+          $ref: "#/components/schemas/ToolCallStatus"
+        duration_ms:
+          type:
+            - integer
+            - "null"
+          minimum: 0
+        error_message:
+          type:
+            - string
+            - "null"
+    ErrorResponse:
+      type: object
+      additionalProperties: false
+      required: [ok, error]
+      properties:
+        ok:
+          type: boolean
+          const: false
+        error:
+          $ref: "#/components/schemas/ErrorBody"
+    ErrorBody:
+      type: object
+      additionalProperties: false
+      required: [code, message, request_id]
+      properties:
+        code:
+          type: string
+          enum:
+            - INVALID_REQUEST
+            - RUN_NOT_FOUND
+            - RUN_ID_CONFLICT
+            - AGENT_BUSY
+            - TOOL_CALL_FAILED
+            - GEMINI_FAILED
+            - VALIDATION_FAILED
+            - INTERNAL_AGENT_ERROR
+        message:
+          type: string
+        details:
+          type: object
+          additionalProperties: true
+        request_id:
+          type: string
