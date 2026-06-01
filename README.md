@@ -7,6 +7,7 @@ This repository currently contains the architecture diagrams, component contract
 ## Documentation
 
 - [Architecture diagrams](docs/architecture/launchpilot-c4.md)
+- [Frontend state machine](docs/frontend/state-machine.md)
 - [Contract index](contracts/README.md)
 - [Scenario contract tests](scenarios/README.md)
 - [Playwright E2E acceptance tests](e2e/README.md)
