@@ -1,0 +1,122 @@
+{
+  "id": "main-analysis-approval",
+  "title": "CSV analysis to human approval",
+  "description": "Primary LaunchPilot flow from CSV import through asynchronous agent analysis, human approval, immutable Elastic persistence, and OpenInference trace linkage.",
+  "steps": [
+    {
+      "id": "import_csv",
+      "actor": "frontend",
+      "method": "POST",
+      "path": "/api/import/csv",
+      "fixture": "contracts/01-frontend-java/examples/import-csv-response.json",
+      "expect": {
+        "http_status": 201,
+        "ok": true
+      }
+    },
+    {
+      "id": "run_agent",
+      "actor": "frontend",
+      "method": "POST",
+      "path": "/api/agent/run",
+      "request_fixture": "contracts/01-frontend-java/examples/agent-run-request.json",
+      "fixture": "contracts/01-frontend-java/examples/agent-run-accepted-response.json",
+      "expect": {
+        "http_status": 202,
+        "ok": true,
+        "status": "PENDING"
+      }
+    },
+    {
+      "id": "internal_start_agent",
+      "actor": "java-backend",
+      "method": "POST",
+      "path": "/internal/agent/runs",
+      "request_fixture": "contracts/02-java-python-agent/examples/start-agent-run-request.json",
+      "fixture": "contracts/02-java-python-agent/examples/start-agent-run-response.json",
+      "expect": {
+        "http_status": 202,
+        "ok": true,
+        "status": "PENDING"
+      }
+    },
+    {
+      "id": "poll_running",
+      "actor": "frontend",
+      "method": "GET",
+      "path": "/api/agent/runs/{agent_run_id}",
+      "fixture": "contracts/01-frontend-java/examples/agent-run-running-response.json",
+      "expect": {
+        "http_status": 200,
+        "status": "RUNNING_EVIDENCE_SEARCH",
+        "payload_is_null": true
+      }
+    },
+    {
+      "id": "internal_poll_ready",
+      "actor": "java-backend",
+      "method": "GET",
+      "path": "/internal/agent/runs/{agent_run_id}",
+      "fixture": "contracts/02-java-python-agent/examples/get-agent-run-ready-response.json",
+      "expect": {
+        "http_status": 200,
+        "status": "WAITING_FOR_APPROVAL",
+        "payload_is_present": true
+      }
+    },
+    {
+      "id": "poll_ready",
+      "actor": "frontend",
+      "method": "GET",
+      "path": "/api/agent/runs/{agent_run_id}",
+      "fixture": "contracts/01-frontend-java/examples/agent-run-waiting-for-approval-response.json",
+      "expect": {
+        "http_status": 200,
+        "status": "WAITING_FOR_APPROVAL",
+        "payload_is_present": true
+      }
+    },
+    {
+      "id": "approve_plan",
+      "actor": "frontend",
+      "method": "POST",
+      "path": "/api/agent/actions/{agent_run_id}/approve",
+      "request_fixture": "contracts/01-frontend-java/examples/approve-experiment-plan-request.json",
+      "fixture": "contracts/01-frontend-java/examples/approve-experiment-plan-response.json",
+      "expect": {
+        "http_status": 200,
+        "ok": true
+      }
+    },
+    {
+      "id": "persist_growth_brief",
+      "actor": "java-backend",
+      "storage": "elastic",
+      "index": "growth_briefs",
+      "fixture": "contracts/03-java-elastic/examples/growth-brief.json"
+    },
+    {
+      "id": "persist_calendar_event",
+      "actor": "java-backend",
+      "storage": "elastic",
+      "index": "calendar_events",
+      "fixture": "contracts/03-java-elastic/examples/calendar-event.json"
+    },
+    {
+      "id": "emit_openinference_trace",
+      "actor": "python-agent",
+      "telemetry": "openinference",
+      "fixture": "contracts/06-observability/examples/agent-run-trace.json"
+    }
+  ],
+  "invariants": [
+    "agent_run_id is stable across public and internal agent lifecycle fixtures",
+    "frontend poll_ready payload matches the internal ready payload shape",
+    "approval request uses experiment_plan.id from poll_ready",
+    "approval response growth_brief_id matches persisted growth_brief",
+    "calendar_events reference approved experiments",
+    "final payload evidence refs are grounded by evidence tool outputs",
+    "trace_id links internal agent diagnostics to OpenInference trace",
+    "retriever span document IDs are grounded by EvidenceRef outputs"
+  ]
+}

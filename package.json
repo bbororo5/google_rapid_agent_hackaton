@@ -2,7 +2,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test:contracts": "node tools/verify-contracts.mjs"
+    "test": "npm run test:contracts && npm run test:scenarios",
+    "test:contracts": "node tools/verify-contracts.mjs",
+    "test:scenarios": "node tools/verify-scenarios.mjs"
   },
   "devDependencies": {
     "ajv": "^8.20.0",
