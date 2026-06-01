@@ -13,6 +13,7 @@ This state machine translates the contracts and executable scenario into impleme
 - `contracts/01-frontend-java/frontend-types.ts`
 - `scenarios/main-analysis-approval.scenario.json`
 - `e2e/main-analysis-approval.mock.spec.ts`
+- `docs/product/mvp-requirements-traceability.md`
 
 ## Design Principles
 
@@ -21,6 +22,7 @@ This state machine translates the contracts and executable scenario into impleme
 - Backend polling state is the source of truth for analysis progress.
 - User edits are local draft state until `APPROVE_REQUESTED`.
 - Approval success creates calendar/brief output and moves the UI into an approved state.
+- A continued session must preserve the linear chain from prior hypothesis to approved action, observed result, and next recommendation.
 - The reducer should make impossible states unrepresentable.
 
 ## High-Level State Diagram
@@ -58,6 +60,12 @@ stateDiagram-v2
 
   analysis_failed --> idle: RESET
   approved --> idle: RESET
+
+  approved --> restore_selecting: CONTINUE_FROM_BRIEF
+  restore_selecting --> restoring_context: RESTORE_CONTEXT_REQUESTED
+  restoring_context --> restored_context: RESTORE_CONTEXT_SUCCEEDED
+  restored_context --> starting_analysis: RUN_AGENT_REQUESTED
+  restoring_context --> analysis_failed: RESTORE_CONTEXT_FAILED
 ```
 
 ## State Model
@@ -81,7 +89,19 @@ type WarRoomState =
   | { tag: "importing_csv"; file: File }
   | { tag: "import_succeeded"; file: File; importResult: ImportCsvResponse }
   | { tag: "import_failed"; file?: File; message: string }
-  | { tag: "starting_analysis"; importResult: ImportCsvResponse }
+  | {
+      tag: "starting_analysis";
+      source:
+        | { kind: "csv_import"; importResult: ImportCsvResponse }
+        | {
+            kind: "continued_brief";
+            parentBriefId: string;
+            previousHypothesis: string;
+            previousActionSummary: string;
+            observedResultSummary: string | null;
+            continuityPrompt: string;
+          };
+    }
   | { tag: "analysis_pending"; agentRunId: string; status: "PENDING"; toolLogs: ToolCallLog[] }
   | {
       tag: "analysis_running";
@@ -122,6 +142,22 @@ type WarRoomState =
       finalExperiments: ExperimentItem[];
     }
   | {
+      tag: "restore_selecting";
+      parentBriefId: string;
+    }
+  | {
+      tag: "restoring_context";
+      parentBriefId: string;
+    }
+  | {
+      tag: "restored_context";
+      parentBriefId: string;
+      previousHypothesis: string;
+      previousActionSummary: string;
+      observedResultSummary: string | null;
+      continuityPrompt: string;
+    }
+  | {
       tag: "analysis_failed" | "approval_failed";
       agentRunId?: string;
       message: string;
@@ -148,6 +184,16 @@ type WarRoomEvent =
   | { type: "APPROVE_REQUESTED" }
   | { type: "APPROVE_SUCCEEDED"; approval: ApproveExperimentPlanResponse }
   | { type: "APPROVE_FAILED"; message: string }
+  | { type: "CONTINUE_FROM_BRIEF"; parentBriefId: string }
+  | { type: "RESTORE_CONTEXT_REQUESTED" }
+  | {
+      type: "RESTORE_CONTEXT_SUCCEEDED";
+      previousHypothesis: string;
+      previousActionSummary: string;
+      observedResultSummary: string | null;
+      continuityPrompt: string;
+    }
+  | { type: "RESTORE_CONTEXT_FAILED"; message: string }
   | { type: "RESET" };
 ```
 
@@ -159,7 +205,7 @@ type WarRoomEvent =
 | `csv_selected` | `IMPORT_REQUESTED` | `importing_csv` | Calls `POST /api/import/csv`. |
 | `importing_csv` | `IMPORT_SUCCEEDED` | `import_succeeded` | Store `ImportCsvResponse`. |
 | `importing_csv` | `IMPORT_FAILED` | `import_failed` | Show retry affordance. |
-| `import_succeeded` | `RUN_AGENT_REQUESTED` | `starting_analysis` | Calls `POST /api/agent/run`. |
+| `import_succeeded` | `RUN_AGENT_REQUESTED` | `starting_analysis` | Calls `POST /api/agent/run` with `source.kind = "csv_import"`. |
 | `starting_analysis` | `RUN_AGENT_ACCEPTED` | `analysis_pending` | Store `agent_run_id`. |
 | `analysis_pending` | `POLL_RUNNING` | `analysis_running` | `payload` must be null. |
 | `analysis_running` | `POLL_RUNNING` | `analysis_running` | Append/replace tool logs. |
@@ -168,6 +214,11 @@ type WarRoomEvent =
 | `waiting_for_approval` / `editing_plan` | `APPROVE_REQUESTED` | `approving` | Builds `ApproveExperimentPlanRequest`. |
 | `approving` | `APPROVE_SUCCEEDED` | `approved` | State passing to calendar can use local final experiments. |
 | `approving` | `APPROVE_FAILED` | `approval_failed` | Preserve local draft through retry. |
+| `approved` | `CONTINUE_FROM_BRIEF` | `restore_selecting` | Start a new analysis from an approved `growth_brief_id`. |
+| `restore_selecting` | `RESTORE_CONTEXT_REQUESTED` | `restoring_context` | Load previous hypothesis, approved action, and observed result context. |
+| `restoring_context` | `RESTORE_CONTEXT_SUCCEEDED` | `restored_context` | Show continuity context before the next run. |
+| `restored_context` | `RUN_AGENT_REQUESTED` | `starting_analysis` | Calls `POST /api/agent/run` with `source.kind = "continued_brief"` and `parent_brief_id`. |
+| `restoring_context` | `RESTORE_CONTEXT_FAILED` | `analysis_failed` | Restore failure blocks continuation. |
 | `analysis_failed` / `approved` | `RESET` | `idle` | Start over. |
 
 ## Screen Mapping
@@ -187,6 +238,9 @@ type WarRoomEvent =
 | `approved` | Calendar / Brief Confirmation | Approved experiment title and approval/calendar confirmation. |
 | `analysis_failed` | Recoverable Error | Failure message and reset/retry actions. |
 | `approval_failed` | Approval Error | Preserve draft and allow retry. |
+| `restore_selecting` | Continue Prior Brief | Selected prior brief ID and continue action. |
+| `restoring_context` | Restoring Context | Loading prior brief lineage. |
+| `restored_context` | Continuity Workroom | Previous hypothesis, approved action, observed result, next analysis prompt. |
 
 ## API Side Effects
 
@@ -196,6 +250,21 @@ type WarRoomEvent =
 | `RUN_AGENT_REQUESTED` | `POST /api/agent/run` | `contracts/01-frontend-java/examples/agent-run-accepted-response.json` |
 | polling tick | `GET /api/agent/runs/{agent_run_id}` | running or ready agent run response |
 | `APPROVE_REQUESTED` | `POST /api/agent/actions/{agent_run_id}/approve` | `approve-experiment-plan-response.json` |
+| `RESTORE_CONTEXT_REQUESTED` | Frontend prepares local lineage context from the approved brief or selected history entry | `contracts/03-java-elastic/examples/growth-brief.json` |
+| continued `RUN_AGENT_REQUESTED` | `POST /api/agent/run` with `parent_brief_id` | `contracts/01-frontend-java/openapi.yaml`, `contracts/04-agent-elastic-mcp/examples/load-growth-brief-context-response.json` |
+
+## MVP Analyze Action
+
+For the MVP, the visible primary action after CSV selection is a single `Analyze` button.
+
+Internally, this button runs two ordered effects:
+
+1. Dispatch `IMPORT_REQUESTED` and call `POST /api/import/csv`.
+2. After `IMPORT_SUCCEEDED`, dispatch `RUN_AGENT_REQUESTED` and call `POST /api/agent/run`.
+
+The state machine keeps `import_succeeded` as an explicit state because importing and analysis are different backend responsibilities. The UI may pass through it immediately without requiring a second user click.
+
+The user-facing progress copy must still distinguish import work from agent reasoning.
 
 ## Approval Request Construction
 
@@ -216,6 +285,23 @@ Validation before approval:
 - At least one experiment must be selected.
 - Every selected experiment must have `title`, `hook`, `cta`, `success_criteria`, `scheduled_at`, and `production_brief`.
 - `experiment_plan_id` must come from the latest `POLL_READY` payload.
+- MVP default is to approve all draft experiments. Dedicated checkbox selection is deferred; a later chat or command interaction may mutate the draft experiment set before approval.
+
+## Continuity And Restore Rules
+
+Continuation is part of the campaign learning loop, not a generic history feature.
+
+When the user continues from an approved brief, preserve this lineage:
+
+1. `parent_brief_id`
+2. previous approved hypothesis
+3. previous approved action or experiment
+4. observed result or metric outcome, when available
+5. next analysis question
+
+`RUN_AGENT_REQUESTED` from `restored_context` must include `parent_brief_id` in the request body. The Python agent then uses `load_growth_brief_context` through the Elastic MCP wrapper to retrieve the approved prior context.
+
+The UI must make the lineage visible in the continuation surface. The next recommendation should be framed as a follow-up to the previous hypothesis/action/result chain, not as an unrelated fresh analysis.
 
 ## Polling Rules
 
@@ -248,3 +334,4 @@ These hooks are not decorative; they are the first executable acceptance target 
 - Do not store pending candidate experiments in Elastic before approval.
 - Keep original `payload` immutable and apply user edits to `draftExperiments`.
 - `selectedExperimentIds` should default to all experiment IDs from the ready payload for the happy path.
+- Keep continuity context immutable during a continued run; user edits apply to the next draft, not to the prior approved brief.
