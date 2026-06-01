@@ -1,0 +1,349 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://launchpilot.local/contracts/agent-output.schema.json",
+  "title": "LaunchPilot Agent Structured Output Schemas",
+  "type": "object",
+  "$defs": {
+    "channel": {
+      "type": "string",
+      "enum": ["youtube", "tiktok", "instagram", "x", "unknown"]
+    },
+    "confidence": {
+      "type": "string",
+      "enum": ["low", "medium", "medium_high", "high"]
+    },
+    "dateRange": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["start", "end"],
+      "properties": {
+        "start": {
+          "type": "string",
+          "format": "date"
+        },
+        "end": {
+          "type": "string",
+          "format": "date"
+        }
+      }
+    },
+    "signal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "type",
+        "title",
+        "description",
+        "metric_name",
+        "current_value",
+        "baseline_value",
+        "lift_ratio",
+        "date_window",
+        "confidence",
+        "evidence_refs"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^sig_[A-Za-z0-9_]+$"
+        },
+        "type": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "metric_name": {
+          "type": "string"
+        },
+        "current_value": {
+          "type": "number"
+        },
+        "baseline_value": {
+          "type": "number"
+        },
+        "lift_ratio": {
+          "type": "number"
+        },
+        "date_window": {
+          "$ref": "#/$defs/dateRange"
+        },
+        "confidence": {
+          "$ref": "#/$defs/confidence"
+        },
+        "evidence_refs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^(post|metric|note|brief)_[A-Za-z0-9_]+$"
+          },
+          "minItems": 1
+        }
+      }
+    },
+    "hypothesis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "signal_ids",
+        "statement",
+        "rationale",
+        "confidence",
+        "supporting_evidence_refs",
+        "caveats"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^hyp_[A-Za-z0-9_]+$"
+        },
+        "signal_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^sig_[A-Za-z0-9_]+$"
+          },
+          "minItems": 1
+        },
+        "statement": {
+          "type": "string"
+        },
+        "rationale": {
+          "type": "string"
+        },
+        "confidence": {
+          "$ref": "#/$defs/confidence"
+        },
+        "supporting_evidence_refs": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^(post|metric|note|brief)_[A-Za-z0-9_]+$"
+          },
+          "minItems": 1
+        },
+        "caveats": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "experimentItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "hypothesis_id",
+        "title",
+        "channel",
+        "content_format",
+        "hook",
+        "cta",
+        "target_metric",
+        "success_criteria",
+        "scheduled_at",
+        "production_brief"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^exp_[A-Za-z0-9_]+$"
+        },
+        "hypothesis_id": {
+          "type": "string",
+          "pattern": "^hyp_[A-Za-z0-9_]+$"
+        },
+        "title": {
+          "type": "string"
+        },
+        "channel": {
+          "$ref": "#/$defs/channel"
+        },
+        "content_format": {
+          "type": "string"
+        },
+        "hook": {
+          "type": "string"
+        },
+        "cta": {
+          "type": "string"
+        },
+        "target_metric": {
+          "type": "string"
+        },
+        "success_criteria": {
+          "type": "string"
+        },
+        "scheduled_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "production_brief": {
+          "type": "string"
+        }
+      }
+    },
+    "experimentPlan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "summary", "overall_confidence", "items"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^plan_[A-Za-z0-9_]+$"
+        },
+        "summary": {
+          "type": "string"
+        },
+        "overall_confidence": {
+          "$ref": "#/$defs/confidence"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/experimentItem"
+          },
+          "minItems": 1
+        }
+      }
+    },
+    "signalDraftOutput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["signals"],
+      "properties": {
+        "signals": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/signal"
+          },
+          "minItems": 1
+        }
+      }
+    },
+    "hypothesisDraftOutput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hypotheses"],
+      "properties": {
+        "hypotheses": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/hypothesis"
+          },
+          "minItems": 1
+        }
+      }
+    },
+    "experimentPlanDraftOutput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["experiment_plan"],
+      "properties": {
+        "experiment_plan": {
+          "$ref": "#/$defs/experimentPlan"
+        }
+      }
+    },
+    "agentResultPayload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["signals", "hypotheses", "experiment_plan"],
+      "properties": {
+        "signals": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/signal"
+          }
+        },
+        "hypotheses": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/hypothesis"
+          }
+        },
+        "experiment_plan": {
+          "$ref": "#/$defs/experimentPlan"
+        }
+      }
+    },
+    "validationIssue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "message", "path", "suggested_fix"],
+      "properties": {
+        "code": {
+          "type": "string",
+          "enum": [
+            "SCHEMA_INVALID",
+            "UNKNOWN_EVIDENCE_REF",
+            "UNKNOWN_SIGNAL_ID",
+            "UNKNOWN_HYPOTHESIS_ID",
+            "EMPTY_EXPERIMENT_PLAN",
+            "MISSING_SUCCESS_CRITERIA",
+            "MISSING_SCHEDULE",
+            "LOW_CONFIDENCE_WITHOUT_CAVEAT",
+            "UNSUPPORTED_CHANNEL",
+            "UNSAFE_OR_UNGROUNDED_CLAIM"
+          ]
+        },
+        "message": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "suggested_fix": {
+          "type": "string"
+        }
+      }
+    },
+    "validationReport": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["passed", "severity", "issues", "retry_instruction"],
+      "properties": {
+        "passed": {
+          "type": "boolean"
+        },
+        "severity": {
+          "type": "string",
+          "enum": ["none", "warning", "blocking"]
+        },
+        "issues": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/validationIssue"
+          }
+        },
+        "retry_instruction": {
+          "type": ["string", "null"]
+        }
+      }
+    }
+  },
+  "oneOf": [
+    {
+      "$ref": "#/$defs/signalDraftOutput"
+    },
+    {
+      "$ref": "#/$defs/hypothesisDraftOutput"
+    },
+    {
+      "$ref": "#/$defs/experimentPlanDraftOutput"
+    },
+    {
+      "$ref": "#/$defs/validationReport"
+    },
+    {
+      "$ref": "#/$defs/agentResultPayload"
+    }
+  ]
+}

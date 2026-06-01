@@ -1,0 +1,9 @@
+{
+  "agent_run_id": "run_20260601_001",
+  "status": "FAILED",
+  "current_stage": "VALIDATING",
+  "retry_count": 2,
+  "error_message": "Experiment plan schema validation failed after retry.",
+  "payload": null,
+  "tool_call_logs": []
+}

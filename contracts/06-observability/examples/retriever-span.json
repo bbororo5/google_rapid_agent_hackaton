@@ -1,0 +1,45 @@
+{
+  "span_id": "span_retriever_001",
+  "trace_id": "trc_20260601_001",
+  "parent_span_id": "span_chain_001",
+  "name": "launchpilot.evidence.search_content_posts",
+  "attributes": {
+    "openinference.span.kind": "RETRIEVER",
+    "input.mime_type": "application/json",
+    "input.value": "{\"query\":\"behind the scenes practice clips\",\"date_range\":{\"start\":\"2026-05-25\",\"end\":\"2026-06-01\"}}",
+    "output.mime_type": "application/json",
+    "output.value": "{\"evidence_refs\":[\"post_014\",\"post_017\"]}",
+    "metadata": {
+      "agent_run_id": "run_20260601_001",
+      "workspace_id": "demo_workspace",
+      "campaign_id": "camp_comeback_teaser",
+      "worker": "Data Analyst Worker",
+      "stage": "RUNNING_EVIDENCE_SEARCH",
+      "retry_count": 0,
+      "parent_brief_id": null,
+      "tool_name": "search_content_posts"
+    },
+    "session.id": "demo_workspace:camp_comeback_teaser",
+    "retrieval.documents": [
+      {
+        "document.id": "post_014",
+        "document.content": "TikTok BTS clip with save_rate 0.074 and strong fan engagement.",
+        "document.score": 0.92,
+        "document.metadata": {
+          "source_index": "content_posts",
+          "channel": "tiktok"
+        }
+      },
+      {
+        "document.id": "post_017",
+        "document.content": "Second BTS short also exceeded baseline save rate.",
+        "document.score": 0.88,
+        "document.metadata": {
+          "source_index": "content_posts",
+          "channel": "tiktok"
+        }
+      }
+    ]
+  },
+  "events": []
+}

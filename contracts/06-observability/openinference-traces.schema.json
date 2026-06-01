@@ -1,0 +1,221 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://launchpilot.local/contracts/openinference-traces.schema.json",
+  "title": "LaunchPilot OpenInference Trace Fixtures",
+  "type": "object",
+  "$defs": {
+    "spanKind": {
+      "type": "string",
+      "enum": [
+        "LLM",
+        "EMBEDDING",
+        "CHAIN",
+        "RETRIEVER",
+        "RERANKER",
+        "TOOL",
+        "AGENT",
+        "GUARDRAIL",
+        "EVALUATOR",
+        "PROMPT"
+      ]
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["agent_run_id", "workspace_id", "campaign_id"],
+      "properties": {
+        "agent_run_id": {
+          "type": "string",
+          "pattern": "^run_[A-Za-z0-9_]+$"
+        },
+        "workspace_id": {
+          "type": "string"
+        },
+        "campaign_id": {
+          "type": "string"
+        },
+        "worker": {
+          "type": ["string", "null"]
+        },
+        "stage": {
+          "type": ["string", "null"]
+        },
+        "retry_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "parent_brief_id": {
+          "type": ["string", "null"],
+          "pattern": "^brief_[A-Za-z0-9_]+$"
+        },
+        "validator_passed": {
+          "type": ["boolean", "null"]
+        },
+        "backtrack_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "tool_name": {
+          "type": ["string", "null"]
+        },
+        "model_provider": {
+          "type": ["string", "null"]
+        },
+        "model_name": {
+          "type": ["string", "null"]
+        }
+      }
+    },
+    "document": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["document.id", "document.content", "document.score", "document.metadata"],
+      "properties": {
+        "document.id": {
+          "type": "string",
+          "pattern": "^(post|metric|note|brief)_[A-Za-z0-9_]+$"
+        },
+        "document.content": {
+          "type": "string"
+        },
+        "document.score": {
+          "type": "number",
+          "minimum": 0
+        },
+        "document.metadata": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      }
+    },
+    "span": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "span_id",
+        "trace_id",
+        "parent_span_id",
+        "name",
+        "attributes"
+      ],
+      "properties": {
+        "span_id": {
+          "type": "string"
+        },
+        "trace_id": {
+          "type": "string",
+          "pattern": "^trc_[A-Za-z0-9_]+$"
+        },
+        "parent_span_id": {
+          "type": ["string", "null"]
+        },
+        "name": {
+          "type": "string"
+        },
+        "attributes": {
+          "$ref": "#/$defs/spanAttributes"
+        },
+        "events": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
+      }
+    },
+    "spanAttributes": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "openinference.span.kind",
+        "input.mime_type",
+        "input.value",
+        "output.mime_type",
+        "output.value",
+        "metadata",
+        "session.id"
+      ],
+      "properties": {
+        "openinference.span.kind": {
+          "$ref": "#/$defs/spanKind"
+        },
+        "input.mime_type": {
+          "type": "string"
+        },
+        "input.value": {
+          "type": "string"
+        },
+        "output.mime_type": {
+          "type": "string"
+        },
+        "output.value": {
+          "type": "string"
+        },
+        "metadata": {
+          "$ref": "#/$defs/metadata"
+        },
+        "session.id": {
+          "type": "string"
+        },
+        "tool.name": {
+          "type": "string"
+        },
+        "tool.parameters": {
+          "type": "string"
+        },
+        "retrieval.documents": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/document"
+          }
+        },
+        "llm.input_messages.0.message.role": {
+          "type": "string"
+        },
+        "llm.input_messages.0.message.content": {
+          "type": "string"
+        },
+        "llm.output_messages.0.message.role": {
+          "type": "string"
+        },
+        "llm.output_messages.0.message.content": {
+          "type": "string"
+        }
+      }
+    },
+    "trace": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["trace_id", "agent_run_id", "session_id", "spans"],
+      "properties": {
+        "trace_id": {
+          "type": "string",
+          "pattern": "^trc_[A-Za-z0-9_]+$"
+        },
+        "agent_run_id": {
+          "type": "string",
+          "pattern": "^run_[A-Za-z0-9_]+$"
+        },
+        "session_id": {
+          "type": "string"
+        },
+        "spans": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/span"
+          },
+          "minItems": 1
+        }
+      }
+    }
+  },
+  "oneOf": [
+    {
+      "$ref": "#/$defs/span"
+    },
+    {
+      "$ref": "#/$defs/trace"
+    }
+  ]
+}

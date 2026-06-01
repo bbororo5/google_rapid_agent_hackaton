@@ -1,0 +1,11 @@
+{
+  "ok": false,
+  "tool_name": "search_team_notes",
+  "mcp_tool": "search",
+  "error": {
+    "code": "INDEX_UNAVAILABLE",
+    "message": "team_notes index is not available in this environment.",
+    "retryable": false
+  },
+  "duration_ms": 12
+}

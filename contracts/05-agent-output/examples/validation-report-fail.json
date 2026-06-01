@@ -1,0 +1,13 @@
+{
+  "passed": false,
+  "severity": "blocking",
+  "issues": [
+    {
+      "code": "UNKNOWN_EVIDENCE_REF",
+      "message": "hyp_001 references note_999, which was not returned by evidence tools.",
+      "path": "hypotheses[0].supporting_evidence_refs[1]",
+      "suggested_fix": "Remove note_999 or retrieve valid team note evidence before regenerating the hypothesis."
+    }
+  ],
+  "retry_instruction": "Regenerate hypotheses using only available evidence refs: post_014, post_017, metric_20260601_001, note_006."
+}

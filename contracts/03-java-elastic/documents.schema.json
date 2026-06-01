@@ -1,0 +1,424 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://launchpilot.local/contracts/elastic-documents.schema.json",
+  "title": "LaunchPilot Elastic Documents",
+  "type": "object",
+  "$defs": {
+    "channel": {
+      "type": "string",
+      "enum": ["youtube", "tiktok", "instagram", "x", "unknown"]
+    },
+    "confidence": {
+      "type": "string",
+      "enum": ["low", "medium", "medium_high", "high"]
+    },
+    "dateRange": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["start", "end"],
+      "properties": {
+        "start": {
+          "type": "string",
+          "format": "date"
+        },
+        "end": {
+          "type": "string",
+          "format": "date"
+        }
+      }
+    },
+    "signalSnapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "type",
+        "title",
+        "description",
+        "metric_name",
+        "current_value",
+        "baseline_value",
+        "lift_ratio",
+        "date_window",
+        "confidence",
+        "evidence_refs"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^sig_[A-Za-z0-9_]+$"
+        },
+        "type": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "metric_name": {
+          "type": "string"
+        },
+        "current_value": {
+          "type": "number"
+        },
+        "baseline_value": {
+          "type": "number"
+        },
+        "lift_ratio": {
+          "type": "number"
+        },
+        "date_window": {
+          "$ref": "#/$defs/dateRange"
+        },
+        "confidence": {
+          "$ref": "#/$defs/confidence"
+        },
+        "evidence_refs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "hypothesisSnapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "signal_ids",
+        "statement",
+        "rationale",
+        "confidence",
+        "supporting_evidence_refs",
+        "caveats"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^hyp_[A-Za-z0-9_]+$"
+        },
+        "signal_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^sig_[A-Za-z0-9_]+$"
+          }
+        },
+        "statement": {
+          "type": "string"
+        },
+        "rationale": {
+          "type": "string"
+        },
+        "confidence": {
+          "$ref": "#/$defs/confidence"
+        },
+        "supporting_evidence_refs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "caveats": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "experimentSnapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "hypothesis_id",
+        "title",
+        "channel",
+        "content_format",
+        "hook",
+        "cta",
+        "target_metric",
+        "success_criteria",
+        "scheduled_at",
+        "production_brief"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^exp_[A-Za-z0-9_]+$"
+        },
+        "hypothesis_id": {
+          "type": "string",
+          "pattern": "^hyp_[A-Za-z0-9_]+$"
+        },
+        "title": {
+          "type": "string"
+        },
+        "channel": {
+          "$ref": "#/$defs/channel"
+        },
+        "content_format": {
+          "type": "string"
+        },
+        "hook": {
+          "type": "string"
+        },
+        "cta": {
+          "type": "string"
+        },
+        "target_metric": {
+          "type": "string"
+        },
+        "success_criteria": {
+          "type": "string"
+        },
+        "scheduled_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "production_brief": {
+          "type": "string"
+        }
+      }
+    },
+    "contentPost": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "post_id",
+        "workspace_id",
+        "campaign_id",
+        "channel",
+        "published_at",
+        "title",
+        "metrics",
+        "source",
+        "ingested_at"
+      ],
+      "properties": {
+        "post_id": {
+          "type": "string",
+          "pattern": "^post_[A-Za-z0-9_]+$"
+        },
+        "workspace_id": {
+          "type": "string"
+        },
+        "campaign_id": {
+          "type": "string"
+        },
+        "channel": {
+          "$ref": "#/$defs/channel"
+        },
+        "published_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "title": {
+          "type": "string"
+        },
+        "permalink": {
+          "type": ["string", "null"]
+        },
+        "metrics": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number"
+          }
+        },
+        "source": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["import_id", "filename", "row_number"],
+          "properties": {
+            "import_id": {
+              "type": "string",
+              "pattern": "^imp_[A-Za-z0-9_]+$"
+            },
+            "filename": {
+              "type": "string"
+            },
+            "row_number": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        },
+        "raw": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "ingested_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "growthBrief": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "growth_brief_id",
+        "workspace_id",
+        "campaign_id",
+        "agent_run_id",
+        "experiment_plan_id",
+        "approved_by",
+        "approved_at",
+        "summary",
+        "signals",
+        "hypotheses",
+        "final_experiments",
+        "source_evidence_refs",
+        "calendar_event_ids",
+        "version",
+        "created_at"
+      ],
+      "properties": {
+        "growth_brief_id": {
+          "type": "string",
+          "pattern": "^brief_[A-Za-z0-9_]+$"
+        },
+        "workspace_id": {
+          "type": "string"
+        },
+        "campaign_id": {
+          "type": "string"
+        },
+        "agent_run_id": {
+          "type": "string",
+          "pattern": "^run_[A-Za-z0-9_]+$"
+        },
+        "experiment_plan_id": {
+          "type": "string",
+          "pattern": "^plan_[A-Za-z0-9_]+$"
+        },
+        "approved_by": {
+          "type": "string"
+        },
+        "approved_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "summary": {
+          "type": "string"
+        },
+        "signals": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/signalSnapshot"
+          }
+        },
+        "hypotheses": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/hypothesisSnapshot"
+          }
+        },
+        "final_experiments": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/experimentSnapshot"
+          },
+          "minItems": 1
+        },
+        "source_evidence_refs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "calendar_event_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^cal_[A-Za-z0-9_]+$"
+          }
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "calendarEvent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "event_id",
+        "growth_brief_id",
+        "experiment_id",
+        "workspace_id",
+        "campaign_id",
+        "title",
+        "channel",
+        "scheduled_at",
+        "target_metric",
+        "success_criteria",
+        "production_brief",
+        "created_at"
+      ],
+      "properties": {
+        "event_id": {
+          "type": "string",
+          "pattern": "^cal_[A-Za-z0-9_]+$"
+        },
+        "growth_brief_id": {
+          "type": "string",
+          "pattern": "^brief_[A-Za-z0-9_]+$"
+        },
+        "experiment_id": {
+          "type": "string",
+          "pattern": "^exp_[A-Za-z0-9_]+$"
+        },
+        "workspace_id": {
+          "type": "string"
+        },
+        "campaign_id": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "channel": {
+          "$ref": "#/$defs/channel"
+        },
+        "scheduled_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "target_metric": {
+          "type": "string"
+        },
+        "success_criteria": {
+          "type": "string"
+        },
+        "production_brief": {
+          "type": "string"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    }
+  },
+  "oneOf": [
+    {
+      "$ref": "#/$defs/contentPost"
+    },
+    {
+      "$ref": "#/$defs/growthBrief"
+    },
+    {
+      "$ref": "#/$defs/calendarEvent"
+    }
+  ]
+}

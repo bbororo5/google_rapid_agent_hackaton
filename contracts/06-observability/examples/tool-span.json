@@ -1,0 +1,27 @@
+{
+  "span_id": "span_tool_001",
+  "trace_id": "trc_20260601_001",
+  "parent_span_id": "span_retriever_001",
+  "name": "search_content_posts",
+  "attributes": {
+    "openinference.span.kind": "TOOL",
+    "input.mime_type": "application/json",
+    "input.value": "{\"workspace_id\":\"demo_workspace\",\"campaign_id\":\"camp_comeback_teaser\",\"query\":\"behind the scenes practice clips\"}",
+    "output.mime_type": "application/json",
+    "output.value": "{\"evidence_refs\":[\"post_014\",\"post_017\"]}",
+    "metadata": {
+      "agent_run_id": "run_20260601_001",
+      "workspace_id": "demo_workspace",
+      "campaign_id": "camp_comeback_teaser",
+      "worker": "Data Analyst Worker",
+      "stage": "RUNNING_EVIDENCE_SEARCH",
+      "retry_count": 0,
+      "parent_brief_id": null,
+      "tool_name": "search_content_posts"
+    },
+    "session.id": "demo_workspace:camp_comeback_teaser",
+    "tool.name": "search_content_posts",
+    "tool.parameters": "{\"index\":\"content_posts\",\"limit\":10}"
+  },
+  "events": []
+}

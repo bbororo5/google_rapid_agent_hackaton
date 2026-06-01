@@ -1,0 +1,33 @@
+{
+  "post_id": "post_014",
+  "workspace_id": "demo_workspace",
+  "campaign_id": "camp_comeback_teaser",
+  "channel": "tiktok",
+  "published_at": "2026-05-27T20:00:00+09:00",
+  "title": "Practice room BTS clip",
+  "permalink": "https://example.com/posts/post_014",
+  "metrics": {
+    "views": 120000,
+    "likes": 18000,
+    "comments": 930,
+    "shares": 1200,
+    "saves": 8880,
+    "save_rate": 0.074,
+    "engagement_rate": 0.167
+  },
+  "source": {
+    "import_id": "imp_20260601_001",
+    "filename": "channel_metrics.csv",
+    "row_number": 14
+  },
+  "raw": {
+    "post_id": "post_014",
+    "published_at": "2026-05-27 20:00",
+    "channel": "tiktok",
+    "views": "120000",
+    "likes": "18000",
+    "comments": "930",
+    "save_rate": "0.074"
+  },
+  "ingested_at": "2026-06-01T16:30:10+09:00"
+}

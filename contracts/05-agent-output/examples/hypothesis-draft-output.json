@@ -1,0 +1,22 @@
+{
+  "hypotheses": [
+    {
+      "id": "hyp_001",
+      "signal_ids": [
+        "sig_001"
+      ],
+      "statement": "Raw behind-the-scenes clips may be converting passive viewers into deeper engagement better than polished teaser assets.",
+      "rationale": "The strongest posts share the BTS angle and face-first hook, and team notes mention strong fan reaction to raw practice footage.",
+      "confidence": "medium_high",
+      "supporting_evidence_refs": [
+        "post_014",
+        "post_017",
+        "note_006"
+      ],
+      "caveats": [
+        "External fan community activity was not measured.",
+        "This is a correlation, not a causal claim."
+      ]
+    }
+  ]
+}

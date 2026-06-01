@@ -1,0 +1,11 @@
+{
+  "agent_run_id": "run_20260601_001",
+  "workspace_id": "demo_workspace",
+  "campaign_id": "camp_comeback_teaser",
+  "query": "fan reaction raw practice footage",
+  "date_range": {
+    "start": "2026-05-25",
+    "end": "2026-06-01"
+  },
+  "limit": 5
+}

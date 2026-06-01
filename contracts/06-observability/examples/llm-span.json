@@ -1,0 +1,30 @@
+{
+  "span_id": "span_llm_001",
+  "trace_id": "trc_20260601_001",
+  "parent_span_id": "span_chain_001",
+  "name": "launchpilot.gemini.signal_detection",
+  "attributes": {
+    "openinference.span.kind": "LLM",
+    "input.mime_type": "application/json",
+    "input.value": "{\"task\":\"detect_signals\",\"evidence_refs\":[\"post_014\",\"post_017\",\"metric_20260601_001\"]}",
+    "output.mime_type": "application/json",
+    "output.value": "{\"signals\":[{\"id\":\"sig_001\"}]}",
+    "metadata": {
+      "agent_run_id": "run_20260601_001",
+      "workspace_id": "demo_workspace",
+      "campaign_id": "camp_comeback_teaser",
+      "worker": "Data Analyst Worker",
+      "stage": "RUNNING_SIGNAL_DETECTION",
+      "retry_count": 0,
+      "parent_brief_id": null,
+      "model_provider": "google",
+      "model_name": "gemini-2.5-flash"
+    },
+    "session.id": "demo_workspace:camp_comeback_teaser",
+    "llm.input_messages.0.message.role": "user",
+    "llm.input_messages.0.message.content": "Detect quantitative growth signals using only the provided evidence refs.",
+    "llm.output_messages.0.message.role": "assistant",
+    "llm.output_messages.0.message.content": "{\"signals\":[{\"id\":\"sig_001\",\"evidence_refs\":[\"post_014\",\"post_017\",\"metric_20260601_001\"]}]}"
+  },
+  "events": []
+}

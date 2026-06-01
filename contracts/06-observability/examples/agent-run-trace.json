@@ -1,0 +1,211 @@
+{
+  "trace_id": "trc_20260601_001",
+  "agent_run_id": "run_20260601_001",
+  "session_id": "demo_workspace:camp_comeback_teaser",
+  "spans": [
+    {
+      "span_id": "span_agent_001",
+      "trace_id": "trc_20260601_001",
+      "parent_span_id": null,
+      "name": "launchpilot.agent_run",
+      "attributes": {
+        "openinference.span.kind": "AGENT",
+        "input.mime_type": "application/json",
+        "input.value": "{\"question\":\"What should we test next week?\"}",
+        "output.mime_type": "application/json",
+        "output.value": "{\"status\":\"WAITING_FOR_APPROVAL\"}",
+        "metadata": {
+          "agent_run_id": "run_20260601_001",
+          "workspace_id": "demo_workspace",
+          "campaign_id": "camp_comeback_teaser",
+          "worker": "Central Orchestrator",
+          "stage": "WAITING_FOR_APPROVAL",
+          "retry_count": 0,
+          "parent_brief_id": null,
+          "validator_passed": true,
+          "backtrack_count": 0
+        },
+        "session.id": "demo_workspace:camp_comeback_teaser"
+      },
+      "events": []
+    },
+    {
+      "span_id": "span_chain_001",
+      "trace_id": "trc_20260601_001",
+      "parent_span_id": "span_agent_001",
+      "name": "launchpilot.orchestrator",
+      "attributes": {
+        "openinference.span.kind": "CHAIN",
+        "input.mime_type": "application/json",
+        "input.value": "{\"stage\":\"orchestration_start\"}",
+        "output.mime_type": "application/json",
+        "output.value": "{\"stage\":\"validation_complete\"}",
+        "metadata": {
+          "agent_run_id": "run_20260601_001",
+          "workspace_id": "demo_workspace",
+          "campaign_id": "camp_comeback_teaser",
+          "worker": "Central Orchestrator",
+          "stage": "VALIDATING",
+          "retry_count": 0,
+          "parent_brief_id": null,
+          "validator_passed": true,
+          "backtrack_count": 0
+        },
+        "session.id": "demo_workspace:camp_comeback_teaser"
+      },
+      "events": []
+    },
+    {
+      "span_id": "span_retriever_001",
+      "trace_id": "trc_20260601_001",
+      "parent_span_id": "span_chain_001",
+      "name": "launchpilot.evidence.search_content_posts",
+      "attributes": {
+        "openinference.span.kind": "RETRIEVER",
+        "input.mime_type": "application/json",
+        "input.value": "{\"query\":\"behind the scenes practice clips\"}",
+        "output.mime_type": "application/json",
+        "output.value": "{\"evidence_refs\":[\"post_014\",\"post_017\"]}",
+        "metadata": {
+          "agent_run_id": "run_20260601_001",
+          "workspace_id": "demo_workspace",
+          "campaign_id": "camp_comeback_teaser",
+          "worker": "Data Analyst Worker",
+          "stage": "RUNNING_EVIDENCE_SEARCH",
+          "retry_count": 0,
+          "parent_brief_id": null,
+          "tool_name": "search_content_posts"
+        },
+        "session.id": "demo_workspace:camp_comeback_teaser",
+        "retrieval.documents": [
+          {
+            "document.id": "post_014",
+            "document.content": "TikTok BTS clip with save_rate 0.074 and strong fan engagement.",
+            "document.score": 0.92,
+            "document.metadata": {
+              "source_index": "content_posts"
+            }
+          },
+          {
+            "document.id": "post_017",
+            "document.content": "Second BTS short also exceeded baseline save rate.",
+            "document.score": 0.88,
+            "document.metadata": {
+              "source_index": "content_posts"
+            }
+          }
+        ]
+      },
+      "events": []
+    },
+    {
+      "span_id": "span_tool_001",
+      "trace_id": "trc_20260601_001",
+      "parent_span_id": "span_retriever_001",
+      "name": "search_content_posts",
+      "attributes": {
+        "openinference.span.kind": "TOOL",
+        "input.mime_type": "application/json",
+        "input.value": "{\"query\":\"behind the scenes practice clips\"}",
+        "output.mime_type": "application/json",
+        "output.value": "{\"evidence_refs\":[\"post_014\",\"post_017\"]}",
+        "metadata": {
+          "agent_run_id": "run_20260601_001",
+          "workspace_id": "demo_workspace",
+          "campaign_id": "camp_comeback_teaser",
+          "worker": "Data Analyst Worker",
+          "stage": "RUNNING_EVIDENCE_SEARCH",
+          "retry_count": 0,
+          "parent_brief_id": null,
+          "tool_name": "search_content_posts"
+        },
+        "session.id": "demo_workspace:camp_comeback_teaser",
+        "tool.name": "search_content_posts",
+        "tool.parameters": "{\"index\":\"content_posts\",\"limit\":10}"
+      },
+      "events": []
+    },
+    {
+      "span_id": "span_llm_001",
+      "trace_id": "trc_20260601_001",
+      "parent_span_id": "span_chain_001",
+      "name": "launchpilot.gemini.signal_detection",
+      "attributes": {
+        "openinference.span.kind": "LLM",
+        "input.mime_type": "application/json",
+        "input.value": "{\"task\":\"detect_signals\"}",
+        "output.mime_type": "application/json",
+        "output.value": "{\"signals\":[{\"id\":\"sig_001\"}]}",
+        "metadata": {
+          "agent_run_id": "run_20260601_001",
+          "workspace_id": "demo_workspace",
+          "campaign_id": "camp_comeback_teaser",
+          "worker": "Data Analyst Worker",
+          "stage": "RUNNING_SIGNAL_DETECTION",
+          "retry_count": 0,
+          "parent_brief_id": null,
+          "model_provider": "google",
+          "model_name": "gemini-2.5-flash"
+        },
+        "session.id": "demo_workspace:camp_comeback_teaser",
+        "llm.input_messages.0.message.role": "user",
+        "llm.input_messages.0.message.content": "Detect quantitative growth signals using only the provided evidence refs.",
+        "llm.output_messages.0.message.role": "assistant",
+        "llm.output_messages.0.message.content": "{\"signals\":[{\"id\":\"sig_001\"}]}"
+      },
+      "events": []
+    },
+    {
+      "span_id": "span_guardrail_001",
+      "trace_id": "trc_20260601_001",
+      "parent_span_id": "span_chain_001",
+      "name": "launchpilot.reviewer_gate",
+      "attributes": {
+        "openinference.span.kind": "GUARDRAIL",
+        "input.mime_type": "application/json",
+        "input.value": "{\"signals\":[\"sig_001\"],\"hypotheses\":[\"hyp_001\"]}",
+        "output.mime_type": "application/json",
+        "output.value": "{\"passed\":true,\"severity\":\"none\",\"issues\":[]}",
+        "metadata": {
+          "agent_run_id": "run_20260601_001",
+          "workspace_id": "demo_workspace",
+          "campaign_id": "camp_comeback_teaser",
+          "worker": "Reviewer Gate Component",
+          "stage": "VALIDATING",
+          "retry_count": 0,
+          "parent_brief_id": null,
+          "validator_passed": true,
+          "backtrack_count": 0
+        },
+        "session.id": "demo_workspace:camp_comeback_teaser"
+      },
+      "events": []
+    },
+    {
+      "span_id": "span_eval_001",
+      "trace_id": "trc_20260601_001",
+      "parent_span_id": "span_guardrail_001",
+      "name": "launchpilot.validation",
+      "attributes": {
+        "openinference.span.kind": "EVALUATOR",
+        "input.mime_type": "application/json",
+        "input.value": "{\"known_evidence_refs\":[\"post_014\",\"post_017\",\"metric_20260601_001\",\"note_006\"]}",
+        "output.mime_type": "application/json",
+        "output.value": "{\"passed\":true,\"checks\":[\"schema\",\"evidence_refs\",\"id_links\"]}",
+        "metadata": {
+          "agent_run_id": "run_20260601_001",
+          "workspace_id": "demo_workspace",
+          "campaign_id": "camp_comeback_teaser",
+          "worker": "Reviewer Gate Component",
+          "stage": "VALIDATING",
+          "retry_count": 0,
+          "parent_brief_id": null,
+          "validator_passed": true,
+          "backtrack_count": 0
+        },
+        "session.id": "demo_workspace:camp_comeback_teaser"
+      },
+      "events": []
+    }
+  ]
+}

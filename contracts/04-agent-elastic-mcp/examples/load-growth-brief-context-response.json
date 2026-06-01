@@ -1,0 +1,18 @@
+{
+  "ok": true,
+  "tool_name": "load_growth_brief_context",
+  "mcp_tool": "search",
+  "evidence_refs": [
+    {
+      "ref_id": "brief_20260601_001",
+      "ref_type": "growth_brief",
+      "source_index": "growth_briefs",
+      "title": "Approved BTS short-form experiment plan",
+      "summary": "Prior approved plan focused on testing raw BTS short-form clips across TikTok and Instagram.",
+      "timestamp": "2026-06-01T16:33:15+09:00",
+      "score": 1.0,
+      "metrics": {}
+    }
+  ],
+  "duration_ms": 96
+}

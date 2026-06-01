@@ -1,0 +1,22 @@
+{
+  "experiment_plan": {
+    "id": "plan_001",
+    "summary": "This week's strongest signal is repeated overperformance from BTS short-form clips. Next week should test whether the same raw format can reproduce engagement uplift across TikTok and Instagram.",
+    "overall_confidence": "medium_high",
+    "items": [
+      {
+        "id": "exp_001",
+        "hypothesis_id": "hyp_001",
+        "title": "BTS face-first hook test",
+        "channel": "tiktok",
+        "content_format": "12-second short",
+        "hook": "Open with a close-up reaction in the first 2 seconds.",
+        "cta": "Ask fans to comment which practice moment they want next.",
+        "target_metric": "save_rate",
+        "success_criteria": "save_rate >= 1.5x TikTok 30-day baseline within 48 hours",
+        "scheduled_at": "2026-06-03T20:00:00+09:00",
+        "production_brief": "Use raw rehearsal footage, minimal polish, subtitles on-screen."
+      }
+    ]
+  }
+}
