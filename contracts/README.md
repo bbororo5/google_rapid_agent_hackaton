@@ -2,6 +2,8 @@
 
 This directory contains the contract set for LaunchPilot's hackathon MVP.
 
+Architecture reference: [`docs/architecture/launchpilot-c4.md`](../docs/architecture/launchpilot-c4.md)
+
 Read in order:
 
 | Order | Boundary | Folder | Main Artifact |
