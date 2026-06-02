@@ -1,4 +1,4 @@
-import type { AgentMessage, AgentRunStatus, AgentStepSnapshot, ExperimentItem, ExperimentPlannerEvent, ExperimentPlannerState } from "./experimentPlannerTypes";
+import type { AgentDocument, AgentMessage, AgentRunStatus, AgentStepSnapshot, ExperimentItem, ExperimentPlannerEvent, ExperimentPlannerState } from "./experimentPlannerTypes";
 
 const runningStatuses: AgentRunStatus[] = [
   "RUNNING_SIGNAL_DETECTION",
@@ -29,36 +29,55 @@ function mergeMessage(messages: AgentMessage[], nextMessage: AgentMessage | null
   return [...messages, nextMessage];
 }
 
+function mergeDocument(documents: AgentDocument[], nextDocument: AgentDocument | null | undefined) {
+  if (!nextDocument) return documents;
+  const existingIndex = documents.findIndex((document) => document.document_id === nextDocument.document_id);
+  if (existingIndex < 0) return [...documents, nextDocument];
+  return documents.map((document, index) => (index === existingIndex ? { ...document, ...nextDocument } : document));
+}
+
 function nextSequence(current: number, sequence: number | null | undefined) {
   return typeof sequence === "number" ? Math.max(current, sequence) : current;
 }
 
-export const initialExperimentPlannerState: ExperimentPlannerState = { tag: "idle" };
+const defaultQuestion = "What should we test next week?";
+
+function questionFromState(state: ExperimentPlannerState) {
+  return "question" in state ? state.question : defaultQuestion;
+}
+
+export const initialExperimentPlannerState: ExperimentPlannerState = { tag: "idle", question: defaultQuestion };
 
 export function experimentPlannerReducer(state: ExperimentPlannerState, event: ExperimentPlannerEvent): ExperimentPlannerState {
   switch (event.type) {
+    case "UPDATE_QUESTION":
+      if ("question" in state) {
+        return { ...state, question: event.question };
+      }
+      return state;
+
     case "SELECT_CSV":
-      return { tag: "csv_selected", file: event.file };
+      return { tag: "csv_selected", file: event.file, question: questionFromState(state) };
 
     case "IMPORT_REQUESTED":
       if (state.tag !== "csv_selected" && state.tag !== "import_failed") return state;
-      return { tag: "importing_csv", file: state.file ?? eventFileFallback() };
+      return { tag: "importing_csv", file: state.file ?? eventFileFallback(), question: state.question };
 
     case "IMPORT_SUCCEEDED":
       if (state.tag !== "importing_csv") return state;
-      return { tag: "import_review", file: state.file, importResult: event.importResult };
+      return { tag: "import_review", file: state.file, importResult: event.importResult, question: state.question };
 
     case "IMPORT_CONFIRMED":
       if (state.tag !== "import_review") return state;
-      return { tag: "starting_analysis", source: { kind: "csv_import", importResult: state.importResult } };
+      return { tag: "starting_analysis", source: { kind: "csv_import", importResult: state.importResult, question: state.question } };
 
     case "IMPORT_FAILED":
-      if (state.tag !== "importing_csv") return { tag: "import_failed", message: event.message };
-      return { tag: "import_failed", file: state.file, message: event.message };
+      if (state.tag !== "importing_csv") return { tag: "import_failed", question: questionFromState(state), message: event.message };
+      return { tag: "import_failed", file: state.file, question: state.question, message: event.message };
 
     case "RUN_AGENT_REQUESTED":
       if (state.tag === "import_review") {
-        return { tag: "starting_analysis", source: { kind: "csv_import", importResult: state.importResult } };
+        return { tag: "starting_analysis", source: { kind: "csv_import", importResult: state.importResult, question: state.question } };
       }
       if (state.tag === "restored_context") {
         return {
@@ -91,6 +110,7 @@ export function experimentPlannerReducer(state: ExperimentPlannerState, event: E
         snapshotUrl: state.snapshotUrl,
         toolLogs: state.toolLogs,
         messages: [],
+        documents: [],
         lastReceivedSequence: 0,
         recoveryStatus: "idle",
       };
@@ -106,6 +126,7 @@ export function experimentPlannerReducer(state: ExperimentPlannerState, event: E
         currentStage: null,
         steps: [],
         messages: state.messages,
+        documents: state.documents,
         observations: [],
         toolLogs: state.toolLogs,
         lastReceivedSequence: state.lastReceivedSequence,
@@ -159,6 +180,7 @@ export function experimentPlannerReducer(state: ExperimentPlannerState, event: E
               snapshotUrl: state.snapshotUrl,
               steps: [],
               messages: state.messages,
+              documents: state.documents,
               observations: [],
               toolLogs: state.toolLogs,
               lastReceivedSequence: state.lastReceivedSequence,
@@ -167,6 +189,7 @@ export function experimentPlannerReducer(state: ExperimentPlannerState, event: E
           : state;
       const steps = mergeStep(base.steps, event.event.step);
       const messages = mergeMessage(base.messages, event.event.message);
+      const documents = mergeDocument(base.documents, event.event.document);
       const observations = event.event.observation ? [...base.observations, event.event.observation] : base.observations;
       const toolLogs = event.event.tool_call ? [...base.toolLogs, event.event.tool_call] : base.toolLogs;
       const lastReceivedSequence = nextSequence(base.lastReceivedSequence, event.event.sequence);
@@ -183,6 +206,7 @@ export function experimentPlannerReducer(state: ExperimentPlannerState, event: E
           payload: event.event.payload,
           steps,
           messages,
+          documents,
           observations,
           toolLogs,
           lastReceivedSequence,
@@ -203,6 +227,7 @@ export function experimentPlannerReducer(state: ExperimentPlannerState, event: E
           draftExperiments: payload.experiment_plan.items,
           steps,
           messages,
+          documents,
           observations,
           toolLogs,
           lastReceivedSequence,
@@ -226,6 +251,7 @@ export function experimentPlannerReducer(state: ExperimentPlannerState, event: E
           calendarEvents: event.event.approval_result.created_calendar_events,
           finalExperiments,
           messages,
+          documents,
           observations,
           toolLogs,
           lastReceivedSequence,
@@ -246,6 +272,7 @@ export function experimentPlannerReducer(state: ExperimentPlannerState, event: E
           ...state,
           steps,
           messages,
+          documents,
           observations,
           toolLogs,
           lastReceivedSequence,
@@ -263,6 +290,7 @@ export function experimentPlannerReducer(state: ExperimentPlannerState, event: E
           currentStage: event.event.step?.stage ?? null,
           steps,
           messages,
+          documents,
           observations,
           toolLogs,
           lastReceivedSequence,
@@ -279,6 +307,7 @@ export function experimentPlannerReducer(state: ExperimentPlannerState, event: E
         currentStage: event.event.step?.stage ?? null,
         steps,
         messages,
+        documents,
         observations,
         toolLogs,
         lastReceivedSequence,
@@ -297,6 +326,7 @@ export function experimentPlannerReducer(state: ExperimentPlannerState, event: E
         currentStage: state.currentStage,
         steps: state.steps,
         messages: state.messages,
+        documents: state.documents,
         observations: state.observations,
         toolLogs: state.toolLogs,
         lastReceivedSequence: state.lastReceivedSequence,
@@ -308,6 +338,7 @@ export function experimentPlannerReducer(state: ExperimentPlannerState, event: E
       if (event.snapshot.status === "WAITING_FOR_APPROVAL" && event.snapshot.payload) {
         const existingSteps = "steps" in state ? state.steps : [];
         const existingMessages = "messages" in state ? state.messages : [];
+        const existingDocuments = "documents" in state ? state.documents : [];
         const existingObservations = "observations" in state ? state.observations : [];
         return {
           tag: "waiting_for_approval",
@@ -320,6 +351,7 @@ export function experimentPlannerReducer(state: ExperimentPlannerState, event: E
           draftExperiments: event.snapshot.payload.experiment_plan.items,
           steps: existingSteps,
           messages: existingMessages,
+          documents: existingDocuments,
           observations: existingObservations,
           toolLogs: event.snapshot.tool_call_logs,
           lastReceivedSequence: "lastReceivedSequence" in state ? state.lastReceivedSequence : 0,
@@ -339,6 +371,7 @@ export function experimentPlannerReducer(state: ExperimentPlannerState, event: E
         currentStage: event.snapshot.current_stage,
         steps: "steps" in state ? state.steps : [],
         messages: "messages" in state ? state.messages : [],
+        documents: "documents" in state ? state.documents : [],
         observations: "observations" in state ? state.observations : [],
         toolLogs: event.snapshot.tool_call_logs,
         lastReceivedSequence: "lastReceivedSequence" in state ? state.lastReceivedSequence : 0,
@@ -375,6 +408,7 @@ export function experimentPlannerReducer(state: ExperimentPlannerState, event: E
         draftExperiments: state.draftExperiments,
         steps: state.steps,
         messages: state.messages,
+        documents: state.documents,
         observations: state.observations,
         toolLogs: state.toolLogs,
         lastReceivedSequence: state.lastReceivedSequence,
@@ -391,6 +425,7 @@ export function experimentPlannerReducer(state: ExperimentPlannerState, event: E
         calendarEvents: event.approval.created_calendar_events,
         finalExperiments: state.draftExperiments.filter((experiment) => state.selectedExperimentIds.includes(experiment.id)),
         messages: state.messages,
+        documents: state.documents,
         observations: state.observations,
         toolLogs: state.toolLogs,
         lastReceivedSequence: state.lastReceivedSequence,

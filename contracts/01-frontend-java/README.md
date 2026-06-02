@@ -137,6 +137,7 @@ run.started
 step.updated
 user.message.created
 assistant.message.created
+document.created
 observation.created
 tool.updated
 signal.detected
@@ -166,6 +167,7 @@ Examples live beside both specs:
 
 - `examples/agent-stream-user-message-created-event.json`
 - `examples/agent-stream-run-started-event.json`
+- `examples/agent-stream-document-created-event.json`
 - `examples/agent-stream-resume-command.json`
 - `examples/agent-stream-resume-accepted-event.json`
 - `examples/agent-stream-full-sync-required-event.json`
@@ -182,7 +184,9 @@ The frontend should map stream events like this:
 - After reconnecting, the frontend sends `connection.resume` with `last_received_sequence`.
 - The backend replays all missed persisted timeline events in sequence order. If incremental replay is unavailable, the backend sends `connection.full_sync_required`; the frontend then sends `connection.full_sync`, and the backend replays the full persisted timeline over WebSocket.
 - `step.updated` updates the fixed agent run status area.
-- `user.message.created`, `assistant.message.created`, `observation.created`, `signal.detected`, `hypothesis.created`, and `experiment_plan.drafted` append visible workspace timeline messages.
+- `user.message.created` and `assistant.message.created` append direct conversation bubbles.
+- `document.created` appends a clickable document card in the conversation timeline. The frontend opens the card in the right-side inspector and renders `document.content` as markdown.
+- `observation.created`, `signal.detected`, `hypothesis.created`, and `experiment_plan.drafted` append visible workspace timeline messages.
 - `approval.requested` opens the review surface with editable draft payload.
 - `approval.committed` carries `growth_brief_id` and `created_calendar_events` after the approved plan is persisted. The frontend uses this event, not the coarse snapshot, to route to the created brief or calendar artifacts on the WebSocket primary path.
 - `run.cancelled`, `run.completed`, and `run.failed` close the active run lifecycle.

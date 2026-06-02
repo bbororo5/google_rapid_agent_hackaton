@@ -28,8 +28,10 @@ function event(input: Partial<AgentStreamServerEvent> & { type: AgentStreamServe
     occurred_at: new Date(Date.now() + input.sequence * 1000).toISOString(),
     step: null,
     observation: null,
+    document: null,
     payload: null,
     approval: null,
+    approval_result: null,
     error_message: null,
     ...input,
   };
@@ -58,9 +60,35 @@ function buildMockEvents(agentRunId: string): AgentStreamServerEvent[] {
       step: step("step_import_metrics", 1, "SUCCEEDED"),
     }),
     event({
-      type: "observation.created",
+      type: "assistant.message.created",
       agent_run_id: agentRunId,
       sequence: 3,
+      status: "RUNNING_EVIDENCE_SEARCH",
+      message: {
+        message_id: "msg_mock_assistant_001",
+        role: "assistant",
+        content: "I am comparing the uploaded campaign metrics against the recent baseline and preparing an evidence document.",
+      },
+    }),
+    event({
+      type: "document.created",
+      agent_run_id: agentRunId,
+      sequence: 4,
+      status: "RUNNING_EVIDENCE_SEARCH",
+      document: {
+        document_id: "doc_evidence_scan_001",
+        kind: "evidence_scan",
+        title: "Evidence scan started",
+        format: "markdown",
+        summary: "Initial evidence scan for the uploaded campaign metrics.",
+        content:
+          "## Evidence scan started\n\nI am comparing uploaded campaign metrics against the recent baseline.\n\n- Checking lift by channel\n- Looking for repeatable content patterns\n- Preparing candidate experiments",
+      },
+    }),
+    event({
+      type: "observation.created",
+      agent_run_id: agentRunId,
+      sequence: 5,
       status: "RUNNING_EVIDENCE_SEARCH",
       step: step("step_search_evidence", 2, "IN_PROGRESS"),
       observation: {
@@ -74,7 +102,7 @@ function buildMockEvents(agentRunId: string): AgentStreamServerEvent[] {
     event({
       type: "signal.detected",
       agent_run_id: agentRunId,
-      sequence: 4,
+      sequence: 6,
       status: "RUNNING_HYPOTHESIS_GENERATION",
       step: step("step_search_evidence", 2, "SUCCEEDED"),
       observation: {
@@ -89,7 +117,7 @@ function buildMockEvents(agentRunId: string): AgentStreamServerEvent[] {
     event({
       type: "hypothesis.created",
       agent_run_id: agentRunId,
-      sequence: 5,
+      sequence: 7,
       status: "RUNNING_EXPERIMENT_GENERATION",
       step: step("step_generate_hypotheses", 3, "SUCCEEDED"),
       observation: {
@@ -104,7 +132,7 @@ function buildMockEvents(agentRunId: string): AgentStreamServerEvent[] {
     event({
       type: "experiment_plan.drafted",
       agent_run_id: agentRunId,
-      sequence: 6,
+      sequence: 8,
       status: "RUNNING_EXPERIMENT_GENERATION",
       step: step("step_draft_plan", 4, "SUCCEEDED"),
       observation: {
@@ -119,7 +147,7 @@ function buildMockEvents(agentRunId: string): AgentStreamServerEvent[] {
     event({
       type: "approval.requested",
       agent_run_id: agentRunId,
-      sequence: 7,
+      sequence: 9,
       status: "WAITING_FOR_APPROVAL",
       step: step("step_review_plan", 5, "IN_PROGRESS"),
       approval: {
@@ -136,7 +164,7 @@ function approvalCommittedEvent(agentRunId: string, title?: string): AgentStream
   return event({
     type: "approval.committed",
     agent_run_id: agentRunId,
-    sequence: 8,
+    sequence: 10,
     status: "SUCCESS",
     approval_result: {
       approval_id: "appr_mock_001",
@@ -157,7 +185,7 @@ function cancelledEvent(agentRunId: string, reason: string | null | undefined): 
   return event({
     type: "run.cancelled",
     agent_run_id: agentRunId,
-    sequence: 9,
+    sequence: 11,
     status: "CANCELLED",
     error_message: reason ?? "Agent run cancelled.",
   });

@@ -3,6 +3,7 @@ import type {
   AgentRunStatus,
   AgentRunStatusResponse,
   AgentStepSnapshot,
+  AgentDocument,
   AgentObservation,
   AgentStreamServerEvent,
   AgentRunStage,
@@ -23,6 +24,7 @@ export type {
   AgentRunStatus,
   AgentRunStatusResponse,
   AgentStepSnapshot,
+  AgentDocument,
   AgentObservation,
   AgentStreamServerEvent,
   AgentRunStage,
@@ -39,7 +41,7 @@ export type {
 };
 
 export type StartingAnalysisSource =
-  | { kind: "csv_import"; importResult: ImportCsvResponse }
+  | { kind: "csv_import"; importResult: ImportCsvResponse; question: string }
   | {
       kind: "continued_brief";
       parentBriefId: string;
@@ -52,11 +54,11 @@ export type StartingAnalysisSource =
 export type AgentStreamRecoveryStatus = "idle" | "resuming" | "replaying" | "full_syncing";
 
 export type ExperimentPlannerState =
-  | { tag: "idle" }
-  | { tag: "csv_selected"; file: File }
-  | { tag: "importing_csv"; file: File }
-  | { tag: "import_review"; file: File; importResult: ImportCsvResponse }
-  | { tag: "import_failed"; file?: File; message: string }
+  | { tag: "idle"; question: string }
+  | { tag: "csv_selected"; file: File; question: string }
+  | { tag: "importing_csv"; file: File; question: string }
+  | { tag: "import_review"; file: File; importResult: ImportCsvResponse; question: string }
+  | { tag: "import_failed"; file?: File; question: string; message: string }
   | { tag: "starting_analysis"; source: StartingAnalysisSource }
   | { tag: "analysis_pending"; agentRunId: string; streamUrl: string; snapshotUrl: string; status: "PENDING"; toolLogs: ToolCallLog[] }
   | {
@@ -67,6 +69,7 @@ export type ExperimentPlannerState =
       toolLogs: ToolCallLog[];
       lastReceivedSequence: number;
       messages: AgentMessage[];
+      documents: AgentDocument[];
       recoveryStatus: AgentStreamRecoveryStatus;
     }
   | {
@@ -78,6 +81,7 @@ export type ExperimentPlannerState =
       currentStage: string | null;
       steps: AgentStepSnapshot[];
       messages: AgentMessage[];
+      documents: AgentDocument[];
       observations: AgentObservation[];
       toolLogs: ToolCallLog[];
       lastReceivedSequence: number;
@@ -94,6 +98,7 @@ export type ExperimentPlannerState =
       payload: AgentResultPayload;
       steps: AgentStepSnapshot[];
       messages: AgentMessage[];
+      documents: AgentDocument[];
       observations: AgentObservation[];
       toolLogs: ToolCallLog[];
       lastReceivedSequence: number;
@@ -110,6 +115,7 @@ export type ExperimentPlannerState =
       draftExperiments: ExperimentItem[];
       steps: AgentStepSnapshot[];
       messages: AgentMessage[];
+      documents: AgentDocument[];
       observations: AgentObservation[];
       toolLogs: ToolCallLog[];
       lastReceivedSequence: number;
@@ -126,6 +132,7 @@ export type ExperimentPlannerState =
       draftExperiments: ExperimentItem[];
       steps: AgentStepSnapshot[];
       messages: AgentMessage[];
+      documents: AgentDocument[];
       observations: AgentObservation[];
       toolLogs: ToolCallLog[];
       lastReceivedSequence: number;
@@ -143,6 +150,7 @@ export type ExperimentPlannerState =
       draftExperiments: ExperimentItem[];
       steps: AgentStepSnapshot[];
       messages: AgentMessage[];
+      documents: AgentDocument[];
       observations: AgentObservation[];
       toolLogs: ToolCallLog[];
       lastReceivedSequence: number;
@@ -156,6 +164,7 @@ export type ExperimentPlannerState =
       calendarEvents: CalendarEventRef[];
       finalExperiments: ExperimentItem[];
       messages: AgentMessage[];
+      documents: AgentDocument[];
       observations: AgentObservation[];
       toolLogs: ToolCallLog[];
       lastReceivedSequence: number;
@@ -184,6 +193,7 @@ export type ExperimentPlannerState =
     };
 
 export type ExperimentPlannerEvent =
+  | { type: "UPDATE_QUESTION"; question: string }
   | { type: "SELECT_CSV"; file: File }
   | { type: "IMPORT_REQUESTED" }
   | { type: "IMPORT_SUCCEEDED"; importResult: ImportCsvResponse }

@@ -1,10 +1,16 @@
 {
   "private": true,
   "type": "module",
+  "workspaces": [
+    "apps/frontend"
+  ],
   "scripts": {
     "test": "npm run test:contracts && npm run test:scenarios",
     "test:contracts": "node tools/verify-contracts.mjs",
     "test:scenarios": "node tools/verify-scenarios.mjs",
+    "frontend:dev": "npm run dev -w apps/frontend",
+    "frontend:build": "npm run build -w apps/frontend",
+    "frontend:lint": "npm run lint -w apps/frontend",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:list": "playwright test --list"

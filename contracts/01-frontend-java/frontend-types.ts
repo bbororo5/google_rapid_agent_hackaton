@@ -41,6 +41,7 @@ export type AgentStreamServerEventType =
   | "step.updated"
   | "user.message.created"
   | "assistant.message.created"
+  | "document.created"
   | "observation.created"
   | "tool.updated"
   | "signal.detected"
@@ -131,6 +132,17 @@ export interface AgentMessage {
   content: string;
 }
 
+export type AgentDocumentKind = "evidence_scan" | "signal_summary" | "hypothesis_brief" | "experiment_plan" | "approval_receipt" | "generic";
+
+export interface AgentDocument {
+  document_id: string;
+  kind: AgentDocumentKind;
+  title: string;
+  format: "markdown";
+  summary: string;
+  content: string;
+}
+
 export interface AgentStreamServerEvent {
   event_id: string;
   type: AgentStreamServerEventType;
@@ -144,6 +156,7 @@ export interface AgentStreamServerEvent {
   next_expected_sequence?: number | null;
   step?: AgentStepSnapshot | null;
   message?: AgentMessage | null;
+  document?: AgentDocument | null;
   observation?: AgentObservation | null;
   tool_call?: ToolCallLog | null;
   payload?: AgentResultPayload | null;

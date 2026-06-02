@@ -24,7 +24,7 @@ export function buildAgentRunRequest(state: ExperimentPlannerState): AgentRunReq
   return {
     workspace_id: state.source.importResult.workspace_id,
     campaign_id: state.source.importResult.campaign_id,
-    question: "What should we test next week?",
+    question: state.source.question,
     date_range: defaultDateRange,
     parent_brief_id: null,
   };
