@@ -10,7 +10,7 @@ This contract defines the internal boundary between the Java Backend and the Pyt
 
 This folder has two specs:
 
-- `openapi.yaml`: run start, snapshot recovery, and cancel fallback.
+- `openapi.yaml`: run start, latest run snapshot, and cancel fallback.
 - `asyncapi.yaml`: active Python-to-Java workflow event stream.
 
 Java owns:
@@ -55,7 +55,7 @@ IDs:
 - Java calls Python once to start a run, then opens the returned internal WebSocket stream.
 - Python must return quickly from `POST /internal/agent/runs`; long-running work happens in a background task.
 - Python streams workflow events to Java as the agent works. Java relays those events to the frontend WebSocket after applying public API policy.
-- `GET /internal/agent/runs/{agent_run_id}` is a snapshot recovery endpoint, not the primary active runtime channel.
+- `GET /internal/agent/runs/{agent_run_id}` returns the latest run snapshot, not workflow event history.
 - Python status values must be compatible with the frontend-facing Java status enum.
 - Python `payload` must be structurally compatible with `contracts/01-frontend-java/openapi.yaml` `AgentResultPayload`.
 - Python workflow stream events must be structurally compatible with the frontend-facing WebSocket events in `contracts/01-frontend-java/asyncapi.yaml`, excluding Java-owned approval events.
@@ -158,12 +158,15 @@ Java-owned approval events are not part of this internal stream. Java adds `appr
 
 `GET /internal/agent/runs/{agent_run_id}`
 
-Purpose: Java fetches the latest run snapshot and recent workflow events after reconnect, refresh recovery, or stream failure.
+Purpose: Java fetches the latest run snapshot when it needs current status or the final candidate payload.
 
-Java uses this response in two ways:
+Java uses this response for:
 
-- Snapshot recovery: map `status`, `current_stage`, `payload`, and `tool_call_logs` to the public REST snapshot.
-- WebSocket recovery: replay `workflow_events` that Java has not already relayed, using `sequence` for ordering and de-duplication.
+- Status refresh: map `status`, `current_stage`, `retry_count`, and `error_message`.
+- Candidate payload retrieval: map `payload` once Python reaches `WAITING_FOR_APPROVAL`.
+- Operational debugging: inspect `tool_call_logs` and `agent_diagnostics`.
+
+Workflow event history is intentionally not part of this REST response in the MVP contract. Active progress observation belongs to `asyncapi.yaml`. If reconnect replay becomes an MVP requirement, define that policy explicitly before adding event history back.
 
 Running response:
 
@@ -175,31 +178,6 @@ Running response:
   "retry_count": 0,
   "error_message": null,
   "payload": null,
-  "workflow_events": [
-    {
-      "event_id": "evt_002",
-      "type": "observation.created",
-      "agent_run_id": "run_20260601_001",
-      "sequence": 2,
-      "occurred_at": "2026-06-01T16:31:09+09:00",
-      "status": "RUNNING_EVIDENCE_SEARCH",
-      "step": {
-        "id": "step_ground_with_evidence",
-        "order": 3,
-        "stage": "GROUND_WITH_EVIDENCE",
-        "status": "IN_PROGRESS"
-      },
-      "observation": {
-        "id": "obs_001",
-        "kind": "evidence",
-        "title": "BTS clips are above baseline",
-        "summary": "Two BTS short-form posts are tracking 2.8x above the 30-day save-rate baseline.",
-        "evidence_refs": ["post_014", "post_017"]
-      },
-      "payload": null,
-      "error_message": null
-    }
-  ],
   "tool_call_logs": [
     {
       "sequence": 1,
@@ -240,7 +218,6 @@ Ready response:
       "items": []
     }
   },
-  "workflow_events": [],
   "tool_call_logs": [],
   "agent_diagnostics": {
     "worker": "Reviewer Gate Component",
@@ -313,7 +290,6 @@ Java should expose only these fields to the frontend:
 - `retry_count`
 - `error_message`
 - `payload`
-- `workflow_events`, relayed as frontend WebSocket events
 - `tool_call_logs`
 
 Java should keep these fields internal by default:
@@ -327,6 +303,6 @@ Java should keep these fields internal by default:
 
 ## Open Decisions
 
-- Whether Java stores a short-lived copy of Python stream events for replay or always relies on Python snapshot recovery.
+- Whether reconnect replay belongs in the MVP stream contract.
 - Whether `cancel` is required for the hackathon demo.
 - Whether internal service authentication is needed in the demo environment.
