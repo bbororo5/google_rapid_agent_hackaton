@@ -33,9 +33,11 @@ Official reference checked during contract design:
 | `search_content_posts` | `search` | `content_posts` | Finds source posts and metric rows for evidence. |
 | `query_metric_baseline` | `esql` | `content_posts` | Computes current/baseline metric aggregates. |
 | `search_team_notes` | `search` | `team_notes` | Optional v0.1 qualitative search; index contract is not finalized yet. |
-| `load_growth_brief_context` | `search` or `get_mappings` + `search` | `growth_briefs` | Loads an approved prior brief for `parent_brief_id` restoration. |
+| `load_growth_brief_context` | `search` or `get_mappings` + `search` | `growth_briefs` | Loads an approved prior brief for `parent_brief_id` restoration. **Caller: Central Orchestrator only (session-start pre-injection), not the ADK workers.** |
 
 Raw MCP tools that inspect cluster metadata, such as `list_indices` and `get_mappings`, are allowed only during startup validation or diagnostics. They should not be used as part of normal reasoning unless the wrapper needs to verify index shape.
+
+> Caller ownership: `search_content_posts` / `query_metric_baseline` are called by the Data Analyst worker, `search_team_notes` by the Data Strategist worker, and `load_growth_brief_context` by the **Central Orchestrator** once at session start when `parent_brief_id` is present (it pre-injects the prior context into Shared Context; workers then read from memory, not the tool). See `docs/agent-tool-spec.md`.
 
 ## Common Request Fields
 
