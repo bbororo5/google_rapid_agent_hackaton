@@ -29,10 +29,20 @@ public class ElasticDocumentWriter {
 
     private final ElasticsearchClient es;
 
+    /**
+     * Create an ElasticDocumentWriter backed by the given Elasticsearch client.
+     *
+     * @param es the Elasticsearch client used for index management and document operations
+     */
     public ElasticDocumentWriter(ElasticsearchClient es) {
         this.es = es;
     }
 
+    /**
+     * Ensures the application's Elasticsearch indices (CONTENT_POSTS, GROWTH_BRIEFS, CALENDAR_EVENTS) exist and creates any missing index using its mapping.
+     *
+     * @throws IOException if an I/O error occurs while checking or creating indices
+     */
     @PostConstruct
     public void bootstrap() throws IOException {
         ensureIndex(CONTENT_POSTS, CONTENT_POSTS_MAPPING);
@@ -40,6 +50,13 @@ public class ElasticDocumentWriter {
         ensureIndex(CALENDAR_EVENTS, CALENDAR_EVENTS_MAPPING);
     }
 
+    /**
+     * Ensure the Elasticsearch index with the given name exists, creating it with the provided mapping if missing.
+     *
+     * @param name        the target index name
+     * @param mappingJson the index mapping as a JSON string to use when creating the index
+     * @throws IOException if an I/O error occurs while communicating with Elasticsearch
+     */
     private void ensureIndex(String name, String mappingJson) throws IOException {
         boolean exists = es.indices().exists(e -> e.index(name)).value();
         if (!exists) {
@@ -47,7 +64,15 @@ public class ElasticDocumentWriter {
         }
     }
 
-    /** content_posts upsert. 부분 실패 허용 -> indexed/failed 카운트 반환. */
+    /**
+     * Bulk indexes multiple content post documents, allowing partial failures.
+     *
+     * If `docs` is empty this method returns an `IndexResult` with zeros without contacting Elasticsearch.
+     *
+     * @param docs the list of content post documents to index
+     * @return an IndexResult where `indexed` is the number of successfully indexed documents and `failed` is the number of per-item failures
+     * @throws IOException if an I/O error occurs while communicating with Elasticsearch
+     */
     public IndexResult bulkIndexContentPosts(List<ContentPostDoc> docs) throws IOException {
         if (docs.isEmpty()) {
             return new IndexResult(0, 0);
@@ -66,7 +91,13 @@ public class ElasticDocumentWriter {
         return new IndexResult(docs.size() - failed, failed);
     }
 
-    /** 같은 agent_run_id로 이미 승인된 브리프 존재 여부 (1회성 승인 검사). */
+    /**
+     * Checks whether a growth brief with the given agent run id already exists.
+     *
+     * @param agentRunId the agent run identifier to match
+     * @return `true` if at least one growth brief exists for the given agent run id, `false` otherwise
+     * @throws IOException if an I/O error occurs while querying Elasticsearch
+     */
     public boolean growthBriefExistsForRun(String agentRunId) throws IOException {
         long count = es.count(c -> c.index(GROWTH_BRIEFS)
                 .query(q -> q.term(t -> t.field("agent_run_id").value(agentRunId))))
@@ -74,7 +105,17 @@ public class ElasticDocumentWriter {
         return count > 0;
     }
 
-    /** 승인 영속화: growth_brief 1건 + calendar_event N건. all-or-fail. */
+    /**
+     * Persist a growth brief and its associated calendar events in a single bulk operation.
+     *
+     * The method performs an all-or-fail bulk index: if any item-level error is reported by Elasticsearch,
+     * an internal ApiException is thrown and no partial success is considered accepted.
+     *
+     * @param brief  the growth brief document to index
+     * @param events the list of calendar event documents to index
+     * @throws IOException  if an I/O error occurs communicating with Elasticsearch
+     * @throws ApiException if the bulk response contains item-level errors (message contains the first error reason)
+     */
     public void persistApproval(GrowthBriefDoc brief, List<CalendarEventDoc> events)
             throws IOException {
         BulkRequest.Builder br = new BulkRequest.Builder().refresh(Refresh.True);

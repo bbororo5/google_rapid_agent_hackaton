@@ -18,10 +18,24 @@ public class AgentRunRegistry {
 
     private final Map<String, RunContext> store = new ConcurrentHashMap<>();
 
+    /**
+     * Store or replace the routing context for the given agent run ID in the registry.
+     *
+     * If an entry already exists for the provided `agentRunId`, it is replaced with `ctx`.
+     *
+     * @param agentRunId the identifier of the agent run used as the registry key
+     * @param ctx the routing context containing `workspaceId` and `campaignId`
+     */
     public void put(String agentRunId, RunContext ctx) {
         store.put(agentRunId, ctx);
     }
 
+    /**
+     * Retrieve the routing RunContext associated with the given agent run identifier.
+     *
+     * @param agentRunId the agent run id used as the registry key
+     * @return an Optional containing the RunContext for the given agentRunId, or `Optional.empty()` if no entry exists
+     */
     public Optional<RunContext> get(String agentRunId) {
         return Optional.ofNullable(store.get(agentRunId));
     }
