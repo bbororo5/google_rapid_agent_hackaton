@@ -21,6 +21,8 @@ repositories {
 dependencies {
     implementation("org.springframework.boot:spring-boot-starter-web")
     implementation("org.springframework.boot:spring-boot-starter-validation")
+    // 계약 01/02 asyncapi: FE-facing WS 서버 + Python-facing WS 클라이언트
+    implementation("org.springframework.boot:spring-boot-starter-websocket")
 
     // Elastic Cloud Serverless: 공식 Java Client (계약 03)
     implementation("co.elastic.clients:elasticsearch-java:8.15.3")

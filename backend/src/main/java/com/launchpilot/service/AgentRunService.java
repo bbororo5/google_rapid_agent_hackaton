@@ -4,9 +4,11 @@ import com.launchpilot.client.AgentServiceClient;
 import com.launchpilot.dto.internal.InternalAgentRunRequest;
 import com.launchpilot.dto.internal.InternalAgentRunStatusResponse;
 import com.launchpilot.dto.internal.TraceContext;
+import com.launchpilot.dto.internal.InternalAgentRunCancelledResponse;
 import com.launchpilot.dto.pub.AgentRunAcceptedResponse;
 import com.launchpilot.dto.pub.AgentRunRequest;
 import com.launchpilot.dto.pub.AgentRunStatusResponse;
+import com.launchpilot.dto.pub.CancelAgentRunResponse;
 import java.time.OffsetDateTime;
 import org.springframework.stereotype.Service;
 
@@ -21,6 +23,7 @@ public class AgentRunService {
     private final AgentServiceClient agent;
     private final AgentRunRegistry registry;
     private final IdGenerator ids;
+    private final AgentStreamRelayService relay;
 
     /**
      * Create an AgentRunService with its required dependencies.
@@ -28,11 +31,17 @@ public class AgentRunService {
      * @param agent   client used to start runs and fetch internal run state
      * @param registry registry that stores minimal run context keyed by runId
      * @param ids     generator for run and request identifiers
+     * @param relay   WS relay that subscribes the Python workflow stream and pushes FE events
      */
-    public AgentRunService(AgentServiceClient agent, AgentRunRegistry registry, IdGenerator ids) {
+    public AgentRunService(
+            AgentServiceClient agent,
+            AgentRunRegistry registry,
+            IdGenerator ids,
+            AgentStreamRelayService relay) {
         this.agent = agent;
         this.registry = registry;
         this.ids = ids;
+        this.relay = relay;
     }
 
     /**
@@ -61,13 +70,30 @@ public class AgentRunService {
                 new TraceContext(requestId, "java-backend", null));
 
         agent.startRun(internal);
+        relay.startRelay(runId, req.question());
 
         return new AgentRunAcceptedResponse(
                 true,
                 runId,
                 "PENDING",
+                "/api/agent/runs/" + runId + "/stream",
                 "/api/agent/runs/" + runId,
                 OffsetDateTime.now().toString());
+    }
+
+    /**
+     * Cancels an agent run via the Python REST fallback and maps to the public cancel response.
+     *
+     * @param agentRunId the run to cancel
+     * @param reason     optional cancellation reason (currently informational only)
+     * @return a CancelAgentRunResponse with status CANCELLED
+     */
+    public CancelAgentRunResponse cancel(String agentRunId, String reason) {
+        InternalAgentRunCancelledResponse i = agent.cancelRun(agentRunId);
+        String cancelledAt = i.cancelledAt() != null
+                ? i.cancelledAt()
+                : OffsetDateTime.now().toString();
+        return new CancelAgentRunResponse(true, agentRunId, "CANCELLED", cancelledAt);
     }
 
     /**
