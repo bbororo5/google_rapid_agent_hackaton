@@ -1,8 +1,8 @@
 # LaunchPilot Architecture Diagrams
 
-Status: Draft v0.1  
-Scope: C4 context/container/component views and main user scenario sequence  
-Last updated: 2026-06-01
+Status: Draft v0.2  
+Scope: C4 context/container/component views and main user scenario sequence (WebSocket streaming runtime)  
+Last updated: 2026-06-02
 
 ## 1. System Context
 
@@ -68,7 +68,7 @@ graph TB
   FE -->|2. CSV 파일 전송 및 API 요청 Multipart Form| BE
   BE ==>|3. CSV 파싱 데이터 직접 실시간 인덱싱 refresh=true| Elastic
 
-  BE -->|4. 에이전트 분석 실행 비동기 트리거 HTTP JSON| AG
+  BE -->|4. 에이전트 분석 비동기 트리거 (202, stream_url) + 내부 WS 구독| AG
 
   AG -- "5.1 조립된 프롬프트 및 컨텍스트 전달 / 추론 요청 HTTPS" --> Gemini
   Gemini -- "5.2 구조화된 추론 결과 반환 및 도구 호출 지시" --> AG
@@ -77,9 +77,9 @@ graph TB
   AG -->|7.1 과거 실패 패턴 및 평가 지표 조회 Phoenix MCP| Arize
   AG -.->|7.2 에이전트 실행 트레이스 실시간 송신 OTel / OpenInference| Arize
 
-  AG -->|8. Gemini 결과 기반 최종 구조화 JSON 결과 전달| BE
-  BE -->|9. 분석 상태 및 완료 결과 전송| FE
-  FE -->|10. 워룸 화면에 시나리오 시각화| User
+  AG -->|8. workflow 이벤트 스트리밍 + 최종 payload (내부 WS)| BE
+  BE -->|9. glass-box 정책 적용 후 이벤트 릴레이 (프론트 WS), 끊김 시 GET 스냅샷| FE
+  FE -->|10. 워룸 라이브 타임라인 시각화| User
 
   User -->|11. 실험안 승인| FE
   FE -->|12. 승인 액션 요청 HTTP JSON| BE
@@ -88,7 +88,7 @@ graph TB
 
 ## 3. Main User Scenario Sequence
 
-This sequence highlights the stateless frontend rule: candidate experiment plans live in frontend memory until human approval. Only approved artifacts are persisted to Elastic.
+This sequence highlights two rules: (1) the live runtime is a WebSocket stream with a REST snapshot fallback, and (2) the stateless frontend rule: candidate experiment plans live in frontend memory until human approval. Only approved artifacts are persisted to Elastic.
 
 ```mermaid
 sequenceDiagram
@@ -100,40 +100,45 @@ sequenceDiagram
     participant Elastic as Elastic Cloud Serverless<br/>L3 Evidence Engine
     participant Arize as Arize AI / Phoenix<br/>L4 Observability
 
-    Note over User, Arize: PHASE 1: 분석 요청 및 에이전트 추론 루프
-    User->>FE: "What should we test next week?" 버튼 클릭
-    FE->>BE: 에이전트 실행 API 요청 (POST /api/agent/run)
-    BE->>AG: 내부 에이전트 실행 요청 (POST /internal/agent/runs)
+    Note over User, Arize: PHASE 1: 분석 시작 및 실시간 스트리밍 연결
+    User->>FE: "What should we test next week?" 클릭
+    FE->>BE: POST /api/agent/run
+    BE->>AG: POST /internal/agent/runs (202, stream_url 반환)
+    BE-->>FE: 202 Accepted (stream_url)
+    FE->>BE: WebSocket 연결 (주 채널, 01/asyncapi)
+    BE->>AG: 내부 WebSocket 연결 (workflow 이벤트 구독, 02/asyncapi)
 
     rect rgb(235, 245, 255)
         Note over AG, Arize: L4 메타 성찰 단계
-        AG->>Arize: Phoenix MCP 도구 호출 (get_traces / get_evaluations)
-        Arize-->>AG: 과거 낮은 평가 점수의 프롬프트/컨텍스트 패턴 반환
-        AG->>AG: 실패 패턴을 반영해 추론 로직 보정
+        AG->>Arize: Phoenix MCP (get_traces / get_evaluations)
+        Arize-->>AG: 과거 낮은 평가 패턴 반환
+        AG->>AG: 실패 패턴 반영해 추론 보정
     end
 
     rect rgb(255, 248, 220)
         Note over AG, Elastic: L3 지식 검색 단계
-        AG->>Elastic: Elasticsearch MCP 기반 Evidence wrapper 호출<br/>(search_content_posts, query_metric_baseline, search_team_notes)
-        Note over Elastic: ES-QL 기반 baseline 계산 및 하이브리드 검색 수행
-        Elastic-->>AG: EvidenceRef[] 구조의 근거 데이터셋 반환
+        AG->>Elastic: Evidence wrapper 호출 (search / esql)
+        Elastic-->>AG: EvidenceRef[] 반환
     end
 
-    AG->>AG: Gemini 기반 다단계 추론<br/>시그널 추출 -> 인과 가설 수립 -> 실험안 설계
+    AG->>AG: Gemini 다단계 추론<br/>시그널 -> 가설 -> 실험안
 
     rect rgb(230, 245, 230)
-        Note over AG, Arize: L4 실시간 트레이싱 계측
-        AG->>Arize: LLM 호출, 도구 호출, Reviewer Gate 결과를 OTLP/OpenInference로 전송
+        Note over FE, AG: 실시간 glass-box 스트리밍 (작업 중 계속)
+        AG-->>BE: workflow 이벤트 (observation/signal/hypothesis/plan)
+        BE-->>FE: 정책 적용 후 이벤트 릴레이 (라이브 타임라인)
+        AG->>Arize: LLM/도구/Gate 결과 OpenInference 송신
     end
 
-    AG-->>BE: 최종 구조화 결과 반환 (AgentResultPayload)
-    BE-->>FE: polling 응답으로 WAITING_FOR_APPROVAL payload 전달
+    AG-->>BE: WAITING_FOR_APPROVAL 도달 (후보 payload 준비)
+    BE-->>FE: approval.requested (Java가 승인 게이트 추가)
     Note over FE: 승인 전 후보 실험안은 React State에만 보관한다.
+    Note over FE, BE: 스트림 끊김 시 GET /api/agent/runs/{id} 스냅샷 복구 (fallback)
 
-    Note over User, Arize: PHASE 2: 인간 피드백 반영 및 불변 데이터 적재
-    User->>FE: 실험안 카드 검토, 선택, 문구 수정
+    Note over User, Arize: PHASE 2: 인간 승인 및 불변 데이터 적재
+    User->>FE: 실험안 카드 검토, 문구 수정
     User->>FE: Approve Experiments 클릭
-    FE->>BE: 승인 요청 (POST /api/agent/actions/{agent_run_id}/approve)
+    FE->>BE: approval.approve (WS 주 채널) / POST .../approve (REST fallback)
 
     rect rgb(255, 240, 245)
         Note over BE, Elastic: Append-only insert
@@ -169,7 +174,7 @@ graph TB
   Arize["Arize AI / Phoenix Cloud<br/>(L4 메타 기억 / Observability)"]:::external
 
   subgraph Python_Agent_Container ["Python Agent Service Container Boundary (C3 Level)"]
-    Ctrl["Agent API Controller<br/>(FastAPI / Routing)<br/><br/>Java의 분석/복원 비동기 요청 접수 및<br/>즉시 202 Accepted 반환 담당"]:::component
+    Ctrl["Agent API Controller<br/>(FastAPI / Routing + WS)<br/><br/>Java의 분석/복원 비동기 요청 접수, 202 + stream_url 반환,<br/>내부 WebSocket으로 glass-box workflow 이벤트 송신"]:::component
     Orch["Central Orchestrator<br/>(State Machine Engine)<br/><br/>Background task에서 워커 제어,<br/>품질 실패 시 백트래킹 루프 관장"]:::component
     State["Shared Context Object<br/>(Pydantic State Store)<br/><br/>L1/L2 단기 기억 격리소.<br/>Signals -> Hypotheses -> Experiments<br/>단계별 JSON 데이터 축적"]:::state
     WorkerA["Data Analyst Worker<br/>(Sub-Agent / 정량 분석)"]:::component
@@ -216,8 +221,8 @@ graph TB
   Gemini ==>|7.3. 정제된 마크다운 및 브리프 데이터 반환| WorkerC
   WorkerC -.->|7.4. 최종 완료본 브리프 스냅숏 적재| State
 
-  Orch -->|8. 해당 Job ID 상태를 WAITING_FOR_APPROVAL로 업데이트| Ctrl
-  Ctrl -->|9. 최종 AgentResultPayload 반환| BE
+  Orch -->|8. 단계별 workflow 이벤트 + 상태를 WAITING_FOR_APPROVAL로 업데이트| Ctrl
+  Ctrl -->|9. workflow 이벤트 스트리밍(내부 WS) + 최종 AgentResultPayload| BE
 
   WorkerA -.->|OTel / OpenInference 계측| Tracer
   WorkerB -.->|OTel / OpenInference 계측| Tracer
@@ -246,7 +251,7 @@ graph LR
   subgraph Java_Backend_Container ["Java Spring Boot Backend Container Boundary (C3 Level)"]
     subgraph API_Tier ["Tier 1: Web API Layer"]
       Ctrl_Import["ImportController<br/>(Seed / CSV Ingestion)"]:::core
-      Ctrl_Agent["AgentController<br/>(Task Trigger / Polling)"]:::core
+      Ctrl_Agent["AgentController<br/>(Task Trigger / WS Relay)"]:::core
       Ctrl_Biz["BusinessController<br/>(Calendar / Growth Brief)"]:::core
     end
 
@@ -268,10 +273,10 @@ graph LR
   Parser -.->|1.2. 힙 메모리 최소화 상태로 청크 데이터 전달| ImpService
   ImpService -->|1.3. 실시간성 강제 옵션 기반 벌크 인덱싱 요청| ES_Client
 
-  NextJS -->|2. 분석 요청 트리거 / 상태 polling| Ctrl_Agent
+  NextJS -->|2. 분석 트리거 / WS 스트림 구독 / 스냅샷 복구| Ctrl_Agent
   Ctrl_Agent --> JobMgr
-  JobMgr -->|2.1. 웹 스레드 즉시 해제 / 202 Accepted 반환| Ctrl_Agent
-  JobMgr -->|2.2. 독립 스레드 풀에서 비동기 HTTP 요청| PyAgent
+  JobMgr -->|2.1. 웹 스레드 즉시 해제 / 202 + stream_url 반환| Ctrl_Agent
+  JobMgr -->|2.2. 독립 스레드 풀에서 Python 시작 + 내부 WS 구독/릴레이| PyAgent
 
   NextJS -->|3. 가설 실험안 최종 승인 / 인앱 브리프 조회| Ctrl_Biz
   Ctrl_Biz --> BizService

@@ -3,7 +3,7 @@
 
 | 항목 | 내용 |
 |---|---|
-| 문서 버전 | v1.0 (Contract-aligned 전면 리뉴얼) |
+| 문서 버전 | v1.1 (실시간 WebSocket 스트리밍 런타임 반영) |
 | 작성일 | 2026-06-02 |
 | 제출 목적 | Google Cloud Rapid Agent Hackathon 신규 프로젝트 개발 문서 |
 | Partner Track | Elastic |
@@ -13,11 +13,12 @@
 | 제출 원칙 | 새 repo, 새 코드베이스, 새 demo dataset. 기존 운영 서비스 수정/확장 아님 |
 
 > 본 문서는 기존 v0.1 PRD를 `contracts/`, `scenarios/`, `docs/architecture/launchpilot-c4.md` 설계에 맞춰 전면 리뉴얼한 버전이다.
-> 가장 큰 변경점은 다음 네 가지다.
+> 가장 큰 변경점은 다음 다섯 가지다.
 > 1. 단일 LangChain류 에이전트 → **Google ADK 기반 4개 워커 멀티 에이전트** 파이프라인.
 > 2. Google Cloud Agent Builder 사용 → **Google ADK 직접 오케스트레이션** + Elasticsearch MCP Server.
 > 3. 별도 App DB(Postgres/SQLite) → **Elastic Cloud Serverless 단일 데이터 저장소**, Java 백엔드는 순수 게이트웨이.
 > 4. 관측성 부재 → **Arize/Phoenix L4 메타 기억** 및 OpenInference 트레이싱 추가.
+> 5. (v1.1) 폴링 전용 → **WebSocket 실시간 스트리밍을 주 채널로, REST를 시작/승인/복구 fallback으로** 쓰는 이중 채널. 계약 `01/02 asyncapi.yaml`로 강제.
 
 ---
 
@@ -212,8 +213,9 @@ LaunchPilot은 **멀티 에이전트 Signal-to-Experiment 워룸**이다.
 1. **단일 데이터 저장소.** Postgres/SQLite 없음. Elastic이 유일 DB. Java는 RDB 없이 Elastic에 직접 `refresh=true`로 즉시 인덱싱한다.
 2. **Frontend는 stateless 경계.** 승인 전 후보 실험안은 React State에만 존재한다. 오직 승인된 산출물만 Elastic에 들어간다.
 3. **Append-only 불변성.** 승인 시 `growth_briefs` 1건 + `calendar_events` N건만 bulk index. 수정/삭제 없음.
-4. **비동기 분리.** Java는 Python을 한 번 호출해 시작시키고(202 Accepted), 이후 상태를 폴링한다. Tomcat 스레드 고갈 방지를 위해 별도 TaskExecutor 풀에서 실행한다.
+4. **비동기 + 실시간 스트리밍.** Java는 Python을 한 번 호출해 시작시키고(202 Accepted, `stream_url` 포함), 이후 **내부 WebSocket 스트림**으로 진행 이벤트를 받아 프론트 WS로 릴레이한다. REST `GET` 폴링은 재접속/새로고침/스트림 끊김 복구용 fallback이다. Tomcat 스레드 고갈 방지를 위해 별도 TaskExecutor 풀에서 실행한다.
 5. **Agent Builder 미사용.** Google ADK로 직접 오케스트레이션하고, Elasticsearch MCP Server를 LaunchPilot 도메인 wrapper로 감싸 호출한다.
+6. **Glass-box 스트리밍.** Python은 raw Gemini chunk, chain-of-thought, `thoughtSignature`, raw MCP 메시지를 전송하지 않는다. 사람이 봐도 되는 정규화된 workflow 이벤트(`observation`/`signal`/`hypothesis`/`plan`)만 스트리밍한다. **승인 게이트는 Java 소유**이며 Python은 `WAITING_FOR_APPROVAL` 신호까지만 담당한다.
 
 ### 5.4 메모리 4계층
 
@@ -230,15 +232,20 @@ User → FE : CSV 선택 + Analyze 클릭
 FE   → BE : POST /api/import/csv (multipart)
 BE   ⇒ ES : CSV 파싱 데이터 즉시 인덱싱 (refresh=true)
 FE   → BE : POST /api/agent/run
-BE   → AG : POST /internal/agent/runs (202, 비동기 트리거)
+BE   → AG : POST /internal/agent/runs (202, stream_url 반환)
+FE   ⇄ BE : WebSocket 연결 (stream_url) — 라이브 진행 구독 (주 채널)
+BE   ⇄ AG : 내부 WebSocket 연결 — workflow 이벤트 구독
 AG   → Phoenix : 과거 실패 패턴 조회 (L4 성찰)
 AG   ⇒ ES : Elastic MCP wrapper로 근거 검색 (L3)
 AG   → Gemini : 신호 → 가설 → 실험 다단계 추론
+AG   ⇒ BE : workflow 이벤트 스트리밍 (observation/signal/hypothesis/plan)
+BE   ⇒ FE : 정책 적용 후 이벤트 릴레이 (라이브)
 AG   → Phoenix : LLM/도구/Gate 결과 OpenInference 송신
-AG   → BE : AgentResultPayload (WAITING_FOR_APPROVAL)
-BE   → FE : 폴링 응답으로 후보 payload 전달
-User → FE : 검토/수정/Approve
-FE   → BE : POST /api/agent/actions/{id}/approve
+AG   → BE : WAITING_FOR_APPROVAL 도달 (후보 payload 준비)
+BE   ⇒ FE : approval.requested (Java가 승인 게이트 추가)
+[끊김 시] FE → BE : GET /api/agent/runs/{id} 스냅샷 복구
+User → FE : 검토/수정/Approve (WS approval.approve, REST는 fallback)
+FE   → BE : 승인
 BE   ⇒ ES : growth_briefs 1 + calendar_events N bulk index (불변)
 ```
 
@@ -342,10 +349,13 @@ PENDING
   → (Java) SUCCESS                  (사용자 승인 후 Java 라이프사이클)
 
 Error:
-  → FAILED  (retry limit 초과 또는 복구 불가 인프라 오류)
+  → FAILED     (retry limit 초과 또는 복구 불가 인프라 오류)
+  → CANCELLED  (후보 생성 완료 전 사용자/운영자 취소)
 ```
 
 > `WAITING_FOR_APPROVAL`은 Python의 성공 터미널 상태다. `SUCCESS`는 Java 승인 라이프사이클 전용이며 Python v0.1은 방출하지 않는다.
+>
+> **상태는 2축이다.** 위 9개 `AgentRunStatus`는 굵은 생명주기 축(스냅샷/폴링용)이다. 별도로 WebSocket 진행표시줄용 세밀한 `AgentRunStage` 7단계가 `asyncapi.yaml`에만 존재한다: `IMPORT_METRICS → DETECT_PERFORMANCE_SIGNAL → GROUND_WITH_EVIDENCE → GENERATE_HYPOTHESIS → DRAFT_EXPERIMENT_PLAN → WAIT_FOR_APPROVAL → APPLY_APPROVED_PLAN`. Status = "지금 크게 어디쯤", Stage = "세부 작업 단계"로 구분한다.
 
 ---
 
@@ -434,7 +444,7 @@ ADK 워커는 **raw MCP 도구를 직접 호출하지 않고** wrapper 도구만
 - `IMPORT_SUCCEEDED` → `RUN_AGENT_REQUESTED` → `POST /api/agent/run`.
 진행 카피는 "데이터 가져오는 중"과 "에이전트 추론 중"을 구분해 보여준다.
 
-**Step 2 — 비동기 시작.** Java가 `agent_run_id`를 생성하고 Python에 `POST /internal/agent/runs`로 비동기 트리거(202). Java는 즉시 웹 스레드를 반환하고, FE는 `GET /api/agent/runs/{id}`를 1500ms 간격으로 폴링한다.
+**Step 2 — 비동기 시작 + 스트림 연결.** Java가 `agent_run_id`를 생성하고 Python에 `POST /internal/agent/runs`로 비동기 트리거(202, `stream_url` 포함). Java는 즉시 웹 스레드를 반환한다. FE는 응답의 `stream_url`로 WebSocket을 열어 진행 이벤트를 라이브로 받고(주 채널), Java는 Python의 내부 WS 스트림을 구독해 glass-box 정책 적용 후 FE로 릴레이한다. 스트림이 끊기면 `GET /api/agent/runs/{id}` 스냅샷으로 복구한다(fallback).
 
 **Step 3 — L4 성찰.** Python 오케스트레이터가 Background task에서 Phoenix MCP를 호출해 과거 낮은 평가 패턴을 조회하고 추론 기준을 보정한다.
 
@@ -448,14 +458,14 @@ ADK 워커는 **raw MCP 도구를 직접 호출하지 않고** wrapper 도구만
 
 **Step 7 — Agent 4 (Reviewer Gate) 검증.** `current_stage=VALIDATING`. 결정적 검증으로 모든 evidence_ref가 실제 도구 출력에 존재하는지, 각 실험이 success_criteria/schedule을 갖는지 확인. 통과 시 Final Payload Assembler가 `AgentResultPayload`를 조립하고 상태를 `WAITING_FOR_APPROVAL`로 전이. (만약 가설에 caveat 누락이면 `LOW_CONFIDENCE_WITHOUT_CAVEAT`로 Strategist에게 백트래킹.)
 
-**Step 8 — 검토 워룸.** FE 폴링이 `WAITING_FOR_APPROVAL` payload를 받는다. 3영역 워룸 렌더링.
+**Step 8 — 검토 워룸.** FE가 스트림으로 `approval.requested`(Java가 추가한 승인 게이트)와 후보 payload를 받는다(끊겼으면 스냅샷 복구). 3영역 워룸 렌더링.
 - 중앙: 3개 Signal Card + 가설 + Evidence 스니펫.
 - 우측 Action Panel: 실험 draft, 편집 가능한 title 필드.
 - 후보 실험안은 **React State에만** 존재한다(아직 Elastic 미저장).
 
 **Step 9 — 수정.** Mina가 실험 title을 "BTS 연습실 리액션 훅 A/B"로 수정한다. 로컬 `draftExperiments`만 변한다.
 
-**Step 10 — 승인.** **Approve Experiments** 클릭. `POST /api/agent/actions/{id}/approve`에 `final_experiments` 동봉. Java가 `growth_briefs` 1건 + `calendar_events` N건을 bulk index(불변). 응답으로 `growth_brief_id`와 생성된 캘린더 이벤트가 돌아온다.
+**Step 10 — 승인.** **Approve Experiments** 클릭. 주 채널은 WS `approval.approve`(`final_experiments` 동봉), REST `POST /api/agent/actions/{id}/approve`는 fallback. Java가 `growth_briefs` 1건 + `calendar_events` N건을 bulk index(불변). 응답으로 `growth_brief_id`와 생성된 캘린더 이벤트가 돌아온다.
 
 **Step 11 — 확정.** 승인 직후 캘린더 화면은 React State로 즉시 렌더링. Mina는 1페이지 Growth Brief를 복사해 클라이언트에게 공유한다.
 
@@ -515,7 +525,8 @@ AgentRun 1 ── N ToolCallLog / OpenInference span
 
 - `Channel`: `youtube | tiktok | instagram | x | unknown`
 - `Confidence`: `low | medium | medium_high | high`
-- `AgentRunStatus`: `PENDING | RUNNING_SIGNAL_DETECTION | RUNNING_EVIDENCE_SEARCH | RUNNING_HYPOTHESIS_GENERATION | RUNNING_EXPERIMENT_GENERATION | WAITING_FOR_APPROVAL | SUCCESS | FAILED`
+- `AgentRunStatus` (생명주기 축, 9): `PENDING | RUNNING_SIGNAL_DETECTION | RUNNING_EVIDENCE_SEARCH | RUNNING_HYPOTHESIS_GENERATION | RUNNING_EXPERIMENT_GENERATION | WAITING_FOR_APPROVAL | SUCCESS | FAILED | CANCELLED`
+- `AgentRunStage` (WS 진행축, 7, asyncapi 전용): `IMPORT_METRICS | DETECT_PERFORMANCE_SIGNAL | GROUND_WITH_EVIDENCE | GENERATE_HYPOTHESIS | DRAFT_EXPERIMENT_PLAN | WAIT_FOR_APPROVAL | APPLY_APPROVED_PLAN`
 - `AgentResultPayload`: `{ signals: Signal[], hypotheses: Hypothesis[], experiment_plan: ExperimentPlan }`
 - `ExperimentItem`: `{ id, hypothesis_id, title, channel, content_format, hook, cta, target_metric, success_criteria, scheduled_at, production_brief }`
 
@@ -527,8 +538,8 @@ AgentRun 1 ── N ToolCallLog / OpenInference span
 
 | 경계 | 폴더 | 주 산출물 |
 |---|---|---|
-| Frontend ↔ Java | `contracts/01-frontend-java` | `openapi.yaml`, `frontend-types.ts` |
-| Java ↔ Python Agent | `contracts/02-java-python-agent` | `openapi.yaml` |
+| Frontend ↔ Java | `contracts/01-frontend-java` | `openapi.yaml`(REST), `asyncapi.yaml`(WS), `frontend-types.ts` |
+| Java ↔ Python Agent | `contracts/02-java-python-agent` | `openapi.yaml`(REST), `asyncapi.yaml`(WS) |
 | Java ↔ Elastic 문서 | `contracts/03-java-elastic` | `documents.schema.json` |
 | Python Agent ↔ Elasticsearch MCP | `contracts/04-agent-elastic-mcp` | `evidence-tools.schema.json` |
 | ADK 워커 ↔ 구조화 출력 / Reviewer Gate | `contracts/05-agent-output` | `agent-output.schema.json` |
@@ -545,23 +556,28 @@ AgentRun 1 ── N ToolCallLog / OpenInference span
 | Method | Path | 목적 |
 |---|---|---|
 | POST | `/api/import/csv` | CSV 업로드/파싱/Elastic 인덱싱 |
-| POST | `/api/agent/run` | 에이전트 실행 비동기 트리거 (202, PENDING) |
-| GET | `/api/agent/runs/{agent_run_id}` | 상태 폴링 |
-| POST | `/api/agent/actions/{agent_run_id}/approve` | 후보 plan 승인 → 불변 적재 |
+| POST | `/api/agent/run` | 에이전트 실행 비동기 트리거 (202, PENDING, `stream_url` 반환) |
+| WS | `/api/agent/runs/{agent_run_id}/stream` | 실시간 진행 이벤트 (주 채널, asyncapi) |
+| GET | `/api/agent/runs/{agent_run_id}` | 스냅샷 복구 (폴링 fallback) |
+| POST | `/api/agent/actions/{agent_run_id}/approve` | 후보 plan 승인 → 불변 적재 (WS approval.approve의 fallback) |
+| POST | `/api/agent/actions/{agent_run_id}/cancel` | 런 취소 (WS run.cancel의 fallback) |
 
 ### 12.2 내부 API (Java ↔ Python)
 
 | Method | Path | 목적 |
 |---|---|---|
-| POST | `/internal/agent/runs` | Java가 Python 런 시작 (202) |
-| GET | `/internal/agent/runs/{agent_run_id}` | Java가 Python 상태 폴링 |
-| POST | `/internal/agent/runs/{agent_run_id}/cancel` | (optional) 런 취소 |
+| POST | `/internal/agent/runs` | Java가 Python 런 시작 (202, `stream_url`+`snapshot_url` 반환) |
+| WS | `/internal/agent/runs/{agent_run_id}/stream` | Python → Java workflow 이벤트 스트림 (주 채널, asyncapi) |
+| GET | `/internal/agent/runs/{agent_run_id}` | 스냅샷 (상태+payload, 이벤트 히스토리 없음) |
+| POST | `/internal/agent/runs/{agent_run_id}/cancel` | 런 취소 (fallback) |
 
 ### 12.3 Java 매핑 규칙
 
 Java가 프론트에 노출하는 필드: `agent_run_id`, `status`, `current_stage`, `retry_count`, `error_message`, `payload`, `tool_call_logs`.
 
-Java가 내부로 유지하는 필드: `agent_diagnostics`(worker, validator_passed, backtrack_count, phoenix_reflection_used, trace_id), `started_at/updated_at/completed_at`, raw Python 실패 스택.
+workflow 이벤트는 Python 내부 WS 스트림으로 받아 glass-box 정책 적용 후 프론트 WS(`AgentStreamServerEvent`)로 릴레이한다. REST 스냅샷 응답에는 이벤트 히스토리를 포함하지 않는다(`d472ff0`에서 제거). 승인 게이트(`approval.requested`)는 Python이 `WAITING_FOR_APPROVAL`에 도달한 뒤 Java가 프론트 스트림에 추가한다.
+
+Java가 내부로 유지하는 필드: `agent_diagnostics`(worker, validator_passed, backtrack_count, phoenix_reflection_used, trace_id), `started_at/updated_at/completed_at`, raw Python 실패 스택, raw Gemini chunk / chain-of-thought / `thoughtSignature` / function-call transport / raw MCP 메시지.
 
 ### 12.4 ID 규약
 
@@ -605,7 +621,7 @@ Gemini 스타일의 대화형 쉘이되, 순수 챗 앱은 아니다. 실험 계
 
 - 프론트는 Java 공개 API만 호출(Python/Elastic/Gemini/Phoenix 직접 호출 금지).
 - 후보 실험안은 승인 전까지 React State에만. user 편집은 `draftExperiments`에만 적용, 원본 `payload`는 불변.
-- 폴링은 `analysis_pending`, `analysis_running`에서만. `WAITING_FOR_APPROVAL`/`FAILED` 시 즉시 중단.
+- 주 채널은 `analysis_pending`, `analysis_running`에서 WebSocket 스트림 구독. `WAITING_FOR_APPROVAL`/`FAILED`/`CANCELLED` 시 스트림 종료. REST `GET` 폴링은 스트림 끊김 시 복구용으로만 사용.
 - 불가능한 상태를 표현 불가능하게 만드는 reducer. 네트워크 효과는 reducer 밖.
 
 ### 13.4 MVP 상호작용 결정
@@ -749,7 +765,7 @@ Return strictly valid JSON following the provided draft schema.
 | Elastic 단일 저장소 | content_posts/follower_logs/campaigns/calendar_events/team_notes/growth_briefs |
 | 4-Agent 파이프라인 | Analyst → Strategist → Writer → Reviewer Gate + Orchestrator |
 | Evidence Wrapper 도구 | search_content_posts, query_metric_baseline, search_team_notes, load_growth_brief_context |
-| 비동기 run + 폴링 | Java 202 트리거 + GET 폴링, 상태 머신 매핑 |
+| 비동기 run + WS 스트리밍 | Java 202 트리거 + WebSocket 실시간 릴레이(주), GET 스냅샷 복구(fallback), 상태 머신 매핑 |
 | Reviewer Gate 검증 | 결정적 스키마/근거 검증 + 백트래킹 |
 | Human Approval | 승인 전 미저장, 승인 시 불변 적재 |
 | Growth Brief + Calendar | 승인 시 growth_briefs 1 + calendar_events N |
@@ -827,7 +843,7 @@ Return strictly valid JSON following the provided draft schema.
 2. formatter 단계를 별도 `LlmAgent`로 둘지 결정적 Python normalization으로 둘지.
 3. Gemini 보조 repair를 데모에 켤지 deferral.
 4. `team_notes`에 Java 소유 문서 계약을 줄지 demo seed로 둘지.
-5. Java가 Python run 상태를 단기 캐시할지 항상 직접 폴링할지.
+5. WS 스트림 끊김 시 재접속 리플레이(미전달 이벤트 재생)를 MVP 범위에 넣을지. 현재 GET 스냅샷에서 이벤트 히스토리는 제거됨(`d472ff0`).
 6. `cancel` 엔드포인트가 데모에 필요한지.
 7. 내부 서비스 인증(`X-Internal-Token`) 데모 적용 여부.
 8. Growth Brief export markdown copy까지만 vs PDF.
