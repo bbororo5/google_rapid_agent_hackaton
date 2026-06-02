@@ -1,11 +1,13 @@
 asyncapi: 2.6.0
 info:
   title: LaunchPilot Agent Runtime Stream
-  version: 0.1.0
+  version: 0.2.0
   description: >
     AsyncAPI contract for the active Campaign Agent WebSocket runtime between
-    the Next.js frontend and Java Spring Boot gateway. REST endpoints for run
-    creation, snapshots, and fallback actions are defined in openapi.yaml.
+    the Next.js frontend and Java Spring Boot gateway. REST endpoints create
+    agent runs and provide coarse snapshots; live conversation delivery,
+    approval/cancel commands, reconnect resume, and missed-event replay are
+    handled over this WebSocket contract.
 servers:
   local:
     url: localhost:8080/api
@@ -17,16 +19,16 @@ servers:
     description: Production Java gateway WebSocket server.
 channels:
   /agent/runs/{agent_run_id}/stream:
-    description: Live observation and intervention stream for one active agent run.
+    description: Live persisted timeline, intervention, and reconnect recovery stream for one agent run.
     parameters:
       agent_run_id:
         description: Agent run identifier returned by POST /api/agent/run.
     subscribe:
-      summary: Receive live agent progress, observations, artifacts, approval gates, and terminal events.
+      summary: Receive persisted timeline events and connection recovery control events.
       message:
         $ref: "#/components/messages/AgentStreamServerEvent"
     publish:
-      summary: Send cancel, approve, or reject commands while the run is active or paused.
+      summary: Resume a disconnected stream, request a full timeline replay, or send runtime commands.
       message:
         $ref: "#/components/messages/AgentStreamClientCommand"
 components:
@@ -38,6 +40,14 @@ components:
       payload:
         $ref: "#/components/schemas/AgentStreamServerEvent"
       examples:
+        - name: userMessageCreated
+          summary: Initial user question is persisted as a recoverable timeline event.
+          payload:
+            $ref: "./examples/agent-stream-user-message-created-event.json"
+        - name: runStarted
+          summary: Agent run enters the active runtime after REST run creation.
+          payload:
+            $ref: "./examples/agent-stream-run-started-event.json"
         - name: observationCreated
           summary: Agent reports a grounded observation while analyzing evidence.
           payload:
@@ -46,6 +56,18 @@ components:
           summary: Agent pauses before creating business outputs.
           payload:
             $ref: "./examples/agent-stream-approval-requested-event.json"
+        - name: approvalCommitted
+          summary: Approval was committed and created business document identifiers are available.
+          payload:
+            $ref: "./examples/agent-stream-approval-committed-event.json"
+        - name: resumeAccepted
+          summary: Server accepted a resume request and will replay missed events.
+          payload:
+            $ref: "./examples/agent-stream-resume-accepted-event.json"
+        - name: fullSyncRequired
+          summary: Incremental replay is unavailable and the client must request full timeline replay.
+          payload:
+            $ref: "./examples/agent-stream-full-sync-required-event.json"
     AgentStreamClientCommand:
       name: AgentStreamClientCommand
       title: Agent stream client command
@@ -53,6 +75,14 @@ components:
       payload:
         $ref: "#/components/schemas/AgentStreamClientCommand"
       examples:
+        - name: resumeConnection
+          summary: Client reconnects and asks the server to replay missed events.
+          payload:
+            $ref: "./examples/agent-stream-resume-command.json"
+        - name: requestFullSync
+          summary: Client asks the server to replay the full persisted timeline over WebSocket.
+          payload:
+            $ref: "./examples/agent-stream-full-sync-command.json"
         - name: approvePlan
           summary: User approves the edited experiment plan and resumes the run.
           payload:
@@ -113,20 +143,35 @@ components:
     AgentStreamServerEventType:
       type: string
       enum:
+        - connection.resume_accepted
+        - connection.replay_started
+        - connection.replay_completed
+        - connection.full_sync_required
+        - connection.reauth_required
+        - connection.session_expired
         - run.started
         - step.updated
+        - user.message.created
+        - assistant.message.created
         - observation.created
+        - tool.updated
         - signal.detected
         - hypothesis.created
         - experiment_plan.drafted
         - approval.requested
+        - approval.committed
+        - run.paused
+        - run.resumed
         - run.cancelled
         - run.completed
         - run.failed
     AgentStreamClientCommandType:
       type: string
       enum:
+        - connection.resume
+        - connection.full_sync
         - run.cancel
+        - approval.update_payload
         - approval.approve
         - approval.reject
     AgentStepSnapshot:
@@ -161,6 +206,20 @@ components:
           type: array
           items:
             type: string
+    AgentMessage:
+      type: object
+      additionalProperties: false
+      required: [message_id, role, content]
+      properties:
+        message_id:
+          type: string
+          pattern: "^msg_[A-Za-z0-9_]+$"
+        role:
+          type: string
+          enum: [user, assistant]
+        content:
+          type: string
+          description: User-visible conversation content. Do not include private chain-of-thought.
     Signal:
       type: object
       additionalProperties: false
@@ -344,37 +403,110 @@ components:
           $ref: "#/components/schemas/ApprovalGateKind"
         payload:
           $ref: "#/components/schemas/AgentResultPayload"
+    CalendarEventRef:
+      type: object
+      additionalProperties: false
+      required: [event_id, title, scheduled_at]
+      properties:
+        event_id:
+          type: string
+          pattern: "^cal_[A-Za-z0-9_]+$"
+        title:
+          type: string
+        scheduled_at:
+          type: string
+          format: date-time
+    ApprovalCommitResult:
+      type: object
+      additionalProperties: false
+      required: [approval_id, growth_brief_id, created_calendar_events, persisted_at]
+      properties:
+        approval_id:
+          type: string
+          pattern: "^appr_[A-Za-z0-9_]+$"
+        growth_brief_id:
+          type: string
+          pattern: "^brief_[A-Za-z0-9_]+$"
+        created_calendar_events:
+          type: array
+          items:
+            $ref: "#/components/schemas/CalendarEventRef"
+        persisted_at:
+          type: string
+          format: date-time
+    ReplayScope:
+      type: string
+      enum: [missed_events, full_timeline]
     AgentStreamServerEvent:
       type: object
       additionalProperties: false
-      required: [event_id, type, agent_run_id, sequence, occurred_at]
+      required: [event_id, type, occurred_at]
       properties:
         event_id:
           type: string
         type:
           $ref: "#/components/schemas/AgentStreamServerEventType"
         agent_run_id:
-          type: string
+          type:
+            - string
+            - "null"
           pattern: "^run_[A-Za-z0-9_]+$"
+        session_id:
+          type:
+            - string
+            - "null"
         sequence:
-          type: integer
+          type:
+            - integer
+            - "null"
           minimum: 1
+          description: >
+            Monotonic per-agent-run sequence for persisted timeline events.
+            Connection control events may omit sequence.
         occurred_at:
           type: string
           format: date-time
         status:
-          $ref: "#/components/schemas/AgentRunStatus"
+          oneOf:
+            - $ref: "#/components/schemas/AgentRunStatus"
+            - type: "null"
+        replay_scope:
+          oneOf:
+            - $ref: "#/components/schemas/ReplayScope"
+            - type: "null"
+        last_replayed_sequence:
+          type:
+            - integer
+            - "null"
+          minimum: 0
+        next_expected_sequence:
+          type:
+            - integer
+            - "null"
+          minimum: 1
         step:
           oneOf:
             - $ref: "#/components/schemas/AgentStepSnapshot"
+            - type: "null"
+        message:
+          oneOf:
+            - $ref: "#/components/schemas/AgentMessage"
             - type: "null"
         observation:
           oneOf:
             - $ref: "#/components/schemas/AgentObservation"
             - type: "null"
+        tool_call:
+          oneOf:
+            - $ref: "#/components/schemas/ToolCallLog"
+            - type: "null"
         payload:
           oneOf:
             - $ref: "#/components/schemas/AgentResultPayload"
+            - type: "null"
+        approval_result:
+          oneOf:
+            - $ref: "#/components/schemas/ApprovalCommitResult"
             - type: "null"
         approval:
           oneOf:
@@ -384,15 +516,65 @@ components:
           type:
             - string
             - "null"
-    AgentStreamClientCommand:
+    ConnectionResumeCommand:
+      type: object
+      additionalProperties: false
+      required: [command_id, type, client_id, agent_run_id, last_received_sequence]
+      properties:
+        command_id:
+          type: string
+          description: Request correlation id for this resume attempt.
+        type:
+          type: string
+          const: connection.resume
+        client_id:
+          type: string
+        session_id:
+          type:
+            - string
+            - "null"
+        agent_run_id:
+          type: string
+          pattern: "^run_[A-Za-z0-9_]+$"
+        last_received_sequence:
+          type: integer
+          minimum: 0
+          description: Last persisted timeline event the client fully applied.
+    ConnectionFullSyncCommand:
+      type: object
+      additionalProperties: false
+      required: [command_id, type, client_id, agent_run_id]
+      properties:
+        command_id:
+          type: string
+          description: Request correlation id for the full timeline replay request.
+        type:
+          type: string
+          const: connection.full_sync
+        client_id:
+          type: string
+        session_id:
+          type:
+            - string
+            - "null"
+        agent_run_id:
+          type: string
+          pattern: "^run_[A-Za-z0-9_]+$"
+    RuntimeCommandBase:
       type: object
       additionalProperties: false
       required: [command_id, type, agent_run_id]
       properties:
         command_id:
           type: string
+          description: Idempotency key. The server must execute the same command_id at most once.
         type:
-          $ref: "#/components/schemas/AgentStreamClientCommandType"
+          type: string
+          enum:
+            - run.cancel
+            - approval.update_payload
+            - approval.approve
+            - approval.reject
         agent_run_id:
           type: string
           pattern: "^run_[A-Za-z0-9_]+$"
@@ -411,6 +593,11 @@ components:
           type:
             - string
             - "null"
+    AgentStreamClientCommand:
+      oneOf:
+        - $ref: "#/components/schemas/ConnectionResumeCommand"
+        - $ref: "#/components/schemas/ConnectionFullSyncCommand"
+        - $ref: "#/components/schemas/RuntimeCommandBase"
     AgentStreamAck:
       type: object
       additionalProperties: false

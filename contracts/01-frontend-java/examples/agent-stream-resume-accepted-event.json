@@ -1,0 +1,11 @@
+{
+  "event_id": "evt_resume_001",
+  "type": "connection.resume_accepted",
+  "agent_run_id": "run_20260601_001",
+  "session_id": "session_20260601_001",
+  "sequence": null,
+  "occurred_at": "2026-06-01T16:31:30+09:00",
+  "replay_scope": "missed_events",
+  "last_replayed_sequence": 3,
+  "next_expected_sequence": 4
+}

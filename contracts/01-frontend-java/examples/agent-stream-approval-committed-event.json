@@ -1,0 +1,22 @@
+{
+  "event_id": "evt_007",
+  "type": "approval.committed",
+  "agent_run_id": "run_20260601_001",
+  "session_id": "session_20260601_001",
+  "sequence": 7,
+  "occurred_at": "2026-06-01T16:32:10+09:00",
+  "status": "SUCCESS",
+  "approval_result": {
+    "approval_id": "appr_20260601_001",
+    "growth_brief_id": "brief_20260601_001",
+    "created_calendar_events": [
+      {
+        "event_id": "cal_20260603_001",
+        "title": "BTS face-first hook test",
+        "scheduled_at": "2026-06-03T20:00:00+09:00"
+      }
+    ],
+    "persisted_at": "2026-06-01T16:32:10+09:00"
+  },
+  "error_message": null
+}

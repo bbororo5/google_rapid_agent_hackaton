@@ -31,21 +31,38 @@ export type AgentObservationKind = "progress" | "evidence" | "signal" | "hypothe
 export type ApprovalGateKind = "EXPERIMENT_PLAN" | "CREATE_GROWTH_BRIEF" | "CREATE_CALENDAR_EVENTS";
 
 export type AgentStreamServerEventType =
+  | "connection.resume_accepted"
+  | "connection.replay_started"
+  | "connection.replay_completed"
+  | "connection.full_sync_required"
+  | "connection.reauth_required"
+  | "connection.session_expired"
   | "run.started"
   | "step.updated"
+  | "user.message.created"
+  | "assistant.message.created"
   | "observation.created"
+  | "tool.updated"
   | "signal.detected"
   | "hypothesis.created"
   | "experiment_plan.drafted"
   | "approval.requested"
+  | "approval.committed"
+  | "run.paused"
+  | "run.resumed"
   | "run.cancelled"
   | "run.completed"
   | "run.failed";
 
 export type AgentStreamClientCommandType =
+  | "connection.resume"
+  | "connection.full_sync"
   | "run.cancel"
+  | "approval.update_payload"
   | "approval.approve"
   | "approval.reject";
+
+export type ReplayScope = "missed_events" | "full_timeline";
 
 export interface DateRange {
   start: string;
@@ -101,28 +118,70 @@ export interface ApprovalGateRequest {
   payload: AgentResultPayload;
 }
 
+export interface ApprovalCommitResult {
+  approval_id: string;
+  growth_brief_id: string;
+  created_calendar_events: CalendarEventRef[];
+  persisted_at: string;
+}
+
+export interface AgentMessage {
+  message_id: string;
+  role: "user" | "assistant";
+  content: string;
+}
+
 export interface AgentStreamServerEvent {
   event_id: string;
   type: AgentStreamServerEventType;
-  agent_run_id: string;
-  sequence: number;
+  agent_run_id?: string | null;
+  session_id?: string | null;
+  sequence?: number | null;
   occurred_at: string;
-  status?: AgentRunStatus;
+  status?: AgentRunStatus | null;
+  replay_scope?: ReplayScope | null;
+  last_replayed_sequence?: number | null;
+  next_expected_sequence?: number | null;
   step?: AgentStepSnapshot | null;
+  message?: AgentMessage | null;
   observation?: AgentObservation | null;
+  tool_call?: ToolCallLog | null;
   payload?: AgentResultPayload | null;
+  approval_result?: ApprovalCommitResult | null;
   approval?: ApprovalGateRequest | null;
   error_message?: string | null;
 }
 
-export interface AgentStreamClientCommand {
+export interface ConnectionResumeCommand {
   command_id: string;
-  type: AgentStreamClientCommandType;
+  type: "connection.resume";
+  client_id: string;
+  session_id?: string | null;
+  agent_run_id: string;
+  last_received_sequence: number;
+}
+
+export interface ConnectionFullSyncCommand {
+  command_id: string;
+  type: "connection.full_sync";
+  client_id: string;
+  session_id?: string | null;
+  agent_run_id: string;
+}
+
+export interface RuntimeCommand {
+  command_id: string;
+  type: "run.cancel" | "approval.update_payload" | "approval.approve" | "approval.reject";
   agent_run_id: string;
   approval_id?: string | null;
   final_experiments?: ExperimentItem[] | null;
   reason?: string | null;
 }
+
+export type AgentStreamClientCommand =
+  | ConnectionResumeCommand
+  | ConnectionFullSyncCommand
+  | RuntimeCommand;
 
 export interface AgentStreamAck {
   ok: true;
