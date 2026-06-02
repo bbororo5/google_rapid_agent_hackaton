@@ -8,8 +8,8 @@ Read in order:
 
 | Order | Boundary | Folder | Main Artifact |
 | --- | --- | --- | --- |
-| 1 | Frontend <-> Java Backend | `01-frontend-java` | `openapi.yaml` |
-| 2 | Java Backend <-> Python Agent | `02-java-python-agent` | `openapi.yaml` |
+| 1 | Frontend <-> Java Backend | `01-frontend-java` | `openapi.yaml`, `asyncapi.yaml` |
+| 2 | Java Backend <-> Python Agent | `02-java-python-agent` | `openapi.yaml`, `asyncapi.yaml` |
 | 3 | Java Backend <-> Elastic | `03-java-elastic` | `documents.schema.json` |
 | 4 | Python Agent <-> Elasticsearch MCP | `04-agent-elastic-mcp` | `evidence-tools.schema.json` |
 | 5 | ADK Workers <-> Structured Outputs | `05-agent-output` | `agent-output.schema.json` |
@@ -28,6 +28,7 @@ contracts/
   02-java-python-agent/
     README.md
     openapi.yaml
+    asyncapi.yaml
     examples/
 
   03-java-elastic/
