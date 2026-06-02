@@ -1,0 +1,22 @@
+server:
+  port: 8080
+
+spring:
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 50MB
+  # Elastic Cloud(계약 03). RestClient/Client는 자동설정이 생성.
+  elasticsearch:
+    uris: ${ELASTIC_URL:http://localhost:9200}
+    connection-timeout: 10s
+    socket-timeout: 30s
+
+# Python 인프라(계약 02). 환경변수 AGENT_SERVICE_URL로 오버라이드.
+agent:
+  service:
+    url: ${AGENT_SERVICE_URL:http://localhost:8000}
+
+# Serverless API Key (ElasticConfig가 인증 헤더로 사용).
+elastic:
+  api-key: ${ELASTIC_API_KEY:}
