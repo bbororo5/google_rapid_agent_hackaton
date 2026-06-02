@@ -1,0 +1,7 @@
+# e2e 프로파일. agent.service.url은 테스트가 WireMock 포트로 동적 주입.
+# elastic.url / elastic.api-key는 환경변수에서 (실 Elastic Cloud).
+spring:
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 50MB
