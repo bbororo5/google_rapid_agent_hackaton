@@ -1,0 +1,15 @@
+import { NextResponse } from "next/server";
+
+export async function POST() {
+  return NextResponse.json(
+    {
+      "ok": true,
+      "agent_run_id": "run_20260601_001",
+      "status": "PENDING",
+      "stream_url": "/api/agent/runs/run_20260601_001/stream",
+      "next_poll_url": "/api/agent/runs/run_20260601_001",
+      "created_at": "2026-06-01T16:31:00+09:00"
+    },
+    { status: 202 }
+  );
+}
