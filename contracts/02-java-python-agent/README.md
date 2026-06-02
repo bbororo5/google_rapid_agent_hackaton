@@ -1,8 +1,8 @@
 # LaunchPilot Java-Python Agent Internal Contract
 
-Status: Draft v0.1  
+Status: Draft v0.2  
 Boundary: Java Spring Boot Business Backend <-> Python FastAPI Agent Service  
-Last updated: 2026-06-01
+Last updated: 2026-06-02
 
 ## Purpose
 
@@ -51,6 +51,9 @@ IDs:
 - Python must return quickly from `POST /internal/agent/runs`; long-running work happens in a background task.
 - Python status values must be compatible with the frontend-facing Java status enum.
 - Python `payload` must be structurally compatible with `contracts/01-frontend-java/openapi.yaml` `AgentResultPayload`.
+- Python `workflow_events` must be structurally compatible with the frontend-facing WebSocket events in `contracts/01-frontend-java/asyncapi.yaml`, excluding Java-owned approval events.
+- Python must not send raw Gemini chunks, private chain-of-thought, provider-specific `thoughtSignature`, or raw tool transport messages through this API.
+- Python should convert Gemini stream parts, tool results, and validator progress into user-safe workflow events such as `observation.created`, `signal.detected`, `hypothesis.created`, and `experiment_plan.drafted`.
 - Python may include additional internal diagnostics under `agent_diagnostics`; Java may log this but should not expose all diagnostics to the frontend by default.
 - `WAITING_FOR_APPROVAL` is the Python terminal state for successful candidate generation.
 - `SUCCESS` is reserved for the Java approval lifecycle and should not normally be emitted by Python v0.1.
@@ -66,6 +69,7 @@ IDs:
 | `RUNNING_EXPERIMENT_GENERATION` | `RUNNING_EXPERIMENT_GENERATION` | Writer/Strategist path is creating experiment candidates. |
 | `WAITING_FOR_APPROVAL` | `WAITING_FOR_APPROVAL` | Candidate payload passed validation and is ready for UI review. |
 | `FAILED` | `FAILED` | Agent run failed after retries or unrecoverable infrastructure error. |
+| `CANCELLED` | `CANCELLED` | Agent run was cancelled before candidate generation completed. |
 
 ## 1. Start Internal Agent Run
 
@@ -114,7 +118,12 @@ Idempotency rule:
 
 `GET /internal/agent/runs/{agent_run_id}`
 
-Purpose: Java polls Python and maps the response to the frontend polling contract.
+Purpose: Java polls Python for the latest run snapshot and newly produced workflow events.
+
+Java uses this response in two ways:
+
+- Snapshot recovery: map `status`, `current_stage`, `payload`, and `tool_call_logs` to the public REST snapshot.
+- WebSocket relay: map `workflow_events` to frontend `AgentStreamServerEvent` messages. Java may add Java-owned events such as `approval.requested` after Python reaches `WAITING_FOR_APPROVAL`.
 
 Running response:
 
@@ -126,6 +135,31 @@ Running response:
   "retry_count": 0,
   "error_message": null,
   "payload": null,
+  "workflow_events": [
+    {
+      "event_id": "evt_002",
+      "type": "observation.created",
+      "agent_run_id": "run_20260601_001",
+      "sequence": 2,
+      "occurred_at": "2026-06-01T16:31:09+09:00",
+      "status": "RUNNING_EVIDENCE_SEARCH",
+      "step": {
+        "id": "step_ground_with_evidence",
+        "order": 3,
+        "stage": "GROUND_WITH_EVIDENCE",
+        "status": "IN_PROGRESS"
+      },
+      "observation": {
+        "id": "obs_001",
+        "kind": "evidence",
+        "title": "BTS clips are above baseline",
+        "summary": "Two BTS short-form posts are tracking 2.8x above the 30-day save-rate baseline.",
+        "evidence_refs": ["post_014", "post_017"]
+      },
+      "payload": null,
+      "error_message": null
+    }
+  ],
   "tool_call_logs": [
     {
       "sequence": 1,
@@ -166,6 +200,7 @@ Ready response:
       "items": []
     }
   },
+  "workflow_events": [],
   "tool_call_logs": [],
   "agent_diagnostics": {
     "worker": "Reviewer Gate Component",
@@ -192,7 +227,7 @@ Response: `202 Accepted`
 {
   "ok": true,
   "agent_run_id": "run_20260601_001",
-  "status": "FAILED",
+  "status": "CANCELLED",
   "cancelled_at": "2026-06-01T16:31:08+09:00"
 }
 ```
@@ -238,6 +273,7 @@ Java should expose only these fields to the frontend:
 - `retry_count`
 - `error_message`
 - `payload`
+- `workflow_events`, relayed as frontend WebSocket events
 - `tool_call_logs`
 
 Java should keep these fields internal by default:
@@ -247,6 +283,7 @@ Java should keep these fields internal by default:
 - `updated_at`
 - `completed_at`
 - raw Python failure stack or provider error bodies
+- raw Gemini stream chunks, private chain-of-thought, `thoughtSignature`, function-call transport frames, or raw MCP messages
 
 ## Open Decisions
 

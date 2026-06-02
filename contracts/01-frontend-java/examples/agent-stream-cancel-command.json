@@ -1,0 +1,8 @@
+{
+  "command_id": "cmd_cancel_001",
+  "type": "run.cancel",
+  "agent_run_id": "run_20260601_001",
+  "approval_id": null,
+  "final_experiments": null,
+  "reason": "User stopped the analysis from the workspace"
+}

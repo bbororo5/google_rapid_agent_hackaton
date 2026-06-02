@@ -1,8 +1,8 @@
 # LaunchPilot Frontend-Backend Contract
 
-Status: Draft v0.2  
+Status: Draft v0.4  
 Source: Gemini first-pass contract plus confirmed C1/C2/C3 diagrams and main user scenario  
-Last updated: 2026-06-01
+Last updated: 2026-06-02
 
 ## Contract Principles
 
@@ -13,9 +13,15 @@ The frontend only talks to the Java backend. It never calls Python Agent Service
 Core runtime rules:
 
 - Analysis is asynchronous. `POST /api/agent/run` returns `202 Accepted` immediately.
-- The frontend polls `GET /api/agent/runs/{agent_run_id}` until the run reaches `WAITING_FOR_APPROVAL`, `SUCCESS`, or `FAILED`.
+- This directory has two contract specs:
+  - `openapi.yaml`: REST surface for CSV import, run start, snapshot recovery, and approve/cancel fallback.
+  - `asyncapi.yaml`: active WebSocket runtime for live progress, observations, approval gates, cancel, and approval commands.
+- The accepted REST response includes `stream_url`. The frontend opens that WebSocket URL and then follows `asyncapi.yaml`.
+- `GET /api/agent/runs/{agent_run_id}` remains the snapshot and polling fallback for reconnect, refresh recovery, and browsers that cannot keep the stream open.
 - Candidate signals, hypotheses, and experiment plans are temporary before human approval. The frontend may edit them in React state, but the backend must not persist final calendar or brief documents before approval.
-- Approval is append-only. `POST /api/agent/actions/{agent_run_id}/approve` creates new `calendar_events` and `growth_briefs` documents in Elastic.
+- Approval is append-only. `approval.approve` over WebSocket is the primary resume command; `POST /api/agent/actions/{agent_run_id}/approve` remains the REST fallback. Approval creates new `calendar_events` and `growth_briefs` documents in Elastic.
+- Cancel is an intervention command. `run.cancel` over WebSocket is primary; `POST /api/agent/actions/{agent_run_id}/cancel` is the REST fallback.
+- Streamed reasoning must be glass-box, not raw private chain-of-thought. The backend sends user-visible observations, tool summaries, evidence references, and structured artifacts.
 - Response payloads use `snake_case` to match the Java Gateway and Python Agent contract.
 - Timestamps are ISO 8601 strings with timezone offsets, for example `2026-06-01T16:31:00+09:00`.
 
@@ -25,8 +31,10 @@ Core runtime rules:
 | --- | --- | --- | --- |
 | CSV ingestion | `POST` | `/api/import/csv` | Java `ImportController` |
 | Run async agent | `POST` | `/api/agent/run` | Java `AgentController` |
-| Poll run/result | `GET` | `/api/agent/runs/{agent_run_id}` | Java `AgentController` |
-| Approve plan | `POST` | `/api/agent/actions/{agent_run_id}/approve` | Java `BusinessController` |
+| Observe/intervene in run | `WS` | `/api/agent/runs/{agent_run_id}/stream` | Java `AgentController`; see `asyncapi.yaml` |
+| Snapshot run/result fallback | `GET` | `/api/agent/runs/{agent_run_id}` | Java `AgentController` |
+| Approve plan fallback | `POST` | `/api/agent/actions/{agent_run_id}/approve` | Java `BusinessController` |
+| Cancel run fallback | `POST` | `/api/agent/actions/{agent_run_id}/cancel` | Java `AgentController` |
 
 `POST /api/calendar/events` from the sequence diagram is treated as the lower-level business action behind approval. The frontend should use the approval endpoint above so the approved brief and calendar events are committed as one append-only operation.
 
@@ -96,16 +104,71 @@ Response: `202 Accepted`
   "ok": true,
   "agent_run_id": "run_20260601_001",
   "status": "PENDING",
+  "stream_url": "/api/agent/runs/run_20260601_001/stream",
   "next_poll_url": "/api/agent/runs/run_20260601_001",
   "created_at": "2026-06-01T16:31:00+09:00"
 }
 ```
 
-## 3. Poll Agent Run And Result
+## 3. Active Agent Runtime
+
+`WS /api/agent/runs/{agent_run_id}/stream`
+
+Purpose: provide the live agent timeline for the Campaign Agent Workspace.
+
+The WebSocket runtime is specified in `asyncapi.yaml`, not `openapi.yaml`.
+
+It supports two interaction modes:
+
+- Observational HOTL: the user watches step updates, tool summaries, evidence observations, signals, hypotheses, and drafted plans.
+- Approval-based HITL: the backend pauses before consequential business writes, then waits for approve, reject, payload edit, or cancel commands.
+
+Server-to-client event types:
+
+```text
+run.started
+step.updated
+observation.created
+tool.updated
+signal.detected
+hypothesis.created
+experiment_plan.drafted
+approval.requested
+run.paused
+run.resumed
+run.cancelled
+run.completed
+run.failed
+```
+
+Client-to-server command types:
+
+```text
+run.cancel
+approval.update_payload
+approval.approve
+approval.reject
+```
+
+Examples live beside both specs:
+
+- `examples/agent-stream-observation-created-event.json`
+- `examples/agent-stream-approval-requested-event.json`
+- `examples/agent-stream-approval-approve-command.json`
+- `examples/agent-stream-cancel-command.json`
+
+The frontend should map stream events like this:
+
+- `step.updated` updates the fixed agent run status area.
+- `observation.created`, `signal.detected`, `hypothesis.created`, and `experiment_plan.drafted` append visible workspace timeline messages.
+- `approval.requested` opens the review surface with editable draft payload.
+- `run.cancelled`, `run.completed`, and `run.failed` close the active run lifecycle.
+
+## 4. Snapshot Agent Run And Result
 
 `GET /api/agent/runs/{agent_run_id}`
 
-Purpose: provide both runtime status and completed structured result in a single polling contract.
+Purpose: provide both runtime status and completed structured result as a fallback snapshot contract.
 
 Runtime status enum:
 
@@ -120,7 +183,7 @@ SUCCESS
 FAILED
 ```
 
-`WAITING_FOR_APPROVAL` means the frontend can render the three-panel workroom and allow edits. `SUCCESS` means the final human approval has already been processed.
+`WAITING_FOR_APPROVAL` means the frontend can render the review surface and allow edits. `SUCCESS` means the final human approval has already been processed.
 
 Response while running:
 
@@ -234,13 +297,13 @@ Response when failed:
 }
 ```
 
-## 4. Approve Experiment Plan
+## 5. Approve Experiment Plan
 
 `POST /api/agent/actions/{agent_run_id}/approve`
 
-Purpose: commit the user's final selected and edited experiments as immutable Elastic documents.
+Purpose: REST fallback to commit the user's final selected and edited experiments as immutable Elastic documents.
 
-The frontend sends the final experiments from React state. These may differ from the original candidate items returned by polling.
+The frontend sends the final experiments from React state. These may differ from the original candidate items returned by stream or snapshot.
 
 Request:
 

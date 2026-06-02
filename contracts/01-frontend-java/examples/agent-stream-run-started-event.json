@@ -1,0 +1,18 @@
+{
+  "event_id": "evt_001",
+  "type": "run.started",
+  "agent_run_id": "run_20260601_001",
+  "sequence": 1,
+  "occurred_at": "2026-06-01T16:31:01+09:00",
+  "status": "RUNNING_SIGNAL_DETECTION",
+  "step": {
+    "id": "step_import_metrics",
+    "order": 1,
+    "stage": "IMPORT_METRICS",
+    "status": "SUCCEEDED"
+  },
+  "observation": null,
+  "payload": null,
+  "approval": null,
+  "error_message": null
+}

@@ -1,10 +1,11 @@
 openapi: 3.1.0
 info:
   title: LaunchPilot Frontend-Backend API
-  version: 0.2.0
+  version: 0.3.0
   description: >
     Contract between the Next.js frontend and Java Spring Boot gateway for
-    CSV ingestion, async agent execution, polling, and human approval.
+    CSV ingestion, async agent execution, snapshot recovery, and REST fallback
+    actions. Active WebSocket runtime messages are defined in asyncapi.yaml.
 servers:
   - url: /api
 tags:
@@ -69,7 +70,7 @@ paths:
     get:
       tags: [Agent]
       operationId: getAgentRun
-      summary: Poll an agent run and fetch result when available.
+      summary: Fetch an agent run snapshot as polling fallback or refresh recovery.
       parameters:
         - $ref: "#/components/parameters/AgentRunId"
       responses:
@@ -111,6 +112,28 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /agent/actions/{agent_run_id}/cancel:
+    post:
+      tags: [Agent]
+      operationId: cancelAgentRun
+      summary: Cancel an active agent run when WebSocket intervention is unavailable.
+      parameters:
+        - $ref: "#/components/parameters/AgentRunId"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CancelAgentRunRequest"
+      responses:
+        "202":
+          description: Cancellation accepted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CancelAgentRunResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
 components:
   parameters:
     AgentRunId:
@@ -213,7 +236,7 @@ components:
     AgentRunAcceptedResponse:
       type: object
       additionalProperties: false
-      required: [ok, agent_run_id, status, next_poll_url, created_at]
+      required: [ok, agent_run_id, status, stream_url, next_poll_url, created_at]
       properties:
         ok:
           type: boolean
@@ -227,6 +250,9 @@ components:
         next_poll_url:
           type: string
           pattern: "^/api/agent/runs/run_[A-Za-z0-9_]+$"
+        stream_url:
+          type: string
+          pattern: "^/api/agent/runs/run_[A-Za-z0-9_]+/stream$"
         created_at:
           type: string
           format: date-time
@@ -241,6 +267,7 @@ components:
         - WAITING_FOR_APPROVAL
         - SUCCESS
         - FAILED
+        - CANCELLED
     AgentRunStatusResponse:
       type: object
       additionalProperties: false
@@ -465,6 +492,29 @@ components:
           minItems: 1
           items:
             $ref: "#/components/schemas/ExperimentItem"
+    CancelAgentRunRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        reason:
+          type: string
+    CancelAgentRunResponse:
+      type: object
+      additionalProperties: false
+      required: [ok, agent_run_id, status, cancelled_at]
+      properties:
+        ok:
+          type: boolean
+          const: true
+        agent_run_id:
+          type: string
+          pattern: "^run_[A-Za-z0-9_]+$"
+        status:
+          type: string
+          const: CANCELLED
+        cancelled_at:
+          type: string
+          format: date-time
     CalendarEventRef:
       type: object
       additionalProperties: false

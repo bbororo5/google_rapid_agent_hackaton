@@ -10,9 +10,42 @@ export type AgentRunStatus =
   | "RUNNING_EXPERIMENT_GENERATION"
   | "WAITING_FOR_APPROVAL"
   | "SUCCESS"
-  | "FAILED";
+  | "FAILED"
+  | "CANCELLED";
 
 export type ToolCallStatus = "PENDING" | "RUNNING" | "SUCCESS" | "FAILED";
+
+export type AgentRunStage =
+  | "IMPORT_METRICS"
+  | "DETECT_PERFORMANCE_SIGNAL"
+  | "GROUND_WITH_EVIDENCE"
+  | "GENERATE_HYPOTHESIS"
+  | "DRAFT_EXPERIMENT_PLAN"
+  | "WAIT_FOR_APPROVAL"
+  | "APPLY_APPROVED_PLAN";
+
+export type AgentStepStatus = "PENDING" | "IN_PROGRESS" | "SUCCEEDED" | "FAILED" | "SKIPPED";
+
+export type AgentObservationKind = "progress" | "evidence" | "signal" | "hypothesis" | "plan" | "warning";
+
+export type ApprovalGateKind = "EXPERIMENT_PLAN" | "CREATE_GROWTH_BRIEF" | "CREATE_CALENDAR_EVENTS";
+
+export type AgentStreamServerEventType =
+  | "run.started"
+  | "step.updated"
+  | "observation.created"
+  | "signal.detected"
+  | "hypothesis.created"
+  | "experiment_plan.drafted"
+  | "approval.requested"
+  | "run.cancelled"
+  | "run.completed"
+  | "run.failed";
+
+export type AgentStreamClientCommandType =
+  | "run.cancel"
+  | "approval.approve"
+  | "approval.reject";
 
 export interface DateRange {
   start: string;
@@ -42,8 +75,60 @@ export interface AgentRunAcceptedResponse {
   ok: true;
   agent_run_id: string;
   status: "PENDING";
+  stream_url: string;
   next_poll_url: string;
   created_at: string;
+}
+
+export interface AgentStepSnapshot {
+  id: string;
+  order: number;
+  stage: AgentRunStage;
+  status: AgentStepStatus;
+}
+
+export interface AgentObservation {
+  id: string;
+  kind: AgentObservationKind;
+  title: string;
+  summary: string;
+  evidence_refs?: string[];
+}
+
+export interface ApprovalGateRequest {
+  approval_id: string;
+  gate: ApprovalGateKind;
+  payload: AgentResultPayload;
+}
+
+export interface AgentStreamServerEvent {
+  event_id: string;
+  type: AgentStreamServerEventType;
+  agent_run_id: string;
+  sequence: number;
+  occurred_at: string;
+  status?: AgentRunStatus;
+  step?: AgentStepSnapshot | null;
+  observation?: AgentObservation | null;
+  payload?: AgentResultPayload | null;
+  approval?: ApprovalGateRequest | null;
+  error_message?: string | null;
+}
+
+export interface AgentStreamClientCommand {
+  command_id: string;
+  type: AgentStreamClientCommandType;
+  agent_run_id: string;
+  approval_id?: string | null;
+  final_experiments?: ExperimentItem[] | null;
+  reason?: string | null;
+}
+
+export interface AgentStreamAck {
+  ok: true;
+  command_id: string;
+  agent_run_id: string;
+  accepted_at: string;
 }
 
 export interface AgentRunStatusResponse {
@@ -119,6 +204,17 @@ export interface ApproveExperimentPlanRequest {
   experiment_plan_id: string;
   approved_by: string;
   final_experiments: ExperimentItem[];
+}
+
+export interface CancelAgentRunRequest {
+  reason?: string;
+}
+
+export interface CancelAgentRunResponse {
+  ok: true;
+  agent_run_id: string;
+  status: "CANCELLED";
+  cancelled_at: string;
 }
 
 export interface CalendarEventRef {

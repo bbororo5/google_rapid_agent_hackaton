@@ -1,0 +1,31 @@
+{
+  "event_id": "evt_006",
+  "type": "approval.requested",
+  "agent_run_id": "run_20260601_001",
+  "sequence": 6,
+  "occurred_at": "2026-06-01T16:31:35+09:00",
+  "status": "WAITING_FOR_APPROVAL",
+  "step": {
+    "id": "step_wait_for_approval",
+    "order": 6,
+    "stage": "WAIT_FOR_APPROVAL",
+    "status": "IN_PROGRESS"
+  },
+  "observation": null,
+  "payload": null,
+  "approval": {
+    "approval_id": "appr_20260601_001",
+    "gate": "EXPERIMENT_PLAN",
+    "payload": {
+      "signals": [],
+      "hypotheses": [],
+      "experiment_plan": {
+        "id": "plan_001",
+        "summary": "BTS short-form clips are the strongest signal for next week's experiment plan.",
+        "overall_confidence": "medium_high",
+        "items": []
+      }
+    }
+  },
+  "error_message": null
+}

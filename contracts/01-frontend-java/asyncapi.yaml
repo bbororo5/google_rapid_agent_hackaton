@@ -1,0 +1,429 @@
+asyncapi: 2.6.0
+info:
+  title: LaunchPilot Agent Runtime Stream
+  version: 0.1.0
+  description: >
+    AsyncAPI contract for the active Campaign Agent WebSocket runtime between
+    the Next.js frontend and Java Spring Boot gateway. REST endpoints for run
+    creation, snapshots, and fallback actions are defined in openapi.yaml.
+servers:
+  local:
+    url: localhost:8080/api
+    protocol: ws
+    description: Local Java gateway WebSocket server.
+  production:
+    url: api.launchpilot.example/api
+    protocol: wss
+    description: Production Java gateway WebSocket server.
+channels:
+  /agent/runs/{agent_run_id}/stream:
+    description: Live observation and intervention stream for one active agent run.
+    parameters:
+      agent_run_id:
+        description: Agent run identifier returned by POST /api/agent/run.
+    subscribe:
+      summary: Receive live agent progress, observations, artifacts, approval gates, and terminal events.
+      message:
+        $ref: "#/components/messages/AgentStreamServerEvent"
+    publish:
+      summary: Send cancel, approve, or reject commands while the run is active or paused.
+      message:
+        $ref: "#/components/messages/AgentStreamClientCommand"
+components:
+  messages:
+    AgentStreamServerEvent:
+      name: AgentStreamServerEvent
+      title: Agent stream server event
+      contentType: application/json
+      payload:
+        $ref: "#/components/schemas/AgentStreamServerEvent"
+      examples:
+        - name: observationCreated
+          summary: Agent reports a grounded observation while analyzing evidence.
+          payload:
+            $ref: "./examples/agent-stream-observation-created-event.json"
+        - name: approvalRequested
+          summary: Agent pauses before creating business outputs.
+          payload:
+            $ref: "./examples/agent-stream-approval-requested-event.json"
+    AgentStreamClientCommand:
+      name: AgentStreamClientCommand
+      title: Agent stream client command
+      contentType: application/json
+      payload:
+        $ref: "#/components/schemas/AgentStreamClientCommand"
+      examples:
+        - name: approvePlan
+          summary: User approves the edited experiment plan and resumes the run.
+          payload:
+            $ref: "./examples/agent-stream-approval-approve-command.json"
+        - name: cancelRun
+          summary: User cancels the active run.
+          payload:
+            $ref: "./examples/agent-stream-cancel-command.json"
+  schemas:
+    DateRange:
+      type: object
+      additionalProperties: false
+      required: [start, end]
+      properties:
+        start:
+          type: string
+          format: date
+        end:
+          type: string
+          format: date
+    Channel:
+      type: string
+      enum: [youtube, tiktok, instagram, x, unknown]
+    Confidence:
+      type: string
+      enum: [low, medium, medium_high, high]
+    AgentRunStatus:
+      type: string
+      enum:
+        - PENDING
+        - RUNNING_SIGNAL_DETECTION
+        - RUNNING_EVIDENCE_SEARCH
+        - RUNNING_HYPOTHESIS_GENERATION
+        - RUNNING_EXPERIMENT_GENERATION
+        - WAITING_FOR_APPROVAL
+        - SUCCESS
+        - FAILED
+        - CANCELLED
+    AgentRunStage:
+      type: string
+      enum:
+        - IMPORT_METRICS
+        - DETECT_PERFORMANCE_SIGNAL
+        - GROUND_WITH_EVIDENCE
+        - GENERATE_HYPOTHESIS
+        - DRAFT_EXPERIMENT_PLAN
+        - WAIT_FOR_APPROVAL
+        - APPLY_APPROVED_PLAN
+    AgentStepStatus:
+      type: string
+      enum: [PENDING, IN_PROGRESS, SUCCEEDED, FAILED, SKIPPED]
+    AgentObservationKind:
+      type: string
+      enum: [progress, evidence, signal, hypothesis, plan, warning]
+    ApprovalGateKind:
+      type: string
+      enum: [EXPERIMENT_PLAN, CREATE_GROWTH_BRIEF, CREATE_CALENDAR_EVENTS]
+    AgentStreamServerEventType:
+      type: string
+      enum:
+        - run.started
+        - step.updated
+        - observation.created
+        - signal.detected
+        - hypothesis.created
+        - experiment_plan.drafted
+        - approval.requested
+        - run.cancelled
+        - run.completed
+        - run.failed
+    AgentStreamClientCommandType:
+      type: string
+      enum:
+        - run.cancel
+        - approval.approve
+        - approval.reject
+    AgentStepSnapshot:
+      type: object
+      additionalProperties: false
+      required: [id, order, stage, status]
+      properties:
+        id:
+          type: string
+        order:
+          type: integer
+          minimum: 1
+        stage:
+          $ref: "#/components/schemas/AgentRunStage"
+        status:
+          $ref: "#/components/schemas/AgentStepStatus"
+    AgentObservation:
+      type: object
+      additionalProperties: false
+      required: [id, kind, title, summary]
+      properties:
+        id:
+          type: string
+        kind:
+          $ref: "#/components/schemas/AgentObservationKind"
+        title:
+          type: string
+        summary:
+          type: string
+          description: User-visible summary. Do not include private chain-of-thought.
+        evidence_refs:
+          type: array
+          items:
+            type: string
+    Signal:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - type
+        - title
+        - description
+        - metric_name
+        - current_value
+        - baseline_value
+        - lift_ratio
+        - date_window
+        - confidence
+        - evidence_refs
+      properties:
+        id:
+          type: string
+          pattern: "^sig_[A-Za-z0-9_]+$"
+        type:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        metric_name:
+          type: string
+        current_value:
+          type: number
+        baseline_value:
+          type: number
+        lift_ratio:
+          type: number
+        date_window:
+          $ref: "#/components/schemas/DateRange"
+        confidence:
+          $ref: "#/components/schemas/Confidence"
+        evidence_refs:
+          type: array
+          items:
+            type: string
+    Hypothesis:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - signal_ids
+        - statement
+        - rationale
+        - confidence
+        - supporting_evidence_refs
+        - caveats
+      properties:
+        id:
+          type: string
+          pattern: "^hyp_[A-Za-z0-9_]+$"
+        signal_ids:
+          type: array
+          items:
+            type: string
+            pattern: "^sig_[A-Za-z0-9_]+$"
+        statement:
+          type: string
+        rationale:
+          type: string
+        confidence:
+          $ref: "#/components/schemas/Confidence"
+        supporting_evidence_refs:
+          type: array
+          items:
+            type: string
+        caveats:
+          type: array
+          items:
+            type: string
+    ExperimentItem:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - hypothesis_id
+        - title
+        - channel
+        - content_format
+        - hook
+        - cta
+        - target_metric
+        - success_criteria
+        - scheduled_at
+        - production_brief
+      properties:
+        id:
+          type: string
+          pattern: "^exp_[A-Za-z0-9_]+$"
+        hypothesis_id:
+          type: string
+          pattern: "^hyp_[A-Za-z0-9_]+$"
+        title:
+          type: string
+        channel:
+          $ref: "#/components/schemas/Channel"
+        content_format:
+          type: string
+        hook:
+          type: string
+        cta:
+          type: string
+        target_metric:
+          type: string
+        success_criteria:
+          type: string
+        scheduled_at:
+          type: string
+          format: date-time
+        production_brief:
+          type: string
+    ExperimentPlan:
+      type: object
+      additionalProperties: false
+      required: [id, summary, overall_confidence, items]
+      properties:
+        id:
+          type: string
+          pattern: "^plan_[A-Za-z0-9_]+$"
+        summary:
+          type: string
+        overall_confidence:
+          $ref: "#/components/schemas/Confidence"
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ExperimentItem"
+    AgentResultPayload:
+      type: object
+      additionalProperties: false
+      required: [signals, hypotheses, experiment_plan]
+      properties:
+        signals:
+          type: array
+          items:
+            $ref: "#/components/schemas/Signal"
+        hypotheses:
+          type: array
+          items:
+            $ref: "#/components/schemas/Hypothesis"
+        experiment_plan:
+          $ref: "#/components/schemas/ExperimentPlan"
+    ToolCallStatus:
+      type: string
+      enum: [PENDING, RUNNING, SUCCESS, FAILED]
+    ToolCallLog:
+      type: object
+      additionalProperties: false
+      required: [sequence, tool_name, status, duration_ms]
+      properties:
+        sequence:
+          type: integer
+          minimum: 1
+        tool_name:
+          type: string
+        status:
+          $ref: "#/components/schemas/ToolCallStatus"
+        duration_ms:
+          type:
+            - integer
+            - "null"
+          minimum: 0
+        error_message:
+          type:
+            - string
+            - "null"
+    ApprovalGateRequest:
+      type: object
+      additionalProperties: false
+      required: [approval_id, gate, payload]
+      properties:
+        approval_id:
+          type: string
+          pattern: "^appr_[A-Za-z0-9_]+$"
+        gate:
+          $ref: "#/components/schemas/ApprovalGateKind"
+        payload:
+          $ref: "#/components/schemas/AgentResultPayload"
+    AgentStreamServerEvent:
+      type: object
+      additionalProperties: false
+      required: [event_id, type, agent_run_id, sequence, occurred_at]
+      properties:
+        event_id:
+          type: string
+        type:
+          $ref: "#/components/schemas/AgentStreamServerEventType"
+        agent_run_id:
+          type: string
+          pattern: "^run_[A-Za-z0-9_]+$"
+        sequence:
+          type: integer
+          minimum: 1
+        occurred_at:
+          type: string
+          format: date-time
+        status:
+          $ref: "#/components/schemas/AgentRunStatus"
+        step:
+          oneOf:
+            - $ref: "#/components/schemas/AgentStepSnapshot"
+            - type: "null"
+        observation:
+          oneOf:
+            - $ref: "#/components/schemas/AgentObservation"
+            - type: "null"
+        payload:
+          oneOf:
+            - $ref: "#/components/schemas/AgentResultPayload"
+            - type: "null"
+        approval:
+          oneOf:
+            - $ref: "#/components/schemas/ApprovalGateRequest"
+            - type: "null"
+        error_message:
+          type:
+            - string
+            - "null"
+    AgentStreamClientCommand:
+      type: object
+      additionalProperties: false
+      required: [command_id, type, agent_run_id]
+      properties:
+        command_id:
+          type: string
+        type:
+          $ref: "#/components/schemas/AgentStreamClientCommandType"
+        agent_run_id:
+          type: string
+          pattern: "^run_[A-Za-z0-9_]+$"
+        approval_id:
+          type:
+            - string
+            - "null"
+          pattern: "^appr_[A-Za-z0-9_]+$"
+        final_experiments:
+          type:
+            - array
+            - "null"
+          items:
+            $ref: "#/components/schemas/ExperimentItem"
+        reason:
+          type:
+            - string
+            - "null"
+    AgentStreamAck:
+      type: object
+      additionalProperties: false
+      required: [ok, command_id, agent_run_id, accepted_at]
+      properties:
+        ok:
+          type: boolean
+          const: true
+        command_id:
+          type: string
+        agent_run_id:
+          type: string
+          pattern: "^run_[A-Za-z0-9_]+$"
+        accepted_at:
+          type: string
+          format: date-time

@@ -119,6 +119,102 @@ components:
         - WAITING_FOR_APPROVAL
         - SUCCESS
         - FAILED
+        - CANCELLED
+    AgentRunStage:
+      type: string
+      enum:
+        - IMPORT_METRICS
+        - DETECT_PERFORMANCE_SIGNAL
+        - GROUND_WITH_EVIDENCE
+        - GENERATE_HYPOTHESIS
+        - DRAFT_EXPERIMENT_PLAN
+        - WAIT_FOR_APPROVAL
+        - APPLY_APPROVED_PLAN
+    AgentStepStatus:
+      type: string
+      enum: [PENDING, IN_PROGRESS, SUCCEEDED, FAILED, SKIPPED]
+    AgentObservationKind:
+      type: string
+      enum: [progress, evidence, signal, hypothesis, plan, warning]
+    AgentWorkflowEventType:
+      type: string
+      enum:
+        - run.started
+        - step.updated
+        - observation.created
+        - signal.detected
+        - hypothesis.created
+        - experiment_plan.drafted
+        - run.cancelled
+        - run.failed
+    AgentStepSnapshot:
+      type: object
+      additionalProperties: false
+      required: [id, order, stage, status]
+      properties:
+        id:
+          type: string
+        order:
+          type: integer
+          minimum: 1
+        stage:
+          $ref: "#/components/schemas/AgentRunStage"
+        status:
+          $ref: "#/components/schemas/AgentStepStatus"
+    AgentObservation:
+      type: object
+      additionalProperties: false
+      required: [id, kind, title, summary]
+      properties:
+        id:
+          type: string
+        kind:
+          $ref: "#/components/schemas/AgentObservationKind"
+        title:
+          type: string
+        summary:
+          type: string
+          description: User-visible summary. Do not include private chain-of-thought.
+        evidence_refs:
+          type: array
+          items:
+            type: string
+    AgentWorkflowEvent:
+      type: object
+      additionalProperties: false
+      required: [event_id, type, agent_run_id, sequence, occurred_at]
+      properties:
+        event_id:
+          type: string
+        type:
+          $ref: "#/components/schemas/AgentWorkflowEventType"
+        agent_run_id:
+          type: string
+          pattern: "^run_[A-Za-z0-9_]+$"
+        sequence:
+          type: integer
+          minimum: 1
+        occurred_at:
+          type: string
+          format: date-time
+        status:
+          $ref: "#/components/schemas/AgentRunStatus"
+        step:
+          oneOf:
+            - $ref: "#/components/schemas/AgentStepSnapshot"
+            - type: "null"
+        observation:
+          oneOf:
+            - $ref: "#/components/schemas/AgentObservation"
+            - type: "null"
+        payload:
+          oneOf:
+            - $ref: "#/components/schemas/AgentResultPayload"
+            - type: "null"
+        error_message:
+          type:
+            - string
+            - "null"
     TraceContext:
       type: object
       additionalProperties: false
@@ -194,6 +290,7 @@ components:
         - retry_count
         - error_message
         - payload
+        - workflow_events
         - tool_call_logs
         - agent_diagnostics
         - started_at
@@ -220,6 +317,14 @@ components:
           oneOf:
             - $ref: "#/components/schemas/AgentResultPayload"
             - type: "null"
+        workflow_events:
+          type: array
+          description: >
+            Workflow-level events produced by Python for Java to relay to the
+            frontend WebSocket. These are not raw Gemini chunks or private
+            chain-of-thought.
+          items:
+            $ref: "#/components/schemas/AgentWorkflowEvent"
         tool_call_logs:
           type: array
           items:
@@ -252,7 +357,7 @@ components:
           pattern: "^run_[A-Za-z0-9_]+$"
         status:
           type: string
-          const: FAILED
+          const: CANCELLED
         cancelled_at:
           type: string
           format: date-time

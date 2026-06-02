@@ -1,0 +1,24 @@
+{
+  "event_id": "evt_002",
+  "type": "observation.created",
+  "agent_run_id": "run_20260601_001",
+  "sequence": 2,
+  "occurred_at": "2026-06-01T16:31:09+09:00",
+  "status": "RUNNING_EVIDENCE_SEARCH",
+  "step": {
+    "id": "step_ground_with_evidence",
+    "order": 3,
+    "stage": "GROUND_WITH_EVIDENCE",
+    "status": "IN_PROGRESS"
+  },
+  "observation": {
+    "id": "obs_001",
+    "kind": "evidence",
+    "title": "BTS clips are above baseline",
+    "summary": "Two BTS short-form posts are tracking 2.8x above the 30-day save-rate baseline.",
+    "evidence_refs": ["post_014", "post_017"]
+  },
+  "payload": null,
+  "approval": null,
+  "error_message": null
+}
