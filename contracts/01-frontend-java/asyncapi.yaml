@@ -48,6 +48,10 @@ components:
           summary: Agent run enters the active runtime after REST run creation.
           payload:
             $ref: "./examples/agent-stream-run-started-event.json"
+        - name: documentCreated
+          summary: Agent publishes a markdown document that can be opened in the inspector.
+          payload:
+            $ref: "./examples/agent-stream-document-created-event.json"
         - name: observationCreated
           summary: Agent reports a grounded observation while analyzing evidence.
           payload:
@@ -153,6 +157,7 @@ components:
         - step.updated
         - user.message.created
         - assistant.message.created
+        - document.created
         - observation.created
         - tool.updated
         - signal.detected
@@ -220,6 +225,29 @@ components:
         content:
           type: string
           description: User-visible conversation content. Do not include private chain-of-thought.
+    AgentDocumentKind:
+      type: string
+      enum: [evidence_scan, signal_summary, hypothesis_brief, experiment_plan, approval_receipt, generic]
+    AgentDocument:
+      type: object
+      additionalProperties: false
+      required: [document_id, kind, title, format, summary, content]
+      properties:
+        document_id:
+          type: string
+          pattern: "^doc_[A-Za-z0-9_]+$"
+        kind:
+          $ref: "#/components/schemas/AgentDocumentKind"
+        title:
+          type: string
+        format:
+          type: string
+          const: markdown
+        summary:
+          type: string
+        content:
+          type: string
+          description: User-visible markdown document content. Do not include private chain-of-thought.
     Signal:
       type: object
       additionalProperties: false
@@ -491,6 +519,10 @@ components:
         message:
           oneOf:
             - $ref: "#/components/schemas/AgentMessage"
+            - type: "null"
+        document:
+          oneOf:
+            - $ref: "#/components/schemas/AgentDocument"
             - type: "null"
         observation:
           oneOf:

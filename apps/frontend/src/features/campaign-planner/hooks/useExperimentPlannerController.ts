@@ -10,7 +10,9 @@ import type {
   ApproveExperimentPlanResponse,
   CalendarEventRef,
   ExperimentItem,
+  AgentDocument,
   AgentObservation,
+  AgentMessage,
   AgentStreamRecoveryStatus,
   AgentRunStage,
   Hypothesis,
@@ -54,10 +56,13 @@ export interface ExperimentPlannerViewModel {
   state: ExperimentPlannerState;
   agentState: "idle" | "selected" | "importing" | "processing" | "ready" | "approved" | "error";
   currentFile: File | null;
+  question: string;
   signals: Signal[];
   hypotheses: Hypothesis[];
   draftExperiments: ExperimentItem[];
   finalExperiments: ExperimentItem[];
+  messages: AgentMessage[];
+  documents: AgentDocument[];
   observations: AgentObservation[];
   toolLogs: ToolCallLog[];
   approval: ApproveExperimentPlanResponse | null;
@@ -70,6 +75,7 @@ export interface ExperimentPlannerViewModel {
   errorMessage: string | null;
   commands: {
     selectCsv: (file: File) => void;
+    updateQuestion: (question: string) => void;
     analyze: () => Promise<void>;
     continueImportReview: () => Promise<void>;
     continueSignalReview: () => void;
@@ -89,6 +95,10 @@ function stateFile(state: ExperimentPlannerState) {
   return "file" in state ? state.file ?? null : null;
 }
 
+function stateQuestion(state: ExperimentPlannerState) {
+  return "question" in state ? state.question : "";
+}
+
 function payloadSignals(state: ExperimentPlannerState) {
   return "payload" in state ? state.payload.signals : [];
 }
@@ -103,6 +113,14 @@ function draftExperiments(state: ExperimentPlannerState) {
 
 function finalExperiments(state: ExperimentPlannerState) {
   return "finalExperiments" in state ? state.finalExperiments : [];
+}
+
+function messages(state: ExperimentPlannerState) {
+  return "messages" in state ? state.messages : [];
+}
+
+function documents(state: ExperimentPlannerState) {
+  return "documents" in state ? state.documents : [];
 }
 
 function toolLogs(state: ExperimentPlannerState) {
@@ -260,6 +278,7 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
   }, []);
 
   const currentFile = stateFile(state);
+  const currentQuestion = stateQuestion(state);
   if (currentFile) {
     lastFileRef.current = currentFile;
   }
@@ -486,10 +505,13 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
     state,
     agentState: agentState(state),
     currentFile: currentFile ?? lastFileRef.current,
+    question: currentQuestion,
     signals: currentSignals.length > 0 ? currentSignals : lastSignalsRef.current,
     hypotheses: currentHypotheses.length > 0 ? currentHypotheses : lastHypothesesRef.current,
     draftExperiments: draftExperiments(state),
     finalExperiments: finalExperiments(state),
+    messages: messages(state),
+    documents: documents(state),
     observations: observations(state),
     toolLogs: toolLogs(state),
     approval: approval(state),
@@ -502,6 +524,7 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
     isApproving,
     errorMessage: stateMessage(state),
     commands: {
+      updateQuestion: (question) => dispatch({ type: "UPDATE_QUESTION", question }),
       selectCsv: (file) => dispatch({ type: "SELECT_CSV", file }),
       analyze,
       continueImportReview,

@@ -6,6 +6,12 @@ export default defineConfig({
   testDir: "./e2e",
   fullyParallel: true,
   reporter: [["list"]],
+  webServer: {
+    command: "npm run dev -w apps/frontend -- --hostname 127.0.0.1 --port 3000",
+    url: baseURL,
+    reuseExistingServer: !process.env.CI,
+    timeout: 120_000,
+  },
   use: {
     baseURL,
     trace: "on-first-retry",

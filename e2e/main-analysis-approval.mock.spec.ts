@@ -5,6 +5,7 @@ import path from "node:path";
 type JsonObject = Record<string, unknown>;
 
 const root = path.resolve(import.meta.dirname, "..");
+const sampleMetricsCsv = path.join(root, "apps/frontend/fixtures/sample-channel-metrics.csv");
 
 async function fixture<T extends JsonObject>(relativePath: string): Promise<T> {
   const text = await readFile(path.join(root, relativePath), "utf8");
@@ -58,27 +59,31 @@ test.describe("main analysis approval happy path", () => {
       });
     });
 
-    await page.goto("/");
+    await page.goto("/campaigns/comeback-teaser/planner");
 
-    await page.getByLabel(/csv/i).setInputFiles({
-      name: "channel_metrics.csv",
-      mimeType: "text/csv",
-      buffer: Buffer.from("post_id,published_at,channel,views,save_rate\npost_014,2026-05-27,tiktok,120000,0.074\n"),
-    });
+    await page.locator("#csv-input").setInputFiles(sampleMetricsCsv);
 
     await page.getByRole("button", { name: /analy[sz]e|run analysis/i }).click();
 
-    await expect(page.getByText(/analyzing|running evidence|searching evidence/i)).toBeVisible();
-    await expect(page.getByText("BTS shorts outperformed recent baseline")).toBeVisible();
-    await expect(page.getByText(/raw behind-the-scenes clips may be converting/i)).toBeVisible();
-    await expect(page.getByText("BTS face-first hook test")).toBeVisible();
+    await expect(page.getByRole("button", { name: /continue analysis/i })).toBeVisible();
+    await page.getByRole("button", { name: /continue analysis/i }).click();
 
+    await expect(page.getByRole("region", { name: /agent run status/i }).getByText(/analyze signal/i).first()).toBeVisible();
+    await expect(page.getByText("BTS shorts outperformed recent baseline").first()).toBeVisible();
+    await expect(page.getByRole("button", { name: /use this signal/i })).toBeVisible();
+    await page.getByRole("button", { name: /use this signal/i }).click();
+
+    await expect(page.getByText(/raw behind-the-scenes clips may be converting/i)).toBeVisible();
+    await expect(page.getByText("BTS face-first hook test").first()).toBeVisible();
+
+    await page.getByRole("button", { name: /review & edit campaign spec/i }).click();
+    
     const titleInput = page.getByRole("textbox", { name: /experiment title|title/i });
     await titleInput.fill("BTS face-first hook test edited");
 
     await page.getByRole("button", { name: /approve experiments|approve/i }).click();
 
-    await expect(page.getByText("BTS face-first hook test edited")).toBeVisible();
-    await expect(page.getByText(/human approval processed|approved|calendar/i)).toBeVisible();
+    await expect(page.getByText("BTS face-first hook test edited").first()).toBeVisible();
+    await expect(page.getByText(/human approval processed|approved|calendar/i).first()).toBeVisible();
   });
 });
