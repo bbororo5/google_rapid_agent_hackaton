@@ -60,6 +60,26 @@ public class IdGenerator {
     }
 
     /**
+     * Generate a new approval-gate identifier prefixed with "appr_".
+     * 승인 게이트는 Java 소유 (계약 01 asyncapi ApprovalGateRequest.approval_id).
+     *
+     * @return the approval id formatted as "appr_yyyyMMdd_HHmmss_NNNN"
+     */
+    public String newApprovalId() {
+        return "appr_" + stamp();
+    }
+
+    /**
+     * Generate a new conversation-message identifier prefixed with "msg_".
+     * 대화 메시지는 Java가 타임라인에 영속 (계약 01 asyncapi AgentMessage.message_id).
+     *
+     * @return the message id formatted as "msg_yyyyMMdd_HHmmss_NNNN"
+     */
+    public String newMessageId() {
+        return "msg_" + stamp();
+    }
+
+    /**
      * Create a deterministic brief identifier derived from an agent run identifier.
      *
      * @param agentRunId an agent run identifier; may include the leading "run_" prefix

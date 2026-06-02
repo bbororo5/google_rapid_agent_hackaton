@@ -1,6 +1,7 @@
 package com.launchpilot.client;
 
 import com.launchpilot.dto.internal.InternalAgentRunAcceptedResponse;
+import com.launchpilot.dto.internal.InternalAgentRunCancelledResponse;
 import com.launchpilot.dto.internal.InternalAgentRunRequest;
 import com.launchpilot.dto.internal.InternalAgentRunStatusResponse;
 import com.launchpilot.service.ApiException;
@@ -61,5 +62,25 @@ public class AgentServiceClient {
                     throw ApiException.internal("agent poll failed: HTTP " + res.getStatusCode());
                 })
                 .body(InternalAgentRunStatusResponse.class);
+    }
+
+    /**
+     * Cancels an internal agent run via the Python REST fallback endpoint (계약 02).
+     *
+     * @param agentRunId the identifier of the agent run to cancel
+     * @return the deserialized cancellation response from the agent service
+     * @throws ApiException if the run is not found (404) or any other HTTP status >= 400
+     */
+    public InternalAgentRunCancelledResponse cancelRun(String agentRunId) {
+        return client.post()
+                .uri("/internal/agent/runs/{id}/cancel", agentRunId)
+                .retrieve()
+                .onStatus(s -> s.value() == 404, (req, res) -> {
+                    throw ApiException.notFound("agent run not found: " + agentRunId);
+                })
+                .onStatus(s -> s.value() >= 400, (req, res) -> {
+                    throw ApiException.internal("agent cancel failed: HTTP " + res.getStatusCode());
+                })
+                .body(InternalAgentRunCancelledResponse.class);
     }
 }
