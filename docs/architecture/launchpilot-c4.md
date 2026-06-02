@@ -1,6 +1,6 @@
 # LaunchPilot Architecture Diagrams
 
-Status: Draft v0.2  
+Status: Draft v0.3  
 Scope: C4 context/container/component views and main user scenario sequence (WebSocket streaming runtime)  
 Last updated: 2026-06-02
 
@@ -88,7 +88,7 @@ graph TB
 
 ## 3. Main User Scenario Sequence
 
-This sequence highlights two rules: (1) the live runtime is a WebSocket stream with a REST snapshot fallback, and (2) the stateless frontend rule: candidate experiment plans live in frontend memory until human approval. Only approved artifacts are persisted to Elastic.
+This sequence highlights two rules: (1) the live runtime is a persisted, sequence-numbered WebSocket timeline with reconnect replay (`connection.resume`/`full_sync`); REST GET is only a coarse snapshot. Approval results return over WS via `approval.committed`. (2) the stateless frontend rule: candidate experiment plans live in frontend memory until human approval. Only approved artifacts are persisted to Elastic.
 
 ```mermaid
 sequenceDiagram
@@ -133,7 +133,7 @@ sequenceDiagram
     AG-->>BE: WAITING_FOR_APPROVAL 도달 (후보 payload 준비)
     BE-->>FE: approval.requested (Java가 승인 게이트 추가)
     Note over FE: 승인 전 후보 실험안은 React State에만 보관한다.
-    Note over FE, BE: 스트림 끊김 시 GET /api/agent/runs/{id} 스냅샷 복구 (fallback)
+    Note over FE, BE: 스트림 끊김 시 connection.resume(last_sequence) → 미수신 이벤트 리플레이<br/>(증분 불가 시 connection.full_sync_required → 전체 타임라인 재생)
 
     Note over User, Arize: PHASE 2: 인간 승인 및 불변 데이터 적재
     User->>FE: 실험안 카드 검토, 문구 수정
@@ -145,6 +145,7 @@ sequenceDiagram
         BE->>Elastic: growth_briefs 1건 및 calendar_events N건 bulk index
     end
 
+    BE-->>FE: approval.committed (growth_brief_id + 생성된 calendar_events + persisted_at)
     Note over FE: 승인 직후 캘린더 화면은 React State 전달로 즉시 렌더링할 수 있다.
 
     Note over User, Arize: PHASE 3: 새 세션에서 과거 맥락 복원

@@ -3,7 +3,7 @@
 
 | 항목 | 내용 |
 |---|---|
-| 문서 버전 | v1.1 (실시간 WebSocket 스트리밍 런타임 반영) |
+| 문서 버전 | v1.2 (영속 타임라인·재접속 리플레이·승인결과 이벤트 반영) |
 | 작성일 | 2026-06-02 |
 | 제출 목적 | Google Cloud Rapid Agent Hackathon 신규 프로젝트 개발 문서 |
 | Partner Track | Elastic |
@@ -13,12 +13,13 @@
 | 제출 원칙 | 새 repo, 새 코드베이스, 새 demo dataset. 기존 운영 서비스 수정/확장 아님 |
 
 > 본 문서는 기존 v0.1 PRD를 `contracts/`, `scenarios/`, `docs/architecture/launchpilot-c4.md` 설계에 맞춰 전면 리뉴얼한 버전이다.
-> 가장 큰 변경점은 다음 다섯 가지다.
+> 가장 큰 변경점은 다음 여섯 가지다.
 > 1. 단일 LangChain류 에이전트 → **Google ADK 기반 4개 워커 멀티 에이전트** 파이프라인.
 > 2. Google Cloud Agent Builder 사용 → **Google ADK 직접 오케스트레이션** + Elasticsearch MCP Server.
 > 3. 별도 App DB(Postgres/SQLite) → **Elastic Cloud Serverless 단일 데이터 저장소**, Java 백엔드는 순수 게이트웨이.
 > 4. 관측성 부재 → **Arize/Phoenix L4 메타 기억** 및 OpenInference 트레이싱 추가.
 > 5. (v1.1) 폴링 전용 → **WebSocket 실시간 스트리밍을 주 채널로, REST를 시작/승인/복구 fallback으로** 쓰는 이중 채널. 계약 `01/02 asyncapi.yaml`로 강제.
+> 6. (v1.2, `be81182`) WS가 **영속 대화 타임라인 + 재접속 리플레이**로 확장. 이벤트에 `sequence` 부여, `connection.resume`/`full_sync`로 끊김 복구, `approval.committed`로 승인 결과(brief_id) 전달, `user/assistant.message` 대화 메시지, 세션/재인증 도입. REST `GET`은 "coarse 스냅샷"으로 격하.
 
 ---
 
@@ -213,7 +214,7 @@ LaunchPilot은 **멀티 에이전트 Signal-to-Experiment 워룸**이다.
 1. **단일 데이터 저장소.** Postgres/SQLite 없음. Elastic이 유일 DB. Java는 RDB 없이 Elastic에 직접 `refresh=true`로 즉시 인덱싱한다.
 2. **Frontend는 stateless 경계.** 승인 전 후보 실험안은 React State에만 존재한다. 오직 승인된 산출물만 Elastic에 들어간다.
 3. **Append-only 불변성.** 승인 시 `growth_briefs` 1건 + `calendar_events` N건만 bulk index. 수정/삭제 없음.
-4. **비동기 + 실시간 스트리밍.** Java는 Python을 한 번 호출해 시작시키고(202 Accepted, `stream_url` 포함), 이후 **내부 WebSocket 스트림**으로 진행 이벤트를 받아 프론트 WS로 릴레이한다. REST `GET` 폴링은 재접속/새로고침/스트림 끊김 복구용 fallback이다. Tomcat 스레드 고갈 방지를 위해 별도 TaskExecutor 풀에서 실행한다.
+4. **비동기 + 영속 스트리밍.** Java는 Python을 한 번 호출해 시작시키고(202 Accepted, `stream_url` 포함), 이후 **내부 WebSocket 스트림**으로 진행 이벤트를 받아 프론트 WS로 릴레이한다. 프론트 WS 타임라인은 **영속 + `sequence` 부여**라 끊겨도 `connection.resume`(미수신분 리플레이) / `connection.full_sync`(전체 재생)로 복구된다. REST `GET`은 이벤트 히스토리가 아닌 **coarse 스냅샷**(현재 상태/결과)만 제공한다. Tomcat 스레드 고갈 방지를 위해 별도 TaskExecutor 풀에서 실행한다.
 5. **Agent Builder 미사용.** Google ADK로 직접 오케스트레이션하고, Elasticsearch MCP Server를 LaunchPilot 도메인 wrapper로 감싸 호출한다.
 6. **Glass-box 스트리밍.** Python은 raw Gemini chunk, chain-of-thought, `thoughtSignature`, raw MCP 메시지를 전송하지 않는다. 사람이 봐도 되는 정규화된 workflow 이벤트(`observation`/`signal`/`hypothesis`/`plan`)만 스트리밍한다. **승인 게이트는 Java 소유**이며 Python은 `WAITING_FOR_APPROVAL` 신호까지만 담당한다.
 
@@ -243,10 +244,11 @@ BE   ⇒ FE : 정책 적용 후 이벤트 릴레이 (라이브)
 AG   → Phoenix : LLM/도구/Gate 결과 OpenInference 송신
 AG   → BE : WAITING_FOR_APPROVAL 도달 (후보 payload 준비)
 BE   ⇒ FE : approval.requested (Java가 승인 게이트 추가)
-[끊김 시] FE → BE : GET /api/agent/runs/{id} 스냅샷 복구
+[끊김 시] FE → BE : connection.resume(last_sequence) → 미수신 이벤트 리플레이
 User → FE : 검토/수정/Approve (WS approval.approve, REST는 fallback)
 FE   → BE : 승인
 BE   ⇒ ES : growth_briefs 1 + calendar_events N bulk index (불변)
+BE   ⇒ FE : approval.committed (growth_brief_id + 캘린더 + persisted_at)
 ```
 
 ---
@@ -254,6 +256,8 @@ BE   ⇒ ES : growth_briefs 1 + calendar_events N bulk index (불변)
 ## 6. The Four Agents (핵심 리뉴얼)
 
 LaunchPilot의 에이전트성은 **단일 LLM이 아니라 역할이 분리된 4개 ADK 워커 + 1개 오케스트레이터**의 협업에서 나온다. 각 워커는 좁은 책임만 갖고, 자신의 단계 산출물(draft schema)만 만든다. 최종 canonical payload는 별도 Assembler가 조립한다. (`contracts/05-agent-output` 참조)
+
+> 워커별 "언제 어떤 도구를 호출하고 실패 시 어떻게 분기하는지"의 상세 결정 로직은 `docs/agent-tool-spec.md` 참조. 요약: 분석가 2도구 / 전략가 1도구(team_notes) / 작가·검수자 0도구 / `load_growth_brief_context`는 Orchestrator 선주입.
 
 ### 6.1 역할 분담 한눈에
 
@@ -355,7 +359,7 @@ Error:
 
 > `WAITING_FOR_APPROVAL`은 Python의 성공 터미널 상태다. `SUCCESS`는 Java 승인 라이프사이클 전용이며 Python v0.1은 방출하지 않는다.
 >
-> **상태는 2축이다.** 위 9개 `AgentRunStatus`는 굵은 생명주기 축(스냅샷/폴링용)이다. 별도로 WebSocket 진행표시줄용 세밀한 `AgentRunStage` 7단계가 `asyncapi.yaml`에만 존재한다: `IMPORT_METRICS → DETECT_PERFORMANCE_SIGNAL → GROUND_WITH_EVIDENCE → GENERATE_HYPOTHESIS → DRAFT_EXPERIMENT_PLAN → WAIT_FOR_APPROVAL → APPLY_APPROVED_PLAN`. Status = "지금 크게 어디쯤", Stage = "세부 작업 단계"로 구분한다.
+> **상태는 2축이다.** 위 9개 `AgentRunStatus`는 굵은 생명주기 축으로, WS 이벤트의 `status` 필드와 coarse 스냅샷(GET) 양쪽에 실린다. 별도로 세밀한 `AgentRunStage` 7단계가 `asyncapi.yaml`에 있어 WS `step.stage`(라이브 진행바)로 전달된다: `IMPORT_METRICS → DETECT_PERFORMANCE_SIGNAL → GROUND_WITH_EVIDENCE → GENERATE_HYPOTHESIS → DRAFT_EXPERIMENT_PLAN → WAIT_FOR_APPROVAL → APPLY_APPROVED_PLAN`. Status = "지금 크게 어디쯤", Stage = "세부 작업 단계". (폴링 아님 — 둘 다 WS 주 채널로 흐름.)
 
 ---
 
@@ -467,13 +471,13 @@ ADK 워커는 **raw MCP 도구를 직접 호출하지 않고** wrapper 도구만
 
 **Step 10 — 승인.** **Approve Experiments** 클릭. 주 채널은 WS `approval.approve`(`final_experiments` 동봉), REST `POST /api/agent/actions/{id}/approve`는 fallback. Java가 `growth_briefs` 1건 + `calendar_events` N건을 bulk index(불변). 응답으로 `growth_brief_id`와 생성된 캘린더 이벤트가 돌아온다.
 
-**Step 11 — 확정.** 승인 직후 캘린더 화면은 React State로 즉시 렌더링. Mina는 1페이지 Growth Brief를 복사해 클라이언트에게 공유한다.
+**Step 11 — 확정.** Java가 적재 후 WS로 `approval.committed`(`growth_brief_id`, 생성된 `calendar_events`, `persisted_at`)를 보낸다. 캘린더 화면은 React State로 즉시 렌더링되고, Mina는 1페이지 Growth Brief를 복사해 클라이언트에게 공유한다. (REST 승인 경로는 같은 정보를 `ApproveExperimentPlanResponse`로 응답.)
 
 ### 9.3 연속 시나리오 — 다음 주, 같은 캠페인 (캠페인 학습 루프)
 
 **1주 후.** Mina가 War Room에 다시 들어온다. 사이드바에서 지난주 승인 브리프를 선택하고 **이전 분석 이어서** 를 누른다.
 - `CONTINUE_FROM_BRIEF` → `restore_selecting` → `RESTORE_CONTEXT_REQUESTED`.
-- Java가 `growth_briefs`에서 승인 스냅숏을 조회, 또는 Python이 `load_growth_brief_context`로 과거 가설/액션/결과를 복원.
+- 복원 소유: **Python Central Orchestrator가 세션 시작 시 `load_growth_brief_context`로** 과거 가설/액션/결과를 복원해 Shared Context에 선주입한다(parent_brief_id 있을 때 1회). 워커는 도구를 직접 호출하지 않고 메모리에서 읽는다. (단일 소유 — `docs/agent-tool-spec.md` G4 결정)
 - UI는 연속성 맥락을 명시한다: ① 이전 가설, ② 승인된 액션/실험, ③ 관측된 결과/지표, ④ 다음 분석 질문.
 
 **새 분석.** `RUN_AGENT_REQUESTED`가 `parent_brief_id`를 포함해 실행된다. 새 추천은 "신규 분석"이 아니라 **지난 실험의 후속**으로 프레이밍된다. 예: "지난주 BTS hook 실험이 save_rate 1.7x를 달성했다. 이번 주는 같은 포맷을 Instagram Reels로 확장 검증한다."
@@ -558,7 +562,7 @@ AgentRun 1 ── N ToolCallLog / OpenInference span
 | POST | `/api/import/csv` | CSV 업로드/파싱/Elastic 인덱싱 |
 | POST | `/api/agent/run` | 에이전트 실행 비동기 트리거 (202, PENDING, `stream_url` 반환) |
 | WS | `/api/agent/runs/{agent_run_id}/stream` | 실시간 진행 이벤트 (주 채널, asyncapi) |
-| GET | `/api/agent/runs/{agent_run_id}` | 스냅샷 복구 (폴링 fallback) |
+| GET | `/api/agent/runs/{agent_run_id}` | coarse 스냅샷 (현재 상태/결과; 이벤트 히스토리는 WS 리플레이 담당) |
 | POST | `/api/agent/actions/{agent_run_id}/approve` | 후보 plan 승인 → 불변 적재 (WS approval.approve의 fallback) |
 | POST | `/api/agent/actions/{agent_run_id}/cancel` | 런 취소 (WS run.cancel의 fallback) |
 
@@ -583,6 +587,9 @@ Java가 내부로 유지하는 필드: `agent_diagnostics`(worker, validator_pas
 
 - `agent_run_id`: Java 생성, 형식 `run_*`.
 - `trace_context.request_id`: Java가 공개 요청마다 생성, 형식 `req_*`.
+- `approval_id`: Java 생성(승인 게이트), 형식 `appr_*`.
+- `message_id`: Java 생성(대화 메시지), 형식 `msg_*`.
+- WS 클라 명령의 `command_id`는 멱등 키 — 서버는 동일 `command_id`를 최대 1회만 실행한다.
 - Python은 모든 응답에 `agent_run_id`를 echo한다.
 - 같은 `agent_run_id` 재시도 → 현재 상태 반환. 다른 body로 재사용 → `409 Conflict`.
 
@@ -621,7 +628,7 @@ Gemini 스타일의 대화형 쉘이되, 순수 챗 앱은 아니다. 실험 계
 
 - 프론트는 Java 공개 API만 호출(Python/Elastic/Gemini/Phoenix 직접 호출 금지).
 - 후보 실험안은 승인 전까지 React State에만. user 편집은 `draftExperiments`에만 적용, 원본 `payload`는 불변.
-- 주 채널은 `analysis_pending`, `analysis_running`에서 WebSocket 스트림 구독. `WAITING_FOR_APPROVAL`/`FAILED`/`CANCELLED` 시 스트림 종료. REST `GET` 폴링은 스트림 끊김 시 복구용으로만 사용.
+- 주 채널은 `analysis_pending`, `analysis_running`에서 WebSocket 스트림 구독. `WAITING_FOR_APPROVAL`/`FAILED`/`CANCELLED` 시 스트림 종료. 스트림 끊김 복구는 WS `connection.resume`/`full_sync` 리플레이로, REST `GET`은 거친 상태 확인용 coarse 스냅샷으로만 사용(폴링 루프 아님).
 - 불가능한 상태를 표현 불가능하게 만드는 reducer. 네트워크 효과는 reducer 밖.
 
 ### 13.4 MVP 상호작용 결정
@@ -843,7 +850,7 @@ Return strictly valid JSON following the provided draft schema.
 2. formatter 단계를 별도 `LlmAgent`로 둘지 결정적 Python normalization으로 둘지.
 3. Gemini 보조 repair를 데모에 켤지 deferral.
 4. `team_notes`에 Java 소유 문서 계약을 줄지 demo seed로 둘지.
-5. WS 스트림 끊김 시 재접속 리플레이(미전달 이벤트 재생)를 MVP 범위에 넣을지. 현재 GET 스냅샷에서 이벤트 히스토리는 제거됨(`d472ff0`).
+5. (해결, `be81182`) WS 재접속 리플레이는 계약에 들어옴 — `connection.resume`/`full_sync` + 영속 `sequence`. 남은 결정: 세션 인증 모델(`connection.reauth_required`/`session_expired`) 데모 적용 범위.
 6. `cancel` 엔드포인트가 데모에 필요한지.
 7. 내부 서비스 인증(`X-Internal-Token`) 데모 적용 여부.
 8. Growth Brief export markdown copy까지만 vs PDF.
@@ -882,7 +889,7 @@ Return strictly valid JSON following the provided draft schema.
 3. Data Analyst Worker (정량 신호)
 4. Data Strategist + Data Writer Worker
 5. Reviewer Gate + Orchestrator 백트래킹
-6. Java 비동기 run/poll + 상태 매핑
+6. Java 비동기 run + WS 스트림 릴레이(+ coarse 스냅샷 fallback) + 상태 매핑
 7. War Room UI 해피패스
 8. Approval → growth_briefs/calendar_events 불변 적재
 9. OpenInference 트레이싱
