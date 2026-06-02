@@ -33,6 +33,10 @@ public class BusinessDataService {
     private final AgentRunRegistry registry;
     private final IdGenerator ids;
 
+    /**
+     * Constructs a BusinessDataService with collaborators required to fetch agent run status,
+     * persist approval artifacts, access run context, and generate stable IDs.
+     */
     public BusinessDataService(
             AgentServiceClient agent,
             ElasticDocumentWriter writer,
@@ -44,6 +48,19 @@ public class BusinessDataService {
         this.ids = ids;
     }
 
+    /**
+     * Processes a human approval for a specific agent run by validating the run and candidate plan,
+     * creating calendar event documents and a growth brief, persisting them, and returning identifiers
+     * and references for the created artifacts.
+     *
+     * @param agentRunId the identifier of the agent run to approve
+     * @param req the approval request containing the expected experiment plan id, approver, and final experiments
+     * @return an ApproveExperimentPlanResponse containing a success flag, a message, the created brief id,
+     *         references to created calendar events, and the timestamp of approval
+     * @throws ApiException if the run is not waiting for approval, the candidate plan is missing or mismatched,
+     *         the run was already approved, or if internal errors occur during idempotency check, context lookup,
+     *         or persistence
+     */
     public ApproveExperimentPlanResponse approve(
             String agentRunId, ApproveExperimentPlanRequest req) {
 
@@ -131,7 +148,12 @@ public class BusinessDataService {
                 now);
     }
 
-    /** signals + hypotheses의 evidence ref 합집합 (순서 보존, 중복 제거). */
+    /**
+     * Collects evidence reference IDs from the payload's signals and hypotheses, preserving insertion order and removing duplicates.
+     *
+     * @param payload the agent run result payload to extract evidence references from
+     * @return a list of unique evidence reference IDs in the order they were first encountered
+     */
     private List<String> evidenceRefs(AgentResultPayload payload) {
         Set<String> refs = new LinkedHashSet<>();
         if (payload.signals() != null) {

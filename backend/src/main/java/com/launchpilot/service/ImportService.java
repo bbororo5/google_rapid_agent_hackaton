@@ -28,12 +28,31 @@ public class ImportService {
     private final ElasticDocumentWriter writer;
     private final IdGenerator ids;
 
+    /**
+     * Constructs an ImportService with the components required to parse CSV input,
+     * convert rows to documents, and write documents to Elasticsearch.
+     *
+     * @param parser CSV streaming parser used to iterate rows and obtain the header
+     * @param writer writer responsible for bulk-indexing ContentPostDoc documents
+     * @param ids generator for import IDs and fallback post IDs
+     */
     public ImportService(CsvStreamingParser parser, ElasticDocumentWriter writer, IdGenerator ids) {
         this.parser = parser;
         this.writer = writer;
         this.ids = ids;
     }
 
+    /**
+     * Ingests a CSV stream, normalizes each row into ContentPostDoc documents, bulk-indexes them, and returns import results and metadata.
+     *
+     * @param csv           the InputStream containing the CSV data to ingest
+     * @param filename      the original filename associated with the CSV
+     * @param workspaceId   the workspace identifier to associate with created documents
+     * @param campaignId    the campaign identifier to associate with created documents
+     * @param sourcePlatform the fallback Channel to use when a row's channel value is missing or invalid
+     * @return              an ImportCsvResponse containing the import success flag, generated import ID, workspace and campaign IDs, counts of indexed and failed documents, the CSV header columns, and the ingestion timestamp
+     * @throws ApiException if CSV reading/parsing fails (bad request) or if bulk indexing fails (internal error)
+     */
     public ImportCsvResponse importCsv(
             InputStream csv,
             String filename,
@@ -72,6 +91,27 @@ public class ImportService {
                 ingestedAt);
     }
 
+    /**
+     * Convert a CSV row into a ContentPostDoc with normalized fields and parsed numeric metrics.
+     *
+     * @param row           a map of CSV column names to raw string values for the row
+     * @param rowNumber     1-based row number within the CSV (used when generating fallback IDs and source metadata)
+     * @param importId      import-level identifier to associate with the produced document
+     * @param filename      original CSV filename used in the document's source metadata
+     * @param workspaceId   workspace identifier to set on the document
+     * @param campaignId    campaign identifier to set on the document
+     * @param sourcePlatform fallback Channel used when the row's channel value is missing or invalid
+     * @param ingestedAt    ingestion timestamp applied when a row's published_at is missing
+     * @return              a ContentPostDoc containing:
+     *                      - a resolved or generated postId,
+     *                      - resolved channel,
+     *                      - publishedAt (defaults to ingestedAt when blank),
+     *                      - title (defaults to postId when blank),
+     *                      - a map of parsed numeric metrics (preserving column order),
+     *                      - Source metadata (importId, filename, rowNumber),
+     *                      - a copy of the original row map,
+     *                      - the ingestedAt timestamp
+     */
     private ContentPostDoc toDoc(
             Map<String, String> row,
             int rowNumber,
@@ -127,6 +167,13 @@ public class ImportService {
                 ingestedAt);
     }
 
+    /**
+     * Resolve a channel identifier string to a Channel enum, using a fallback when necessary.
+     *
+     * @param raw      raw channel value; may be null or blank
+     * @param fallback fallback Channel to use when {@code raw} is null, blank, or unrecognized; may be null
+     * @return the Channel parsed from {@code raw} when valid; {@code fallback} if {@code raw} is null/blank/unrecognized; {@code Channel.UNKNOWN} if both {@code raw} is invalid and {@code fallback} is null
+     */
     private Channel resolveChannel(String raw, Channel fallback) {
         String v = blankToNull(raw);
         if (v != null) {
@@ -139,10 +186,22 @@ public class ImportService {
         return fallback != null ? fallback : Channel.UNKNOWN;
     }
 
+    /**
+     * Normalize a string value: produce `null` when the input is `null` or contains only whitespace, otherwise return the trimmed input.
+     *
+     * @param s the input string that may be `null` or blank
+     * @return `null` if `s` is `null` or blank, otherwise `s.trim()`
+     */
     private static String blankToNull(String s) {
         return (s == null || s.isBlank()) ? null : s.trim();
     }
 
+    /**
+     * Parses a trimmed decimal value from the given string.
+     *
+     * @param s the input string to parse; may be null or blank
+     * @return the parsed Double value, or null if the input is null, blank, or not a valid number
+     */
     private static Double tryParseDouble(String s) {
         if (s == null || s.isBlank()) {
             return null;
