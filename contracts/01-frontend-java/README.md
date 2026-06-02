@@ -14,12 +14,13 @@ Core runtime rules:
 
 - Analysis is asynchronous. `POST /api/agent/run` returns `202 Accepted` immediately.
 - This directory has two contract specs:
-  - `openapi.yaml`: REST surface for CSV import, run start, snapshot recovery, and approve/cancel fallback.
-  - `asyncapi.yaml`: active WebSocket runtime for live progress, observations, approval gates, cancel, and approval commands.
+  - `openapi.yaml`: REST surface for CSV import, run start, coarse run snapshot, and approve/cancel fallback.
+  - `asyncapi.yaml`: active WebSocket runtime for live conversation, persisted timeline events, approval gates, cancel, reconnect resume, and missed-event replay.
 - The accepted REST response includes `stream_url`. The frontend opens that WebSocket URL and then follows `asyncapi.yaml`.
-- `GET /api/agent/runs/{agent_run_id}` remains the snapshot and polling fallback for reconnect, refresh recovery, and browsers that cannot keep the stream open.
+- Agent conversation lines and agent runtime timeline events are loss-intolerant. They must be delivered, resumed, and replayed through WebSocket using persisted `sequence` values.
+- `GET /api/agent/runs/{agent_run_id}` remains a coarse snapshot and polling fallback for status/result visibility. It is not the source of truth for reconstructing the user-visible conversation timeline.
 - Candidate signals, hypotheses, and experiment plans are temporary before human approval. The frontend may edit them in React state, but the backend must not persist final calendar or brief documents before approval.
-- Approval is append-only. `approval.approve` over WebSocket is the primary resume command; `POST /api/agent/actions/{agent_run_id}/approve` remains the REST fallback. Approval creates new `calendar_events` and `growth_briefs` documents in Elastic.
+- Approval is append-only. `approval.approve` over WebSocket is the primary approval command; `POST /api/agent/actions/{agent_run_id}/approve` remains the REST fallback. Approval creates new `calendar_events` and `growth_briefs` documents in Elastic.
 - Cancel is an intervention command. `run.cancel` over WebSocket is primary; `POST /api/agent/actions/{agent_run_id}/cancel` is the REST fallback.
 - Streamed reasoning must be glass-box, not raw private chain-of-thought. The backend sends user-visible observations, tool summaries, evidence references, and structured artifacts.
 - Response payloads use `snake_case` to match the Java Gateway and Python Agent contract.
@@ -32,7 +33,7 @@ Core runtime rules:
 | CSV ingestion | `POST` | `/api/import/csv` | Java `ImportController` |
 | Run async agent | `POST` | `/api/agent/run` | Java `AgentController` |
 | Observe/intervene in run | `WS` | `/api/agent/runs/{agent_run_id}/stream` | Java `AgentController`; see `asyncapi.yaml` |
-| Snapshot run/result fallback | `GET` | `/api/agent/runs/{agent_run_id}` | Java `AgentController` |
+| Coarse run/result snapshot | `GET` | `/api/agent/runs/{agent_run_id}` | Java `AgentController` |
 | Approve plan fallback | `POST` | `/api/agent/actions/{agent_run_id}/approve` | Java `BusinessController` |
 | Cancel run fallback | `POST` | `/api/agent/actions/{agent_run_id}/cancel` | Java `AgentController` |
 
@@ -114,7 +115,7 @@ Response: `202 Accepted`
 
 `WS /api/agent/runs/{agent_run_id}/stream`
 
-Purpose: provide the live agent timeline for the Campaign Agent Workspace.
+Purpose: provide the live, persisted agent conversation and runtime timeline for the Campaign Agent Workspace.
 
 The WebSocket runtime is specified in `asyncapi.yaml`, not `openapi.yaml`.
 
@@ -126,14 +127,23 @@ It supports two interaction modes:
 Server-to-client event types:
 
 ```text
+connection.resume_accepted
+connection.replay_started
+connection.replay_completed
+connection.full_sync_required
+connection.reauth_required
+connection.session_expired
 run.started
 step.updated
+user.message.created
+assistant.message.created
 observation.created
 tool.updated
 signal.detected
 hypothesis.created
 experiment_plan.drafted
 approval.requested
+approval.committed
 run.paused
 run.resumed
 run.cancelled
@@ -144,6 +154,8 @@ run.failed
 Client-to-server command types:
 
 ```text
+connection.resume
+connection.full_sync
 run.cancel
 approval.update_payload
 approval.approve
@@ -152,23 +164,35 @@ approval.reject
 
 Examples live beside both specs:
 
+- `examples/agent-stream-user-message-created-event.json`
+- `examples/agent-stream-run-started-event.json`
+- `examples/agent-stream-resume-command.json`
+- `examples/agent-stream-resume-accepted-event.json`
+- `examples/agent-stream-full-sync-required-event.json`
+- `examples/agent-stream-full-sync-command.json`
 - `examples/agent-stream-observation-created-event.json`
 - `examples/agent-stream-approval-requested-event.json`
+- `examples/agent-stream-approval-committed-event.json`
 - `examples/agent-stream-approval-approve-command.json`
 - `examples/agent-stream-cancel-command.json`
 
 The frontend should map stream events like this:
 
+- Every persisted timeline event has a monotonic per-run `sequence`. The frontend stores the last fully applied `sequence`.
+- After reconnecting, the frontend sends `connection.resume` with `last_received_sequence`.
+- The backend replays all missed persisted timeline events in sequence order. If incremental replay is unavailable, the backend sends `connection.full_sync_required`; the frontend then sends `connection.full_sync`, and the backend replays the full persisted timeline over WebSocket.
 - `step.updated` updates the fixed agent run status area.
-- `observation.created`, `signal.detected`, `hypothesis.created`, and `experiment_plan.drafted` append visible workspace timeline messages.
+- `user.message.created`, `assistant.message.created`, `observation.created`, `signal.detected`, `hypothesis.created`, and `experiment_plan.drafted` append visible workspace timeline messages.
 - `approval.requested` opens the review surface with editable draft payload.
+- `approval.committed` carries `growth_brief_id` and `created_calendar_events` after the approved plan is persisted. The frontend uses this event, not the coarse snapshot, to route to the created brief or calendar artifacts on the WebSocket primary path.
 - `run.cancelled`, `run.completed`, and `run.failed` close the active run lifecycle.
+- Client commands that mutate server state use `command_id` as an idempotency key. The server must execute the same `command_id` at most once and return the previously accepted outcome on duplicate delivery.
 
 ## 4. Snapshot Agent Run And Result
 
 `GET /api/agent/runs/{agent_run_id}`
 
-Purpose: provide both runtime status and completed structured result as a fallback snapshot contract.
+Purpose: provide coarse runtime status and completed structured result when the stream is unavailable or the page needs a status refresh. This endpoint must not be used to reconstruct missing conversation lines; missing lines are recovered through the WebSocket replay protocol in `asyncapi.yaml`.
 
 Runtime status enum:
 
@@ -303,7 +327,7 @@ Response when failed:
 
 Purpose: REST fallback to commit the user's final selected and edited experiments as immutable Elastic documents.
 
-The frontend sends the final experiments from React state. These may differ from the original candidate items returned by stream or snapshot.
+The frontend sends the final experiments from React state. These may differ from the original candidate items returned by stream or the coarse snapshot.
 
 Request:
 
