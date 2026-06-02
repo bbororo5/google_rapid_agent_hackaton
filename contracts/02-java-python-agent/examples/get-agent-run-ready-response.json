@@ -68,31 +68,6 @@
       ]
     }
   },
-  "workflow_events": [
-    {
-      "event_id": "evt_005",
-      "type": "experiment_plan.drafted",
-      "agent_run_id": "run_20260601_001",
-      "sequence": 5,
-      "occurred_at": "2026-06-01T16:31:22+09:00",
-      "status": "WAITING_FOR_APPROVAL",
-      "step": {
-        "id": "step_draft_plan",
-        "order": 5,
-        "stage": "DRAFT_EXPERIMENT_PLAN",
-        "status": "SUCCEEDED"
-      },
-      "observation": {
-        "id": "obs_plan_001",
-        "kind": "plan",
-        "title": "Experiment plan drafted",
-        "summary": "The campaign signal has been converted into an editable experiment plan.",
-        "evidence_refs": ["sig_001", "hyp_001"]
-      },
-      "payload": null,
-      "error_message": null
-    }
-  ],
   "tool_call_logs": [
     {
       "sequence": 1,
