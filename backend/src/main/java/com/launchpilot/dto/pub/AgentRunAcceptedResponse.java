@@ -1,0 +1,8 @@
+package com.launchpilot.dto.pub;
+
+public record AgentRunAcceptedResponse(
+        boolean ok,
+        String agentRunId,
+        String status,
+        String nextPollUrl,
+        String createdAt) {}
