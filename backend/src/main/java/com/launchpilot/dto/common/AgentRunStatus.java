@@ -9,5 +9,6 @@ public enum AgentRunStatus {
     RUNNING_EXPERIMENT_GENERATION,
     WAITING_FOR_APPROVAL,
     SUCCESS,
-    FAILED
+    FAILED,
+    CANCELLED
 }
