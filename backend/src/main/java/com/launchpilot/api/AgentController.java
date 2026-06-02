@@ -5,6 +5,8 @@ import com.launchpilot.dto.pub.AgentRunRequest;
 import com.launchpilot.dto.pub.AgentRunStatusResponse;
 import com.launchpilot.dto.pub.ApproveExperimentPlanRequest;
 import com.launchpilot.dto.pub.ApproveExperimentPlanResponse;
+import com.launchpilot.dto.pub.CancelAgentRunRequest;
+import com.launchpilot.dto.pub.CancelAgentRunResponse;
 import com.launchpilot.service.AgentRunService;
 import com.launchpilot.service.ApiException;
 import com.launchpilot.service.BusinessDataService;
@@ -77,6 +79,23 @@ public class AgentController {
             @Valid @RequestBody ApproveExperimentPlanRequest request) {
         requireRunId(agentRunId);
         return businessDataService.approve(agentRunId, request);
+    }
+
+    /**
+     * Cancels an active agent run (REST fallback for the WS run.cancel command).
+     *
+     * @param agentRunId the agent run identifier; must match "^run_[A-Za-z0-9_]+$"
+     * @param request    optional cancellation reason
+     * @return 202 Accepted with a CancelAgentRunResponse (status CANCELLED)
+     */
+    @PostMapping("/actions/{agentRunId}/cancel")
+    public ResponseEntity<CancelAgentRunResponse> cancel(
+            @PathVariable String agentRunId,
+            @RequestBody(required = false) CancelAgentRunRequest request) {
+        requireRunId(agentRunId);
+        String reason = request != null ? request.reason() : null;
+        return ResponseEntity.status(HttpStatus.ACCEPTED)
+                .body(agentRunService.cancel(agentRunId, reason));
     }
 
     /**
