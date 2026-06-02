@@ -17,6 +17,14 @@ import org.springframework.context.annotation.Primary;
 @Configuration
 public class JacksonConfig {
 
+    /**
+     * Creates the primary Jackson ObjectMapper configured for the application.
+     *
+     * <p>The mapper uses snake_case for JSON property names and will fail deserialization
+     * when unknown properties are encountered.</p>
+     *
+     * @return an ObjectMapper that uses snake_case naming and fails on unknown properties
+     */
     @Bean
     @Primary
     public ObjectMapper objectMapper() {
