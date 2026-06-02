@@ -22,12 +22,29 @@ public class AgentRunService {
     private final AgentRunRegistry registry;
     private final IdGenerator ids;
 
+    /**
+     * Create an AgentRunService with its required dependencies.
+     *
+     * @param agent   client used to start runs and fetch internal run state
+     * @param registry registry that stores minimal run context keyed by runId
+     * @param ids     generator for run and request identifiers
+     */
     public AgentRunService(AgentServiceClient agent, AgentRunRegistry registry, IdGenerator ids) {
         this.agent = agent;
         this.registry = registry;
         this.ids = ids;
     }
 
+    /**
+     * Starts an agent run for the given request and returns an acceptance response
+     * containing the new runId, location, initial status, and timestamp.
+     *
+     * @param req the public run request containing workspaceId, campaignId, question,
+     *            optional dateRange and parentBriefId
+     * @return an AgentRunAcceptedResponse indicating the run was accepted; contains
+     *         the generated `runId`, initial status `"PENDING"`, the run location
+     *         URI, and a timestamp
+     */
     public AgentRunAcceptedResponse runAgent(AgentRunRequest req) {
         String runId = ids.newRunId();
         String requestId = ids.newRequestId();
@@ -53,7 +70,13 @@ public class AgentRunService {
                 OffsetDateTime.now().toString());
     }
 
-    /** 내부 상태 -> 공개 상태. 내부 전용 필드(agent_diagnostics, *_at) 제거. */
+    /**
+     * Provides the public-facing status for an agent run, omitting internal-only fields.
+     *
+     * @param agentRunId the identifier of the agent run to poll
+     * @return an AgentRunStatusResponse containing the run's public status: `agentRunId`, `status`,
+     *         `currentStage`, `retryCount`, `errorMessage`, `payload`, and `toolCallLogs`
+     */
     public AgentRunStatusResponse poll(String agentRunId) {
         InternalAgentRunStatusResponse i = agent.getRun(agentRunId);
         return new AgentRunStatusResponse(

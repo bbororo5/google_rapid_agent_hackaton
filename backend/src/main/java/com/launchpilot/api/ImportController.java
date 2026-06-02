@@ -21,10 +21,25 @@ public class ImportController {
 
     private final ImportService importService;
 
+    /**
+     * Creates an ImportController that handles CSV import requests.
+     *
+     * @param importService the service used to perform CSV imports
+     */
     public ImportController(ImportService importService) {
         this.importService = importService;
     }
 
+    /**
+     * Handles a multipart CSV upload and imports its contents into the specified workspace and campaign.
+     *
+     * @param file the uploaded CSV file; must be present and non-empty
+     * @param workspaceId identifier of the workspace; must be non-blank
+     * @param campaignId identifier of the campaign; must be non-blank
+     * @param sourcePlatform optional platform string used to derive the import Channel; blank means no channel
+     * @return a ResponseEntity containing the ImportCsvResponse and HTTP status 201 (Created) on success
+     * @throws ApiException with a bad-request status when validation fails, the uploaded file cannot be read, or the provided sourcePlatform is invalid
+     */
     @PostMapping(value = "/csv", consumes = "multipart/form-data")
     public ResponseEntity<ImportCsvResponse> importCsv(
             @RequestParam("file") MultipartFile file,
@@ -54,6 +69,13 @@ public class ImportController {
         }
     }
 
+    /**
+     * Parse a source platform identifier into a Channel.
+     *
+     * @param raw the source_platform string; may be null or blank
+     * @return the corresponding Channel, or {@code null} if {@code raw} is null or blank
+     * @throws ApiException.badRequest if {@code raw} is present but does not map to a valid Channel
+     */
     private Channel parseChannel(String raw) {
         if (!StringUtils.hasText(raw)) {
             return null;

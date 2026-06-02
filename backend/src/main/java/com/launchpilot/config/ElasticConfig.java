@@ -21,13 +21,23 @@ import org.springframework.util.StringUtils;
 @Configuration
 public class ElasticConfig {
 
-    /** ES 문서를 계약대로 snake_case 직렬화. 자동설정 기본 매퍼 대신 사용. */
+    /**
+     * Register a JsonpMapper bean that delegates JSON mapping to the given Jackson ObjectMapper.
+     *
+     * @param objectMapper the Jackson ObjectMapper to back the JsonpMapper (controls serialization settings)
+     * @return a JsonpMapper backed by the provided ObjectMapper
+     */
     @Bean
     public JsonpMapper jsonpMapper(ObjectMapper objectMapper) {
         return new JacksonJsonpMapper(objectMapper);
     }
 
-    /** Serverless API Key 인증: Authorization: ApiKey <key>. */
+    /**
+     * Customize the Elasticsearch REST client to add an `Authorization: ApiKey <key>` header when an API key is provided.
+     *
+     * @param apiKey the API key (from `elastic.api-key`); if empty or blank no header will be added
+     * @return a RestClientBuilderCustomizer that sets a default `Authorization` header with the ApiKey when `apiKey` has text
+     */
     @Bean
     public RestClientBuilderCustomizer apiKeyCustomizer(
             @Value("${elastic.api-key:}") String apiKey) {

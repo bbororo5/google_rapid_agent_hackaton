@@ -13,10 +13,21 @@ public class AgentServiceClient {
 
     private final RestClient client;
 
+    /**
+     * Creates an AgentServiceClient that uses the provided RestClient to perform HTTP requests to the agent service.
+     */
     public AgentServiceClient(RestClient agentRestClient) {
         this.client = agentRestClient;
     }
 
+    /**
+     * Starts an agent run by POSTing the given request to the agent service.
+     *
+     * @param request the parameters and payload for the agent run
+     * @return an InternalAgentRunAcceptedResponse containing details of the accepted run
+     * @throws ApiException with status 409 and code "RUN_ID_CONFLICT" if a run with the same ID was already started with a different body
+     * @throws ApiException for other HTTP error responses (status >= 400) indicating an internal agent start failure
+     */
     public InternalAgentRunAcceptedResponse startRun(InternalAgentRunRequest request) {
         return client.post()
                 .uri("/internal/agent/runs")
@@ -32,6 +43,13 @@ public class AgentServiceClient {
                 .body(InternalAgentRunAcceptedResponse.class);
     }
 
+    /**
+     * Fetches the current status of an agent run by its identifier.
+     *
+     * @param agentRunId the identifier of the agent run to retrieve
+     * @return the deserialized InternalAgentRunStatusResponse representing the run's current status
+     * @throws ApiException if the run is not found (HTTP 404) or if the request fails with any other HTTP status >= 400
+     */
     public InternalAgentRunStatusResponse getRun(String agentRunId) {
         return client.get()
                 .uri("/internal/agent/runs/{id}", agentRunId)

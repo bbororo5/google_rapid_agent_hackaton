@@ -9,6 +9,13 @@ import org.springframework.web.client.RestClient;
 @Configuration
 public class AgentServiceConfig {
 
+    /**
+     * Create a RestClient configured to communicate with the Agent service.
+     *
+     * @param builder a RestClient.Builder used to construct the client
+     * @param baseUrl the Agent service base URL (injected from the `agent.service.url` property)
+     * @return a RestClient whose base URL is set to the provided `baseUrl`
+     */
     @Bean
     public RestClient agentRestClient(
             RestClient.Builder builder,
