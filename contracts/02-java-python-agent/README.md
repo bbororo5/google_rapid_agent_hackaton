@@ -1,12 +1,17 @@
 # LaunchPilot Java-Python Agent Internal Contract
 
-Status: Draft v0.2  
+Status: Draft v0.3
 Boundary: Java Spring Boot Business Backend <-> Python FastAPI Agent Service  
 Last updated: 2026-06-02
 
 ## Purpose
 
-This contract defines the internal HTTP boundary between the Java Backend and the Python AI Agent component.
+This contract defines the internal boundary between the Java Backend and the Python AI Agent component.
+
+This folder has two specs:
+
+- `openapi.yaml`: run start, snapshot recovery, and cancel fallback.
+- `asyncapi.yaml`: active Python-to-Java workflow event stream.
 
 Java owns:
 
@@ -47,11 +52,13 @@ IDs:
 
 ## Runtime Invariants
 
-- Java calls Python once to start a run, then polls Python for status.
+- Java calls Python once to start a run, then opens the returned internal WebSocket stream.
 - Python must return quickly from `POST /internal/agent/runs`; long-running work happens in a background task.
+- Python streams workflow events to Java as the agent works. Java relays those events to the frontend WebSocket after applying public API policy.
+- `GET /internal/agent/runs/{agent_run_id}` is a snapshot recovery endpoint, not the primary active runtime channel.
 - Python status values must be compatible with the frontend-facing Java status enum.
 - Python `payload` must be structurally compatible with `contracts/01-frontend-java/openapi.yaml` `AgentResultPayload`.
-- Python `workflow_events` must be structurally compatible with the frontend-facing WebSocket events in `contracts/01-frontend-java/asyncapi.yaml`, excluding Java-owned approval events.
+- Python workflow stream events must be structurally compatible with the frontend-facing WebSocket events in `contracts/01-frontend-java/asyncapi.yaml`, excluding Java-owned approval events.
 - Python must not send raw Gemini chunks, private chain-of-thought, provider-specific `thoughtSignature`, or raw tool transport messages through this API.
 - Python should convert Gemini stream parts, tool results, and validator progress into user-safe workflow events such as `observation.created`, `signal.detected`, `hypothesis.created`, and `experiment_plan.drafted`.
 - Python may include additional internal diagnostics under `agent_diagnostics`; Java may log this but should not expose all diagnostics to the frontend by default.
@@ -105,6 +112,8 @@ Response: `202 Accepted`
   "ok": true,
   "agent_run_id": "run_20260601_001",
   "status": "PENDING",
+  "stream_url": "/internal/agent/runs/run_20260601_001/stream",
+  "snapshot_url": "/internal/agent/runs/run_20260601_001",
   "accepted_at": "2026-06-01T16:31:00+09:00"
 }
 ```
@@ -114,16 +123,47 @@ Idempotency rule:
 - If Java retries the same `agent_run_id`, Python should return the current run status instead of starting a duplicate run.
 - If the same `agent_run_id` is reused with a different request body, Python should return `409 Conflict`.
 
-## 2. Poll Internal Agent Run
+## 2. Active Internal Agent Stream
+
+`WS /internal/agent/runs/{agent_run_id}/stream`
+
+Purpose: Python streams user-safe workflow events to Java while the agent is analyzing evidence and drafting experiments.
+
+This stream is specified in `asyncapi.yaml`.
+
+Python emits:
+
+```text
+run.started
+step.updated
+observation.created
+signal.detected
+hypothesis.created
+experiment_plan.drafted
+run.failed
+run.cancelled
+```
+
+Java may send:
+
+```text
+run.cancel
+```
+
+Python must not stream raw Gemini chunks, private chain-of-thought, `thoughtSignature`, function-call transport frames, raw MCP messages, or provider-specific payloads. It must emit normalized `AgentWorkflowEvent` messages.
+
+Java-owned approval events are not part of this internal stream. Java adds `approval.requested` to the frontend-facing stream after Python reaches `WAITING_FOR_APPROVAL`.
+
+## 3. Snapshot Internal Agent Run
 
 `GET /internal/agent/runs/{agent_run_id}`
 
-Purpose: Java polls Python for the latest run snapshot and newly produced workflow events.
+Purpose: Java fetches the latest run snapshot and recent workflow events after reconnect, refresh recovery, or stream failure.
 
 Java uses this response in two ways:
 
 - Snapshot recovery: map `status`, `current_stage`, `payload`, and `tool_call_logs` to the public REST snapshot.
-- WebSocket relay: map `workflow_events` to frontend `AgentStreamServerEvent` messages. Java may add Java-owned events such as `approval.requested` after Python reaches `WAITING_FOR_APPROVAL`.
+- WebSocket recovery: replay `workflow_events` that Java has not already relayed, using `sequence` for ordering and de-duplication.
 
 Running response:
 
@@ -215,11 +255,11 @@ Ready response:
 }
 ```
 
-## 3. Cancel Internal Agent Run
+## 4. Cancel Internal Agent Run
 
 `POST /internal/agent/runs/{agent_run_id}/cancel`
 
-Purpose: optional operational endpoint for Java to stop a run when the frontend session is abandoned or an operator aborts work.
+Purpose: REST fallback for Java to stop a run when the internal stream is unavailable.
 
 Response: `202 Accepted`
 
@@ -287,6 +327,6 @@ Java should keep these fields internal by default:
 
 ## Open Decisions
 
-- Whether Java stores a short-lived copy of Python run status or always polls Python directly.
+- Whether Java stores a short-lived copy of Python stream events for replay or always relies on Python snapshot recovery.
 - Whether `cancel` is required for the hackathon demo.
 - Whether internal service authentication is needed in the demo environment.

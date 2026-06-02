@@ -1,10 +1,11 @@
 openapi: 3.1.0
 info:
   title: LaunchPilot Java-Python Agent Internal API
-  version: 0.1.0
+  version: 0.2.0
   description: >
-    Internal service-to-service contract between the Java Spring Boot backend
-    and the Python FastAPI Agent Service.
+    Internal REST contract between the Java Spring Boot backend and the Python
+    FastAPI Agent Service. Active workflow event streaming is defined in
+    asyncapi.yaml.
 servers:
   - url: http://agent-service:8000/internal/agent
 tags:
@@ -40,7 +41,7 @@ paths:
     get:
       tags: [InternalAgent]
       operationId: getInternalAgentRun
-      summary: Poll Python for current agent state and candidate payload.
+      summary: Fetch a Python agent run snapshot for reconnect or recovery.
       parameters:
         - $ref: "#/components/parameters/AgentRunId"
       responses:
@@ -266,7 +267,7 @@ components:
     InternalAgentRunAcceptedResponse:
       type: object
       additionalProperties: false
-      required: [ok, agent_run_id, status, accepted_at]
+      required: [ok, agent_run_id, status, stream_url, snapshot_url, accepted_at]
       properties:
         ok:
           type: boolean
@@ -277,6 +278,12 @@ components:
         status:
           type: string
           const: PENDING
+        stream_url:
+          type: string
+          pattern: "^/internal/agent/runs/run_[A-Za-z0-9_]+/stream$"
+        snapshot_url:
+          type: string
+          pattern: "^/internal/agent/runs/run_[A-Za-z0-9_]+$"
         accepted_at:
           type: string
           format: date-time
@@ -320,8 +327,9 @@ components:
         workflow_events:
           type: array
           description: >
-            Workflow-level events produced by Python for Java to relay to the
-            frontend WebSocket. These are not raw Gemini chunks or private
+            Recent workflow-level events retained for Java reconnect/snapshot
+            recovery. The primary active event channel is the WebSocket stream
+            defined in asyncapi.yaml. These are not raw Gemini chunks or private
             chain-of-thought.
           items:
             $ref: "#/components/schemas/AgentWorkflowEvent"
