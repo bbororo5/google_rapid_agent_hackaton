@@ -200,6 +200,7 @@ sequenceDiagram
 | **메타 L4** | Phoenix | 런 내내 | Python | 행동 기록 + 다음 런 성찰 |
 
 > 기억할 것: **에이전트는 장기 DB에 안 쓴다. 읽기만.** 쓰기는 Java가 import할 때 1번, 사람이 승인할 때 1번. 그게 전부.
+> 상세 E2E DB 흐름(층별 읽기/쓰기 순서 + 설계): [`docs/memory-and-db-flow.md`](memory-and-db-flow.md)
 
 ---
 
@@ -308,6 +309,7 @@ erDiagram
 - PRD: [`docs/product/LaunchPilot_PRD.md`](product/LaunchPilot_PRD.md)
 - C4: [`docs/architecture/launchpilot-c4.md`](architecture/launchpilot-c4.md)
 - 에이전트 도구 결정 로직: [`docs/agent-tool-spec.md`](agent-tool-spec.md)
+- 메모리·DB 흐름(E2E): [`docs/memory-and-db-flow.md`](memory-and-db-flow.md)
 - WS 계약: [`contracts/01-frontend-java/asyncapi.yaml`](../contracts/01-frontend-java/asyncapi.yaml)
 - 계약 인덱스: [`contracts/README.md`](../contracts/README.md)
 - 추적 매트릭스: [`docs/product/mvp-requirements-traceability.md`](product/mvp-requirements-traceability.md)
