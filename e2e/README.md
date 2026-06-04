@@ -5,7 +5,7 @@ These tests are executable acceptance criteria for the conversation-first agent 
 The suite is intentionally small. It covers only the core user journeys:
 
 - Free chat, including Enter to send and Shift+Enter for multiline drafts.
-- Saved markdown outputs opening in the right drawer while staying available from the thread.
+- Saved markdown outputs opening as tabs in the right drawer while staying available from the thread.
 - Agent-raised signal and approval outputs staying inline while also being archived.
 - The CSV demo happy path from upload to approved growth brief.
 

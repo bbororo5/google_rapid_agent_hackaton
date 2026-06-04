@@ -160,6 +160,8 @@ export interface OutputPanelItem {
   id: string;
   title: string;
   eyebrow: string;
+  kind: "document" | "signal" | "experiment_plan" | "approval";
+  summary: string;
   markdown: string;
   sequence: number;
 }
@@ -511,6 +513,8 @@ function documentPanelItem(document: AgentDocument, index: number): OutputPanelI
     id: `document:${document.document_id}`,
     title: document.kind === "evidence_scan" ? "Evidence notes" : document.title,
     eyebrow: "Markdown document",
+    kind: "document",
+    summary: document.summary,
     markdown: document.content,
     sequence: index + 1,
   };
@@ -588,6 +592,8 @@ function outputPanelItemsFromState(input: {
       id: `signal:${input.signalGate.signal.id}`,
       title: input.signalGate.signal.title,
       eyebrow: "Confirmed signal",
+      kind: "signal",
+      summary: `${input.signalGate.signal.metric_name} · ${input.signalGate.signal.lift_ratio.toFixed(1)}x`,
       markdown: signalMarkdown(input.signalGate.signal),
       sequence: sequence++,
     });
@@ -598,6 +604,8 @@ function outputPanelItemsFromState(input: {
       id: `experiment-plan:${input.draftExperiments.map((experiment) => experiment.id).join(":")}`,
       title: "Experiment plan",
       eyebrow: input.approvalGate.status === "complete" ? "Approved draft" : "Draft artifact",
+      kind: "experiment_plan",
+      summary: `${input.draftExperiments.length} experiment${input.draftExperiments.length === 1 ? "" : "s"} ready`,
       markdown: experimentPlanMarkdown(input.draftExperiments, input.approvalGate.hypothesis),
       sequence: sequence++,
     });
@@ -608,6 +616,8 @@ function outputPanelItemsFromState(input: {
       id: `approval:${input.approval.growth_brief_id}`,
       title: "Approval complete",
       eyebrow: "Approved output",
+      kind: "approval",
+      summary: `${input.calendarEvents.length} calendar event${input.calendarEvents.length === 1 ? "" : "s"} ready`,
       markdown: approvalMarkdown({
         approval: input.approval,
         experiments: input.finalExperiments.length > 0 ? input.finalExperiments : input.draftExperiments,

@@ -31,6 +31,7 @@ test.describe("conversation-first mock server", () => {
     await expect(page.getByRole("region", { name: /evidence notes/i })).toBeVisible();
     await expect(page.getByRole("complementary", { name: /output panel/i })).toContainText("Evidence notes");
     await expect(page.getByRole("button", { name: /markdown document evidence notes/i })).toBeVisible();
+    await expect(page.getByRole("navigation", { name: /open output tabs/i })).toContainText("Evidence notes");
 
     await page.getByRole("textbox", { name: /message/i }).fill("문서보여줘");
     await page.getByRole("button", { name: /^send$/i }).click();
@@ -50,6 +51,7 @@ test.describe("conversation-first mock server", () => {
     await expect(page.locator(".thread-gate-inline", { hasText: /Signal Review/ }).filter({ hasText: /Completed/ })).toBeVisible();
     await page.getByRole("button", { name: /show details panel/i }).click();
     await expect(page.getByRole("button", { name: /confirmed signal bts shorts outperformed recent baseline/i })).toBeVisible();
+    await expect(page.getByRole("navigation", { name: /open output tabs/i })).toContainText("BTS shorts outperformed recent baseline");
 
     await expect(page.getByRole("button", { name: /approve experiments|approve/i })).toBeVisible({ timeout: 15000 });
     await page.getByRole("textbox", { name: /message/i }).fill("두 번째 실험은 빼고 승인할게");

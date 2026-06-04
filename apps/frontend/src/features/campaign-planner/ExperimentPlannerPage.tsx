@@ -18,6 +18,7 @@ import {
   Send,
   Square,
   Target,
+  X,
 } from "lucide-react";
 import { useExperimentPlannerController } from "@/features/campaign-planner/hooks/useExperimentPlannerController";
 import type { GateReview, OutputPanelItem, PlannerProgressView, StatusRow, StreamMessageBlock, ThreadDisplayItem, ThreadMessageGroup } from "@/features/campaign-planner/hooks/useExperimentPlannerController";
@@ -624,41 +625,69 @@ function InspectorPanel({
   open,
   outputs,
   activeOutputId,
+  openOutputIds,
   onSelectOutput,
+  onCloseOutput,
 }: {
   open: boolean;
   outputs: OutputPanelItem[];
   activeOutputId: string | null;
+  openOutputIds: string[];
   onSelectOutput: (id: string) => void;
+  onCloseOutput: (id: string) => void;
 }) {
-  const activeOutput = outputs.find((output) => output.id === activeOutputId) ?? outputs.at(-1) ?? null;
+  const openOutputs = openOutputIds.map((id) => outputs.find((output) => output.id === id)).filter((output): output is OutputPanelItem => Boolean(output));
+  const activeOutput = openOutputs.find((output) => output.id === activeOutputId) ?? openOutputs.at(-1) ?? null;
 
   return (
     <aside className="inspector-panel output-panel" aria-label="Output panel" aria-hidden={!open} tabIndex={open ? -1 : undefined}>
       <div className="inspector-top">
         <div>
-          <strong>{activeOutput ? activeOutput.title : "Outputs"}</strong>
-          <span>{activeOutput ? activeOutput.eyebrow : "No outputs yet"}</span>
+          <strong>Outputs</strong>
+          <span>{outputs.length > 0 ? `${outputs.length} saved output${outputs.length === 1 ? "" : "s"}` : "No outputs yet"}</span>
         </div>
       </div>
 
       <div className="inspector-content">
         {outputs.length > 0 ? (
           <>
-            <nav className="output-tab-list" aria-label="Saved outputs">
+            <section className="output-library" aria-label="Saved outputs">
+              <div className="output-library-heading">
+                <strong>Saved</strong>
+                <span>{outputs.length}</span>
+              </div>
               {outputs.map((output) => (
                 <button
-                  className={`output-tab-card${output.id === activeOutput?.id ? " active" : ""}`}
+                  className={`output-list-card${output.id === activeOutput?.id ? " active" : ""}`}
                   type="button"
                   aria-pressed={output.id === activeOutput?.id}
+                  aria-label={`${output.eyebrow} ${output.title}`}
                   key={output.id}
                   onClick={() => onSelectOutput(output.id)}
                 >
-                  <span>{output.eyebrow}</span>
-                  <strong>{output.title}</strong>
+                  <span className={`output-kind-dot ${output.kind}`} aria-hidden="true" />
+                  <span className="output-list-copy">
+                    <strong>{output.title}</strong>
+                    <small>{output.summary}</small>
+                  </span>
+                  <span className="output-list-eyebrow">{output.eyebrow}</span>
                 </button>
               ))}
+            </section>
+
+            <nav className="output-browser-tabs" aria-label="Open output tabs">
+              {openOutputs.map((output) => (
+                <div className={`output-browser-tab${output.id === activeOutput?.id ? " active" : ""}`} key={output.id}>
+                  <button type="button" onClick={() => onSelectOutput(output.id)} aria-pressed={output.id === activeOutput?.id}>
+                    <span>{output.title}</span>
+                  </button>
+                  <button className="output-tab-close" type="button" aria-label={`Close ${output.title}`} onClick={() => onCloseOutput(output.id)}>
+                    <X size={13} strokeWidth={2} />
+                  </button>
+                </div>
+              ))}
             </nav>
+
             <section className="inspector-section document-viewer" aria-label={activeOutput?.title ?? "Selected output"}>
               <article className="markdown-document">
                 <MarkdownContent markdown={activeOutput?.markdown ?? ""} />
@@ -741,6 +770,7 @@ export function ExperimentPlannerPage() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [inspectorOpen, setInspectorOpen] = useState(false);
   const [activeOutputId, setActiveOutputId] = useState<string | null>(null);
+  const [openOutputIds, setOpenOutputIds] = useState<string[]>([]);
   const previousOutputCountRef = useRef(0);
   const campaignStatus = view.shell.campaignStatus === "approved" ? "Approved" : view.shell.campaignStatus === "needs_review" ? "Needs approval" : view.shell.campaignStatus === "error" ? "Needs attention" : "Active";
   const canToggleInspector = inspectorOpen || view.inspector.outputs.length > 0;
@@ -752,6 +782,7 @@ export function ExperimentPlannerPage() {
     previousOutputCountRef.current = view.inspector.outputs.length;
     if (latestOutput && (outputWasAdded || !activeOutputId || !activeOutputExists)) {
       setActiveOutputId(latestOutput.id);
+      setOpenOutputIds((ids) => (ids.includes(latestOutput.id) ? ids : [...ids, latestOutput.id]));
       if (outputWasAdded && latestOutput.id.startsWith("document:")) {
         setInspectorOpen(true);
       }
@@ -764,7 +795,9 @@ export function ExperimentPlannerPage() {
   }
 
   function handleOpenDocument(streamDocument: StreamDocument) {
-    setActiveOutputId(`document:${streamDocument.document_id}`);
+    const id = `document:${streamDocument.document_id}`;
+    setActiveOutputId(id);
+    setOpenOutputIds((ids) => (ids.includes(id) ? ids : [...ids, id]));
     setInspectorOpen(true);
     window.setTimeout(() => focusWorkspace(".document-viewer"), 0);
   }
@@ -864,9 +897,18 @@ export function ExperimentPlannerPage() {
           open={inspectorOpen}
           outputs={view.inspector.outputs}
           activeOutputId={activeOutputId}
+          openOutputIds={openOutputIds}
           onSelectOutput={(id) => {
             setActiveOutputId(id);
+            setOpenOutputIds((ids) => (ids.includes(id) ? ids : [...ids, id]));
             setInspectorOpen(true);
+          }}
+          onCloseOutput={(id) => {
+            setOpenOutputIds((ids) => ids.filter((openId) => openId !== id));
+            if (activeOutputId === id) {
+              const remaining = openOutputIds.filter((openId) => openId !== id);
+              setActiveOutputId(remaining.at(-1) ?? view.inspector.outputs.at(-1)?.id ?? null);
+            }
           }}
         />
       </main>
