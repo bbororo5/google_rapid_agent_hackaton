@@ -133,6 +133,28 @@ export interface AgentMessage {
   content: string;
 }
 
+export type StreamMessageRole = "user" | "assistant" | "system";
+
+export type MessageBlockKind = "text" | "activity" | "markdown_document" | "artifact" | "approval" | "result" | "error";
+
+export type MessageBlock =
+  | { kind: "text"; text: string }
+  | { kind: "activity"; id?: string; title: string; status: "queued" | "running" | "done" | "failed"; detail?: string }
+  | { kind: "markdown_document"; id: string; title: string; summary?: string; markdown: string }
+  | { kind: "artifact"; id: string; artifact_kind: "signal" | "hypothesis" | "experiment_plan" | "growth_brief" | "generic"; title: string; content: unknown }
+  | { kind: "approval"; id: string; title: string; target_id: string; actions: ("approve" | "reject" | "request_changes")[] }
+  | { kind: "result"; title: string; detail?: string; refs?: Array<{ kind: string; id: string; title: string }> }
+  | { kind: "error"; title: string; detail?: string; retryable?: boolean };
+
+export interface StreamMessage {
+  id: string;
+  thread_id: string;
+  sequence: number;
+  role: StreamMessageRole;
+  created_at: string;
+  blocks: MessageBlock[];
+}
+
 export type AgentDocumentKind = "evidence_scan" | "signal_summary" | "hypothesis_brief" | "experiment_plan" | "approval_receipt" | "generic";
 
 export interface AgentDocument {
@@ -166,6 +188,8 @@ export interface AgentStreamServerEvent {
   error_message?: string | null;
 }
 
+export type AgentStreamServerFrame = StreamMessage | AgentStreamServerEvent;
+
 export interface ConnectionResumeCommand {
   command_id: string;
   type: "connection.resume";
@@ -197,6 +221,11 @@ export interface MessageSendCommand {
   type: "message.send";
   agent_run_id: string;
   content: string;
+  action?: {
+    name: "approve" | "reject" | "request_changes" | "open_document" | "revise_artifact" | "cancel";
+    target_id?: string | null;
+    payload?: unknown;
+  };
   client_created_at: string;
 }
 

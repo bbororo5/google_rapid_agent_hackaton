@@ -24,6 +24,7 @@ Java owns:
 Python owns:
 
 - agent state machine execution,
+- free-form user message interpretation inside the active conversation context,
 - Gemini calls,
 - Elastic MCP evidence retrieval,
 - Phoenix MCP self-introspection,
@@ -53,6 +54,7 @@ IDs:
 ## Runtime Invariants
 
 - Java calls Python once to start a run, then opens the returned internal WebSocket stream.
+- During the conversation-first transition, Java may forward user `message.send` turns to Agent Core context. Python decides whether the turn is ordinary chat, context gathering, tool work, artifact revision, or approval intent.
 - Python must return quickly from `POST /internal/agent/runs`; long-running work happens in a background task.
 - Python streams workflow events to Java as the agent works. Java relays those events to the frontend WebSocket after applying public API policy.
 - `GET /internal/agent/runs/{agent_run_id}` returns the latest run snapshot, not workflow event history.
@@ -64,6 +66,17 @@ IDs:
 - Python may include additional internal diagnostics under `agent_diagnostics`; Java may log this but should not expose all diagnostics to the frontend by default.
 - `WAITING_FOR_APPROVAL` is the Python terminal state for successful candidate generation.
 - `SUCCESS` is reserved for the Java approval lifecycle and should not normally be emitted by Python v0.1.
+
+## Conversation-First Extension
+
+The user-facing contract is moving toward a single `message.send` command and server `StreamMessage.blocks[]` frames. This internal contract keeps the current run start and workflow stream for MVP compatibility, but Agent Core should treat every user turn as a contextual message rather than as a fixed UI step.
+
+Responsibilities:
+
+- Java persists the user message in the frontend timeline and forwards the turn plus thread/run context to Python.
+- Python interprets the turn and may respond with text, request more context, use tools, revise artifacts, or identify approval intent.
+- Python should emit user-safe output that Java can normalize into message blocks: `text`, `activity`, `markdown_document`, `artifact`, `approval`, `result`, or `error`.
+- Java remains the final owner of human approval and immutable writes. If Python detects approval intent from text such as "approve" or "승인할게", Java must still validate the open approval target and final draft before writing `growth_briefs` or `calendar_events`.
 
 ## Status Mapping
 

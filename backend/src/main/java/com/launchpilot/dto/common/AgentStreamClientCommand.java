@@ -18,4 +18,5 @@ public record AgentStreamClientCommand(
         List<ExperimentItem> finalExperiments,
         String reason,
         String content,
+        MessageSendAction action,
         String clientCreatedAt) {}

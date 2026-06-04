@@ -1,0 +1,27 @@
+{
+  "id": "msg_20260601_stream_001",
+  "thread_id": "run_20260601_001",
+  "sequence": 12,
+  "role": "assistant",
+  "created_at": "2026-06-01T16:31:10+09:00",
+  "blocks": [
+    {
+      "kind": "text",
+      "text": "I found a repeatable save-rate signal and prepared evidence notes."
+    },
+    {
+      "kind": "activity",
+      "id": "act_metric_baseline_001",
+      "title": "Checked metric baseline",
+      "status": "done",
+      "detail": "TikTok save_rate is 2.8x above the recent baseline."
+    },
+    {
+      "kind": "markdown_document",
+      "id": "doc_evidence_scan_001",
+      "title": "Evidence notes",
+      "summary": "Evidence notes for the uploaded campaign metrics.",
+      "markdown": "## Evidence notes\n\n- TikTok save_rate is 2.8x above baseline.\n- Two BTS shorts support the signal."
+    }
+  ]
+}

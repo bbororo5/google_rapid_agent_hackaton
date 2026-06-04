@@ -12,18 +12,20 @@ The frontend only talks to the Java backend. It never calls Python Agent Service
 
 Core runtime rules:
 
-- Analysis is asynchronous. `POST /api/agent/run` returns `202 Accepted` immediately.
+- The main user experience is conversation-first. The frontend sends free-form user turns over WebSocket with `message.send`.
+- Agent work, tool progress, documents, artifacts, approvals, committed results, and errors are delivered as persisted stream messages with typed `blocks[]`.
+- Analysis may still be asynchronous. `POST /api/agent/run` remains a transitional/fallback way to create a run and obtain a `stream_url`.
 - This directory has two contract specs:
   - `openapi.yaml`: REST surface for CSV import, run start, coarse run snapshot, and approve/cancel fallback.
-  - `asyncapi.yaml`: active WebSocket runtime for live conversation, persisted timeline events, approval gates, cancel, reconnect resume, and missed-event replay.
+  - `asyncapi.yaml`: active WebSocket runtime for live conversation, persisted stream messages, approval surfaces, cancel, reconnect resume, and missed-message replay.
 - The accepted REST response includes `stream_url`. The frontend opens that WebSocket URL and then follows `asyncapi.yaml`.
-- Agent conversation lines and agent runtime timeline events are loss-intolerant. They must be delivered, resumed, and replayed through WebSocket using persisted `sequence` values.
+- Agent conversation lines, runtime activity, artifacts, and approval surfaces are loss-intolerant. They must be delivered, resumed, and replayed through WebSocket using persisted `sequence` values.
 - `GET /api/agent/runs/{agent_run_id}` remains a coarse snapshot and polling fallback for status/result visibility. It is not the source of truth for reconstructing the user-visible conversation timeline.
 - Candidate signals, hypotheses, and experiment plans are temporary before human approval. The frontend may edit them in React state, but the backend must not persist final calendar or brief documents before approval.
 - Approval is append-only. `approval.approve` over WebSocket is the primary approval command; `POST /api/agent/actions/{agent_run_id}/approve` remains the REST fallback. Approval creates new `calendar_events` and `growth_briefs` documents in Elastic.
 - Cancel is an intervention command. `run.cancel` over WebSocket is primary; `POST /api/agent/actions/{agent_run_id}/cancel` is the REST fallback.
-- The Python Agent Service emits LaunchPilot timeline events in the order the user should observe them. The Java backend must not reconstruct, summarize, or reorder the agent narrative.
-- The Java backend relays the agent stream, assigns or validates per-run `sequence`, persists events for reconnect replay, and forwards them over WebSocket.
+- The Python Agent Service emits LaunchPilot timeline messages or workflow events in the order the user should observe them. The Java backend must not reconstruct, summarize, or reorder the agent narrative.
+- The Java backend normalizes agent output into `StreamMessage.blocks[]`, assigns or validates per-run `sequence`, persists messages for reconnect replay, and forwards them over WebSocket.
 - Streamed reasoning must be glass-box, not raw private chain-of-thought. The stream may include user-visible thought summaries, tool summaries, evidence references, and structured artifacts.
 - Response payloads use `snake_case` to match the Java Gateway and Python Agent contract.
 - Timestamps are ISO 8601 strings with timezone offsets, for example `2026-06-01T16:31:00+09:00`.
@@ -125,10 +127,41 @@ The WebSocket runtime is specified in `asyncapi.yaml`, not `openapi.yaml`.
 
 It supports two interaction modes:
 
-- Observational HOTL: the user watches step updates, tool summaries, evidence observations, signals, hypotheses, and drafted plans.
-- Approval-based HITL: the backend pauses before consequential business writes, then waits for approve, reject, payload edit, or cancel commands.
+- Conversational HOTL: the user sends free-form `message.send` turns while the agent asks for context, uses tools, and drafts outputs.
+- Approval-based HITL: the backend surfaces an `approval` block before consequential business writes. The user may click an approval action or say "approve" in free text; intent interpretation belongs to Agent Core, while final persistence is Java-owned.
 
-Server-to-client event types:
+Primary server-to-client frame:
+
+```json
+{
+  "id": "msg_20260601_001",
+  "thread_id": "run_20260601_001",
+  "sequence": 12,
+  "role": "assistant",
+  "created_at": "2026-06-01T16:31:10+09:00",
+  "blocks": [
+    { "kind": "text", "text": "I found a repeatable save-rate signal." },
+    { "kind": "activity", "title": "Checked metric baseline", "status": "done" },
+    { "kind": "markdown_document", "id": "doc_evidence_scan_001", "title": "Evidence notes", "markdown": "## Evidence notes\n..." }
+  ]
+}
+```
+
+Supported block kinds:
+
+```text
+text
+activity
+markdown_document
+artifact
+approval
+result
+error
+```
+
+Transitional server-to-client event types remain supported for contract compatibility and can be adapted into the block model:
+
+Legacy server-to-client event types:
 
 ```text
 connection.resume_accepted
@@ -168,8 +201,11 @@ approval.approve
 approval.reject
 ```
 
+`message.send` is the primary command. It always carries user-visible `content`; UI-originated button clicks may also include an optional `action` hint such as `{ "name": "approve", "target_id": "appr_..." }`. Agent Core interprets the turn in context, and Java still validates consequential actions before persistence.
+
 Examples live beside both specs:
 
+- `examples/agent-stream-message-frame.json`
 - `examples/agent-stream-user-message-created-event.json`
 - `examples/agent-stream-run-started-event.json`
 - `examples/agent-stream-document-created-event.json`
@@ -187,14 +223,17 @@ The frontend should map stream events like this:
 
 - Every persisted timeline event has a monotonic per-run `sequence`. The frontend stores the last fully applied `sequence`.
 - Persisted events are emitted and replayed in user-observable narrative order. The frontend renders by `sequence` and must not infer a different story order.
+- `StreamMessage` frames append or upsert one main stream message. UI behavior comes from `blocks[].kind`.
+- `markdown_document` blocks render as a small document card in the main stream and automatically open the right-side inspector with markdown content.
+- `approval` blocks render an approval surface. Button clicks and free-text approvals both travel back as `message.send`.
 - After reconnecting, the frontend sends `connection.resume` with `last_received_sequence`.
 - The backend replays all missed persisted timeline events in sequence order. If incremental replay is unavailable, the backend sends `connection.full_sync_required`; the frontend then sends `connection.full_sync`, and the backend replays the full persisted timeline over WebSocket.
-- `step.updated` updates the fixed agent run status area.
-- `user.message.created` and `assistant.message.created` append direct conversation bubbles.
-- `document.created` appends a clickable document row in the conversation timeline. The frontend opens the document in the right-side inspector and renders `document.content` as markdown.
-- `observation.created`, `signal.detected`, `hypothesis.created`, and `experiment_plan.drafted` append visible workspace timeline messages. They must not contain raw chain-of-thought, thought signatures, internal prompts, or private tool identifiers.
-- `approval.requested` opens the review surface with editable draft payload.
-- `approval.committed` carries `growth_brief_id` and `created_calendar_events` after the approved plan is persisted. The frontend uses this event, not the coarse snapshot, to route to the created brief or calendar artifacts on the WebSocket primary path.
+- Legacy `step.updated` maps to an `activity` block.
+- Legacy `user.message.created` and `assistant.message.created` map to `text` blocks.
+- Legacy `document.created` maps to a `markdown_document` block.
+- Legacy `observation.created`, `signal.detected`, `hypothesis.created`, and `experiment_plan.drafted` map to `text` or `artifact` blocks.
+- Legacy `approval.requested` maps to an `approval` block.
+- Legacy `approval.committed` maps to a `result` block.
 - `run.cancelled`, `run.completed`, and `run.failed` close the active run lifecycle.
 - Client commands that mutate server state use `command_id` as an idempotency key. The server must execute the same `command_id` at most once and return the previously accepted outcome on duplicate delivery.
 

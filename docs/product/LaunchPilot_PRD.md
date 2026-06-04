@@ -435,52 +435,62 @@ ADK 워커는 **raw MCP 도구를 직접 호출하지 않고** wrapper 도구만
 
 ### 9.1 핵심 플로우
 
-> **CSV Import → Analyze → (4-Agent 추론) → Review → Approve → Brief/Calendar → Continue**
+> **Free Conversation → Context Gathering → Agent Work → Streamed Artifacts → Human Approval → Brief/Calendar → Continuity**
+
+LaunchPilot의 사용자 경험은 버튼으로 고정된 분석 플로우가 아니라 **대화 스트림**이 중심이다. 사용자는 먼저 자유롭게 질문하고, 에이전트가 필요한 맥락과 도구를 선택한다. `Signal → Hypothesis → Experiment → Approval → Brief → Continuity`는 사용자가 따라야 하는 화면 단계가 아니라, Agent Core가 대화 맥락 안에서 수행하는 전문 처리 루프다.
 
 ### 9.2 메인 시나리오 — "다음 주에 뭘 테스트하지?" (인플루언서 매니저 Mina)
 
 **배경:** Mina는 크리에이터 Luna의 comeback teaser 캠페인을 담당한다. 금요일 오후, 다음 주 콘텐츠 회의를 앞두고 있다.
 
-**Step 0 — CSV 준비.** Mina는 60일치 성과 CSV(팔로워 로그, 콘텐츠 포스트)를 가지고 War Room에 들어온다. 좌측 사이드바에는 캠페인과 과거 브리프가 보인다.
+**Step 0 — War Room 진입.** Mina는 War Room에 들어온다. 좌측 사이드바에는 캠페인과 과거 브리프가 보이고, 중앙은 자유 대화 main stream, 우측은 문서·실험안·승인 같은 전문 출력 패널이다.
 
-**Step 1 — CSV 선택 + Analyze.** 중앙 스트림의 CSV 입력에 파일을 올리고 **Analyze** 버튼 하나를 누른다. UI는 내부적으로 두 효과를 순서대로 실행한다.
-- `IMPORT_REQUESTED` → `POST /api/import/csv` → Java가 스트리밍 파싱 후 Elastic에 즉시 인덱싱(`refresh=true`).
-- `IMPORT_SUCCEEDED` → `RUN_AGENT_REQUESTED` → `POST /api/agent/run`.
-진행 카피는 "데이터 가져오는 중"과 "에이전트 추론 중"을 구분해 보여준다.
+**Step 1 — 자유 질문.** Mina가 composer에 묻는다.
+> "이번 캠페인 반응이 애매한데, 다음 주에는 뭘 테스트해야 할까?"
 
-**Step 2 — 비동기 시작 + 스트림 연결.** Java가 `agent_run_id`를 생성하고 Python에 `POST /internal/agent/runs`로 비동기 트리거(202, `stream_url` 포함). Java는 즉시 웹 스레드를 반환한다. FE는 응답의 `stream_url`로 WebSocket을 열어 진행 이벤트를 라이브로 받고(주 채널), Java는 Python의 내부 WS 스트림을 구독해 glass-box 정책 적용 후 FE로 릴레이한다. 스트림이 끊기면 `GET /api/agent/runs/{id}` 스냅샷으로 복구한다(fallback).
+프론트는 이를 `message.send`로 Java에 보낸다. 프론트는 이 문장이 분석 시작인지, 맥락 요청인지, 승인인지 직접 판단하지 않는다.
 
-**Step 3 — L4 성찰.** Python 오케스트레이터가 Background task에서 Phoenix MCP를 호출해 과거 낮은 평가 패턴을 조회하고 추론 기준을 보정한다.
+**Step 2 — 맥락 수집.** Agent Core가 현재 thread, campaign, 과거 brief, 첨부 파일 여부를 보고 필요한 도움을 결정한다. 데이터가 부족하면 자연어로 요청한다.
+> "최근 성과 CSV가 있으면 정확히 볼 수 있어요. 리텐션이나 저장률 중심으로 볼까요?"
 
-**Step 4 — Agent 1 (Data Analyst) 정량 신호.** 상태 `RUNNING_SIGNAL_DETECTION → RUNNING_EVIDENCE_SEARCH`. `query_metric_baseline`으로 TikTok save_rate 2.8x lift를 발견, `search_content_posts`로 같은 시간대 BTS short 2개를 근거로 확보. 도구 호출이 `tool_call_logs`로 흘러 FE 스트림에 실시간 표시된다.
+**Step 3 — 데이터와 지시 첨부.** Mina가 CSV를 첨부하고 다시 말한다.
+> "이 CSV 보고 리텐션 중심으로 봐줘."
 
-**Step 5 — Agent 2 (Data Strategist) 가설.** 상태 `RUNNING_HYPOTHESIS_GENERATION`. `search_team_notes`로 "팬들이 raw 연습 클립에 강하게 반응" 메모를 찾아, 다음 가설을 만든다.
-> "Raw behind-the-scenes 클립이 polished teaser보다 수동 시청자를 더 깊은 참여로 전환하고 있을 가능성이 있다." (confidence: medium_high, caveat: 외부 팬 커뮤니티 활동 미측정, 상관관계이지 인과 아님)
+Java는 CSV를 import해 Elastic에 즉시 인덱싱하고, 이 첨부와 메시지를 Agent Core에 전달한다. 과도기 MVP에서는 기존 `POST /api/import/csv`와 `POST /api/agent/run`을 사용할 수 있지만, 사용자 경험상 주 동작은 `message.send`다.
 
-**Step 6 — Agent 3 (Data Writer) 실험 설계.** 상태 `RUNNING_EXPERIMENT_GENERATION`. 가설을 검증 가능한 실험 item으로 변환한다.
-> "BTS face-first hook test" — TikTok, 12초 short, 첫 2초 클로즈업 hook, 댓글 유도 CTA, target_metric=save_rate, 성공기준="48시간 내 TikTok 30일 baseline의 1.5배", 일정 2026-06-03 20:00, 제작 브리프 포함.
+**Step 4 — 전문 작업 선택.** Agent Core가 필요한 도구와 워커를 선택한다. 예: `query_metric_baseline`, `search_content_posts`, `search_team_notes`, Data Analyst, Strategist, Writer, Reviewer Gate. 프론트는 이 내부 능력 목록을 알 필요가 없다.
 
-**Step 7 — Agent 4 (Reviewer Gate) 검증.** `current_stage=VALIDATING`. 결정적 검증으로 모든 evidence_ref가 실제 도구 출력에 존재하는지, 각 실험이 success_criteria/schedule을 갖는지 확인. 통과 시 Final Payload Assembler가 `AgentResultPayload`를 조립하고 상태를 `WAITING_FOR_APPROVAL`로 전이. (만약 가설에 caveat 누락이면 `LOW_CONFIDENCE_WITHOUT_CAVEAT`로 Strategist에게 백트래킹.)
+**Step 5 — 메시지/block 스트리밍.** Java는 Agent Core의 결과를 main stream 메시지로 보낸다. 메시지 안에는 필요한 block이 들어간다.
+- `text`: 사용자에게 설명할 문장
+- `activity`: CSV import, 도구 호출, 검증 진행
+- `markdown_document`: Evidence notes, Growth Brief 같은 문서
+- `artifact`: signal, hypothesis, experiment_plan 같은 구조화 산출물
+- `approval`: 저장/캘린더 생성 전 승인 요청
+- `result`: 승인 완료 결과
+- `error`: 복구 가능한 오류
 
-**Step 8 — 검토 워룸.** FE가 스트림으로 `approval.requested`(Java가 추가한 승인 게이트)와 후보 payload를 받는다(끊겼으면 스냅샷 복구). 3영역 워룸 렌더링.
-- 중앙: 3개 Signal Card + 가설 + Evidence 스니펫.
-- 우측 Action Panel: 실험 draft, 편집 가능한 title 필드.
-- 후보 실험안은 **React State에만** 존재한다(아직 Elastic 미저장).
+**Step 6 — 문서와 산출물 표시.** `markdown_document` block을 받으면 중앙 stream에는 작은 문서 카드가 올라가고, 우측 패널은 자동으로 열려 마크다운 본문을 보여준다. `experiment_plan` artifact는 스레드에 요약 카드로 보이고 우측 패널에서 편집 가능하다.
 
-**Step 9 — 수정.** Mina가 실험 title을 "BTS 연습실 리액션 훅 A/B"로 수정한다. 로컬 `draftExperiments`만 변한다.
+**Step 7 — 수정.** Mina가 말한다.
+> "실험 제목을 더 짧게, BTS hook 중심으로 바꿔줘."
 
-**Step 10 — 승인.** **Approve Experiments** 클릭. 주 채널은 WS `approval.approve`(`final_experiments` 동봉), REST `POST /api/agent/actions/{id}/approve`는 fallback. Java가 `growth_briefs` 1건 + `calendar_events` N건을 bulk index(불변). 응답으로 `growth_brief_id`와 생성된 캘린더 이벤트가 돌아온다.
+프론트는 다시 `message.send`만 보낸다. Agent Core가 수정 의도를 해석하고, Java가 업데이트된 artifact block을 스트림에 보낸다. 승인 전 후보는 여전히 React State/세션 타임라인에만 있고, Elastic에는 저장되지 않는다.
 
-**Step 11 — 확정.** Java가 적재 후 WS로 `approval.committed`(`growth_brief_id`, 생성된 `calendar_events`, `persisted_at`)를 보낸다. 캘린더 화면은 React State로 즉시 렌더링되고, Mina는 1페이지 Growth Brief를 복사해 클라이언트에게 공유한다. (REST 승인 경로는 같은 정보를 `ApproveExperimentPlanResponse`로 응답.)
+**Step 8 — 승인.** 승인이 필요하면 `approval` block이 표시되고 우측 패널에 승인 표면이 열린다. Mina는 버튼을 눌러도 되고, 자유 대화로 말해도 된다.
+> "좋아, 승인할게. 캘린더에 넣어줘."
+
+프론트는 둘 다 `message.send`로 보낸다. 승인 의도 해석은 Agent Core 책임이며, 실제 `growth_briefs`/`calendar_events` 불변 저장은 Java가 열린 approval과 최종 draft를 검증한 뒤 수행한다.
+
+**Step 9 — 확정 결과.** Java는 저장 후 `result` block을 포함한 메시지를 보낸다. 캘린더 화면은 React State로 즉시 렌더링되고, Mina는 생성된 Growth Brief를 우측 패널에서 확인한다.
 
 ### 9.3 연속 시나리오 — 다음 주, 같은 캠페인 (캠페인 학습 루프)
 
-**1주 후.** Mina가 War Room에 다시 들어온다. 사이드바에서 지난주 승인 브리프를 선택하고 **이전 분석 이어서** 를 누른다.
-- `CONTINUE_FROM_BRIEF` → `restore_selecting` → `RESTORE_CONTEXT_REQUESTED`.
-- 복원 소유: **Python Central Orchestrator가 세션 시작 시 `load_growth_brief_context`로** 과거 가설/액션/결과를 복원해 Shared Context에 선주입한다(parent_brief_id 있을 때 1회). 워커는 도구를 직접 호출하지 않고 메모리에서 읽는다. (단일 소유 — `docs/agent-tool-spec.md` G4 결정)
-- UI는 연속성 맥락을 명시한다: ① 이전 가설, ② 승인된 액션/실험, ③ 관측된 결과/지표, ④ 다음 분석 질문.
+**1주 후.** Mina가 같은 War Room에 다시 들어와 말한다.
+> "지난주 승인한 BTS hook 실험이랑 이어서 보면 이번 주엔 뭘 해야 해?"
 
-**새 분석.** `RUN_AGENT_REQUESTED`가 `parent_brief_id`를 포함해 실행된다. 새 추천은 "신규 분석"이 아니라 **지난 실험의 후속**으로 프레이밍된다. 예: "지난주 BTS hook 실험이 save_rate 1.7x를 달성했다. 이번 주는 같은 포맷을 Instagram Reels로 확장 검증한다."
+Agent Core가 `load_growth_brief_context`로 과거 가설/액션/결과를 복원해 Shared Context에 선주입한다(parent brief가 있을 때 1회). UI는 별도 복원 플로우를 강제하지 않고, stream 메시지와 우측 패널로 연속성 맥락을 보여준다: ① 이전 가설, ② 승인된 액션/실험, ③ 관측된 결과/지표, ④ 다음 분석 질문.
+
+새 추천은 "신규 분석"이 아니라 **지난 실험의 후속**으로 프레이밍된다. 예: "지난주 BTS hook 실험이 save_rate 1.7x를 달성했다. 이번 주는 같은 포맷을 Instagram Reels로 확장 검증한다."
 
 ### 9.4 보조 시나리오 — 소규모 기획사 (다채널 비교)
 
@@ -560,10 +570,10 @@ AgentRun 1 ── N ToolCallLog / OpenInference span
 | Method | Path | 목적 |
 |---|---|---|
 | POST | `/api/import/csv` | CSV 업로드/파싱/Elastic 인덱싱 |
-| POST | `/api/agent/run` | 에이전트 실행 비동기 트리거 (202, PENDING, `stream_url` 반환) |
-| WS | `/api/agent/runs/{agent_run_id}/stream` | 실시간 진행 이벤트 (주 채널, asyncapi) |
+| POST | `/api/agent/run` | 과도기 에이전트 작업 생성 fallback (202, PENDING, `stream_url` 반환) |
+| WS | `/api/agent/runs/{agent_run_id}/stream` | 자유 대화 `message.send`, message/block 스트림, 복구/승인/취소 주 채널 |
 | GET | `/api/agent/runs/{agent_run_id}` | coarse 스냅샷 (현재 상태/결과; 이벤트 히스토리는 WS 리플레이 담당) |
-| POST | `/api/agent/actions/{agent_run_id}/approve` | 후보 plan 승인 → 불변 적재 (WS approval.approve의 fallback) |
+| POST | `/api/agent/actions/{agent_run_id}/approve` | 후보 plan 승인 → 불변 적재 (자유대화 승인 처리 실패 시 fallback) |
 | POST | `/api/agent/actions/{agent_run_id}/cancel` | 런 취소 (WS run.cancel의 fallback) |
 
 ### 12.2 내부 API (Java ↔ Python)
@@ -577,9 +587,9 @@ AgentRun 1 ── N ToolCallLog / OpenInference span
 
 ### 12.3 Java 매핑 규칙
 
-Java가 프론트에 노출하는 필드: `agent_run_id`, `status`, `current_stage`, `retry_count`, `error_message`, `payload`, `tool_call_logs`.
+Java가 프론트에 노출하는 주 스트림 단위는 `StreamMessage`다. 각 메시지는 `sequence`, `role`, `blocks[]`를 갖는다. block은 `text`, `activity`, `markdown_document`, `artifact`, `approval`, `result`, `error` 중 하나이며, 프론트는 block kind에 따라 UI를 렌더링한다.
 
-workflow 이벤트는 Python 내부 WS 스트림으로 받아 glass-box 정책 적용 후 프론트 WS(`AgentStreamServerEvent`)로 릴레이한다. REST 스냅샷 응답에는 이벤트 히스토리를 포함하지 않는다(`d472ff0`에서 제거). 승인 게이트(`approval.requested`)는 Python이 `WAITING_FOR_APPROVAL`에 도달한 뒤 Java가 프론트 스트림에 추가한다.
+기존 workflow 이벤트(`tool.updated`, `document.created`, `signal.detected`, `approval.requested` 등)는 과도기 호환 경로다. 정식 UI 계약에서는 Java가 이를 message block으로 정규화한다. REST 스냅샷 응답에는 이벤트 히스토리를 포함하지 않는다. 승인 게이트는 Java가 소유하며, Agent Core가 자유 발화에서 승인 의도를 감지하더라도 실제 적재 전 Java가 열린 approval과 최종 draft를 검증한다.
 
 Java가 내부로 유지하는 필드: `agent_diagnostics`(worker, validator_passed, backtrack_count, phoenix_reflection_used, trace_id), `started_at/updated_at/completed_at`, raw Python 실패 스택, raw Gemini chunk / chain-of-thought / `thoughtSignature` / function-call transport / raw MCP 메시지.
 
@@ -589,7 +599,7 @@ Java가 내부로 유지하는 필드: `agent_diagnostics`(worker, validator_pas
 - `trace_context.request_id`: Java가 공개 요청마다 생성, 형식 `req_*`.
 - `approval_id`: Java 생성(승인 게이트), 형식 `appr_*`.
 - `message_id`: Java 생성(대화 메시지), 형식 `msg_*`.
-- WS 클라 명령의 `command_id`는 멱등 키 — 서버는 동일 `command_id`를 최대 1회만 실행한다.
+- WS 클라 `message.send.command_id`는 멱등 키 — 서버는 동일 `command_id`를 최대 1회만 실행한다.
 - Python은 모든 응답에 `agent_run_id`를 echo한다.
 - 같은 `agent_run_id` 재시도 → 현재 상태 반환. 다른 body로 재사용 → `409 Conflict`.
 
@@ -618,24 +628,31 @@ Gemini 스타일의 대화형 쉘이되, 순수 챗 앱은 아니다. 실험 계
 
 그리드: 사이드바 240–280px / 메인 `minmax(420px, 1fr)` / 액션 패널 360–420px / 하단 composer sticky.
 
-### 13.2 프론트 상태 머신 (요약)
+### 13.2 프론트 상태 모델 (요약)
 
-`idle → csv_selected → importing_csv → import_succeeded → starting_analysis → analysis_pending → analysis_running → waiting_for_approval → (editing_plan) → approving → approved`
+프론트는 에이전트 내부 상태 머신을 복제하지 않는다. UI 상태는 다음 축으로 관리한다.
 
-연속성 분기: `approved → restore_selecting → restoring_context → restored_context → starting_analysis(parent_brief_id 포함)`.
+- `messages[]`: main stream의 단일 표시 단위.
+- `connection`: WS 연결, replay, full sync, error.
+- `composer`: 자유 입력, 첨부, 전송 상태.
+- `rightPanel`: 선택된 문서/artifact/approval과 open 상태.
+- `draftEdits`: 승인 전 artifact에 대한 로컬 수정.
+- `activeWork`: 진행 중인 agent 작업의 표시용 run id/status/cancellable 여부.
+
+`RUNNING_SIGNAL_DETECTION`, `WAITING_FOR_APPROVAL` 같은 agent run status는 전체 화면 상태가 아니라 `activity` 또는 `approval` block의 내용으로 표현한다.
 
 ### 13.3 설계 원칙
 
 - 프론트는 Java 공개 API만 호출(Python/Elastic/Gemini/Phoenix 직접 호출 금지).
-- 후보 실험안은 승인 전까지 React State에만. user 편집은 `draftExperiments`에만 적용, 원본 `payload`는 불변.
-- 주 채널은 `analysis_pending`, `analysis_running`에서 WebSocket 스트림 구독. `WAITING_FOR_APPROVAL`/`FAILED`/`CANCELLED` 시 스트림 종료. 스트림 끊김 복구는 WS `connection.resume`/`full_sync` 리플레이로, REST `GET`은 거친 상태 확인용 coarse 스냅샷으로만 사용(폴링 루프 아님).
-- 불가능한 상태를 표현 불가능하게 만드는 reducer. 네트워크 효과는 reducer 밖.
+- 후보 실험안은 승인 전까지 React State/session timeline에만. 사용자 편집은 draft state에만 적용하고, Java 승인 전에는 Elastic에 저장하지 않는다.
+- 주 채널은 WebSocket message stream이다. 스트림 끊김 복구는 WS `connection.resume`/`full_sync` 리플레이로, REST `GET`은 거친 상태 확인용 coarse 스냅샷으로만 사용한다.
+- 수신 핸들러는 메시지를 저장하고 sequence dedupe/upsert만 수행한다. 도메인 UI 반응은 `blocks[].kind`별 renderer가 담당한다.
 
 ### 13.4 MVP 상호작용 결정
 
-- CSV 선택 후 가시적 1차 액션은 **단일 Analyze 버튼**(내부적으로 import → run 순차).
-- 실험 체크박스 선택은 MVP 비포함. 기본 승인은 모든 draft 실험 포함.
-- 실험 편집은 MVP에서 title override 정도면 충분.
+- 사용자 1차 액션은 자유 입력 `message.send`다. CSV 첨부/분석 요청/수정/승인은 모두 메시지 또는 메시지 action으로 표현한다.
+- CSV 선택 후 Analyze 버튼은 과도기 데모 affordance로 유지할 수 있으나, 제품의 기본 계약은 `message.send` 중심이다.
+- 실험 편집은 대화형 수정 요청 또는 우측 패널 draft edit로 가능하다. 버튼 클릭도 최종적으로는 `message.send(action)`로 수렴한다.
 
 ### 13.5 시각 시스템 (Apple 절제)
 
