@@ -143,6 +143,7 @@ export const initialExperimentPlannerState: ExperimentPlannerState = {
     approving: false,
     approval: null,
     approvalResult: null,
+    approvalSequence: null,
     calendarEvents: [],
   },
   restore: {
@@ -218,6 +219,7 @@ export function experimentPlannerReducer(state: ExperimentPlannerState, event: E
           approving: false,
           approval: null,
           approvalResult: null,
+          approvalSequence: null,
           calendarEvents: [],
         },
       };
@@ -293,6 +295,7 @@ export function experimentPlannerReducer(state: ExperimentPlannerState, event: E
               persisted_at: resultBlock.approval_result.persisted_at,
             },
             approvalResult: resultBlock.approval_result,
+            approvalSequence: event.message.sequence,
             calendarEvents: resultBlock.approval_result.created_calendar_events,
             draftExperiments: state.review.draftExperiments.length > 0 ? state.review.draftExperiments : finalExperiments,
           },
@@ -377,6 +380,7 @@ export function experimentPlannerReducer(state: ExperimentPlannerState, event: E
           approving: false,
           approval: event.approval,
           approvalResult: null,
+          approvalSequence: null,
           calendarEvents: event.approval.created_calendar_events,
         },
       };

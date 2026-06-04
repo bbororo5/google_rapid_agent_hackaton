@@ -110,4 +110,38 @@ test.describe("conversation-first mock server", () => {
     await page.getByRole("button", { name: /^send$/i }).click();
     await expect(page.getByText(/human approval processed|approval complete|calendar/i).first()).toBeVisible();
   });
+
+  test("places post-approval chat after the approval receipt summary", async ({ page }) => {
+    await page.goto("/campaigns/comeback-teaser/planner");
+
+    await page.getByRole("textbox", { name: /message/i }).fill("이 데이터에서 이상한 점 찾아줘");
+    await page.getByRole("button", { name: /^send$/i }).click();
+    await page.getByRole("button", { name: /use this signal/i }).click();
+    await expect(page.getByRole("button", { name: /approve experiments|approve/i })).toBeVisible({ timeout: 15000 });
+    await page.getByRole("button", { name: /approve experiments|approve/i }).click();
+    await expect(page.getByText(/approval complete|human approval processed|calendar/i).first()).toBeVisible({ timeout: 15000 });
+
+    await page.getByRole("textbox", { name: /message/i }).fill("마음에들어");
+    await page.getByRole("button", { name: /^send$/i }).click();
+    await expect(page.getByText(/마음에들어/)).toBeVisible();
+    await page.waitForFunction(() => document.querySelectorAll(".assistant-flow-message").length >= 2);
+
+    const order = await page.evaluate(() => {
+      const rows = [...document.querySelectorAll(".thread-scroll > article, .thread-scroll > section.thread-gate-inline")].map((element, index) => ({
+        index,
+        text: element.textContent ?? "",
+        isAssistant: element.classList.contains("assistant-flow-message"),
+      }));
+      const approvalIndex = rows.find((row) => row.text.includes("Approval complete"))?.index ?? -1;
+      const userIndex = rows.find((row) => row.text.includes("마음에들어"))?.index ?? -1;
+      const assistantAfterIndex = rows.find((row) => row.index > userIndex && row.isAssistant)?.index ?? -1;
+      const laterApprovalIndex = rows.find((row) => row.index > userIndex && row.text.includes("Approval complete"))?.index ?? -1;
+      return { approvalIndex, userIndex, assistantAfterIndex, laterApprovalIndex };
+    });
+
+    expect(order.approvalIndex).toBeGreaterThanOrEqual(0);
+    expect(order.userIndex).toBeGreaterThan(order.approvalIndex);
+    expect(order.assistantAfterIndex).toBeGreaterThan(order.userIndex);
+    expect(order.laterApprovalIndex).toBe(-1);
+  });
 });

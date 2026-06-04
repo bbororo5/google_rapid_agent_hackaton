@@ -90,6 +90,7 @@ export interface ReviewState {
   approving: boolean;
   approval: ApproveExperimentPlanResponse | null;
   approvalResult: ApprovalCommitResult | null;
+  approvalSequence: number | null;
   calendarEvents: CalendarEventRef[];
 }
 

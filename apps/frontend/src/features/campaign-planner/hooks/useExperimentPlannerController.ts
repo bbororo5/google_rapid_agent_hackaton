@@ -301,6 +301,7 @@ function streamMessagesFromState(input: {
   timelineItems: AgentTimelineItem[];
   primaryExperiment: ExperimentItem | null;
   approval: ApproveExperimentPlanResponse | null;
+  approvalSequence: number | null;
   calendarEvents: CalendarEventRef[];
   errorMessage: string | null;
   stateLabel: string;
@@ -381,7 +382,7 @@ function streamMessagesFromState(input: {
   if (input.primaryExperiment) {
     streamMessages.push({
       id: `artifact:${input.primaryExperiment.id}`,
-      sequence: 20_000,
+      sequence: input.approvalSequence !== null ? input.approvalSequence - 0.1 : 20_000,
       role: "assistant",
       createdAt: null,
       blocks: [
@@ -399,7 +400,7 @@ function streamMessagesFromState(input: {
   if (input.approval) {
     streamMessages.push({
       id: `result:${input.approval.growth_brief_id}`,
-      sequence: 20_100,
+      sequence: input.approvalSequence ?? 20_100,
       role: "assistant",
       createdAt: null,
       blocks: [
@@ -1031,6 +1032,7 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
   const currentDraftExperiments = draftExperiments(state);
   const currentFinalExperiments = finalExperiments(state);
   const currentApproval = approval(state);
+  const currentApprovalSequence = state.review.approvalSequence;
   const currentCalendarEvents = calendarEvents(state);
   const liveThreadActivity = currentMessages.length > 0 || currentDocuments.length > 0 || currentObservations.length > 0;
   const statusRows = buildStatusRows(state, currentImportOrLast, liveThreadActivity);
@@ -1062,6 +1064,7 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
     timelineItems: timelineItems(state),
     primaryExperiment,
     approval: currentApproval,
+    approvalSequence: currentApprovalSequence,
     calendarEvents: currentCalendarEvents,
     errorMessage: stateMessage(state),
     stateLabel: progress.stateLabel,
