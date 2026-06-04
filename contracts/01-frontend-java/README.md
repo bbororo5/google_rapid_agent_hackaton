@@ -105,10 +105,11 @@ Supported block kinds:
 
 ## UI Mapping
 
-- Store messages by `sequence`; ignore duplicate or older sequences.
+- Store messages by message `id`; ignore duplicate message ids. Use `sequence` for ordering, not as the only dedupe guard, because conversation replies and replayed work blocks may interleave.
 - Render a message by iterating through `blocks[]`.
 - `markdown_document` opens the right panel immediately and also appears as a compact card in the thread.
-- `approval` opens the right panel approval surface. A button click may send `message.send` with natural-language `content` plus optional `action`.
+- In the current MVP, the right panel renders markdown documents first. Structured artifacts and approval gates may render inline in the main stream while still using the same block contract.
+- Approval button clicks send `message.send` with natural-language `content` plus optional `action`.
 - Free text such as "승인할게" is still just `message.send`; Agent Core interprets it in context.
 - Java validates open approval targets and final drafts before writing `growth_briefs` or `calendar_events`.
 
