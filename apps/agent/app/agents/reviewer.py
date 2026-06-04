@@ -3,6 +3,9 @@
 Checks the assembled payload against the contract issue codes (05). Mechanical
 cross-id integrity + required fields. Phoenix reflection is a stub for the
 golden path (it only adjusts thresholds, never overturns a deterministic fail).
+
+A failing report routes back to a worker via failure.py; it cannot be overturned
+by any LLM critique.
 """
 from __future__ import annotations
 
@@ -16,19 +19,23 @@ from app.contracts import (
     ValidationSeverity,
 )
 
+# Confidence levels that REQUIRE at least one caveat to be present.
 _LOW_CONFIDENCE = {Confidence.low, Confidence.medium}
 
 
 def review(payload: AgentResultPayload) -> ValidationReport:
     issues: list[ValidationIssue] = []
+    # Build the id sets we cross-check references against.
     signal_ids = {s.id for s in payload.signals}
     hypothesis_ids = {h.id for h in payload.hypotheses}
-    # union of tool-grounded refs we can vouch for
+    # Union of refs the tools actually grounded (used as a soft allow-list).
     grounded_refs = {r for s in payload.signals for r in s.evidence_refs}
     for h in payload.hypotheses:
         grounded_refs.update(h.supporting_evidence_refs)
 
+    # --- Hypothesis checks ---
     for h in payload.hypotheses:
+        # Every signal_id a hypothesis cites must exist (no dangling reference).
         for sid in h.signal_ids:
             if sid not in signal_ids:
                 issues.append(
@@ -39,6 +46,7 @@ def review(payload: AgentResultPayload) -> ValidationReport:
                         suggested_fix="Reference a signal id produced by the analyst.",
                     )
                 )
+        # Low/medium confidence claims must be hedged with a caveat.
         if h.confidence in _LOW_CONFIDENCE and not h.caveats:
             issues.append(
                 ValidationIssue(
@@ -49,6 +57,7 @@ def review(payload: AgentResultPayload) -> ValidationReport:
                 )
             )
 
+    # --- Experiment plan checks ---
     plan = payload.experiment_plan
     if not plan.items:
         issues.append(
@@ -60,6 +69,7 @@ def review(payload: AgentResultPayload) -> ValidationReport:
             )
         )
     for item in plan.items:
+        # Each experiment must trace back to a real hypothesis.
         if item.hypothesis_id not in hypothesis_ids:
             issues.append(
                 ValidationIssue(
@@ -69,6 +79,7 @@ def review(payload: AgentResultPayload) -> ValidationReport:
                     suggested_fix="Reference a hypothesis id produced by the strategist.",
                 )
             )
+        # Required operational fields must be non-empty.
         if not item.success_criteria.strip():
             issues.append(
                 ValidationIssue(
@@ -87,6 +98,7 @@ def review(payload: AgentResultPayload) -> ValidationReport:
                     suggested_fix="Add a scheduled datetime.",
                 )
             )
+        # "unknown" channel is not actionable for scheduling.
         if item.channel == Channel.unknown:
             issues.append(
                 ValidationIssue(
@@ -97,6 +109,7 @@ def review(payload: AgentResultPayload) -> ValidationReport:
                 )
             )
 
+    # Any issue is treated as blocking for the golden path; pass only when clean.
     passed = not issues
     severity = ValidationSeverity.none if passed else ValidationSeverity.blocking
     retry = None if passed else "; ".join(i.message for i in issues)

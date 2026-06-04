@@ -14,10 +14,13 @@ from functools import lru_cache
 from dotenv import load_dotenv
 from pydantic import BaseModel
 
+# Read a local .env (if present) into os.environ. No-op when the file is absent,
+# so production env vars still win.
 load_dotenv()
 
 
 def _int(name: str, default: int) -> int:
+    # Treat empty string (a blank line in .env.example) the same as unset.
     raw = os.environ.get(name)
     return int(raw) if raw else default
 
@@ -28,34 +31,43 @@ def _float(name: str, default: float) -> float:
 
 
 class Settings(BaseModel):
+    # --- LLM ---
     gemini_api_key: str | None = None
-    gemini_model: str = "gemini-2.0-flash"
+    gemini_model: str = "gemini-2.0-flash"  # plain model string ADK accepts
 
+    # --- Evidence (Elastic via MCP) ---
     elastic_mcp_url: str | None = None
     elastic_mcp_transport: str = "streamable_http"
 
+    # --- Reflection export (Phoenix/Arize) ---
     phoenix_endpoint: str | None = None
     phoenix_project: str = "launchpilot-agent"
 
+    # --- Server ---
     port: int = 8000
 
-    signal_threshold_high: float = 2.0
-    signal_threshold_low: float = 1.3
+    # --- Signal thresholds (UNVERIFIED placeholders, agent-tool-spec §6) ---
+    signal_threshold_high: float = 2.0  # >= this lift => strong signal
+    signal_threshold_low: float = 1.3   # >= this => weak signal; below => noise
 
-    tool_max_retries: int = 2
-    backtrack_limit: int = 3
+    # --- Failure policy (agent-tool-spec §4) ---
+    tool_max_retries: int = 2   # Class 1: cheap retries, no LLM
+    backtrack_limit: int = 3    # Class 2: max review-fail re-runs before FAILED
 
     @property
     def use_real_llm(self) -> bool:
+        # Presence of an API key is the single switch between ADK and stub workers.
         return bool(self.gemini_api_key)
 
     @property
     def use_real_elastic(self) -> bool:
+        # Presence of an MCP URL is the single switch between live Elastic and seed.
         return bool(self.elastic_mcp_url)
 
 
 @lru_cache
 def get_settings() -> Settings:
+    # Cached so every module reads one immutable Settings instance per process.
     return Settings(
         gemini_api_key=os.environ.get("GEMINI_API_KEY") or None,
         gemini_model=os.environ.get("GEMINI_MODEL") or "gemini-2.0-flash",

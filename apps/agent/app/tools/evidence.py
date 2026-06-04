@@ -19,10 +19,13 @@ from app.tools import seed
 
 
 def _ok(tool_name: str, mcp_tool: str, **extra) -> dict:
+    # Common success envelope (contract 04). `mcp_tool` names the underlying
+    # generic Elastic MCP tool the wrapper would have used (esql/search).
     return {"ok": True, "tool_name": tool_name, "mcp_tool": mcp_tool, "duration_ms": 5, **extra}
 
 
 def _err(tool_name: str, code: str, message: str, retryable: bool = False) -> dict:
+    # Common failure envelope. `retryable` drives Class-1 retry policy (§4-A).
     return {
         "ok": False,
         "tool_name": tool_name,
@@ -41,15 +44,18 @@ def query_metric_baseline(metric_name: str, channel: str) -> dict:
     Returns a dict with current_value, baseline_value, lift_ratio and an
     evidence_ref id. Used by the Analyst to detect performance signals.
     """
+    # Live path: delegate to the Elastic MCP wrapper (not implemented yet).
     if get_settings().use_real_elastic:
         from app.tools import mcp_client
 
         return mcp_client.query_metric_baseline(metric_name, channel)
 
+    # Stub path: look up the pre-computed baseline pair from seed data.
     base = seed.METRIC_BASELINES.get((metric_name, channel))
     if base is None:
         return _err("query_metric_baseline", "NO_EVIDENCE_FOUND", f"no baseline for {metric_name}/{channel}")
     current, baseline = base["current_value"], base["baseline_value"]
+    # lift_ratio is just current / baseline (e.g. 0.074 / 0.026 = 2.8x).
     lift = round(current / baseline, 3) if baseline else 0.0
     ref = f"metric_{metric_name}_{channel}"
     return _ok(
@@ -78,6 +84,7 @@ def search_content_posts(channels: list[str], metric_name: str) -> dict:
 
         return mcp_client.search_content_posts(channels, metric_name)
 
+    # Keep posts on a requested channel that actually have the metric of interest.
     wanted = set(channels) if channels else None
     refs = [
         p["post_id"]
@@ -102,8 +109,10 @@ def search_team_notes(query: str) -> dict:
 
         return mcp_client.search_team_notes(query)
 
+    # No index at all -> INDEX_UNAVAILABLE (strategist then proceeds quant-only).
     if not seed.TEAM_NOTES:
         return _err("search_team_notes", "INDEX_UNAVAILABLE", "team_notes not seeded")
+    # Naive keyword match over note text (stub stand-in for a real search query).
     terms = [t for t in query.lower().split() if t]
     refs = [
         n["note_id"]

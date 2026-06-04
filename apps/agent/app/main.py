@@ -17,17 +17,19 @@ from app.observability import init_tracing
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Startup: wire tracing if configured (no-op otherwise). Nothing to tear down.
     init_tracing()
     yield
 
 
 app = FastAPI(title="LaunchPilot Agent Service", version="0.1.0", lifespan=lifespan)
-app.include_router(runs.router)
-app.include_router(stream.router)
+app.include_router(runs.router)    # REST: start / snapshot / cancel
+app.include_router(stream.router)  # WS: workflow event stream
 
 
 @app.get("/health")
 async def health() -> dict:
+    # Quick check of which mode each side resolved to (stub vs real).
     s = get_settings()
     return {
         "ok": True,
@@ -37,6 +39,7 @@ async def health() -> dict:
 
 
 def run() -> None:
+    # Convenience entrypoint: `python -m app.main` launches uvicorn.
     import uvicorn
 
     uvicorn.run("app.main:app", host="0.0.0.0", port=get_settings().port)

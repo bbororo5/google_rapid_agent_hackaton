@@ -27,15 +27,17 @@ from app.runtime.store import RunRecord
 
 
 class _Cancelled(Exception):
-    pass
+    """Raised internally when a cancel was requested between stages."""
 
 
 def _check_cancel(record: RunRecord) -> None:
+    # Best-effort cancellation: we only honor it at stage boundaries, not mid-LLM.
     if record.cancelled:
         raise _Cancelled
 
 
 def _log_tool(record: RunRecord, tool_name: str) -> None:
+    # Append a tool-call log line (surfaced in the GET snapshot for diagnostics).
     record.tool_call_logs.append(
         ToolCallLog(
             sequence=len(record.tool_call_logs) + 1,
@@ -47,7 +49,11 @@ def _log_tool(record: RunRecord, tool_name: str) -> None:
 
 
 async def execute(record: RunRecord) -> None:
-    """Run the full pipeline for a run. Safe to launch as a background task."""
+    """Run the full pipeline for a run. Safe to launch as a background task.
+
+    Wraps _run so any failure becomes a contract event rather than an unhandled
+    task exception: a requested cancel -> run.cancelled, anything else -> run.failed.
+    """
     try:
         await _run(record)
     except _Cancelled:
@@ -61,10 +67,11 @@ async def _run(record: RunRecord) -> None:
     settings = get_settings()
     await emitter.run_started(record)
 
-    # Pre-injection (Orchestrator-owned). Continuity not implemented -> no-op.
+    # Pre-injection (Orchestrator-owned). Continuity isn't implemented yet, so
+    # parent_brief load is a no-op; we only record whether reflection is wired.
     record.phoenix_reflection_used = bool(settings.phoenix_endpoint)
 
-    # --- Analyst: detect signals + ground ---
+    # --- Stage 1: Analyst (detect signals, then ground them) ---
     _check_cancel(record)
     await emitter.step_updated(
         record,
@@ -77,6 +84,7 @@ async def _run(record: RunRecord) -> None:
     signals: list[Signal] = signal_out.signals
     _log_tool(record, "query_metric_baseline")
     _log_tool(record, "search_content_posts")
+    # Emit one glass-box card per signal so the UI can show progress live.
     for sig in signals:
         await emitter.observation(
             record,
@@ -85,6 +93,7 @@ async def _run(record: RunRecord) -> None:
             summary=sig.description,
             evidence_refs=sig.evidence_refs,
         )
+    # Grounding is part of the analyst's tool use; mark the evidence sub-stage done.
     await emitter.step_updated(
         record,
         order=1,
@@ -92,9 +101,9 @@ async def _run(record: RunRecord) -> None:
         status=AgentStepStatus.SUCCEEDED,
         run_status=AgentRunStatus.RUNNING_EVIDENCE_SEARCH,
     )
-    await emitter.signal_detected(record, payload=None)
+    await emitter.signal_detected(record, payload=None)  # milestone marker
 
-    # --- Strategist: hypotheses ---
+    # --- Stage 2: Strategist (why hypotheses) ---
     _check_cancel(record)
     await emitter.step_updated(
         record,
@@ -116,7 +125,7 @@ async def _run(record: RunRecord) -> None:
         )
     await emitter.hypothesis_created(record, payload=None)
 
-    # --- Writer: experiment plan ---
+    # --- Stage 3: Writer (experiment plan) ---
     _check_cancel(record)
     await emitter.step_updated(
         record,
@@ -127,7 +136,9 @@ async def _run(record: RunRecord) -> None:
     )
     plan = (await workers.run_writer(req, hypotheses)).experiment_plan
 
-    # --- Reviewer gate + prefix-reuse backtracking ---
+    # --- Stage 4: Reviewer gate + prefix-reuse backtracking ---
+    # Assemble -> review. On fail, regenerate only from the root-cause worker and
+    # downstream (the successful prefix is reused), up to the backtrack limit.
     while True:
         _check_cancel(record)
         payload = formatter.assemble(signals, hypotheses, plan)
@@ -137,6 +148,7 @@ async def _run(record: RunRecord) -> None:
             record.payload = payload
             break
         if record.backtrack_count >= settings.backtrack_limit:
+            # Out of retries -> terminal failure (loop guard, P4).
             await emitter.run_failed(
                 record, f"validation failed after {record.backtrack_count} backtracks"
             )
@@ -149,7 +161,7 @@ async def _run(record: RunRecord) -> None:
             title=f"Validation failed -> re-running {target}",
             summary=report.retry_instruction or "",
         )
-        # Prefix reuse: only regenerate from the root-cause worker downstream.
+        # Regenerate from the root cause downstream; earlier good artifacts stay.
         if target in ("analyst", "generator"):
             signals = (await workers.run_analyst(req)).signals
             hypotheses = (await workers.run_strategist(req, signals)).hypotheses
@@ -160,7 +172,7 @@ async def _run(record: RunRecord) -> None:
         else:  # writer / formatter
             plan = (await workers.run_writer(req, hypotheses)).experiment_plan
 
-    # --- Approval gate ---
+    # --- Done: open the approval gate (Java takes over from here) ---
     await emitter.step_updated(
         record,
         order=4,

@@ -9,21 +9,27 @@ from __future__ import annotations
 
 from app.contracts import ValidationIssueCode
 
-# Class 2 — issue code -> which worker to re-run.
+# Class 2 — issue code -> which worker is the root cause and must be re-run.
+# (agent-tool-spec §4-B: a review fail does NOT always go back to the strategist.)
 ISSUE_TO_WORKER: dict[ValidationIssueCode, str] = {
+    # Plan-shaped problems are the writer's to fix.
     ValidationIssueCode.MISSING_SUCCESS_CRITERIA: "writer",
     ValidationIssueCode.MISSING_SCHEDULE: "writer",
     ValidationIssueCode.EMPTY_EXPERIMENT_PLAN: "writer",
     ValidationIssueCode.UNSUPPORTED_CHANNEL: "writer",
     ValidationIssueCode.UNKNOWN_HYPOTHESIS_ID: "writer",
+    # Reasoning/claim problems belong to the strategist.
     ValidationIssueCode.LOW_CONFIDENCE_WITHOUT_CAVEAT: "strategist",
     ValidationIssueCode.UNSAFE_OR_UNGROUNDED_CLAIM: "strategist",
     ValidationIssueCode.UNKNOWN_SIGNAL_ID: "strategist",
+    # A hallucinated evidence ref must be fixed by whoever produced it.
     ValidationIssueCode.UNKNOWN_EVIDENCE_REF: "generator",  # analyst/strategist
+    # Pure shape errors are handled by the deterministic formatter step.
     ValidationIssueCode.SCHEMA_INVALID: "formatter",
 }
 
-# Earliest worker in the pipeline order wins when issues span workers.
+# When issues span multiple workers, restart from the EARLIEST in pipeline order
+# so the later stages regenerate on top of the fix (prefix reuse, P1).
 _WORKER_ORDER = ["analyst", "generator", "strategist", "writer", "formatter"]
 
 
@@ -32,9 +38,11 @@ def route(issue_codes: list[ValidationIssueCode]) -> str:
     targets = {ISSUE_TO_WORKER.get(c, "writer") for c in issue_codes}
     for worker in _WORKER_ORDER:
         if worker in targets:
+            # "generator" maps onto the strategist re-run path in the orchestrator.
             return "strategist" if worker == "generator" else worker
     return "writer"
 
 
-# Class 1 — tool error codes that are worth a cheap retry (no LLM).
+# Class 1 — tool error codes worth a cheap retry (no LLM). Other codes are
+# permanent (INDEX_UNAVAILABLE, NO_EVIDENCE_FOUND, INVALID_TOOL_REQUEST).
 RETRYABLE_TOOL_CODES = {"ESQL_FAILED", "SEARCH_FAILED", "MCP_TOOL_FAILED"}
