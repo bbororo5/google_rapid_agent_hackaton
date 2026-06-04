@@ -13,12 +13,12 @@ import json
 import uuid
 
 from app.agents import instructions
-from app.config import get_settings
-from app.contracts import (
-    ExperimentPlanDraftOutput,
-    HypothesisDraftOutput,
-    SignalDraftOutput,
+from app.agents.output_schemas import (
+    ExperimentPlanDraftOut,
+    HypothesisDraftOut,
+    SignalDraftOut,
 )
+from app.config import get_settings
 from app.tools import evidence
 
 _APP = "launchpilot"
@@ -39,7 +39,7 @@ def _build_agents():
         description="Detects quantitative performance signals.",
         instruction=instructions.ANALYST,
         tools=[evidence.query_metric_baseline, evidence.search_content_posts],
-        output_schema=SignalDraftOutput,
+        output_schema=SignalDraftOut,
         output_key="signals",
     )
     # Strategist: one tool (team notes) + hypothesis schema.
@@ -49,7 +49,7 @@ def _build_agents():
         description="Generates causal hypotheses.",
         instruction=instructions.STRATEGIST,
         tools=[evidence.search_team_notes],
-        output_schema=HypothesisDraftOutput,
+        output_schema=HypothesisDraftOut,
         output_key="hypotheses",
     )
     # Writer: no tools (pure generation) + experiment-plan schema.
@@ -58,7 +58,7 @@ def _build_agents():
         model=model,
         description="Drafts next-week experiments.",
         instruction=instructions.WRITER,
-        output_schema=ExperimentPlanDraftOutput,
+        output_schema=ExperimentPlanDraftOut,
         output_key="experiment_plan",
     )
     return {"analyst": analyst, "strategist": strategist, "writer": writer}
