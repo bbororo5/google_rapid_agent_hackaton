@@ -25,6 +25,22 @@ test.describe("conversation-first mock server", () => {
     await expect(page.getByRole("button", { name: /open evidence notes/i })).toBeVisible();
     await expect(page.getByRole("region", { name: /evidence notes/i })).toBeVisible();
     await expect(page.getByRole("complementary").last()).toContainText("Evidence notes");
+
+    await page.getByRole("textbox", { name: /message/i }).fill("문서");
+    await page.getByRole("button", { name: /^send$/i }).click();
+    await expect(page.getByText(/문서를 다시 열어둘게요/)).toHaveCount(2);
+  });
+
+  test("answers document-keyword chat after an analysis stream has already emitted a document", async ({ page }) => {
+    await page.goto("/campaigns/comeback-teaser/planner");
+
+    await page.getByRole("textbox", { name: /message/i }).fill("이 데이터에서 이상한 점 찾아줘");
+    await page.getByRole("button", { name: /^send$/i }).click();
+    await expect(page.getByRole("region", { name: /evidence notes/i })).toBeVisible({ timeout: 15000 });
+
+    await page.getByRole("textbox", { name: /message/i }).fill("문서보여줘");
+    await page.getByRole("button", { name: /^send$/i }).click();
+    await expect(page.getByText(/문서를 다시 열어둘게요/)).toBeVisible();
   });
 
   test("lets the agent raise signal and approval blocks from natural chat", async ({ page }) => {

@@ -126,6 +126,7 @@ public class AgentStreamWebSocketHandler extends TextWebSocketHandler {
     }
 
     private void replay(WebSocketSession session, SessionState state, int fromSequence, int toSequence) {
+        state.sequence.updateAndGet(current -> Math.max(current, toSequence));
         for (Map<String, Object> event : events(state.threadId)) {
             Object sequence = event.get("sequence");
             if (sequence instanceof Number number && (number.intValue() < fromSequence || number.intValue() > toSequence)) {
@@ -175,17 +176,26 @@ public class AgentStreamWebSocketHandler extends TextWebSocketHandler {
     }
 
     private Map<String, Object> evidenceDocument(SessionState state) {
-        return evidenceDocument(state.threadId, state.sequence.incrementAndGet());
+        return evidenceDocument(state.threadId, state.sequence.incrementAndGet(), true);
     }
 
     private Map<String, Object> evidenceDocument(String threadId, int sequence) {
-        return streamMessage(threadId, sequence, "assistant", List.of(Map.of(
+        return evidenceDocument(threadId, sequence, false);
+    }
+
+    private Map<String, Object> evidenceDocument(String threadId, int sequence, boolean includeThreadReply) {
+        List<Map<String, Object>> blocks = new java.util.ArrayList<>();
+        if (includeThreadReply) {
+            blocks.add(Map.of("kind", "text", "text", "문서를 다시 열어둘게요. 우측 패널에서 Evidence notes를 확인할 수 있습니다."));
+        }
+        blocks.add(Map.of(
                 "kind", "markdown_document",
                 "id", "doc_evidence_scan_001",
                 "title", "Evidence notes",
                 "summary", "Evidence notes for the uploaded campaign metrics.",
                 "markdown", "## Evidence notes\n\nI am comparing uploaded campaign metrics against the recent baseline.\n\n- Checking lift by channel\n- Looking for repeatable content patterns\n- Preparing candidate experiments"
-        )));
+        ));
+        return streamMessage(threadId, sequence, "assistant", blocks);
     }
 
     private Map<String, Object> approvalRequest(String threadId, int sequence, Map<String, Object> payload) {

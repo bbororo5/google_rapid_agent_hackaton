@@ -76,6 +76,7 @@ export interface ThreadState {
   observations: AgentThreadObservation[];
   toolLogs: ToolCallLog[];
   timelineItems: AgentTimelineItem[];
+  receivedMessageIds: string[];
   lastReceivedSequence: number;
   recoveryStatus: AgentStreamRecoveryStatus;
 }

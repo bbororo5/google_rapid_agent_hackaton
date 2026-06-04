@@ -130,6 +130,7 @@ export const initialExperimentPlannerState: ExperimentPlannerState = {
     observations: [],
     toolLogs: [],
     timelineItems: [],
+    receivedMessageIds: [],
     lastReceivedSequence: 0,
     recoveryStatus: "idle",
   },
@@ -205,6 +206,7 @@ export function experimentPlannerReducer(state: ExperimentPlannerState, event: E
           observations: [],
           toolLogs: [],
           timelineItems: [],
+          receivedMessageIds: [],
           lastReceivedSequence: 0,
           recoveryStatus: "idle",
         },
@@ -243,7 +245,7 @@ export function experimentPlannerReducer(state: ExperimentPlannerState, event: E
       };
 
     case "STREAM_EVENT_RECEIVED": {
-      if (event.message.sequence <= state.thread.lastReceivedSequence) return state;
+      if (state.thread.receivedMessageIds.includes(event.message.id)) return state;
 
       const text = textFromStreamMessage(event);
       const messageFromFrame: AgentMessage | null =
@@ -266,7 +268,8 @@ export function experimentPlannerReducer(state: ExperimentPlannerState, event: E
         documents,
         toolLogs,
         timelineItems,
-        lastReceivedSequence: event.message.sequence,
+        receivedMessageIds: [...state.thread.receivedMessageIds, event.message.id],
+        lastReceivedSequence: Math.max(state.thread.lastReceivedSequence, event.message.sequence),
       };
 
       if (errorBlock) {
