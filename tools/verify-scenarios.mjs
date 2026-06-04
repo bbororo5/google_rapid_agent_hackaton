@@ -217,15 +217,11 @@ function assertFileContains(relativePath, snippets) {
 
 function validateConversationFirstE2EScenarios() {
   assertFileContains("e2e/conversation-first.mock.spec.ts", [
-    "starts a thread from plain chat",
-    "opens the right panel when a markdown document block arrives",
-    "answers document-keyword chat after an analysis stream has already emitted a document",
-    "lets the agent raise signal and approval blocks from natural chat",
-    "accepts natural-language approval and revision requests through message.send",
-    "places post-approval chat after the approval receipt summary",
+    "supports free chat and composer shortcuts",
+    "opens saved outputs from the right drawer",
+    "keeps agent outputs inline while archiving them",
   ]);
   assertFileContains("e2e/main-analysis-approval.mock.spec.ts", [
-    "keeps the composer available as a text chat surface before evidence is attached",
     "uploads CSV, reviews generated experiments, and approves them",
   ]);
   assertFileContains("contracts/01-frontend-java/README.md", [

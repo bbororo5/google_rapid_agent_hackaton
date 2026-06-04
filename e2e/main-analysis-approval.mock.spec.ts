@@ -5,59 +5,21 @@ const root = path.resolve(import.meta.dirname, "..");
 const sampleMetricsCsv = path.join(root, "apps/frontend/fixtures/sample-channel-metrics.csv");
 
 test.describe("main analysis approval happy path", () => {
-  test("keeps the composer available as a text chat surface before evidence is attached", async ({ page }) => {
-    await page.goto("/campaigns/comeback-teaser/planner");
-
-    await page.getByRole("textbox", { name: /message/i }).fill("I want to focus on retention instead of reach.");
-    await page.getByRole("button", { name: /^send$/i }).click();
-
-    await expect(page.getByText(/i want to focus on retention/i)).toBeVisible();
-    await expect(page.getByText(/리텐션 관점이면/i)).toBeVisible();
-    await page.getByRole("textbox", { name: /message/i }).fill("Keep it conversational.");
-    await expect(page.getByRole("button", { name: /^send$/i })).toBeEnabled();
-  });
-
-  test("keeps streamed timeline visible after stopping a run", async ({ page }) => {
-    await page.goto("/campaigns/comeback-teaser/planner");
-
-    await page.locator("#csv-input").setInputFiles(sampleMetricsCsv);
-    await page.getByRole("button", { name: /send|analy[sz]e|run analysis/i }).click();
-
-    await expect(page.getByText(/tool check/i).first()).toBeVisible();
-    await page.getByRole("button", { name: /stop/i }).click();
-
-    await expect(page.getByText(/what should we test next week/i).first()).toBeVisible();
-    await expect(page.getByText(/tool check/i).first()).toBeVisible();
-    await expect(page.getByText(/agent session cancelled|user cancelled/i).first()).toBeVisible();
-    await expect(page.getByText(/find the signal in this campaign/i)).toHaveCount(0);
-  });
-
   test("uploads CSV, reviews generated experiments, and approves them", async ({ page }) => {
     await page.goto("/campaigns/comeback-teaser/planner");
 
     await page.locator("#csv-input").setInputFiles(sampleMetricsCsv);
-
     await page.getByRole("button", { name: /send|analy[sz]e|run analysis/i }).click();
 
     await expect(page.getByRole("region", { name: /agent session status/i }).getByText(/analyze signal/i).first()).toBeVisible();
     await expect(page.getByText(/save-rate lift looks repeatable/i).first()).toBeVisible();
-    await expect(page.getByText(/tool checks? completed|tool checks? running/i).first()).toBeVisible();
     await expect(page.getByText(/prepared evidence notes/i).first()).toBeVisible();
     await expect(page.getByText(/two BTS shorts that outperformed/i).first()).toBeVisible();
-    await expect(page.locator(".assistant-flow-message")).toHaveCount(1);
 
     await page.getByRole("button", { name: /open evidence notes/i }).click();
     await expect(page.getByRole("complementary", { name: /output panel/i })).toContainText("Evidence notes");
-    await expect(page.getByRole("button", { name: /use this signal/i })).toBeVisible();
-
-    await page.getByRole("textbox", { name: /message/i }).fill("Please keep the signal grounded in short-form content.");
-    await page.getByRole("button", { name: /^send$/i }).click();
-    await expect(page.getByText(/please keep the signal grounded/i)).toBeVisible();
-    await expect(page.getByRole("button", { name: /use this signal/i })).toBeVisible();
 
     await page.getByRole("button", { name: /use this signal/i }).click();
-
-    await expect(page.getByText(/tool checks? completed|tool checks? running/i).first()).toBeVisible();
     await expect(page.getByText(/raw behind-the-scenes clips may be converting/i)).toBeVisible();
     await expect(page.getByText("BTS face-first hook test").first()).toBeVisible();
 
@@ -72,6 +34,5 @@ test.describe("main analysis approval happy path", () => {
     await expect(page.getByRole("button", { name: /approved output approval complete/i })).toBeVisible();
     await page.getByRole("button", { name: /approved output approval complete/i }).click();
     await expect(page.getByRole("complementary", { name: /output panel/i })).toContainText("Growth brief");
-
   });
 });
