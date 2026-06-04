@@ -68,6 +68,7 @@ test.describe("main analysis approval happy path", () => {
 
     await expect(page.getByText("BTS face-first hook test edited").first()).toBeVisible();
     await expect(page.getByText(/human approval processed|approved|calendar/i).first()).toBeVisible();
+    await expect(page.locator(".thread-gate-inline", { hasText: /Experiment Approval/ }).filter({ hasText: /Completed/ })).toBeVisible();
     await expect(page.getByRole("button", { name: /approved output approval complete/i })).toBeVisible();
     await page.getByRole("button", { name: /approved output approval complete/i }).click();
     await expect(page.getByRole("complementary", { name: /output panel/i })).toContainText("Growth brief");

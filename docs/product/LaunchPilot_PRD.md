@@ -465,7 +465,7 @@ Java는 CSV를 import해 Elastic에 즉시 인덱싱하고, 이 첨부와 메시
 - `result`: 승인 완료 결과
 - `error`: 복구 가능한 오류
 
-**Step 6 — 문서와 산출물 표시.** `markdown_document` block을 받으면 중앙 stream에는 작은 문서 카드가 올라가고, 우측 패널은 자동으로 열려 마크다운 본문을 보여준다. 우측 패널은 산출물 리스트를 유지한다. 문서, 확정된 signal, experiment plan, approval result는 문서 제목이 있는 직사각형 카드 버튼으로 누적되고, 사용자가 카드를 클릭하면 해당 산출물의 마크다운 상세가 패널에 표시된다.
+**Step 6 — 문서와 산출물 표시.** `markdown_document` block을 받으면 중앙 stream에는 작은 문서 카드가 올라가고, 우측 패널은 자동으로 열려 마크다운 본문을 보여준다. 채팅 화면인 main stream은 primary surface이므로 signal, experiment plan, approval receipt 같은 산출물은 작업이 일어난 그 자리에 계속 노출된다. 우측 패널은 보조 output drawer다. 문서, 확정된 signal, experiment plan, approval result는 문서 제목이 있는 직사각형 카드 버튼으로 누적되고, 사용자가 필요할 때 서랍처럼 열어 카드를 클릭하면 해당 산출물의 마크다운 상세가 패널에 표시된다.
 
 **Step 7 — 수정.** Mina가 말한다.
 > "실험 제목을 더 짧게, BTS hook 중심으로 바꿔줘."
@@ -650,7 +650,7 @@ Gemini 스타일의 대화형 쉘이되, 순수 챗 앱은 아니다. 실험 계
 - 관찰형 block은 사용자가 “에이전트가 무엇을 하고 있는지” 이해하게 해야 하지만, 사용자의 흐름을 막지 않는다.
 - 개입형 block은 저장, 캘린더 생성, 취소, 복구처럼 결과가 바뀌는 순간에만 강하게 드러난다.
 - 모든 개입은 대화로도 가능해야 한다. 버튼은 빠른 입력 수단이며 별도 계약 명령이 아니다.
-- 문서와 확정 산출물은 thread에 흔적을 남기고 우측 output panel 리스트에도 누적해, 대화와 전문 출력이 분리되지 않게 한다.
+- 문서와 확정 산출물은 thread의 원래 위치에 계속 남는다. 우측 output panel은 이전 산출물을 다시 탐색하기 위한 서랍/보관함이며, main stream을 대체하지 않는다.
 
 ### 13.4 설계 원칙
 

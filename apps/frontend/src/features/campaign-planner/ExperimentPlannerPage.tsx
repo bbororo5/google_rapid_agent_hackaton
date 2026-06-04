@@ -752,7 +752,9 @@ export function ExperimentPlannerPage() {
     previousOutputCountRef.current = view.inspector.outputs.length;
     if (latestOutput && (outputWasAdded || !activeOutputId || !activeOutputExists)) {
       setActiveOutputId(latestOutput.id);
-      setInspectorOpen(true);
+      if (outputWasAdded && latestOutput.id.startsWith("document:")) {
+        setInspectorOpen(true);
+      }
     }
   }, [activeOutputId, view.inspector.outputs]);
 

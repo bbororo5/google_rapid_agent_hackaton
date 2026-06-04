@@ -89,6 +89,8 @@ test.describe("conversation-first mock server", () => {
     await expect(page.getByRole("button", { name: /use this signal/i })).toBeVisible();
 
     await page.getByRole("button", { name: /use this signal/i }).click();
+    await expect(page.locator(".thread-gate-inline", { hasText: /Signal Review/ }).filter({ hasText: /Completed/ })).toBeVisible();
+    await page.getByRole("button", { name: /show details panel/i }).click();
     await expect(page.getByRole("button", { name: /confirmed signal bts shorts outperformed recent baseline/i })).toBeVisible();
     await page.getByRole("button", { name: /confirmed signal bts shorts outperformed recent baseline/i }).click();
     await expect(page.getByRole("complementary", { name: /output panel/i })).toContainText("Evidence refs");

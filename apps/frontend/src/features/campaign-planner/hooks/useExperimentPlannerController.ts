@@ -483,7 +483,7 @@ function gateAnchorPhase(gate: GateReview) {
   return gate.id === "signal" ? "signal_review" : "awaiting_approval";
 }
 
-function threadDisplayItemsFromProjection(input: { groups: ThreadMessageGroup[]; currentGate: GateReview | null }): ThreadDisplayItem[] {
+function threadDisplayItemsFromProjection(input: { groups: ThreadMessageGroup[]; gates: GateReview[]; currentGate: GateReview | null }): ThreadDisplayItem[] {
   const items: ThreadDisplayItem[] = input.groups.map((group) => ({
     kind: "message_group",
     id: group.id,
@@ -491,17 +491,17 @@ function threadDisplayItemsFromProjection(input: { groups: ThreadMessageGroup[];
     group,
   }));
 
-  if (input.currentGate) {
-    const anchorPhase = gateAnchorPhase(input.currentGate);
+  input.gates.forEach((gate, index) => {
+    const anchorPhase = gateAnchorPhase(gate);
     const anchorGroup = input.groups.find((group) => group.role === "user" && group.messages.some((message) => message.clientPhase === anchorPhase));
     const lastSequence = input.groups.at(-1)?.sequence ?? 0;
     items.push({
       kind: "decision_gate",
-      id: `decision:${input.currentGate.id}:${input.currentGate.status}`,
-      sequence: anchorGroup ? anchorGroup.sequence - 0.001 : lastSequence + 0.001,
-      gate: input.currentGate,
+      id: `decision:${gate.id}:${gate.status}`,
+      sequence: anchorGroup ? anchorGroup.sequence - 0.001 : lastSequence + 0.001 + index * 0.001,
+      gate,
     });
-  }
+  });
 
   return items.sort((a, b) => a.sequence - b.sequence);
 }
@@ -1233,7 +1233,7 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
     stateLabel: progress.stateLabel,
   });
   const threadGroups = threadGroupsFromMessages(streamMessages);
-  const threadItems = threadDisplayItemsFromProjection({ groups: threadGroups, currentGate });
+  const threadItems = threadDisplayItemsFromProjection({ groups: threadGroups, gates, currentGate });
   const outputPanelItems = outputPanelItemsFromState({
     documents: currentDocuments,
     signalGate,

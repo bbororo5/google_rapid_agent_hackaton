@@ -108,7 +108,8 @@ Supported block kinds:
 - Store messages by message `id`; ignore duplicate message ids. Use `sequence` for ordering, not as the only dedupe guard, because conversation replies and replayed work blocks may interleave.
 - Render a message by iterating through `blocks[]`.
 - `markdown_document` opens the right panel immediately and also appears as a compact card in the thread.
-- The right panel keeps an output list. Markdown documents, confirmed signals, experiment plans, and approval results can be saved as selectable output cards; selecting a card renders its markdown detail in the panel.
+- The thread remains the primary surface: documents, review gates, and receipts stay visible inline where the work happened.
+- The right panel behaves like an output drawer. It keeps markdown documents, confirmed signals, experiment plans, and approval results as selectable output cards; selecting a card renders its markdown detail in the panel.
 - Approval button clicks send `message.send` with natural-language `content` plus optional `action`.
 - Free text such as "승인할게" is still just `message.send`; Agent Core interprets it in context.
 - Java validates open approval targets and final drafts before writing `growth_briefs` or `calendar_events`.
