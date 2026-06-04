@@ -1,83 +1,65 @@
 import { expect, test } from "@playwright/test";
-import { readFile } from "node:fs/promises";
 import path from "node:path";
-
-type JsonObject = Record<string, unknown>;
 
 const root = path.resolve(import.meta.dirname, "..");
 const sampleMetricsCsv = path.join(root, "apps/frontend/fixtures/sample-channel-metrics.csv");
 
-async function fixture<T extends JsonObject>(relativePath: string): Promise<T> {
-  const text = await readFile(path.join(root, relativePath), "utf8");
-  return JSON.parse(text) as T;
-}
-
 test.describe("main analysis approval happy path", () => {
+  test("keeps the composer available as a text chat surface before evidence is attached", async ({ page }) => {
+    await page.goto("/campaigns/comeback-teaser/planner");
+
+    await page.getByRole("textbox", { name: /agent instructions/i }).fill("I want to focus on retention instead of reach.");
+    await page.getByRole("button", { name: /^send$/i }).click();
+
+    await expect(page.getByText(/i want to focus on retention/i)).toBeVisible();
+    await expect(page.getByRole("button", { name: /^send$/i })).toBeDisabled();
+  });
+
+  test("keeps streamed timeline visible after stopping a run", async ({ page }) => {
+    await page.goto("/campaigns/comeback-teaser/planner");
+
+    await page.locator("#csv-input").setInputFiles(sampleMetricsCsv);
+    await page.getByRole("button", { name: /send|analy[sz]e|run analysis/i }).click();
+
+    await expect(page.getByText(/checked metric baseline/i).first()).toBeVisible();
+    await page.getByRole("button", { name: /stop/i }).click();
+
+    await expect(page.getByText(/what should we test next week/i).first()).toBeVisible();
+    await expect(page.getByText(/checked metric baseline/i).first()).toBeVisible();
+    await expect(page.getByText(/agent run cancelled|user cancelled/i).first()).toBeVisible();
+    await expect(page.getByText(/find the signal in this campaign/i)).toHaveCount(0);
+  });
+
   test("uploads CSV, reviews generated experiments, and approves them", async ({ page }) => {
-    const importCsv = await fixture("contracts/01-frontend-java/examples/import-csv-response.json");
-    const agentRunAccepted = await fixture("contracts/01-frontend-java/examples/agent-run-accepted-response.json");
-    const agentRunning = await fixture("contracts/01-frontend-java/examples/agent-run-running-response.json");
-    const agentReady = await fixture("contracts/01-frontend-java/examples/agent-run-waiting-for-approval-response.json");
-    const approvalResponse = await fixture("contracts/01-frontend-java/examples/approve-experiment-plan-response.json");
-
-    let pollCount = 0;
-
-    await page.route("**/api/import/csv", async (route) => {
-      await route.fulfill({
-        status: 201,
-        contentType: "application/json",
-        body: JSON.stringify(importCsv),
-      });
-    });
-
-    await page.route("**/api/agent/run", async (route) => {
-      await route.fulfill({
-        status: 202,
-        contentType: "application/json",
-        body: JSON.stringify(agentRunAccepted),
-      });
-    });
-
-    await page.route("**/api/agent/runs/run_20260601_001", async (route) => {
-      pollCount += 1;
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify(pollCount === 1 ? agentRunning : agentReady),
-      });
-    });
-
-    await page.route("**/api/agent/actions/run_20260601_001/approve", async (route) => {
-      const requestBody = route.request().postDataJSON() as JsonObject;
-      expect(requestBody.experiment_plan_id).toBe("plan_001");
-      expect(Array.isArray(requestBody.final_experiments)).toBe(true);
-
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify(approvalResponse),
-      });
-    });
-
     await page.goto("/campaigns/comeback-teaser/planner");
 
     await page.locator("#csv-input").setInputFiles(sampleMetricsCsv);
 
-    await page.getByRole("button", { name: /analy[sz]e|run analysis/i }).click();
-
-    await expect(page.getByRole("button", { name: /continue analysis/i })).toBeVisible();
-    await page.getByRole("button", { name: /continue analysis/i }).click();
+    await page.getByRole("button", { name: /send|analy[sz]e|run analysis/i }).click();
 
     await expect(page.getByRole("region", { name: /agent run status/i }).getByText(/analyze signal/i).first()).toBeVisible();
-    await expect(page.getByText("BTS shorts outperformed recent baseline").first()).toBeVisible();
+    await expect(page.getByText(/save-rate lift looks repeatable/i).first()).toBeVisible();
+    await expect(page.getByText(/checked metric baseline/i).first()).toBeVisible();
+    await expect(page.getByText(/checked supporting posts/i).first()).toBeVisible();
+    await expect(page.getByText(/prepared evidence notes/i).first()).toBeVisible();
+    await expect(page.getByText(/two BTS shorts that outperformed/i).first()).toBeVisible();
+
+    await page.getByRole("button", { name: /open evidence notes/i }).click();
+    await expect(page.getByRole("region", { name: /stream documents/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: /evidence notes evidence scan/i })).toBeVisible();
     await expect(page.getByRole("button", { name: /use this signal/i })).toBeVisible();
+
+    await page.getByRole("textbox", { name: /agent instructions/i }).fill("Please keep the signal grounded in short-form content.");
+    await page.getByRole("button", { name: /^send$/i }).click();
+    await expect(page.getByText(/please keep the signal grounded/i)).toBeVisible();
+    await expect(page.getByRole("button", { name: /use this signal/i })).toBeVisible();
+
     await page.getByRole("button", { name: /use this signal/i }).click();
 
+    await expect(page.getByText(/checked team context/i).first()).toBeVisible();
     await expect(page.getByText(/raw behind-the-scenes clips may be converting/i)).toBeVisible();
     await expect(page.getByText("BTS face-first hook test").first()).toBeVisible();
 
-    await page.getByRole("button", { name: /review & edit campaign spec/i }).click();
-    
     const titleInput = page.getByRole("textbox", { name: /experiment title|title/i });
     await titleInput.fill("BTS face-first hook test edited");
 
@@ -85,5 +67,6 @@ test.describe("main analysis approval happy path", () => {
 
     await expect(page.getByText("BTS face-first hook test edited").first()).toBeVisible();
     await expect(page.getByText(/human approval processed|approved|calendar/i).first()).toBeVisible();
+
   });
 });
