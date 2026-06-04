@@ -870,7 +870,7 @@ a {
 .assistant-timeline {
   display: flex;
   flex-direction: column;
-  gap: 11px;
+  gap: 12px;
 }
 
 .assistant-flow-body p,
@@ -890,6 +890,52 @@ a {
   color: var(--ink-soft);
   font-size: 15px;
   line-height: 1.58;
+}
+
+.tool-summary {
+  width: min(760px, 100%);
+  color: var(--ink-muted);
+  font-size: 13px;
+}
+
+.tool-summary summary {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr);
+  align-items: baseline;
+  gap: 12px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.tool-summary summary::-webkit-details-marker {
+  display: none;
+}
+
+.tool-summary summary span:last-child {
+  color: var(--ink-muted);
+  font-weight: 650;
+}
+
+.tool-summary-list {
+  margin: 8px 0 0 22px;
+  padding-left: 12px;
+  border-left: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.tool-summary-list span {
+  color: var(--ink-muted);
+  font-size: 12px;
+}
+
+.tool-summary-list span.running {
+  color: var(--blue);
+}
+
+.tool-summary-list span.failed {
+  color: var(--red);
 }
 
 .timeline-observation-block {
@@ -1256,7 +1302,7 @@ a {
 }
 
 .thread-gate-inline {
-  margin: 8px 0 0 60px;
+  margin: 8px 0 0 42px;
   max-width: 620px;
 }
 

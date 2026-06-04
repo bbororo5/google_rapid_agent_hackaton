@@ -20,7 +20,7 @@ import {
   Target,
 } from "lucide-react";
 import { useExperimentPlannerController } from "@/features/campaign-planner/hooks/useExperimentPlannerController";
-import type { GateReview, PlannerProgressView, StatusRow, StreamMessage, StreamMessageBlock } from "@/features/campaign-planner/hooks/useExperimentPlannerController";
+import type { GateReview, PlannerProgressView, StatusRow, StreamMessageBlock, ThreadMessageGroup } from "@/features/campaign-planner/hooks/useExperimentPlannerController";
 import type { AgentDocument, ExperimentItem, Hypothesis, Signal } from "@/features/campaign-planner/state/experimentPlannerTypes";
 
 function formatPercent(value: number) {
@@ -66,15 +66,61 @@ function TimelineTextRow({ text, tone }: { text: string; tone: "text" | "active"
   );
 }
 
-function StreamMessageCard({
-  message,
+function activityTarget(title: string) {
+  return title
+    .replace(/^Checking\s+/i, "")
+    .replace(/^Checked\s+/i, "")
+    .replace(/^Queued\s+/i, "")
+    .replace(/^Could not check\s+/i, "")
+    .replace(/\s+in\s+\d+ms$/i, "")
+    .trim()
+    .toLowerCase();
+}
+
+function compactActivityBlocks(blocks: Extract<StreamMessageBlock, { kind: "activity" }>[]) {
+  return [...blocks.reduce((latest, block) => latest.set(activityTarget(block.title), block), new Map<string, Extract<StreamMessageBlock, { kind: "activity" }> >()).values()];
+}
+
+function toolSummary(blocks: Extract<StreamMessageBlock, { kind: "activity" }>[]) {
+  const failed = blocks.filter((block) => block.status === "failed").length;
+  const running = blocks.filter((block) => block.status === "running").length;
+  const done = blocks.filter((block) => block.status === "done").length;
+
+  if (failed > 0) return `${failed} tool check${failed === 1 ? "" : "s"} need attention`;
+  if (running > 0) return `${running} tool check${running === 1 ? "" : "s"} running`;
+  return `${done} tool check${done === 1 ? "" : "s"} completed`;
+}
+
+function ActivitySummary({ blocks }: { blocks: Extract<StreamMessageBlock, { kind: "activity" }>[] }) {
+  const compactedBlocks = compactActivityBlocks(blocks);
+  if (compactedBlocks.length === 0) return null;
+
+  return (
+    <details className="tool-summary">
+      <summary>
+        <span className="timeline-glyph" aria-hidden="true" />
+        <span>{toolSummary(compactedBlocks)}</span>
+      </summary>
+      <div className="tool-summary-list">
+        {compactedBlocks.map((block) => (
+          <span className={block.status} key={block.id}>
+            {block.title}
+          </span>
+        ))}
+      </div>
+    </details>
+  );
+}
+
+function StreamMessageGroupCard({
+  group,
   onOpenDocument,
 }: {
-  message: StreamMessage;
+  group: ThreadMessageGroup;
   onOpenDocument: (document: StreamDocument) => void;
 }) {
-  if (message.role === "user") {
-    const text = message.blocks
+  if (group.role === "user") {
+    const text = group.blocks
       .filter((block): block is Extract<StreamMessageBlock, { kind: "text" }> => block.kind === "text")
       .map((block) => block.text)
       .join("\n");
@@ -92,15 +138,19 @@ function StreamMessageCard({
     );
   }
 
+  const activityBlocks = group.blocks.filter((block): block is Extract<StreamMessageBlock, { kind: "activity" }> => block.kind === "activity");
+  const visibleBlocks = group.blocks.filter((block) => block.kind !== "activity");
+
   return (
     <article className="thread-message assistant-flow-message">
-      <div className="message-avatar">{message.role === "system" ? "!" : "LP"}</div>
+      <div className="message-avatar">{group.role === "system" ? "!" : "LP"}</div>
       <div className="assistant-flow">
-        <div className="assistant-flow-label">{message.role === "system" ? "System" : "LaunchPilot"}</div>
+        <div className="assistant-flow-label">{group.role === "system" ? "System" : "LaunchPilot"}</div>
         <div className="assistant-timeline">
-          {message.blocks.map((block, index) => (
-            <StreamBlockRow key={`${message.id}:${index}`} block={block} onOpenDocument={onOpenDocument} />
+          {visibleBlocks.map((block, index) => (
+            <StreamBlockRow key={`${group.id}:${index}`} block={block} onOpenDocument={onOpenDocument} />
           ))}
+          <ActivitySummary blocks={activityBlocks} />
         </div>
       </div>
     </article>
@@ -328,14 +378,14 @@ function ThreadPanel({
   const scrollKey = useMemo(
     () =>
       [
-        view.thread.streamMessages.length,
+        view.thread.groups.length,
         view.screen.statusRows.length,
         view.screen.errorMessage ?? "",
         view.thread.primaryExperiment?.id ?? "",
         view.approval.receipt?.growth_brief_id ?? "",
       ].join(":"),
     [
-      view.thread.streamMessages.length,
+      view.thread.groups.length,
       view.screen.statusRows.length,
       view.screen.errorMessage,
       view.thread.primaryExperiment?.id,
@@ -377,8 +427,8 @@ function ThreadPanel({
 
         <SystemStatusRows statuses={view.screen.statusRows} />
 
-        {view.thread.streamMessages.map((message) => (
-          <StreamMessageCard key={message.id} message={message} onOpenDocument={onOpenDocument} />
+        {view.thread.groups.map((group) => (
+          <StreamMessageGroupCard key={group.id} group={group} onOpenDocument={onOpenDocument} />
         ))}
         {view.inspector.currentGate ? (
           <section className="thread-gate-inline" aria-label="Current decision">

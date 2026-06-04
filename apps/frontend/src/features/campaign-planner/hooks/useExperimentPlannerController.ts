@@ -118,9 +118,18 @@ export interface StreamMessage {
   blocks: StreamMessageBlock[];
 }
 
+export interface ThreadMessageGroup {
+  id: string;
+  role: "user" | "assistant" | "system";
+  sequence: number;
+  messages: StreamMessage[];
+  blocks: StreamMessageBlock[];
+}
+
 export interface PlannerThreadView {
   hasActivity: boolean;
   streamMessages: StreamMessage[];
+  groups: ThreadMessageGroup[];
   userMessages: AgentMessage[];
   assistantMessages: AgentMessage[];
   documents: AgentDocument[];
@@ -409,6 +418,37 @@ function streamMessagesFromState(input: {
   }
 
   return streamMessages.sort((a, b) => a.sequence - b.sequence);
+}
+
+function shouldStartThreadGroup(previous: ThreadMessageGroup | null, message: StreamMessage) {
+  if (!previous) return true;
+  if (previous.role !== message.role) return true;
+  if (message.role === "user") return true;
+  if (message.role === "system") return true;
+  return false;
+}
+
+function threadGroupsFromMessages(messages: StreamMessage[]): ThreadMessageGroup[] {
+  const groups: ThreadMessageGroup[] = [];
+
+  messages.forEach((message) => {
+    const previous = groups.at(-1) ?? null;
+    if (previous === null || shouldStartThreadGroup(previous, message)) {
+      groups.push({
+        id: `group:${message.id}`,
+        role: message.role,
+        sequence: message.sequence,
+        messages: [message],
+        blocks: message.blocks,
+      });
+      return;
+    }
+
+    previous.messages.push(message);
+    previous.blocks.push(...message.blocks);
+  });
+
+  return groups;
 }
 
 function stateSignal(state: ExperimentPlannerState) {
@@ -1011,9 +1051,11 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
     errorMessage: stateMessage(state),
     stateLabel: progress.stateLabel,
   });
+  const threadGroups = threadGroupsFromMessages(streamMessages);
   const thread: PlannerThreadView = {
     hasActivity: statusRows.length > 0 || liveThreadActivity || toolLogs(state).length > 0 || Boolean(primaryExperiment) || Boolean(currentApproval) || Boolean(stateMessage(state)),
     streamMessages,
+    groups: threadGroups,
     userMessages: currentMessages.filter((message) => message.role === "user"),
     assistantMessages: currentMessages.filter((message) => message.role === "assistant"),
     documents: currentDocuments,

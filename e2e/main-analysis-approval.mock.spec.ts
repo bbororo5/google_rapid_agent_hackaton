@@ -23,11 +23,11 @@ test.describe("main analysis approval happy path", () => {
     await page.locator("#csv-input").setInputFiles(sampleMetricsCsv);
     await page.getByRole("button", { name: /send|analy[sz]e|run analysis/i }).click();
 
-    await expect(page.getByText(/checked metric baseline/i).first()).toBeVisible();
+    await expect(page.getByText(/tool check/i).first()).toBeVisible();
     await page.getByRole("button", { name: /stop/i }).click();
 
     await expect(page.getByText(/what should we test next week/i).first()).toBeVisible();
-    await expect(page.getByText(/checked metric baseline/i).first()).toBeVisible();
+    await expect(page.getByText(/tool check/i).first()).toBeVisible();
     await expect(page.getByText(/agent session cancelled|user cancelled/i).first()).toBeVisible();
     await expect(page.getByText(/find the signal in this campaign/i)).toHaveCount(0);
   });
@@ -41,10 +41,10 @@ test.describe("main analysis approval happy path", () => {
 
     await expect(page.getByRole("region", { name: /agent session status/i }).getByText(/analyze signal/i).first()).toBeVisible();
     await expect(page.getByText(/save-rate lift looks repeatable/i).first()).toBeVisible();
-    await expect(page.getByText(/checked metric baseline/i).first()).toBeVisible();
-    await expect(page.getByText(/checked supporting posts/i).first()).toBeVisible();
+    await expect(page.getByText(/tool checks? completed|tool checks? running/i).first()).toBeVisible();
     await expect(page.getByText(/prepared evidence notes/i).first()).toBeVisible();
     await expect(page.getByText(/two BTS shorts that outperformed/i).first()).toBeVisible();
+    await expect(page.locator(".assistant-flow-message")).toHaveCount(1);
 
     await page.getByRole("button", { name: /open evidence notes/i }).click();
     await expect(page.getByRole("complementary", { name: /markdown document/i })).toContainText("Evidence notes");
@@ -57,7 +57,7 @@ test.describe("main analysis approval happy path", () => {
 
     await page.getByRole("button", { name: /use this signal/i }).click();
 
-    await expect(page.getByText(/checked team context/i).first()).toBeVisible();
+    await expect(page.getByText(/tool checks? completed|tool checks? running/i).first()).toBeVisible();
     await expect(page.getByText(/raw behind-the-scenes clips may be converting/i)).toBeVisible();
     await expect(page.getByText("BTS face-first hook test").first()).toBeVisible();
 
