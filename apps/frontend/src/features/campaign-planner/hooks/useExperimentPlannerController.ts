@@ -13,7 +13,6 @@ import type {
   AgentThreadObservation,
   AgentMessage,
   AgentStreamRecoveryStatus,
-  AgentActivityStage,
   AgentTimelineItem,
   Hypothesis,
   Signal,
@@ -55,7 +54,7 @@ export type PlannerScreenMode =
   | "empty"
   | "input_ready"
   | "importing"
-  | "starting_run"
+  | "starting_session"
   | "connecting_stream"
   | "live_run"
   | "signal_review"
@@ -75,14 +74,14 @@ export interface PlannerScreenView {
   errorMessage: string | null;
 }
 
-export type ComposerMode = "prepare_run" | "run_in_progress" | "review_gate" | "approval_gate" | "completed" | "error";
+export type ComposerMode = "prepare_session" | "session_in_progress" | "review_gate" | "approval_gate" | "completed" | "error";
 
 export type ComposerPrimaryAction =
   | { kind: "analyze"; label: "Send"; disabled: boolean; title?: string }
   | { kind: "send"; label: "Send"; disabled: boolean; title?: string }
   | { kind: "stop"; label: "Stop"; disabled: boolean; title?: string }
   | { kind: "retry"; label: "Retry"; disabled: boolean; title?: string }
-  | { kind: "new_run"; label: "Run new"; disabled: boolean; title?: string }
+  | { kind: "new_session"; label: "New session"; disabled: boolean; title?: string }
   | { kind: "none" };
 
 export interface PlannerComposerView {
@@ -97,7 +96,7 @@ export interface PlannerComposerView {
 
 export interface PlannerProgressView {
   visible: boolean;
-  runLabel: string | null;
+  threadLabel: string | null;
   stateLabel: string;
   steps: ChecklistStep[];
 }
@@ -176,67 +175,70 @@ export interface ExperimentPlannerViewModel {
 }
 
 function stateMessage(state: ExperimentPlannerState) {
-  return "message" in state ? state.message : null;
+  return state.error?.message ?? null;
 }
 
 function stateFile(state: ExperimentPlannerState) {
-  return "file" in state ? state.file ?? null : null;
+  return state.composer.file;
 }
 
 function stateQuestion(state: ExperimentPlannerState) {
-  return "question" in state ? state.question : "";
+  return state.composer.question;
 }
 
 function payloadSignals(state: ExperimentPlannerState) {
-  return "payload" in state ? state.payload.signals : [];
+  return state.review.payload?.signals ?? [];
 }
 
 function payloadHypotheses(state: ExperimentPlannerState) {
-  return "payload" in state ? state.payload.hypotheses : [];
+  return state.review.payload?.hypotheses ?? [];
 }
 
 function draftExperiments(state: ExperimentPlannerState) {
-  return "draftExperiments" in state ? state.draftExperiments : [];
+  return state.review.draftExperiments;
 }
 
 function finalExperiments(state: ExperimentPlannerState) {
-  return "finalExperiments" in state ? state.finalExperiments : [];
+  if (state.review.approval && state.review.draftExperiments.length > 0) {
+    return state.review.draftExperiments.filter((experiment) => state.review.selectedExperimentIds.includes(experiment.id));
+  }
+  return [];
 }
 
 function messages(state: ExperimentPlannerState) {
-  return "messages" in state ? state.messages : [];
+  return state.thread.messages;
 }
 
 function documents(state: ExperimentPlannerState) {
-  return "documents" in state ? state.documents : [];
+  return state.thread.documents;
 }
 
 function toolLogs(state: ExperimentPlannerState) {
-  return "toolLogs" in state ? state.toolLogs : [];
+  return state.thread.toolLogs;
 }
 
 function observations(state: ExperimentPlannerState) {
-  return "observations" in state ? state.observations : [];
+  return state.thread.observations;
 }
 
 function timelineItems(state: ExperimentPlannerState) {
-  return "timelineItems" in state ? state.timelineItems : [];
+  return state.thread.timelineItems;
 }
 
 function approval(state: ExperimentPlannerState) {
-  return "approval" in state ? state.approval : null;
+  return state.review.approval;
 }
 
 function calendarEvents(state: ExperimentPlannerState) {
-  return "calendarEvents" in state ? state.calendarEvents : [];
+  return state.review.calendarEvents;
 }
 
 function streamRecoveryStatus(state: ExperimentPlannerState): AgentStreamRecoveryStatus {
-  return "recoveryStatus" in state ? state.recoveryStatus : "idle";
+  return state.thread.recoveryStatus;
 }
 
 function stateImportResult(state: ExperimentPlannerState) {
-  return "importResult" in state ? state.importResult : null;
+  return state.importResult;
 }
 
 function commandId(prefix: string) {
@@ -410,148 +412,72 @@ function streamMessagesFromState(input: {
 }
 
 function stateSignal(state: ExperimentPlannerState) {
-  if (state.tag === "signal_review") return state.signal;
-  return payloadSignals(state)[0] ?? null;
+  if (state.review.activeSignalId && state.review.payload) {
+    return state.review.payload.signals.find((signal) => signal.id === state.review.activeSignalId) ?? state.review.payload.signals[0] ?? null;
+  }
+  return state.review.payload?.signals[0] ?? null;
 }
 
 function buildChecklist(state: ExperimentPlannerState): ChecklistStep[] {
   const complete = "complete" as const;
   const active = "active" as const;
   const pending = "pending" as const;
-  const pendingRunSteps: ChecklistStep[] = [
-    { label: "Import metrics", status: pending },
-    { label: "Start agent session", status: pending },
-    { label: "Connect stream", status: pending },
-    { label: "Analyze signal", status: pending },
-    { label: "Draft experiment plan", status: pending },
-    { label: "Review experiment plan", status: pending },
-  ];
+  const imported = Boolean(state.importResult) || state.phase === "importing";
+  const started = Boolean(state.thread.threadId) || ["starting", "connecting", "live", "signal_review", "awaiting_approval", "approved"].includes(state.phase);
+  const connected = state.thread.connection === "open" || ["live", "signal_review", "awaiting_approval", "approved"].includes(state.phase);
+  const hasSignal = Boolean(state.review.payload?.signals.length);
+  const hasPlan = Boolean(state.review.payload?.experiment_plan.items.length);
+  const needsApproval = state.phase === "awaiting_approval" || state.review.approving;
+  const approved = state.phase === "approved";
 
-  if ("steps" in state && state.steps.length > 0) {
-    const streamSteps = state.steps.map((step) => ({
-      label: stageLabel(step.stage),
-      status: step.status === "SUCCEEDED" ? complete : step.status === "IN_PROGRESS" ? active : pending,
-    }));
-    const hasImportStep = streamSteps.some((step) => step.label === "Import metrics");
-
-    return [
-      ...(hasImportStep ? [] : [{ label: "Import metrics", status: complete }]),
-      { label: "Start agent session", status: complete },
-      { label: "Connect stream", status: complete },
-      ...streamSteps,
-    ];
-  }
-
-  if (state.tag === "idle" || state.tag === "csv_selected") {
-    return pendingRunSteps;
-  }
-
-  if (state.tag === "importing_csv" || state.tag === "import_succeeded") {
-    return [
-      { label: "Import metrics", status: state.tag === "importing_csv" ? active : complete },
-      { label: "Start agent session", status: state.tag === "import_succeeded" ? active : pending },
-      { label: "Connect stream", status: pending },
-      { label: "Analyze signal", status: pending },
-      { label: "Draft experiment plan", status: pending },
-      { label: "Review experiment plan", status: pending },
-    ];
-  }
-
-  if (state.tag === "starting_analysis") {
-    return [
-      { label: "Import metrics", status: complete },
-      { label: "Start agent session", status: active },
-      { label: "Connect stream", status: pending },
-      { label: "Analyze signal", status: pending },
-      { label: "Draft experiment plan", status: pending },
-      { label: "Review experiment plan", status: pending },
-    ];
-  }
-
-  if (state.tag === "analysis_pending" || state.tag === "stream_connecting") {
-    return [
-      { label: "Import metrics", status: complete },
-      { label: "Start agent session", status: complete },
-      { label: "Connect stream", status: active },
-      { label: "Analyze signal", status: pending },
-      { label: "Draft experiment plan", status: pending },
-      { label: "Review experiment plan", status: pending },
-    ];
-  }
-
-  if (state.tag === "analysis_running") {
-    return [
-      { label: "Import metrics", status: complete },
-      { label: "Start agent session", status: complete },
-      { label: "Connect stream", status: complete },
-      { label: "Analyze signal", status: active },
-      { label: "Draft experiment plan", status: pending },
-      { label: "Review experiment plan", status: pending },
-    ];
-  }
-
-  if (state.tag === "waiting_for_approval" || state.tag === "editing_plan" || state.tag === "approving" || state.tag === "approved") {
+  if (state.phase === "signal_review") {
     return [
       { label: "Import metrics", status: complete },
       { label: "Start agent session", status: complete },
       { label: "Connect stream", status: complete },
       { label: "Analyze signal", status: complete },
-      { label: "Draft experiment plan", status: complete },
-      { label: "Review experiment plan", status: state.tag === "approved" ? complete : active },
+      { label: "Review signal", status: active },
+      { label: "Review experiment plan", status: pending },
     ];
   }
 
-  return pendingRunSteps;
-}
-
-function stageLabel(stage: AgentActivityStage) {
-  switch (stage) {
-    case "IMPORT_METRICS":
-      return "Import metrics";
-    case "DETECT_PERFORMANCE_SIGNAL":
-      return "Analyze signal";
-    case "GROUND_WITH_EVIDENCE":
-      return "Ground with evidence";
-    case "GENERATE_HYPOTHESIS":
-      return "Generate hypotheses";
-    case "DRAFT_EXPERIMENT_PLAN":
-      return "Draft experiment plan";
-    case "WAIT_FOR_APPROVAL":
-      return "Review experiment plan";
-    case "APPLY_APPROVED_PLAN":
-      return "Create brief and calendar";
-    default:
-      return "Agent step";
-  }
+  return [
+    { label: "Import metrics", status: state.phase === "importing" ? active : imported ? complete : pending },
+    { label: "Start agent session", status: state.phase === "starting" ? active : started ? complete : imported ? active : pending },
+    { label: "Connect stream", status: state.phase === "connecting" ? active : connected ? complete : started ? active : pending },
+    { label: "Analyze signal", status: hasSignal ? complete : connected ? active : pending },
+    { label: "Draft experiment plan", status: hasPlan ? complete : hasSignal ? active : pending },
+    { label: "Review experiment plan", status: approved ? complete : needsApproval ? active : pending },
+  ];
 }
 
 function agentState(state: ExperimentPlannerState): AgentDisplayState {
-  if (state.tag === "csv_selected") return "selected";
-  if (state.tag === "importing_csv") return "importing";
-  if (state.tag === "signal_review") return "ready";
-  if (state.tag === "import_succeeded") return "processing";
-  if (state.tag === "starting_analysis" || state.tag === "analysis_pending" || state.tag === "stream_connecting" || state.tag === "analysis_running") return "processing";
-  if (state.tag === "waiting_for_approval" || state.tag === "editing_plan" || state.tag === "approving") return "ready";
-  if (state.tag === "approved") return "approved";
-  if (state.tag === "analysis_failed" || state.tag === "approval_failed" || state.tag === "import_failed") return "error";
+  if (state.phase === "input_ready") return "selected";
+  if (state.phase === "importing") return "importing";
+  if (state.phase === "signal_review" || state.phase === "awaiting_approval") return "ready";
+  if (["starting", "connecting", "live"].includes(state.phase)) return "processing";
+  if (state.phase === "approved") return "approved";
+  if (state.phase === "failed" || state.phase === "approval_failed" || state.phase === "import_failed") return "error";
   return "idle";
 }
 
 function runShortId(state: ExperimentPlannerState) {
-  return "threadId" in state && state.threadId ? state.threadId.slice(-3) : null;
+  return state.thread.threadId ? state.thread.threadId.slice(-3) : null;
 }
 
 function readableWorkflowState(state: ExperimentPlannerState, displayState: AgentDisplayState) {
-  switch (state.tag) {
-    case "import_succeeded":
-    case "starting_analysis":
-      return "Starting run";
-    case "analysis_pending":
-      return "Run accepted";
-    case "stream_connecting":
+  switch (state.phase) {
+    case "input_ready":
+      return state.importResult ? "Ready to start" : "Ready";
+    case "starting":
+      return "Starting";
+    case "connecting":
       return "Connecting stream";
-    case "analysis_running":
+    case "live":
       return "Analyzing signal";
+    case "signal_review":
+    case "awaiting_approval":
+      return "Review needed";
     default:
       break;
   }
@@ -575,15 +501,15 @@ function readableWorkflowState(state: ExperimentPlannerState, displayState: Agen
 }
 
 function screenMode(state: ExperimentPlannerState, displayState: AgentDisplayState): PlannerScreenMode {
-  if (state.tag === "idle") return "empty";
-  if (state.tag === "csv_selected") return "input_ready";
-  if (state.tag === "importing_csv") return "importing";
-  if (state.tag === "import_succeeded" || state.tag === "starting_analysis" || state.tag === "analysis_pending") return "starting_run";
-  if (state.tag === "stream_connecting") return "connecting_stream";
-  if (state.tag === "analysis_running") return "live_run";
-  if (state.tag === "signal_review") return "signal_review";
-  if (state.tag === "waiting_for_approval" || state.tag === "editing_plan" || state.tag === "approving") return "plan_review";
-  if (state.tag === "approved") return "approved_summary";
+  if (state.phase === "idle") return "empty";
+  if (state.phase === "input_ready") return "input_ready";
+  if (state.phase === "importing") return "importing";
+  if (state.phase === "starting") return "starting_session";
+  if (state.phase === "connecting") return "connecting_stream";
+  if (state.phase === "live") return "live_run";
+  if (state.phase === "signal_review") return "signal_review";
+  if (state.phase === "awaiting_approval") return "plan_review";
+  if (state.phase === "approved") return "approved_summary";
   if (displayState === "error") return "error";
   return "live_run";
 }
@@ -595,11 +521,11 @@ function composerFromState(state: ExperimentPlannerState, displayState: AgentDis
     placeholder: "Add context or instructions for the agent...",
   };
 
-  switch (state.tag) {
+  switch (state.phase) {
     case "idle":
       return {
         ...base,
-        mode: "prepare_run",
+        mode: "prepare_session",
         inputDisabled: false,
         canAttachCsv: true,
         primaryAction: {
@@ -609,11 +535,10 @@ function composerFromState(state: ExperimentPlannerState, displayState: AgentDis
           title: "Send a message to the thread, or attach campaign metrics CSV to start analysis",
         },
       };
-    case "csv_selected":
-    case "import_succeeded":
+    case "input_ready":
       return {
         ...base,
-        mode: "prepare_run",
+        mode: "prepare_session",
         inputDisabled: false,
         canAttachCsv: true,
         primaryAction: {
@@ -636,21 +561,20 @@ function composerFromState(state: ExperimentPlannerState, displayState: AgentDis
           title: fileName ? undefined : "Attach campaign metrics CSV to enable Analyze",
         },
       };
-    case "importing_csv":
-    case "starting_analysis":
-    case "analysis_pending":
-    case "stream_connecting":
-    case "analysis_running":
+    case "importing":
+    case "starting":
+    case "connecting":
+    case "live":
       return {
         ...base,
-        mode: "run_in_progress",
+        mode: "session_in_progress",
         inputDisabled: false,
         canAttachCsv: false,
         primaryAction: {
           kind: "stop",
           label: "Stop",
-          disabled: !("threadId" in state),
-          title: "Stop this analysis run",
+          disabled: !state.thread.threadId,
+          title: "Stop this analysis",
         },
       };
     case "signal_review":
@@ -661,9 +585,7 @@ function composerFromState(state: ExperimentPlannerState, displayState: AgentDis
         canAttachCsv: false,
         primaryAction: { kind: "send", label: "Send", disabled: !value.trim(), title: "Send a message to the thread" },
       };
-    case "waiting_for_approval":
-    case "editing_plan":
-    case "approving":
+    case "awaiting_approval":
       return {
         ...base,
         mode: "approval_gate",
@@ -679,8 +601,9 @@ function composerFromState(state: ExperimentPlannerState, displayState: AgentDis
         canAttachCsv: false,
         primaryAction: { kind: "send", label: "Send", disabled: !value.trim(), title: "Send a message to the thread" },
       };
-    case "analysis_failed":
-    case "analysis_cancelled":
+    case "failed":
+    case "cancelled":
+    case "approval_failed":
       return {
         ...base,
         mode: "error",
@@ -691,7 +614,7 @@ function composerFromState(state: ExperimentPlannerState, displayState: AgentDis
     default:
       return {
         ...base,
-        mode: displayState === "processing" ? "run_in_progress" : "prepare_run",
+        mode: displayState === "processing" ? "session_in_progress" : "prepare_session",
         inputDisabled: false,
         canAttachCsv: displayState !== "processing",
         primaryAction: displayState === "processing" ? { kind: "stop", label: "Stop", disabled: true } : { kind: "send", label: "Send", disabled: !value.trim() },
@@ -700,22 +623,22 @@ function composerFromState(state: ExperimentPlannerState, displayState: AgentDis
 }
 
 function buildStatusRows(state: ExperimentPlannerState, importResult: ImportCsvResponse | null, hasLiveThreadActivity: boolean): StatusRow[] {
-  switch (state.tag) {
-    case "importing_csv":
+  switch (state.phase) {
+    case "importing":
       return [{ title: "Importing campaign metrics...", detail: "Preparing the evidence store before signal detection." }];
-    case "import_succeeded":
-    case "starting_analysis":
+    case "input_ready":
+      if (!importResult) return [];
+      return [{ title: "Campaign metrics are ready.", detail: `${importResult.indexed_count} rows indexed · ${importResult.failed_count} failed` }];
+    case "starting":
       return [
         {
-          title: "Starting the analysis run...",
+          title: "Starting the agent session...",
           detail: importResult ? `${importResult.indexed_count} rows indexed · ${importResult.failed_count} failed` : "Campaign metrics are indexed.",
         },
       ];
-    case "analysis_pending":
-      return [{ title: "Agent session ready.", detail: "Opening the live agent stream." }];
-    case "stream_connecting":
+    case "connecting":
       return [{ title: "Connecting live agent stream...", detail: "Signal and evidence events will appear here as they arrive." }];
-    case "analysis_running":
+    case "live":
       return hasLiveThreadActivity ? [] : [{ title: "Listening for agent events...", detail: "The stream is open and waiting for the first signal update." }];
     default:
       return [];
@@ -809,32 +732,29 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
 
   async function analyze() {
     const current = stateRef.current;
-    if (current.tag !== "csv_selected") return;
-    let phase: "import" | "analysis" = "import";
+    if ((current.phase !== "input_ready" && current.phase !== "import_failed") || !current.composer.file) return;
+    let requestPhase: "import" | "analysis" = "import";
 
     try {
       const importingState = experimentPlannerReducer(current, { type: "IMPORT_REQUESTED" });
       dispatch({ type: "IMPORT_REQUESTED" });
-      if (importingState.tag !== "importing_csv") return;
+      if (importingState.phase !== "importing" || !importingState.composer.file) return;
 
       const importResult = await api.importCsv({
-        file: current.file,
+        file: importingState.composer.file,
         workspaceId: "demo_workspace",
         campaignId: "camp_comeback_teaser",
       });
       lastImportRef.current = importResult;
-      phase = "analysis";
+      requestPhase = "analysis";
 
       const importedState = experimentPlannerReducer(importingState, { type: "IMPORT_SUCCEEDED", importResult });
       dispatch({ type: "IMPORT_SUCCEEDED", importResult });
-      if (importedState.tag !== "import_succeeded") return;
+      if (!importedState.importResult) return;
 
-      const startingState = experimentPlannerReducer(
-        { ...importedState, question: composerQuestionRef.current },
-        { type: "AGENT_SESSION_REQUESTED" },
-      );
+      const startingState = experimentPlannerReducer(importedState, { type: "AGENT_SESSION_REQUESTED" });
       dispatch({ type: "AGENT_SESSION_REQUESTED" });
-      if (startingState.tag !== "starting_analysis") return;
+      if (startingState.phase !== "starting") return;
 
       const threadId = `thread_${importResult.import_id.replace(/^imp_/, "")}`;
       const streamUrl = agentThreadStreamUrl(threadId);
@@ -846,8 +766,8 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
       await connectStream(threadId, streamUrl);
     } catch (error) {
       dispatch({
-        type: phase === "import" ? "IMPORT_FAILED" : "AGENT_SESSION_FAILED",
-        message: error instanceof Error ? error.message : phase === "import" ? "Import failed." : "Analysis failed.",
+        type: requestPhase === "import" ? "IMPORT_FAILED" : "AGENT_SESSION_FAILED",
+        message: error instanceof Error ? error.message : requestPhase === "import" ? "Import failed." : "Analysis failed.",
       });
     }
   }
@@ -856,18 +776,18 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
     const text = composerQuestionRef.current.trim();
     const current = stateRef.current;
 
-    if (current.tag === "csv_selected") {
+    if (current.phase === "input_ready" && current.composer.file) {
       void analyze();
       return;
     }
 
     if (!text) return;
 
-    if ("threadId" in current && current.threadId) {
+    if (current.thread.threadId) {
       streamRef.current?.send({
         command_id: commandId("cmd_message"),
         type: "message.send",
-        thread_id: current.threadId,
+        thread_id: current.thread.threadId,
         content: text,
         client_created_at: new Date().toISOString(),
       });
@@ -888,12 +808,12 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
 
   function continueSignalReview() {
     const current = stateRef.current;
-    if (current.tag !== "signal_review") return;
+    if (current.phase !== "signal_review" || !current.thread.threadId) return;
     dispatch({ type: "SIGNAL_CONFIRMED" });
     streamRef.current?.send({
       command_id: commandId("cmd_continue"),
       type: "message.send",
-      thread_id: current.threadId,
+      thread_id: current.thread.threadId,
       content: "Use this signal",
       client_created_at: new Date().toISOString(),
     });
@@ -901,27 +821,26 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
 
   async function approvePlan() {
     const current = stateRef.current;
-    if (current.tag !== "waiting_for_approval" && current.tag !== "editing_plan") return;
+    if (current.phase !== "awaiting_approval" || !current.thread.threadId || !current.review.payload || !current.review.approvalId) return;
 
     const approvingState = experimentPlannerReducer(current, { type: "APPROVE_SENT" });
     dispatch({ type: "APPROVE_SENT" });
-    if (approvingState.tag !== "approving") return;
 
     setIsApproving(true);
     try {
       const request = buildApprovalRequest({
-        experimentPlanId: approvingState.payload.experiment_plan.id,
-        draftExperiments: approvingState.draftExperiments,
-        selectedExperimentIds: approvingState.selectedExperimentIds,
+        experimentPlanId: approvingState.review.payload?.experiment_plan.id ?? current.review.payload.experiment_plan.id,
+        draftExperiments: approvingState.review.draftExperiments,
+        selectedExperimentIds: approvingState.review.selectedExperimentIds,
       });
       streamRef.current?.send({
         command_id: commandId("cmd_approve"),
         type: "message.send",
-        thread_id: approvingState.threadId,
+        thread_id: approvingState.thread.threadId ?? current.thread.threadId,
         content: "Approve this experiment plan.",
         action: {
           name: "approve",
-          target_id: approvingState.approvalId,
+          target_id: approvingState.review.approvalId,
           payload: { final_experiments: request.final_experiments },
         },
         client_created_at: new Date().toISOString(),
@@ -933,29 +852,29 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
 
   function rejectApproval(reason = "User rejected the experiment plan.") {
     const current = stateRef.current;
-    if (current.tag !== "waiting_for_approval" && current.tag !== "editing_plan") return;
+    if (current.phase !== "awaiting_approval" || !current.thread.threadId) return;
 
     streamRef.current?.send({
       command_id: commandId("cmd_reject"),
       type: "message.send",
-      thread_id: current.threadId,
+      thread_id: current.thread.threadId,
       content: reason,
-      action: { name: "reject", target_id: current.approvalId },
+      action: { name: "reject", target_id: current.review.approvalId },
       client_created_at: new Date().toISOString(),
     });
     dispatch({ type: "REJECT_SENT", reason });
   }
 
-  async function cancelRun(reason = "User cancelled the agent session.") {
+  async function cancelSession(reason = "User cancelled the agent session.") {
     const current = stateRef.current;
-    if (!("threadId" in current) || !current.threadId) return;
+    if (!current.thread.threadId) return;
 
     streamRef.current?.send({
       command_id: commandId("cmd_cancel"),
       type: "message.send",
-      thread_id: current.threadId,
+      thread_id: current.thread.threadId,
       content: reason,
-      action: { name: "cancel", target_id: "approvalId" in current ? current.approvalId : null },
+      action: { name: "cancel", target_id: current.review.approvalId },
       client_created_at: new Date().toISOString(),
     });
 
@@ -964,18 +883,18 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
 
   function editExperiment(experimentId: string, title: string) {
     const current = stateRef.current;
-    if (current.tag !== "waiting_for_approval" && current.tag !== "editing_plan") return;
+    if (current.phase !== "awaiting_approval" || !current.thread.threadId || !current.review.payload) return;
 
-    const draftExperiments = current.draftExperiments.map((experiment) => (experiment.id === experimentId ? { ...experiment, title } : experiment));
+    const draftExperiments = current.review.draftExperiments.map((experiment) => (experiment.id === experimentId ? { ...experiment, title } : experiment));
     streamRef.current?.send({
       command_id: commandId("cmd_update_payload"),
       type: "message.send",
-      thread_id: current.threadId,
+      thread_id: current.thread.threadId,
       content: `Revise the experiment title to "${title}".`,
       action: {
         name: "revise_artifact",
-        target_id: current.payload.experiment_plan.id,
-        payload: { final_experiments: draftExperiments.filter((experiment) => current.selectedExperimentIds.includes(experiment.id)) },
+        target_id: current.review.payload.experiment_plan.id,
+        payload: { final_experiments: draftExperiments.filter((experiment) => current.review.selectedExperimentIds.includes(experiment.id)) },
       },
       client_created_at: new Date().toISOString(),
     });
@@ -983,10 +902,10 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
   }
 
   useEffect(() => {
-    if (state.tag !== "approving") {
+    if (!state.review.approving) {
       setIsApproving(false);
     }
-  }, [state.tag]);
+  }, [state.review.approving]);
 
   const primaryHypothesis = currentHypotheses[0] ?? lastHypothesesRef.current[0] ?? null;
   const primaryExperiment = draftExperiments(state)[0] ?? finalExperiments(state)[0] ?? null;
@@ -994,20 +913,20 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
     ? {
         id: "signal",
         title: "Signal Review",
-        status: state.tag === "signal_review" ? "active" : "complete",
+        status: state.phase === "signal_review" ? "active" : "complete",
         signal: lastSignalRef.current,
-        actionLabel: state.tag === "signal_review" ? "Use this signal" : "Signal accepted",
+        actionLabel: state.phase === "signal_review" ? "Use this signal" : "Signal accepted",
       }
     : null;
   const approvalGate: GateReview | null =
-    state.tag === "waiting_for_approval" || state.tag === "editing_plan" || state.tag === "approving" || state.tag === "approved"
+    state.phase === "awaiting_approval" || state.phase === "approved"
       ? {
           id: "approval",
           title: "Experiment Approval",
-          status: state.tag === "approved" ? "complete" : "active",
+          status: state.phase === "approved" ? "complete" : "active",
           hypothesis: primaryHypothesis,
           experiment: primaryExperiment,
-          actionLabel: state.tag === "approved" ? "Approved" : "Approve Experiments",
+          actionLabel: state.phase === "approved" ? "Approved" : "Approve Experiments",
         }
       : null;
   const gates = [signalGate, approvalGate].filter((gate): gate is GateReview => gate !== null);
@@ -1032,7 +951,7 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
         ? null
         : {
             title: "Find the signal in this campaign.",
-            description: "Attach campaign metrics and add context to start the analysis run.",
+            description: "Attach campaign metrics and add context to start the analysis session.",
           },
     statusRows,
     errorMessage: stateMessage(state),
@@ -1040,7 +959,7 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
   const composer = composerFromState(state, displayState, currentQuestion, currentFileOrLast?.name ?? null);
   const progress: PlannerProgressView = {
     visible: displayState !== "idle" && displayState !== "selected",
-    runLabel: runShortId(state),
+    threadLabel: runShortId(state),
     stateLabel: readableWorkflowState(state, displayState),
     steps: buildChecklist(state),
   };
@@ -1075,7 +994,7 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
     history: gateHistory,
   };
   const approvalView: PlannerApprovalView = {
-    canApprove: displayState === "ready" && currentDraftExperiments.length > 0 && !isApproving,
+    canApprove: state.phase === "awaiting_approval" && currentDraftExperiments.length > 0 && !isApproving,
     isApproving,
     draftExperiments: currentDraftExperiments,
     finalExperiments: currentFinalExperiments,
@@ -1110,7 +1029,7 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
       editExperiment,
       approve: approvePlan,
       reject: rejectApproval,
-      cancel: cancelRun,
+      cancel: cancelSession,
       reset: () => {
         lastFileRef.current = null;
         lastImportRef.current = null;

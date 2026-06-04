@@ -1,4 +1,13 @@
-import type { AgentDocument, AgentMessage, AgentThreadObservation, AgentResultPayload, AgentTimelineItem, AgentStreamRecoveryStatus, ExperimentItem, ExperimentPlannerEvent, ExperimentPlannerState, ToolCallLog } from "./experimentPlannerTypes";
+import type {
+  AgentDocument,
+  AgentMessage,
+  AgentResultPayload,
+  AgentTimelineItem,
+  ExperimentItem,
+  ExperimentPlannerEvent,
+  ExperimentPlannerState,
+  ToolCallLog,
+} from "./experimentPlannerTypes";
 
 function updateDraftExperiment(items: ExperimentItem[], experimentId: string, patch: Partial<ExperimentItem>) {
   return items.map((item) => (item.id === experimentId ? { ...item, ...patch } : item));
@@ -34,16 +43,16 @@ function mergeTimelineItems(timelineItems: AgentTimelineItem[], items: AgentTime
   }, timelineItems);
 }
 
-function textFromStreamMessage(message: ExperimentPlannerEvent & { type: "STREAM_EVENT_RECEIVED" }) {
-  return message.message.blocks
+function textFromStreamMessage(event: ExperimentPlannerEvent & { type: "STREAM_EVENT_RECEIVED" }) {
+  return event.message.blocks
     .filter((block) => block.kind === "text")
     .map((block) => block.text)
     .join("\n")
     .trim();
 }
 
-function documentsFromStreamMessage(message: ExperimentPlannerEvent & { type: "STREAM_EVENT_RECEIVED" }): AgentDocument[] {
-  return message.message.blocks
+function documentsFromStreamMessage(event: ExperimentPlannerEvent & { type: "STREAM_EVENT_RECEIVED" }): AgentDocument[] {
+  return event.message.blocks
     .filter((block) => block.kind === "markdown_document")
     .map((block) => ({
       document_id: block.id,
@@ -55,11 +64,11 @@ function documentsFromStreamMessage(message: ExperimentPlannerEvent & { type: "S
     }));
 }
 
-function toolLogsFromStreamMessage(message: ExperimentPlannerEvent & { type: "STREAM_EVENT_RECEIVED" }): ToolCallLog[] {
-  return message.message.blocks
+function toolLogsFromStreamMessage(event: ExperimentPlannerEvent & { type: "STREAM_EVENT_RECEIVED" }): ToolCallLog[] {
+  return event.message.blocks
     .filter((block) => block.kind === "activity")
     .map((block, index) => ({
-      sequence: message.message.sequence * 100 + index,
+      sequence: event.message.sequence * 100 + index,
       tool_name: block.id ?? block.title,
       status: block.status === "failed" ? "FAILED" : block.status === "done" ? "SUCCESS" : block.status === "running" ? "RUNNING" : "PENDING",
       duration_ms: null,
@@ -67,20 +76,20 @@ function toolLogsFromStreamMessage(message: ExperimentPlannerEvent & { type: "ST
     }));
 }
 
-function timelineItemsFromStreamMessage(message: ExperimentPlannerEvent & { type: "STREAM_EVENT_RECEIVED" }): AgentTimelineItem[] {
-  const sequence = message.message.sequence;
-  const text = textFromStreamMessage(message);
+function timelineItemsFromStreamMessage(event: ExperimentPlannerEvent & { type: "STREAM_EVENT_RECEIVED" }): AgentTimelineItem[] {
+  const sequence = event.message.sequence;
+  const text = textFromStreamMessage(event);
   const textItem: AgentTimelineItem[] =
-    text && message.message.role === "assistant"
-      ? [{ id: `message:${message.message.id}`, sequence, kind: "assistant_message", message: { message_id: message.message.id, role: "assistant", content: text } }]
+    text && event.message.role === "assistant"
+      ? [{ id: `message:${event.message.id}`, sequence, kind: "assistant_message", message: { message_id: event.message.id, role: "assistant", content: text } }]
       : [];
-  const documentItems: AgentTimelineItem[] = documentsFromStreamMessage(message).map((document) => ({
+  const documentItems: AgentTimelineItem[] = documentsFromStreamMessage(event).map((document) => ({
     id: `document:${document.document_id}`,
     sequence,
     kind: "document",
     document,
   }));
-  const toolItems: AgentTimelineItem[] = toolLogsFromStreamMessage(message).map((tool) => ({
+  const toolItems: AgentTimelineItem[] = toolLogsFromStreamMessage(event).map((tool) => ({
     id: `tool:${tool.sequence}:${tool.tool_name}`,
     sequence,
     kind: "tool",
@@ -89,11 +98,11 @@ function timelineItemsFromStreamMessage(message: ExperimentPlannerEvent & { type
   return [...textItem, ...documentItems, ...toolItems];
 }
 
-function payloadFromStreamMessage(message: ExperimentPlannerEvent & { type: "STREAM_EVENT_RECEIVED" }): AgentResultPayload | null {
-  const approvalBlock = message.message.blocks.find((block) => block.kind === "approval" && block.payload);
+function payloadFromStreamMessage(event: ExperimentPlannerEvent & { type: "STREAM_EVENT_RECEIVED" }): AgentResultPayload | null {
+  const approvalBlock = event.message.blocks.find((block) => block.kind === "approval" && block.payload);
   if (approvalBlock?.kind === "approval" && approvalBlock.payload) return approvalBlock.payload;
 
-  const artifactBlock = message.message.blocks.find((block) => block.kind === "artifact" && isAgentResultPayload(block.content));
+  const artifactBlock = event.message.blocks.find((block) => block.kind === "artifact" && isAgentResultPayload(block.content));
   if (artifactBlock?.kind === "artifact" && isAgentResultPayload(artifactBlock.content)) return artifactBlock.content;
 
   return null;
@@ -105,386 +114,289 @@ function isAgentResultPayload(value: unknown): value is AgentResultPayload {
   return Array.isArray(candidate.signals) && Array.isArray(candidate.hypotheses) && typeof candidate.experiment_plan === "object" && candidate.experiment_plan !== null;
 }
 
-function nextSequence(current: number, sequence: number | null | undefined) {
-  return typeof sequence === "number" ? Math.max(current, sequence) : current;
-}
-
-function cancelledStateFromTimeline(
-  state: {
-    threadId: string;
-    messages?: AgentMessage[];
-    documents?: AgentDocument[];
-    observations?: AgentThreadObservation[];
-    toolLogs?: ToolCallLog[];
-    timelineItems?: AgentTimelineItem[];
-    lastReceivedSequence?: number;
-    recoveryStatus?: AgentStreamRecoveryStatus;
+export const initialExperimentPlannerState: ExperimentPlannerState = {
+  phase: "idle",
+  composer: {
+    question: "",
+    file: null,
   },
-  message: string,
-  overrides?: {
-    messages?: AgentMessage[];
-    documents?: AgentDocument[];
-    observations?: AgentThreadObservation[];
-    toolLogs?: ToolCallLog[];
-    timelineItems?: AgentTimelineItem[];
-    lastReceivedSequence?: number;
-    recoveryStatus?: AgentStreamRecoveryStatus;
-  }
-): ExperimentPlannerState {
-  return {
-    tag: "analysis_cancelled",
-    threadId: state.threadId,
-    message,
-    messages: overrides?.messages ?? state.messages ?? [],
-    documents: overrides?.documents ?? state.documents ?? [],
-    observations: overrides?.observations ?? state.observations ?? [],
-    toolLogs: overrides?.toolLogs ?? state.toolLogs ?? [],
-    timelineItems: overrides?.timelineItems ?? state.timelineItems ?? [],
-    lastReceivedSequence: overrides?.lastReceivedSequence ?? state.lastReceivedSequence ?? 0,
-    recoveryStatus: overrides?.recoveryStatus ?? state.recoveryStatus ?? "idle",
-  };
+  importResult: null,
+  thread: {
+    threadId: null,
+    streamUrl: null,
+    connection: "idle",
+    messages: [],
+    documents: [],
+    observations: [],
+    toolLogs: [],
+    timelineItems: [],
+    lastReceivedSequence: 0,
+    recoveryStatus: "idle",
+  },
+  review: {
+    payload: null,
+    activeSignalId: null,
+    approvalId: null,
+    selectedExperimentIds: [],
+    draftExperiments: [],
+    dirty: false,
+    approving: false,
+    approval: null,
+    approvalResult: null,
+    calendarEvents: [],
+  },
+  restore: {
+    parentBriefId: null,
+    previousHypothesis: "",
+    previousActionSummary: "",
+    observedResultSummary: null,
+    continuityPrompt: "",
+  },
+  error: null,
+};
+
+function clearError(state: ExperimentPlannerState): ExperimentPlannerState {
+  return { ...state, error: null };
 }
-
-const defaultQuestion = "";
-
-function questionFromState(state: ExperimentPlannerState) {
-  return "question" in state ? state.question : defaultQuestion;
-}
-
-export const initialExperimentPlannerState: ExperimentPlannerState = { tag: "idle", question: defaultQuestion };
 
 export function experimentPlannerReducer(state: ExperimentPlannerState, event: ExperimentPlannerEvent): ExperimentPlannerState {
   switch (event.type) {
     case "UPDATE_QUESTION":
-      if ("question" in state) {
-        return { ...state, question: event.question };
-      }
-      return state;
+      return { ...state, composer: { ...state.composer, question: event.question } };
 
     case "SELECT_CSV":
-      return { tag: "csv_selected", file: event.file, question: questionFromState(state) };
+      return {
+        ...clearError(state),
+        phase: "input_ready",
+        composer: { ...state.composer, file: event.file },
+      };
 
     case "IMPORT_REQUESTED":
-      if (state.tag !== "csv_selected" && state.tag !== "import_failed") return state;
-      return { tag: "importing_csv", file: state.file ?? eventFileFallback(), question: state.question };
+      if (!state.composer.file) return state;
+      return { ...clearError(state), phase: "importing" };
 
     case "IMPORT_SUCCEEDED":
-      if (state.tag !== "importing_csv") return state;
-      return { tag: "import_succeeded", file: state.file, importResult: event.importResult, question: state.question };
+      return {
+        ...clearError(state),
+        phase: "input_ready",
+        importResult: event.importResult,
+      };
 
     case "IMPORT_FAILED":
-      if (state.tag !== "importing_csv") return { tag: "import_failed", question: questionFromState(state), message: event.message };
-      return { tag: "import_failed", file: state.file, question: state.question, message: event.message };
+      return { ...state, phase: "import_failed", error: { message: event.message, recoverable: true } };
 
     case "AGENT_SESSION_REQUESTED":
-      if (state.tag === "import_succeeded") {
-        return { tag: "starting_analysis", source: { kind: "csv_import", importResult: state.importResult, question: state.question } };
-      }
-      if (state.tag === "restored_context") {
-        return {
-          tag: "starting_analysis",
-          source: {
-            kind: "continued_brief",
-            parentBriefId: state.parentBriefId,
-            previousHypothesis: state.previousHypothesis,
-            previousActionSummary: state.previousActionSummary,
-            observedResultSummary: state.observedResultSummary,
-            continuityPrompt: state.continuityPrompt,
-          },
-        };
-      }
-      return state;
+      if (!state.importResult && state.phase !== "restored_context") return state;
+      return { ...clearError(state), phase: "starting" };
 
     case "AGENT_SESSION_ACCEPTED":
-      if (state.tag !== "starting_analysis") return state;
-      return { tag: "analysis_pending", threadId: event.threadId, streamUrl: event.streamUrl, status: "PENDING", toolLogs: [] };
+      return {
+        ...clearError(state),
+        phase: "connecting",
+        thread: {
+          ...state.thread,
+          threadId: event.threadId,
+          streamUrl: event.streamUrl,
+          connection: "idle",
+          messages: [],
+          documents: [],
+          observations: [],
+          toolLogs: [],
+          timelineItems: [],
+          lastReceivedSequence: 0,
+          recoveryStatus: "idle",
+        },
+        review: {
+          ...state.review,
+          payload: null,
+          activeSignalId: null,
+          approvalId: null,
+          selectedExperimentIds: [],
+          draftExperiments: [],
+          dirty: false,
+          approving: false,
+          approval: null,
+          approvalResult: null,
+          calendarEvents: [],
+        },
+      };
 
     case "AGENT_SESSION_FAILED":
-      return { tag: "analysis_failed", message: event.message, recoverable: true };
+      return { ...state, phase: "failed", error: { message: event.message, recoverable: true } };
 
     case "STREAM_CONNECT_REQUESTED":
-      if (state.tag !== "analysis_pending") return state;
+      if (!state.thread.threadId || !state.thread.streamUrl) return state;
       return {
-        tag: "stream_connecting",
-        threadId: state.threadId,
-        streamUrl: state.streamUrl,
-        toolLogs: state.toolLogs,
-        messages: [],
-        documents: [],
-        timelineItems: [],
-        lastReceivedSequence: 0,
-        recoveryStatus: "idle",
+        ...clearError(state),
+        phase: "connecting",
+        thread: { ...state.thread, connection: "connecting" },
       };
 
     case "STREAM_CONNECTED":
-      if (state.tag !== "stream_connecting") return state;
       return {
-        tag: "analysis_running",
-        threadId: state.threadId,
-        streamUrl: state.streamUrl,
-        status: "ANALYZING_SIGNAL",
-        currentStage: null,
-        steps: [],
-        messages: state.messages,
-        documents: state.documents,
-        observations: [],
-        toolLogs: state.toolLogs,
-        timelineItems: state.timelineItems,
-        lastReceivedSequence: state.lastReceivedSequence,
-        recoveryStatus: state.recoveryStatus,
+        ...clearError(state),
+        phase: "live",
+        thread: { ...state.thread, connection: "open" },
       };
 
     case "STREAM_EVENT_RECEIVED": {
-      if (
-        state.tag !== "stream_connecting" &&
-        state.tag !== "analysis_running" &&
-        state.tag !== "signal_review" &&
-        state.tag !== "waiting_for_approval" &&
-        state.tag !== "editing_plan" &&
-        state.tag !== "approving"
-      ) {
-        return state;
-      }
-      if (event.message.sequence <= state.lastReceivedSequence) {
-        return state;
-      }
-
-      const base =
-        state.tag === "stream_connecting"
-          ? {
-              threadId: state.threadId,
-              streamUrl: state.streamUrl,
-              steps: [],
-              messages: state.messages,
-              documents: state.documents,
-              observations: [],
-              toolLogs: state.toolLogs,
-              timelineItems: state.timelineItems,
-              lastReceivedSequence: state.lastReceivedSequence,
-              recoveryStatus: state.recoveryStatus,
-            }
-          : state;
+      if (event.message.sequence <= state.thread.lastReceivedSequence) return state;
 
       const text = textFromStreamMessage(event);
       const messageFromFrame: AgentMessage | null =
         text && event.message.role === "user"
           ? { message_id: event.message.id, role: "user", content: text }
           : null;
-      const documents = documentsFromStreamMessage(event).reduce((nextDocuments, document) => mergeDocument(nextDocuments, document), base.documents);
-      const toolLogs = toolLogsFromStreamMessage(event).reduce((nextToolLogs, toolLog) => mergeToolLog(nextToolLogs, toolLog), base.toolLogs);
-      const timelineItems = mergeTimelineItems(base.timelineItems, timelineItemsFromStreamMessage(event));
-      const messages = mergeMessage(base.messages, messageFromFrame);
-      const observations = base.observations;
-      const steps = base.steps;
-      const lastReceivedSequence = nextSequence(base.lastReceivedSequence, event.message.sequence);
-      const payload = payloadFromStreamMessage(event) ?? ("payload" in base ? base.payload : null);
+      const documents = documentsFromStreamMessage(event).reduce((nextDocuments, document) => mergeDocument(nextDocuments, document), state.thread.documents);
+      const toolLogs = toolLogsFromStreamMessage(event).reduce((nextToolLogs, toolLog) => mergeToolLog(nextToolLogs, toolLog), state.thread.toolLogs);
+      const timelineItems = mergeTimelineItems(state.thread.timelineItems, timelineItemsFromStreamMessage(event));
+      const messages = mergeMessage(state.thread.messages, messageFromFrame);
+      const payload = payloadFromStreamMessage(event) ?? state.review.payload;
       const approvalBlock = event.message.blocks.find((block) => block.kind === "approval");
       const resultBlock = event.message.blocks.find((block) => block.kind === "result");
       const errorBlock = event.message.blocks.find((block) => block.kind === "error");
-      const signal = payload?.signals[0] ?? null;
+
+      const thread = {
+        ...state.thread,
+        connection: "open" as const,
+        messages,
+        documents,
+        toolLogs,
+        timelineItems,
+        lastReceivedSequence: event.message.sequence,
+      };
 
       if (errorBlock) {
-        return { tag: "analysis_failed", threadId: base.threadId, message: errorBlock.detail ?? errorBlock.title, recoverable: errorBlock.retryable ?? true };
-      }
-
-      if (approvalBlock?.kind === "approval" && payload) {
         return {
-          tag: "waiting_for_approval",
-          threadId: base.threadId,
-          streamUrl: base.streamUrl,
-          approvalId: approvalBlock.id,
-          payload,
-          selectedExperimentIds: payload.experiment_plan.items.map((item) => item.id),
-          draftExperiments: payload.experiment_plan.items,
-          steps,
-          messages,
-          documents,
-          observations,
-          toolLogs,
-          timelineItems,
-          lastReceivedSequence,
-          recoveryStatus: base.recoveryStatus,
+          ...state,
+          phase: "failed",
+          thread,
+          error: { message: errorBlock.detail ?? errorBlock.title, recoverable: errorBlock.retryable ?? true },
         };
       }
 
       if (resultBlock?.kind === "result" && resultBlock.approval_result) {
-        const finalExperiments = "draftExperiments" in base ? base.draftExperiments.filter((experiment) => base.selectedExperimentIds.includes(experiment.id)) : [];
+        const finalExperiments = state.review.draftExperiments.filter((experiment) => state.review.selectedExperimentIds.includes(experiment.id));
         return {
-          tag: "approved",
-          threadId: base.threadId,
-          approval: {
-            ok: true,
-            message: resultBlock.title,
-            growth_brief_id: resultBlock.approval_result.growth_brief_id,
-            created_calendar_events: resultBlock.approval_result.created_calendar_events,
-            persisted_at: resultBlock.approval_result.persisted_at,
+          ...clearError(state),
+          phase: "approved",
+          thread,
+          review: {
+            ...state.review,
+            approving: false,
+            approval: {
+              ok: true,
+              message: resultBlock.title,
+              growth_brief_id: resultBlock.approval_result.growth_brief_id,
+              created_calendar_events: resultBlock.approval_result.created_calendar_events,
+              persisted_at: resultBlock.approval_result.persisted_at,
+            },
+            approvalResult: resultBlock.approval_result,
+            calendarEvents: resultBlock.approval_result.created_calendar_events,
+            draftExperiments: state.review.draftExperiments.length > 0 ? state.review.draftExperiments : finalExperiments,
           },
-          approvalResult: resultBlock.approval_result,
-          calendarEvents: resultBlock.approval_result.created_calendar_events,
-          finalExperiments,
-          messages,
-          documents,
-          observations,
-          toolLogs,
-          timelineItems,
-          lastReceivedSequence,
-          recoveryStatus: base.recoveryStatus,
         };
       }
 
-      if (signal && payload && state.tag !== "waiting_for_approval" && state.tag !== "editing_plan" && state.tag !== "approving") {
+      if (approvalBlock?.kind === "approval" && payload) {
         return {
-          tag: "signal_review",
-          threadId: base.threadId,
-          streamUrl: base.streamUrl,
-          status: "GENERATING_HYPOTHESIS",
-          currentStage: null,
-          signal,
-          payload,
-          steps,
-          messages,
-          documents,
-          observations,
-          toolLogs,
-          timelineItems,
-          lastReceivedSequence,
-          recoveryStatus: base.recoveryStatus,
+          ...clearError(state),
+          phase: "awaiting_approval",
+          thread,
+          review: {
+            ...state.review,
+            payload,
+            activeSignalId: payload.signals[0]?.id ?? state.review.activeSignalId,
+            approvalId: approvalBlock.id,
+            selectedExperimentIds: payload.experiment_plan.items.map((item) => item.id),
+            draftExperiments: payload.experiment_plan.items,
+            dirty: false,
+            approving: false,
+          },
         };
       }
 
-      if (state.tag === "signal_review") {
+      if (payload && payload.signals[0] && state.phase !== "awaiting_approval" && state.phase !== "approved") {
         return {
-          ...state,
-          payload: payload ?? state.payload,
-          steps,
-          messages,
-          documents,
-          observations,
-          toolLogs,
-          timelineItems,
-          lastReceivedSequence,
-          recoveryStatus: base.recoveryStatus,
-        };
-      }
-
-      if (state.tag !== "stream_connecting" && state.tag !== "analysis_running") {
-        return {
-          ...state,
-          steps,
-          messages,
-          documents,
-          observations,
-          toolLogs,
-          timelineItems,
-          lastReceivedSequence,
-          recoveryStatus: base.recoveryStatus,
+          ...clearError(state),
+          phase: "signal_review",
+          thread,
+          review: {
+            ...state.review,
+            payload,
+            activeSignalId: payload.signals[0].id,
+          },
         };
       }
 
       return {
-        tag: "analysis_running",
-        threadId: base.threadId,
-        streamUrl: base.streamUrl,
-        status: "SEARCHING_EVIDENCE",
-        currentStage: null,
-        steps,
-        messages,
-        documents,
-        observations,
-        toolLogs,
-        timelineItems,
-        lastReceivedSequence,
-        recoveryStatus: base.recoveryStatus,
+        ...clearError(state),
+        phase: state.phase === "connecting" ? "live" : state.phase,
+        thread,
+        review: payload ? { ...state.review, payload } : state.review,
       };
     }
 
     case "SIGNAL_CONFIRMED":
-      if (state.tag !== "signal_review") return state;
-      return {
-        tag: "analysis_running",
-        threadId: state.threadId,
-        streamUrl: state.streamUrl,
-        status: state.status,
-        currentStage: state.currentStage,
-        steps: state.steps,
-        messages: state.messages,
-        documents: state.documents,
-        observations: state.observations,
-        toolLogs: state.toolLogs,
-        timelineItems: state.timelineItems,
-        lastReceivedSequence: state.lastReceivedSequence,
-        recoveryStatus: state.recoveryStatus,
-      };
+      if (state.phase !== "signal_review") return state;
+      return { ...state, phase: "live" };
 
     case "STREAM_FAILED":
       return {
-        tag: "analysis_failed",
-        threadId: event.threadId,
-        message: event.message,
-        recoverable: true,
+        ...state,
+        phase: "failed",
+        thread: { ...state.thread, connection: "error", threadId: event.threadId ?? state.thread.threadId },
+        error: { message: event.message, recoverable: true },
       };
 
     case "EDIT_EXPERIMENT":
-      if (state.tag !== "waiting_for_approval" && state.tag !== "editing_plan") return state;
+      if (state.phase !== "awaiting_approval") return state;
       return {
         ...state,
-        tag: "editing_plan",
-        dirty: true,
-        draftExperiments: updateDraftExperiment(state.draftExperiments, event.experimentId, event.patch),
+        review: {
+          ...state.review,
+          dirty: true,
+          draftExperiments: updateDraftExperiment(state.review.draftExperiments, event.experimentId, event.patch),
+        },
       };
 
     case "APPROVE_SENT":
-      if (state.tag !== "waiting_for_approval" && state.tag !== "editing_plan") return state;
+      if (state.phase !== "awaiting_approval") return state;
       return {
-        tag: "approving",
-        threadId: state.threadId,
-        streamUrl: state.streamUrl,
-        approvalId: state.approvalId,
-        payload: state.payload,
-        selectedExperimentIds: state.selectedExperimentIds,
-        draftExperiments: state.draftExperiments,
-        steps: state.steps,
-        messages: state.messages,
-        documents: state.documents,
-        observations: state.observations,
-        toolLogs: state.toolLogs,
-        timelineItems: state.timelineItems,
-        lastReceivedSequence: state.lastReceivedSequence,
-        recoveryStatus: state.recoveryStatus,
+        ...clearError(state),
+        review: { ...state.review, approving: true },
       };
 
-    case "RUN_COMPLETED":
-      if (state.tag !== "approving") return state;
+    case "SESSION_COMPLETED":
       return {
-        tag: "approved",
-        threadId: state.threadId,
-        approval: event.approval,
-        approvalResult: null,
-        calendarEvents: event.approval.created_calendar_events,
-        finalExperiments: state.draftExperiments.filter((experiment) => state.selectedExperimentIds.includes(experiment.id)),
-        messages: state.messages,
-        documents: state.documents,
-        observations: state.observations,
-        toolLogs: state.toolLogs,
-        timelineItems: state.timelineItems,
-        lastReceivedSequence: state.lastReceivedSequence,
-        recoveryStatus: state.recoveryStatus,
+        ...clearError(state),
+        phase: "approved",
+        review: {
+          ...state.review,
+          approving: false,
+          approval: event.approval,
+          approvalResult: null,
+          calendarEvents: event.approval.created_calendar_events,
+        },
       };
 
     case "APPROVE_FAILED":
-      return { tag: "approval_failed", message: event.message, recoverable: true };
+      return {
+        ...state,
+        phase: "approval_failed",
+        review: { ...state.review, approving: false },
+        error: { message: event.message, recoverable: true },
+      };
 
     case "CANCEL_SENT":
-      if (!("threadId" in state) || !state.threadId) return state;
-      return cancelledStateFromTimeline({ ...state, threadId: state.threadId }, event.reason ?? "Agent session cancelled.");
-
     case "REJECT_SENT":
-      if (!("threadId" in state) || !state.threadId) return state;
-      return cancelledStateFromTimeline({ ...state, threadId: state.threadId }, event.reason ?? "Approval rejected.");
-
-    case "RUN_CANCELLED":
-      if (!("threadId" in state) || !state.threadId) return state;
-      return cancelledStateFromTimeline({ ...state, threadId: state.threadId }, event.message);
+    case "SESSION_CANCELLED":
+      return {
+        ...state,
+        phase: "cancelled",
+        thread: { ...state.thread, connection: "closed" },
+        error: { message: "message" in event ? event.message : event.reason ?? "Agent session cancelled.", recoverable: true },
+      };
 
     case "RESET":
       return initialExperimentPlannerState;
@@ -492,8 +404,4 @@ export function experimentPlannerReducer(state: ExperimentPlannerState, event: E
     default:
       return state;
   }
-}
-
-function eventFileFallback(): File {
-  return new File([], "selected.csv", { type: "text/csv" });
 }

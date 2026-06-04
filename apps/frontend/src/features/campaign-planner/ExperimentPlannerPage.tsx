@@ -181,10 +181,10 @@ function Topbar({
         <button className="round-button" aria-label="Notifications">
           <Bell size={17} strokeWidth={1.8} />
         </button>
-        {progress.runLabel ? (
+        {progress.threadLabel ? (
           <button className="credit-pill" type="button">
-            <span>Run</span>
-            <b>{progress.runLabel}</b>
+            <span>Thread</span>
+            <b>{progress.threadLabel}</b>
           </button>
         ) : null}
         <button className="avatar" aria-label="Profile">S</button>
@@ -359,7 +359,7 @@ function ThreadPanel({
       case "stop":
         void view.commands.cancel();
         return;
-      case "new_run":
+      case "new_session":
       case "none":
         return;
     }
@@ -385,13 +385,13 @@ function ThreadPanel({
 
       <div className="thread-composer">
         <input id="csv-input" type="file" accept=".csv,text/csv" aria-label="CSV file" disabled={!view.composer.canAttachCsv} onChange={onFileChange} />
-        <label className="composer-label" htmlFor="agent-question">Agent instructions</label>
         <textarea
           id="agent-question"
           className="composer-input"
+          aria-label="Message"
           value={view.composer.value}
           placeholder={view.composer.placeholder}
-          rows={2}
+          rows={1}
           disabled={view.composer.inputDisabled}
           onChange={(event) => view.commands.updateQuestion(event.target.value)}
         />
@@ -591,7 +591,7 @@ function InspectorPanel({
           </section>
         ) : null}
 
-        {activeDocument ? (
+        {activeDocument && !view.inspector.currentGate ? (
           <section className="inspector-section document-viewer" aria-label={documentDisplayTitle(activeDocument)}>
             <article className="markdown-document">
               <MarkdownContent markdown={activeDocument.content} />
@@ -603,7 +603,7 @@ function InspectorPanel({
           <section className="inspector-section" aria-label="Current decision">
             <div className="section-title">
               <span>Current decision</span>
-              <small>Continue the run</small>
+              <small>Continue in chat</small>
             </div>
             <GateCard gate={view.inspector.currentGate} view={view} canApprove={canApprove} current />
           </section>

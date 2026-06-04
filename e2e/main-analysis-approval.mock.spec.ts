@@ -8,7 +8,7 @@ test.describe("main analysis approval happy path", () => {
   test("keeps the composer available as a text chat surface before evidence is attached", async ({ page }) => {
     await page.goto("/campaigns/comeback-teaser/planner");
 
-    await page.getByRole("textbox", { name: /agent instructions/i }).fill("I want to focus on retention instead of reach.");
+    await page.getByRole("textbox", { name: /message/i }).fill("I want to focus on retention instead of reach.");
     await page.getByRole("button", { name: /^send$/i }).click();
 
     await expect(page.getByText(/i want to focus on retention/i)).toBeVisible();
@@ -49,7 +49,7 @@ test.describe("main analysis approval happy path", () => {
     await expect(page.getByRole("button", { name: /evidence notes evidence scan/i })).toBeVisible();
     await expect(page.getByRole("button", { name: /use this signal/i })).toBeVisible();
 
-    await page.getByRole("textbox", { name: /agent instructions/i }).fill("Please keep the signal grounded in short-form content.");
+    await page.getByRole("textbox", { name: /message/i }).fill("Please keep the signal grounded in short-form content.");
     await page.getByRole("button", { name: /^send$/i }).click();
     await expect(page.getByText(/please keep the signal grounded/i)).toBeVisible();
     await expect(page.getByRole("button", { name: /use this signal/i })).toBeVisible();

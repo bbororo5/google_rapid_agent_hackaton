@@ -28,34 +28,25 @@ export type {
   ToolCallLog,
 };
 
-export type AgentProcessingStatus =
-  | "PENDING"
-  | "ANALYZING_SIGNAL"
-  | "SEARCHING_EVIDENCE"
-  | "GENERATING_HYPOTHESIS"
-  | "DRAFTING_EXPERIMENT"
-  | "WAITING_FOR_APPROVAL"
-  | "SUCCESS"
-  | "FAILED"
-  | "CANCELLED";
+export type PlannerPhase =
+  | "idle"
+  | "input_ready"
+  | "importing"
+  | "import_failed"
+  | "starting"
+  | "connecting"
+  | "live"
+  | "signal_review"
+  | "awaiting_approval"
+  | "approved"
+  | "cancelled"
+  | "failed"
+  | "approval_failed"
+  | "restore_selecting"
+  | "restoring_context"
+  | "restored_context";
 
-export type AgentActivityStage =
-  | "IMPORT_METRICS"
-  | "DETECT_PERFORMANCE_SIGNAL"
-  | "GROUND_WITH_EVIDENCE"
-  | "GENERATE_HYPOTHESIS"
-  | "DRAFT_EXPERIMENT_PLAN"
-  | "WAIT_FOR_APPROVAL"
-  | "APPLY_APPROVED_PLAN";
-
-export type AgentActivityStatus = "PENDING" | "IN_PROGRESS" | "SUCCEEDED" | "FAILED" | "SKIPPED";
-
-export interface AgentActivitySnapshot {
-  id: string;
-  order: number;
-  stage: AgentActivityStage;
-  status: AgentActivityStatus;
-}
+export type AgentStreamRecoveryStatus = "idle";
 
 export interface AgentThreadObservation {
   id: string;
@@ -65,171 +56,60 @@ export interface AgentThreadObservation {
   evidence_refs?: string[];
 }
 
-export type StartingAnalysisSource =
-  | { kind: "csv_import"; importResult: ImportCsvResponse; question: string }
-  | {
-      kind: "continued_brief";
-      parentBriefId: string;
-      previousHypothesis: string;
-      previousActionSummary: string;
-      observedResultSummary: string | null;
-      continuityPrompt: string;
-    };
-
-export type AgentStreamRecoveryStatus = "idle";
-
 export type AgentTimelineItem =
   | { id: string; sequence: number; kind: "assistant_message"; message: AgentMessage }
   | { id: string; sequence: number; kind: "document"; document: AgentDocument }
   | { id: string; sequence: number; kind: "observation"; observation: AgentThreadObservation }
   | { id: string; sequence: number; kind: "tool"; tool: ToolCallLog };
 
-export type ExperimentPlannerState =
-  | { tag: "idle"; question: string }
-  | { tag: "csv_selected"; file: File; question: string }
-  | { tag: "importing_csv"; file: File; question: string }
-  | { tag: "import_succeeded"; file: File; importResult: ImportCsvResponse; question: string }
-  | { tag: "import_failed"; file?: File; question: string; message: string }
-  | { tag: "starting_analysis"; source: StartingAnalysisSource }
-  | { tag: "analysis_pending"; threadId: string; streamUrl: string; status: "PENDING"; toolLogs: ToolCallLog[] }
-  | {
-      tag: "stream_connecting";
-      threadId: string;
-      streamUrl: string;
-      toolLogs: ToolCallLog[];
-      lastReceivedSequence: number;
-      messages: AgentMessage[];
-      documents: AgentDocument[];
-      timelineItems: AgentTimelineItem[];
-      recoveryStatus: AgentStreamRecoveryStatus;
-    }
-  | {
-      tag: "analysis_running";
-      threadId: string;
-      streamUrl: string;
-      status: Exclude<AgentProcessingStatus, "PENDING" | "WAITING_FOR_APPROVAL" | "SUCCESS" | "FAILED" | "CANCELLED">;
-      currentStage: string | null;
-      steps: AgentActivitySnapshot[];
-      messages: AgentMessage[];
-      documents: AgentDocument[];
-      observations: AgentThreadObservation[];
-      toolLogs: ToolCallLog[];
-      timelineItems: AgentTimelineItem[];
-      lastReceivedSequence: number;
-      recoveryStatus: AgentStreamRecoveryStatus;
-    }
-  | {
-      tag: "signal_review";
-      threadId: string;
-      streamUrl: string;
-      status: Exclude<AgentProcessingStatus, "PENDING" | "WAITING_FOR_APPROVAL" | "SUCCESS" | "FAILED" | "CANCELLED">;
-      currentStage: string | null;
-      signal: Signal;
-      payload: AgentResultPayload;
-      steps: AgentActivitySnapshot[];
-      messages: AgentMessage[];
-      documents: AgentDocument[];
-      observations: AgentThreadObservation[];
-      toolLogs: ToolCallLog[];
-      timelineItems: AgentTimelineItem[];
-      lastReceivedSequence: number;
-      recoveryStatus: AgentStreamRecoveryStatus;
-    }
-  | {
-      tag: "waiting_for_approval";
-      threadId: string;
-      streamUrl: string;
-      approvalId: string;
-      payload: AgentResultPayload;
-      selectedExperimentIds: string[];
-      draftExperiments: ExperimentItem[];
-      steps: AgentActivitySnapshot[];
-      messages: AgentMessage[];
-      documents: AgentDocument[];
-      observations: AgentThreadObservation[];
-      toolLogs: ToolCallLog[];
-      timelineItems: AgentTimelineItem[];
-      lastReceivedSequence: number;
-      recoveryStatus: AgentStreamRecoveryStatus;
-    }
-  | {
-      tag: "editing_plan";
-      threadId: string;
-      streamUrl: string;
-      approvalId: string;
-      payload: AgentResultPayload;
-      selectedExperimentIds: string[];
-      draftExperiments: ExperimentItem[];
-      steps: AgentActivitySnapshot[];
-      messages: AgentMessage[];
-      documents: AgentDocument[];
-      observations: AgentThreadObservation[];
-      toolLogs: ToolCallLog[];
-      timelineItems: AgentTimelineItem[];
-      lastReceivedSequence: number;
-      recoveryStatus: AgentStreamRecoveryStatus;
-      dirty: true;
-    }
-  | {
-      tag: "approving";
-      threadId: string;
-      streamUrl: string;
-      approvalId: string;
-      payload: AgentResultPayload;
-      selectedExperimentIds: string[];
-      draftExperiments: ExperimentItem[];
-      steps: AgentActivitySnapshot[];
-      messages: AgentMessage[];
-      documents: AgentDocument[];
-      observations: AgentThreadObservation[];
-      toolLogs: ToolCallLog[];
-      timelineItems: AgentTimelineItem[];
-      lastReceivedSequence: number;
-      recoveryStatus: AgentStreamRecoveryStatus;
-    }
-  | {
-      tag: "approved";
-      threadId: string;
-      approval: ApproveExperimentPlanResponse;
-      approvalResult: ApprovalCommitResult | null;
-      calendarEvents: CalendarEventRef[];
-      finalExperiments: ExperimentItem[];
-      messages: AgentMessage[];
-      documents: AgentDocument[];
-      observations: AgentThreadObservation[];
-      toolLogs: ToolCallLog[];
-      timelineItems: AgentTimelineItem[];
-      lastReceivedSequence: number;
-      recoveryStatus: AgentStreamRecoveryStatus;
-    }
-  | { tag: "restore_selecting"; parentBriefId: string }
-  | { tag: "restoring_context"; parentBriefId: string }
-  | {
-      tag: "restored_context";
-      parentBriefId: string;
-      previousHypothesis: string;
-      previousActionSummary: string;
-      observedResultSummary: string | null;
-      continuityPrompt: string;
-    }
-  | {
-      tag: "analysis_cancelled";
-      threadId: string;
-      message: string;
-      messages: AgentMessage[];
-      documents: AgentDocument[];
-      observations: AgentThreadObservation[];
-      toolLogs: ToolCallLog[];
-      timelineItems: AgentTimelineItem[];
-      lastReceivedSequence: number;
-      recoveryStatus: AgentStreamRecoveryStatus;
-    }
-  | {
-      tag: "analysis_failed" | "approval_failed";
-      threadId?: string;
-      message: string;
-      recoverable: boolean;
-    };
+export interface ComposerState {
+  question: string;
+  file: File | null;
+}
+
+export interface ThreadState {
+  threadId: string | null;
+  streamUrl: string | null;
+  connection: "idle" | "connecting" | "open" | "closed" | "error";
+  messages: AgentMessage[];
+  documents: AgentDocument[];
+  observations: AgentThreadObservation[];
+  toolLogs: ToolCallLog[];
+  timelineItems: AgentTimelineItem[];
+  lastReceivedSequence: number;
+  recoveryStatus: AgentStreamRecoveryStatus;
+}
+
+export interface ReviewState {
+  payload: AgentResultPayload | null;
+  activeSignalId: string | null;
+  approvalId: string | null;
+  selectedExperimentIds: string[];
+  draftExperiments: ExperimentItem[];
+  dirty: boolean;
+  approving: boolean;
+  approval: ApproveExperimentPlanResponse | null;
+  approvalResult: ApprovalCommitResult | null;
+  calendarEvents: CalendarEventRef[];
+}
+
+export interface RestoreContextState {
+  parentBriefId: string | null;
+  previousHypothesis: string;
+  previousActionSummary: string;
+  observedResultSummary: string | null;
+  continuityPrompt: string;
+}
+
+export interface ExperimentPlannerState {
+  phase: PlannerPhase;
+  composer: ComposerState;
+  importResult: ImportCsvResponse | null;
+  thread: ThreadState;
+  review: ReviewState;
+  restore: RestoreContextState;
+  error: { message: string; recoverable: boolean } | null;
+}
 
 export type ExperimentPlannerEvent =
   | { type: "UPDATE_QUESTION"; question: string }
@@ -247,9 +127,9 @@ export type ExperimentPlannerEvent =
   | { type: "STREAM_FAILED"; threadId?: string; message: string }
   | { type: "EDIT_EXPERIMENT"; experimentId: string; patch: Partial<ExperimentItem> }
   | { type: "APPROVE_SENT" }
-  | { type: "RUN_COMPLETED"; approval: ApproveExperimentPlanResponse }
+  | { type: "SESSION_COMPLETED"; approval: ApproveExperimentPlanResponse }
   | { type: "APPROVE_FAILED"; message: string }
   | { type: "CANCEL_SENT"; reason?: string }
   | { type: "REJECT_SENT"; reason?: string }
-  | { type: "RUN_CANCELLED"; message: string }
+  | { type: "SESSION_CANCELLED"; message: string }
   | { type: "RESET" };
