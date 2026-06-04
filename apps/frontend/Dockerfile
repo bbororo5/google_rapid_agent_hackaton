@@ -14,6 +14,10 @@ COPY apps/frontend apps/frontend
 COPY contracts contracts
 
 WORKDIR /app/apps/frontend
+# NEXT_PUBLIC_* must exist at build time (Next.js inlines it). Points the browser
+# at the real Java backend by default; override via compose build arg.
+ARG NEXT_PUBLIC_AGENT_API_BASE_URL=http://localhost:8080
+ENV NEXT_PUBLIC_AGENT_API_BASE_URL=$NEXT_PUBLIC_AGENT_API_BASE_URL
 RUN npm run build
 
 EXPOSE 3000
