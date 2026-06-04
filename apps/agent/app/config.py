@@ -39,15 +39,20 @@ def _float(name: str, default: float) -> float:
 
 class Settings(BaseModel):
     # --- LLM ---
+    # Two auth paths: AI Studio (gemini_api_key) OR Vertex AI (ADC + project).
     gemini_api_key: str | None = None
     gemini_model: str = "gemini-2.0-flash"  # plain model string ADK accepts
+    use_vertexai: bool = False
+    google_cloud_project: str | None = None
+    google_cloud_location: str = "us-central1"
 
     # --- Evidence (Elastic via MCP) ---
     elastic_mcp_url: str | None = None
     elastic_mcp_transport: str = "streamable_http"
 
-    # --- Reflection export (Phoenix/Arize) ---
+    # --- Reflection export (Phoenix Cloud / Arize track) ---
     phoenix_endpoint: str | None = None
+    phoenix_api_key: str | None = None
     phoenix_project: str = "launchpilot-agent"
 
     # --- Server ---
@@ -63,8 +68,9 @@ class Settings(BaseModel):
 
     @property
     def use_real_llm(self) -> bool:
-        # Presence of an API key is the single switch between ADK and stub workers.
-        return bool(self.gemini_api_key)
+        # Real ADK workers run when EITHER an AI Studio key is set OR Vertex is
+        # configured (ADC handles Vertex auth, so a project id is the signal).
+        return bool(self.gemini_api_key) or (self.use_vertexai and bool(self.google_cloud_project))
 
     @property
     def use_real_elastic(self) -> bool:
@@ -78,9 +84,13 @@ def get_settings() -> Settings:
     return Settings(
         gemini_api_key=os.environ.get("GEMINI_API_KEY") or None,
         gemini_model=os.environ.get("GEMINI_MODEL") or "gemini-2.0-flash",
+        use_vertexai=(os.environ.get("GOOGLE_GENAI_USE_VERTEXAI", "").upper() in ("TRUE", "1")),
+        google_cloud_project=os.environ.get("GOOGLE_CLOUD_PROJECT") or None,
+        google_cloud_location=os.environ.get("GOOGLE_CLOUD_LOCATION") or "us-central1",
         elastic_mcp_url=os.environ.get("ELASTIC_MCP_URL") or None,
         elastic_mcp_transport=os.environ.get("ELASTIC_MCP_TRANSPORT") or "streamable_http",
         phoenix_endpoint=os.environ.get("PHOENIX_COLLECTOR_ENDPOINT") or None,
+        phoenix_api_key=os.environ.get("PHOENIX_API_KEY") or None,
         phoenix_project=os.environ.get("PHOENIX_PROJECT_NAME") or "launchpilot-agent",
         port=_int("PORT", 8000),
         signal_threshold_high=_float("SIGNAL_THRESHOLD_HIGH", 2.0),
