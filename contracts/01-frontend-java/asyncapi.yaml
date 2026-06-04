@@ -7,7 +7,10 @@ info:
     the Next.js frontend and Java Spring Boot gateway. REST endpoints create
     agent runs and provide coarse snapshots; live conversation delivery,
     approval/cancel commands, reconnect resume, and missed-event replay are
-    handled over this WebSocket contract.
+    handled over this WebSocket contract. The Python Agent Service emits
+    LaunchPilot timeline events in user-observable order. The Java backend
+    relays, persists, sequences, and replays those events without reconstructing
+    or reordering the agent narrative.
 servers:
   local:
     url: localhost:8080/api
@@ -48,14 +51,14 @@ components:
           summary: Agent run enters the active runtime after REST run creation.
           payload:
             $ref: "./examples/agent-stream-run-started-event.json"
+        - name: observationCreated
+          summary: Agent reports a user-visible reasoning or evidence summary.
+          payload:
+            $ref: "./examples/agent-stream-observation-created-event.json"
         - name: documentCreated
           summary: Agent publishes a markdown document that can be opened in the inspector.
           payload:
             $ref: "./examples/agent-stream-document-created-event.json"
-        - name: observationCreated
-          summary: Agent reports a grounded observation while analyzing evidence.
-          payload:
-            $ref: "./examples/agent-stream-observation-created-event.json"
         - name: approvalRequested
           summary: Agent pauses before creating business outputs.
           payload:
@@ -175,6 +178,7 @@ components:
       enum:
         - connection.resume
         - connection.full_sync
+        - run.continue
         - run.cancel
         - approval.update_payload
         - approval.approve
@@ -490,6 +494,7 @@ components:
           minimum: 1
           description: >
             Monotonic per-agent-run sequence for persisted timeline events.
+            Persisted events are emitted and replayed in user-observable order.
             Connection control events may omit sequence.
         occurred_at:
           type: string
@@ -603,6 +608,7 @@ components:
         type:
           type: string
           enum:
+            - run.continue
             - run.cancel
             - approval.update_payload
             - approval.approve

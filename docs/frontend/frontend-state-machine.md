@@ -1,8 +1,8 @@
 # LaunchPilot Frontend State Machine
 
-Status: Draft v0.1  
-Scope: War Room frontend state machine for the main analysis-to-approval flow  
-Last updated: 2026-06-01
+Status: Draft v0.2  
+Scope: Experiment Planner frontend state machine for the main analysis-to-approval flow  
+Last updated: 2026-06-02
 
 ## Purpose
 
@@ -13,14 +13,15 @@ This state machine translates the contracts and executable scenario into impleme
 - `contracts/01-frontend-java/frontend-types.ts`
 - `scenarios/main-analysis-approval.scenario.json`
 - `e2e/main-analysis-approval.mock.spec.ts`
-- `docs/product/mvp-requirements-traceability.md`
+- `docs/product/mvp-product-requirements.md`
 
 ## Design Principles
 
 - The frontend only talks to the Java Backend public API.
 - Candidate experiment plans live in frontend memory until approval.
-- Backend polling state is the source of truth for analysis progress.
-- User edits are local draft state until `APPROVE_REQUESTED`.
+- The WebSocket run stream is the primary source of truth for live analysis progress.
+- Backend snapshots are the fallback source of truth for reconnect, refresh recovery, and stream failure.
+- User edits are local draft state until `APPROVE_SENT`.
 - Approval success creates calendar/brief output and moves the UI into an approved state.
 - A continued session must preserve the linear chain from prior hypothesis to approved action, observed result, and next recommendation.
 - The reducer should make impossible states unrepresentable.
@@ -41,24 +42,29 @@ stateDiagram-v2
   starting_analysis --> analysis_pending: RUN_AGENT_ACCEPTED
   starting_analysis --> analysis_failed: RUN_AGENT_FAILED
 
-  analysis_pending --> analysis_running: POLL_RUNNING
-  analysis_running --> analysis_running: POLL_RUNNING
-  analysis_pending --> waiting_for_approval: POLL_READY
-  analysis_running --> waiting_for_approval: POLL_READY
-  analysis_pending --> analysis_failed: POLL_FAILED
-  analysis_running --> analysis_failed: POLL_FAILED
+  analysis_pending --> stream_connecting: STREAM_CONNECT_REQUESTED
+  stream_connecting --> analysis_running: STREAM_CONNECTED
+  stream_connecting --> analysis_running: SNAPSHOT_RECOVERED
+  stream_connecting --> analysis_failed: STREAM_FAILED
+  analysis_running --> analysis_running: STREAM_EVENT_RECEIVED
+  analysis_running --> waiting_for_approval: APPROVAL_REQUESTED
+  analysis_running --> analysis_cancelled: RUN_CANCELLED
+  analysis_running --> analysis_failed: RUN_FAILED
 
   waiting_for_approval --> editing_plan: EDIT_EXPERIMENT
   editing_plan --> editing_plan: EDIT_EXPERIMENT
-  waiting_for_approval --> approving: APPROVE_REQUESTED
-  editing_plan --> approving: APPROVE_REQUESTED
+  waiting_for_approval --> approving: APPROVE_SENT
+  editing_plan --> approving: APPROVE_SENT
+  waiting_for_approval --> analysis_cancelled: CANCEL_SENT
+  editing_plan --> analysis_cancelled: CANCEL_SENT
 
-  approving --> approved: APPROVE_SUCCEEDED
+  approving --> approved: RUN_COMPLETED
   approving --> approval_failed: APPROVE_FAILED
   approval_failed --> editing_plan: EDIT_EXPERIMENT
-  approval_failed --> approving: APPROVE_REQUESTED
+  approval_failed --> approving: APPROVE_SENT
 
   analysis_failed --> idle: RESET
+  analysis_cancelled --> idle: RESET
   approved --> idle: RESET
 
   approved --> restore_selecting: CONTINUE_FROM_BRIEF
@@ -74,8 +80,13 @@ Recommended TypeScript shape:
 
 ```ts
 import type {
+  AgentObservation,
   AgentResultPayload,
   AgentRunStatus,
+  AgentRunStatusResponse,
+  AgentStepSnapshot,
+  AgentStreamServerEvent,
+  ApprovalGateRequest,
   ApproveExperimentPlanResponse,
   CalendarEventRef,
   ExperimentItem,
@@ -83,7 +94,7 @@ import type {
   ToolCallLog,
 } from "@/contracts/frontend-types";
 
-type WarRoomState =
+type ExperimentPlannerState =
   | { tag: "idle" }
   | { tag: "csv_selected"; file: File }
   | { tag: "importing_csv"; file: File }
@@ -102,34 +113,59 @@ type WarRoomState =
             continuityPrompt: string;
           };
     }
-  | { tag: "analysis_pending"; agentRunId: string; status: "PENDING"; toolLogs: ToolCallLog[] }
+  | {
+      tag: "analysis_pending";
+      agentRunId: string;
+      streamUrl: string;
+      snapshotUrl: string;
+      status: "PENDING";
+      toolLogs: ToolCallLog[];
+    }
+  | {
+      tag: "stream_connecting";
+      agentRunId: string;
+      streamUrl: string;
+      snapshotUrl: string;
+      toolLogs: ToolCallLog[];
+    }
   | {
       tag: "analysis_running";
       agentRunId: string;
-      status: Exclude<AgentRunStatus, "PENDING" | "WAITING_FOR_APPROVAL" | "SUCCESS" | "FAILED">;
+      streamUrl: string;
+      snapshotUrl: string;
+      status: Exclude<AgentRunStatus, "PENDING" | "WAITING_FOR_APPROVAL" | "SUCCESS" | "FAILED" | "CANCELLED">;
       currentStage: string | null;
+      steps: AgentStepSnapshot[];
+      observations: AgentObservation[];
       toolLogs: ToolCallLog[];
     }
   | {
       tag: "waiting_for_approval";
       agentRunId: string;
+      approvalId: string;
       payload: AgentResultPayload;
       selectedExperimentIds: string[];
       draftExperiments: ExperimentItem[];
+      steps: AgentStepSnapshot[];
+      observations: AgentObservation[];
       toolLogs: ToolCallLog[];
     }
   | {
       tag: "editing_plan";
       agentRunId: string;
+      approvalId: string;
       payload: AgentResultPayload;
       selectedExperimentIds: string[];
       draftExperiments: ExperimentItem[];
+      steps: AgentStepSnapshot[];
+      observations: AgentObservation[];
       toolLogs: ToolCallLog[];
       dirty: true;
     }
   | {
       tag: "approving";
       agentRunId: string;
+      approvalId: string;
       payload: AgentResultPayload;
       selectedExperimentIds: string[];
       draftExperiments: ExperimentItem[];
@@ -158,6 +194,11 @@ type WarRoomState =
       continuityPrompt: string;
     }
   | {
+      tag: "analysis_cancelled";
+      agentRunId: string;
+      message: string;
+    }
+  | {
       tag: "analysis_failed" | "approval_failed";
       agentRunId?: string;
       message: string;
@@ -168,22 +209,27 @@ type WarRoomState =
 ## Events
 
 ```ts
-type WarRoomEvent =
+type ExperimentPlannerEvent =
   | { type: "SELECT_CSV"; file: File }
   | { type: "IMPORT_REQUESTED" }
   | { type: "IMPORT_SUCCEEDED"; importResult: ImportCsvResponse }
   | { type: "IMPORT_FAILED"; message: string }
   | { type: "RUN_AGENT_REQUESTED" }
-  | { type: "RUN_AGENT_ACCEPTED"; agentRunId: string }
+  | { type: "RUN_AGENT_ACCEPTED"; agentRunId: string; streamUrl: string; snapshotUrl: string }
   | { type: "RUN_AGENT_FAILED"; message: string }
-  | { type: "POLL_RUNNING"; status: AgentRunStatus; currentStage: string | null; toolLogs: ToolCallLog[] }
-  | { type: "POLL_READY"; agentRunId: string; payload: AgentResultPayload; toolLogs: ToolCallLog[] }
-  | { type: "POLL_FAILED"; agentRunId?: string; message: string }
+  | { type: "STREAM_CONNECT_REQUESTED" }
+  | { type: "STREAM_CONNECTED" }
+  | { type: "STREAM_EVENT_RECEIVED"; event: AgentStreamServerEvent }
+  | { type: "SNAPSHOT_RECOVERED"; snapshot: AgentRunStatusResponse }
+  | { type: "STREAM_FAILED"; agentRunId?: string; message: string }
+  | { type: "APPROVAL_REQUESTED"; approval: ApprovalGateRequest; toolLogs: ToolCallLog[] }
   | { type: "TOGGLE_EXPERIMENT"; experimentId: string; selected: boolean }
   | { type: "EDIT_EXPERIMENT"; experimentId: string; patch: Partial<ExperimentItem> }
-  | { type: "APPROVE_REQUESTED" }
-  | { type: "APPROVE_SUCCEEDED"; approval: ApproveExperimentPlanResponse }
+  | { type: "APPROVE_SENT" }
+  | { type: "RUN_COMPLETED"; approval: ApproveExperimentPlanResponse }
   | { type: "APPROVE_FAILED"; message: string }
+  | { type: "CANCEL_SENT"; reason?: string }
+  | { type: "RUN_CANCELLED"; message: string }
   | { type: "CONTINUE_FROM_BRIEF"; parentBriefId: string }
   | { type: "RESTORE_CONTEXT_REQUESTED" }
   | {
@@ -206,14 +252,17 @@ type WarRoomEvent =
 | `importing_csv` | `IMPORT_SUCCEEDED` | `import_succeeded` | Store `ImportCsvResponse`. |
 | `importing_csv` | `IMPORT_FAILED` | `import_failed` | Show retry affordance. |
 | `import_succeeded` | `RUN_AGENT_REQUESTED` | `starting_analysis` | Calls `POST /api/agent/run` with `source.kind = "csv_import"`. |
-| `starting_analysis` | `RUN_AGENT_ACCEPTED` | `analysis_pending` | Store `agent_run_id`. |
-| `analysis_pending` | `POLL_RUNNING` | `analysis_running` | `payload` must be null. |
-| `analysis_running` | `POLL_RUNNING` | `analysis_running` | Append/replace tool logs. |
-| `analysis_pending` / `analysis_running` | `POLL_READY` | `waiting_for_approval` | Initialize `draftExperiments` from `payload.experiment_plan.items`. |
+| `starting_analysis` | `RUN_AGENT_ACCEPTED` | `analysis_pending` | Store `agent_run_id`, `stream_url`, and `next_poll_url`. |
+| `analysis_pending` | `STREAM_CONNECT_REQUESTED` | `stream_connecting` | Open `WS /api/agent/runs/{agent_run_id}/stream`. |
+| `stream_connecting` | `STREAM_CONNECTED` | `analysis_running` | Initialize empty step, observation, and tool timelines. |
+| `stream_connecting` | `SNAPSHOT_RECOVERED` | `analysis_running` or `waiting_for_approval` | Use REST snapshot when stream reconnect needs recovery. |
+| `analysis_running` | `STREAM_EVENT_RECEIVED` | `analysis_running` | Merge step updates, append observations, append/replace tool logs. |
+| `analysis_running` | `APPROVAL_REQUESTED` | `waiting_for_approval` | Initialize `draftExperiments` from `approval.payload.experiment_plan.items`. |
 | `waiting_for_approval` | `EDIT_EXPERIMENT` | `editing_plan` | Local-only draft mutation. |
-| `waiting_for_approval` / `editing_plan` | `APPROVE_REQUESTED` | `approving` | Builds `ApproveExperimentPlanRequest`. |
-| `approving` | `APPROVE_SUCCEEDED` | `approved` | State passing to calendar can use local final experiments. |
+| `waiting_for_approval` / `editing_plan` | `APPROVE_SENT` | `approving` | Sends `approval.approve` over WebSocket, or REST fallback if stream is unavailable. |
+| `approving` | `RUN_COMPLETED` | `approved` | State passing to calendar can use local final experiments. |
 | `approving` | `APPROVE_FAILED` | `approval_failed` | Preserve local draft through retry. |
+| `analysis_running` / `waiting_for_approval` / `editing_plan` | `CANCEL_SENT` | `analysis_cancelled` | Sends `run.cancel` over WebSocket, or REST fallback if stream is unavailable. |
 | `approved` | `CONTINUE_FROM_BRIEF` | `restore_selecting` | Start a new analysis from an approved `growth_brief_id`. |
 | `restore_selecting` | `RESTORE_CONTEXT_REQUESTED` | `restoring_context` | Load previous hypothesis, approved action, and observed result context. |
 | `restoring_context` | `RESTORE_CONTEXT_SUCCEEDED` | `restored_context` | Show continuity context before the next run. |
@@ -225,17 +274,19 @@ type WarRoomEvent =
 
 | State | Primary Screen | Required UI |
 | --- | --- | --- |
-| `idle` | Empty War Room | CSV input labeled with `CSV`; disabled or secondary analyze button. |
-| `csv_selected` | Upload Review | File name, row expectations, primary analyze/import action. |
-| `importing_csv` | Import Progress | Uploading/indexing status. |
-| `import_succeeded` | Ready To Analyze | Imported row count, campaign scope, primary analysis action. |
-| `starting_analysis` | Starting Analysis | Non-blocking spinner, request accepted copy. |
-| `analysis_pending` | Analysis Pending | Agent run ID, polling status. |
-| `analysis_running` | Evidence Search / Reasoning | Visible copy matching `Analyzing`, `Running evidence`, or `Searching evidence`; tool logs. |
-| `waiting_for_approval` | Three-Panel Workroom | Signals, hypotheses, experiment plan, editable experiment title field, approve button. |
-| `editing_plan` | Three-Panel Workroom | Dirty indicator, selected experiment count, approve button. |
+| `idle` | Empty Experiment Planner | CSV input labeled with `CSV`; disabled or secondary analyze button. |
+| `csv_selected` | Input Ready | File chip, optional instructions, enabled `Analyze` action. No run progress yet. |
+| `importing_csv` | Import Progress | Main-stream system status for uploading/indexing. Disable repeat Analyze and CSV replacement; keep instructions editable. No assistant bubble, inspector, or review gate. |
+| `import_succeeded` | Transient Import Complete | Store `ImportCsvResponse`; immediately dispatch `RUN_AGENT_REQUESTED` without a second user click. Show only a short system status. |
+| `starting_analysis` | Starting Agent Run | Progress step `Start agent run` active. Keep composer text editable; do not open inspector. |
+| `analysis_pending` | Run Accepted | Store run ID and stream URL. Progress step moves toward `Connect stream`; no agent result is shown yet. |
+| `stream_connecting` | Connecting Stream | Progress step `Connect stream` active with snapshot recovery fallback. No assistant result until stream events arrive. |
+| `analysis_running` | Agent Workspace | Fixed agent run status, streamed observations in the thread, cancel action, inspector artifacts. |
+| `waiting_for_approval` | Review Surface | Signals, hypotheses, experiment plan, editable experiment fields, approve/reject/cancel controls. |
+| `editing_plan` | Review Surface | Dirty indicator, selected experiment count, approve/reject/cancel controls. |
 | `approving` | Approval In Progress | Disable edits and show persistence status. |
 | `approved` | Calendar / Brief Confirmation | Approved experiment title and approval/calendar confirmation. |
+| `analysis_cancelled` | Cancelled Run | Cancellation confirmation and restart action. |
 | `analysis_failed` | Recoverable Error | Failure message and reset/retry actions. |
 | `approval_failed` | Approval Error | Preserve draft and allow retry. |
 | `restore_selecting` | Continue Prior Brief | Selected prior brief ID and continue action. |
@@ -248,8 +299,10 @@ type WarRoomEvent =
 | --- | --- | --- |
 | `IMPORT_REQUESTED` | `POST /api/import/csv` | `contracts/01-frontend-java/examples/import-csv-response.json` |
 | `RUN_AGENT_REQUESTED` | `POST /api/agent/run` | `contracts/01-frontend-java/examples/agent-run-accepted-response.json` |
-| polling tick | `GET /api/agent/runs/{agent_run_id}` | running or ready agent run response |
-| `APPROVE_REQUESTED` | `POST /api/agent/actions/{agent_run_id}/approve` | `approve-experiment-plan-response.json` |
+| `STREAM_CONNECT_REQUESTED` | `WS /api/agent/runs/{agent_run_id}/stream` | `agent-stream-*-event.json` examples |
+| `SNAPSHOT_RECOVERED` | `GET /api/agent/runs/{agent_run_id}` | running or ready agent run response |
+| `APPROVE_SENT` | `approval.approve` WebSocket command, with REST approve fallback | `agent-stream-approval-approve-command.json`, `approve-experiment-plan-response.json` |
+| `CANCEL_SENT` | `run.cancel` WebSocket command, with REST cancel fallback | `agent-stream-cancel-command.json` |
 | `RESTORE_CONTEXT_REQUESTED` | Frontend prepares local lineage context from the approved brief or selected history entry | `contracts/03-java-elastic/examples/growth-brief.json` |
 | continued `RUN_AGENT_REQUESTED` | `POST /api/agent/run` with `parent_brief_id` | `contracts/01-frontend-java/openapi.yaml`, `contracts/04-agent-elastic-mcp/examples/load-growth-brief-context-response.json` |
 
@@ -264,11 +317,13 @@ Internally, this button runs two ordered effects:
 
 The state machine keeps `import_succeeded` as an explicit state because importing and analysis are different backend responsibilities. The UI may pass through it immediately without requiring a second user click.
 
+Normal import success is not a review gate. The import result can appear as a small system status or history line, but it must not open the action panel or require a `Continue analysis` button.
+
 The user-facing progress copy must still distinguish import work from agent reasoning.
 
 ## Approval Request Construction
 
-When moving from `waiting_for_approval` or `editing_plan` into `approving`, construct:
+When moving from `waiting_for_approval` or `editing_plan` into `approving`, construct a WebSocket `approval.approve` command. If the stream is unavailable, construct the REST fallback:
 
 ```ts
 const request: ApproveExperimentPlanRequest = {
@@ -284,7 +339,7 @@ Validation before approval:
 
 - At least one experiment must be selected.
 - Every selected experiment must have `title`, `hook`, `cta`, `success_criteria`, `scheduled_at`, and `production_brief`.
-- `experiment_plan_id` must come from the latest `POLL_READY` payload.
+- `experiment_plan_id` must come from the latest `approval.requested` payload, or the recovered snapshot payload.
 - MVP default is to approve all draft experiments. Dedicated checkbox selection is deferred; a later chat or command interaction may mutate the draft experiment set before approval.
 
 ## Continuity And Restore Rules
@@ -303,11 +358,12 @@ When the user continues from an approved brief, preserve this lineage:
 
 The UI must make the lineage visible in the continuation surface. The next recommendation should be framed as a follow-up to the previous hypothesis/action/result chain, not as an unrelated fresh analysis.
 
-## Polling Rules
+## Stream And Snapshot Rules
 
-- Poll only in `analysis_pending` and `analysis_running`.
-- Recommended interval: 1500ms.
-- Stop polling immediately on `WAITING_FOR_APPROVAL` or `FAILED`.
+- Open the stream immediately after `RUN_AGENT_ACCEPTED`.
+- Keep active progress in the WebSocket event timeline, not repeated polling ticks.
+- Request a REST snapshot after reconnect, hard refresh, or unexpected stream close.
+- Stop the active stream lifecycle on `WAITING_FOR_APPROVAL`, `SUCCESS`, `FAILED`, or `CANCELLED`.
 - Treat `SUCCESS` from public API as already approved/restored state, not as the normal Python terminal state.
 
 ## Playwright Acceptance Hooks
