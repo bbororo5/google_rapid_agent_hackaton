@@ -16,6 +16,41 @@ test.describe("conversation-first mock server", () => {
     await expect(page.getByText(/리텐션 관점이면/i)).toBeVisible();
   });
 
+  test("sends on Enter while Shift+Enter keeps a multiline draft", async ({ page }) => {
+    await page.goto("/campaigns/comeback-teaser/planner");
+
+    const composer = page.getByRole("textbox", { name: /message/i });
+    await composer.fill("첫 줄");
+    const initialHeight = await composer.evaluate((element) => element.getBoundingClientRect().height);
+
+    await composer.press("Shift+Enter");
+    await composer.type("둘째 줄");
+    const multilineHeight = await composer.evaluate((element) => element.getBoundingClientRect().height);
+    await expect(composer).toHaveValue("첫 줄\n둘째 줄");
+    expect(multilineHeight).toBeGreaterThan(initialHeight);
+
+    await composer.press("Enter");
+    await expect(page.getByText("첫 줄")).toBeVisible();
+    await expect(page.getByText("둘째 줄")).toBeVisible();
+    await expect(composer).toHaveValue("");
+  });
+
+  test("caps composer growth and scrolls long drafts", async ({ page }) => {
+    await page.goto("/campaigns/comeback-teaser/planner");
+
+    const composer = page.getByRole("textbox", { name: /message/i });
+    await composer.fill(Array.from({ length: 12 }, (_, index) => `line ${index + 1}`).join("\n"));
+    const metrics = await composer.evaluate((element) => ({
+      clientHeight: element.clientHeight,
+      scrollHeight: element.scrollHeight,
+      overflowY: window.getComputedStyle(element).overflowY,
+    }));
+
+    expect(metrics.clientHeight).toBeLessThanOrEqual(112);
+    expect(metrics.scrollHeight).toBeGreaterThan(metrics.clientHeight);
+    expect(metrics.overflowY).toBe("auto");
+  });
+
   test("opens the right panel when a markdown document block arrives", async ({ page }) => {
     await page.goto("/campaigns/comeback-teaser/planner");
 

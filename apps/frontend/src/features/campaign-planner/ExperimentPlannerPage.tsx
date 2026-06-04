@@ -1,6 +1,6 @@
 "use client";
 
-import { ChangeEvent, CSSProperties, ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { ChangeEvent, CSSProperties, KeyboardEvent, ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Bell,
@@ -395,6 +395,7 @@ function ThreadPanel({
   onOpenDocument: (document: StreamDocument) => void;
 }) {
   const threadEndRef = useRef<HTMLDivElement | null>(null);
+  const composerInputRef = useRef<HTMLTextAreaElement | null>(null);
   const scrollKey = useMemo(
     () =>
       [
@@ -419,6 +420,14 @@ function ThreadPanel({
     threadEndRef.current?.scrollIntoView({ block: "end", behavior: "auto" });
   }, [scrollKey]);
 
+  useEffect(() => {
+    const input = composerInputRef.current;
+    if (!input) return;
+    input.style.height = "auto";
+    input.style.height = `${Math.min(input.scrollHeight, 112)}px`;
+    input.style.overflowY = input.scrollHeight > 112 ? "auto" : "hidden";
+  }, [view.composer.value]);
+
   const handleComposerPrimaryAction = () => {
     switch (view.composer.primaryAction.kind) {
       case "analyze":
@@ -436,6 +445,14 @@ function ThreadPanel({
         return;
     }
   };
+
+  const handleComposerKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key !== "Enter" || event.shiftKey || event.nativeEvent.isComposing) return;
+    if (view.composer.primaryAction.kind === "none" || view.composer.primaryAction.disabled) return;
+    event.preventDefault();
+    handleComposerPrimaryAction();
+  };
+
   return (
     <section className={`thread-panel${view.thread.hasActivity ? "" : " empty-thread"}`} aria-label="Campaign agent thread" tabIndex={-1}>
       <div className="thread-scroll">
@@ -457,6 +474,7 @@ function ThreadPanel({
       <div className="thread-composer">
         <input id="csv-input" type="file" accept=".csv,text/csv" aria-label="CSV file" disabled={!view.composer.canAttachCsv} onChange={onFileChange} />
         <textarea
+          ref={composerInputRef}
           id="agent-question"
           className="composer-input"
           aria-label="Message"
@@ -465,6 +483,7 @@ function ThreadPanel({
           rows={1}
           disabled={view.composer.inputDisabled}
           onChange={(event) => view.commands.updateQuestion(event.target.value)}
+          onKeyDown={handleComposerKeyDown}
         />
         <div className="composer-toolbar">
           <label

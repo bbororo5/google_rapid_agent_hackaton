@@ -1176,9 +1176,10 @@ a {
 
 .composer-input {
   width: 100%;
-  min-height: 32px;
-  max-height: 92px;
-  resize: vertical;
+  min-height: 24px;
+  max-height: 112px;
+  resize: none;
+  overflow-y: hidden;
   border: 0;
   outline: none;
   background: transparent;
@@ -1186,6 +1187,7 @@ a {
   font: inherit;
   font-size: 15px;
   line-height: 1.35;
+  scrollbar-width: thin;
 }
 
 .composer-input:disabled {
