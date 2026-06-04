@@ -12,7 +12,9 @@ test.describe("main analysis approval happy path", () => {
     await page.getByRole("button", { name: /^send$/i }).click();
 
     await expect(page.getByText(/i want to focus on retention/i)).toBeVisible();
-    await expect(page.getByRole("button", { name: /^send$/i })).toBeDisabled();
+    await expect(page.getByText(/리텐션 관점이면/i)).toBeVisible();
+    await page.getByRole("textbox", { name: /message/i }).fill("Keep it conversational.");
+    await expect(page.getByRole("button", { name: /^send$/i })).toBeEnabled();
   });
 
   test("keeps streamed timeline visible after stopping a run", async ({ page }) => {

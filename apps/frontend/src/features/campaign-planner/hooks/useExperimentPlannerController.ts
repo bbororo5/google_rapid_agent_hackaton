@@ -163,7 +163,7 @@ export interface ExperimentPlannerViewModel {
   commands: {
     selectCsv: (file: File) => void;
     updateQuestion: (question: string) => void;
-    sendMessage: () => void;
+    sendMessage: () => Promise<void>;
     analyze: () => Promise<void>;
     continueSignalReview: () => void;
     editExperiment: (experimentId: string, title: string) => void;
@@ -564,7 +564,6 @@ function composerFromState(state: ExperimentPlannerState, displayState: AgentDis
     case "importing":
     case "starting":
     case "connecting":
-    case "live":
       return {
         ...base,
         mode: "session_in_progress",
@@ -577,6 +576,23 @@ function composerFromState(state: ExperimentPlannerState, displayState: AgentDis
           title: "Stop this analysis",
         },
       };
+    case "live": {
+      const analysisInProgress = Boolean(state.importResult && !state.review.payload);
+      return {
+        ...base,
+        mode: "session_in_progress",
+        inputDisabled: false,
+        canAttachCsv: false,
+        primaryAction: analysisInProgress
+          ? {
+              kind: "stop",
+              label: "Stop",
+              disabled: !state.thread.threadId,
+              title: "Stop this analysis",
+            }
+          : { kind: "send", label: "Send", disabled: !value.trim(), title: "Send a message to the thread" },
+      };
+    }
     case "signal_review":
       return {
         ...base,
@@ -711,12 +727,12 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
       streamRef.current = streamApi.connect({
         threadId,
         streamUrl,
-        onOpen: () => dispatch({ type: "STREAM_CONNECTED" }),
+        onOpen: () => {
+          dispatch({ type: "STREAM_CONNECTED" });
+          settle(resolve);
+        },
         onEvent: (streamMessage) => {
           dispatch({ type: "STREAM_EVENT_RECEIVED", message: streamMessage });
-          if (streamMessage.blocks.some((block) => block.kind === "approval" || block.kind === "result")) {
-            settle(resolve);
-          }
           const errorBlock = streamMessage.blocks.find((block) => block.kind === "error");
           if (errorBlock) {
             settle(() => reject(new Error(errorBlock.detail ?? errorBlock.title)));
@@ -772,7 +788,26 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
     }
   }
 
-  function sendComposerMessage() {
+  async function startConversationThread() {
+    const current = stateRef.current;
+    if (current.thread.threadId) return current.thread.threadId;
+
+    const requestedState = experimentPlannerReducer(current, { type: "AGENT_SESSION_REQUESTED" });
+    dispatch({ type: "AGENT_SESSION_REQUESTED" });
+    if (requestedState.phase !== "starting") return null;
+
+    const threadId = `thread_chat_${Date.now()}`;
+    const streamUrl = agentThreadStreamUrl(threadId);
+    dispatch({
+      type: "AGENT_SESSION_ACCEPTED",
+      threadId,
+      streamUrl,
+    });
+    await connectStream(threadId, streamUrl);
+    return threadId;
+  }
+
+  async function sendComposerMessage() {
     const text = composerQuestionRef.current.trim();
     const current = stateRef.current;
 
@@ -783,11 +818,12 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
 
     if (!text) return;
 
-    if (current.thread.threadId) {
+    const threadId = current.thread.threadId ?? (await startConversationThread());
+    if (threadId) {
       streamRef.current?.send({
         command_id: commandId("cmd_message"),
         type: "message.send",
-        thread_id: current.thread.threadId,
+        thread_id: threadId,
         content: text,
         client_created_at: new Date().toISOString(),
       });

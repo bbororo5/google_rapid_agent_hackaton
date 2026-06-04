@@ -186,7 +186,7 @@ export function experimentPlannerReducer(state: ExperimentPlannerState, event: E
       return { ...state, phase: "import_failed", error: { message: event.message, recoverable: true } };
 
     case "AGENT_SESSION_REQUESTED":
-      if (!state.importResult && state.phase !== "restored_context") return state;
+      if (state.phase === "importing") return state;
       return { ...clearError(state), phase: "starting" };
 
     case "AGENT_SESSION_ACCEPTED":

@@ -354,7 +354,7 @@ function ThreadPanel({
         void view.commands.analyze();
         return;
       case "send":
-        view.commands.sendMessage();
+        void view.commands.sendMessage();
         return;
       case "stop":
         void view.commands.cancel();
