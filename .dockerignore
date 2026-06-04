@@ -1,0 +1,15 @@
+# Applies to builds with context = repo root (the frontend service).
+# Keep apps/frontend + contracts; drop everything heavy/irrelevant.
+.git
+.env
+.env.local
+node_modules
+**/node_modules
+**/.venv
+**/.next
+**/build
+**/.gradle
+backend
+apps/agent
+**/__pycache__
+**/.pytest_cache

@@ -10,13 +10,20 @@ from __future__ import annotations
 
 import os
 from functools import lru_cache
+from pathlib import Path
 
 from dotenv import load_dotenv
 from pydantic import BaseModel
 
-# Read a local .env (if present) into os.environ. No-op when the file is absent,
-# so production env vars still win.
-load_dotenv()
+# Env precedence: real process env > repo-root .env > apps/agent/.env.
+# The repo-root .env is the shared one the team fills (config.py is at
+# apps/agent/app/config.py, so parents[3] is the repo root in a full checkout).
+# In a container only /app/app exists, so guard the lookup; env is injected by
+# compose there and dotenv is simply skipped.
+_here = Path(__file__).resolve()
+if len(_here.parents) > 3:
+    load_dotenv(_here.parents[3] / ".env")  # repo-root .env (real env still wins)
+load_dotenv()  # fallback: apps/agent/.env if present (no-op when absent)
 
 
 def _int(name: str, default: int) -> int:

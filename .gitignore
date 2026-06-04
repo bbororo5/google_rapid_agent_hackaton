@@ -8,3 +8,7 @@ apps/*/.env*.local
 apps/*/.env.production
 mock/**/.gradle/
 mock/**/build/
+
+# Secrets: shared env at repo root (never commit)
+.env
+.env.local

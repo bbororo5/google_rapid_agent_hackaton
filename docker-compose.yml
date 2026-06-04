@@ -1,0 +1,33 @@
+# Run all three LaunchPilot services on one host.
+#   cp .env.example .env   # fill GEMINI_API_KEY etc.
+#   docker compose up --build
+#
+# One .env feeds every service via env_file. Service names are the network
+# hostnames (e.g. Java reaches Python at http://agent:8000).
+services:
+  agent:
+    build: ./apps/agent
+    env_file: .env
+    ports:
+      - "8000:8000"
+
+  backend:
+    build: ./backend
+    env_file: .env
+    # AGENT_SERVICE_URL comes from .env as http://agent:8000 (the service name).
+    ports:
+      - "8080:8080"
+    depends_on:
+      - agent
+
+  frontend:
+    # Context is the repo root because the frontend imports contract JSON from
+    # ../contracts at build time. See apps/frontend/Dockerfile.
+    build:
+      context: .
+      dockerfile: apps/frontend/Dockerfile
+    env_file: .env
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
