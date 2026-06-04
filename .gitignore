@@ -1,1 +1,10 @@
 node_modules/
+.next/
+apps/*/.next/
+test-results/
+playwright-report/
+*.tsbuildinfo
+apps/*/.env*.local
+apps/*/.env.production
+mock/**/.gradle/
+mock/**/build/
