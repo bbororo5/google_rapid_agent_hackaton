@@ -1,7 +1,8 @@
 """Builds + appends contract-shaped AgentWorkflowEvents to a RunRecord.
 
 Every event carries a monotonic `sequence` so the WS endpoint can replay.
-Stage/status side effects on the record are centralized here.
+Stage/status side effects on the record are centralized here so the orchestrator
+reads top-to-bottom without juggling event bookkeeping.
 """
 from __future__ import annotations
 
@@ -32,6 +33,8 @@ async def _emit(
     payload: Optional[AgentResultPayload] = None,
     error_message: Optional[str] = None,
 ) -> AgentWorkflowEvent:
+    # Single choke point for every event: assigns the sequence, stamps the time,
+    # optionally advances run status, and appends (which notifies WS streamers).
     if status is not None:
         record.status = status
     event = AgentWorkflowEvent(
@@ -51,6 +54,7 @@ async def _emit(
 
 
 async def run_started(record: RunRecord) -> None:
+    # First event of every run; marks the start time for the snapshot.
     record.started_at = now_iso()
     await _emit(record, AgentWorkflowEventType.run_started, status=AgentRunStatus.PENDING)
 
@@ -63,6 +67,7 @@ async def step_updated(
     status: AgentStepStatus,
     run_status: Optional[AgentRunStatus] = None,
 ) -> None:
+    # Progress-bar event (Stage axis) + optionally bumps the coarse Run Status.
     record.current_stage = stage.value
     await _emit(
         record,
@@ -80,6 +85,8 @@ async def observation(
     summary: str,
     evidence_refs: Optional[list[str]] = None,
 ) -> None:
+    # Glass-box card the user sees (signal / hypothesis / warning). Must be clean
+    # human-readable text — never raw chain-of-thought.
     await _emit(
         record,
         AgentWorkflowEventType.observation_created,
@@ -94,14 +101,19 @@ async def observation(
 
 
 async def signal_detected(record: RunRecord, payload: AgentResultPayload) -> None:
+    # Milestone marker after the analyst. Carries no full payload yet (the
+    # contract payload needs all three arrays); the signal cards are observations.
     await _emit(record, AgentWorkflowEventType.signal_detected, payload=payload)
 
 
 async def hypothesis_created(record: RunRecord, payload: AgentResultPayload) -> None:
+    # Milestone marker after the strategist (same payload note as above).
     await _emit(record, AgentWorkflowEventType.hypothesis_created, payload=payload)
 
 
 async def experiment_plan_drafted(record: RunRecord, payload: AgentResultPayload) -> None:
+    # Final success event: carries the full payload and flips status to
+    # WAITING_FOR_APPROVAL. Java opens the approval gate from here.
     await _emit(
         record,
         AgentWorkflowEventType.experiment_plan_drafted,

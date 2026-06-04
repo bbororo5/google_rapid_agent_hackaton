@@ -22,13 +22,16 @@ from app.contracts import (
     SignalDraftOutput,
 )
 from app.ids import experiment_id, hypothesis_id, plan_id, signal_id
+
 from app.tools import evidence
 
-# Demo probe order (agent-tool-spec §6: save_rate first).
+# Demo probe order (agent-tool-spec §6: save_rate first). Each entry is the
+# (metric, channel) pair the analyst checks for a baseline lift.
 _PROBE = [("save_rate", "tiktok"), ("save_rate", "youtube"), ("shares", "tiktok")]
 
 
 def _confidence(lift: float) -> Confidence:
+    # Map a numeric lift onto the contract confidence enum using the thresholds.
     s = get_settings()
     if lift >= s.signal_threshold_high:
         return Confidence.high
@@ -41,12 +44,15 @@ def analyst(question: str, date_range: DateRange) -> SignalDraftOutput:
     s = get_settings()
     signals: list[Signal] = []
     for metric, channel in _PROBE:
+        # 1) measure the lift vs baseline for this metric+channel
         base = evidence.query_metric_baseline(metric, channel)
         if not base.get("ok"):
             continue
         lift = base["lift_ratio"]
+        # 2) drop anything below the weak-signal floor (noise)
         if lift < s.signal_threshold_low:
             continue
+        # 3) ground the signal by pulling the source posts behind it
         refs = list(base["evidence_refs"])
         posts = evidence.search_content_posts([channel], metric)
         if posts.get("ok"):
@@ -69,7 +75,9 @@ def analyst(question: str, date_range: DateRange) -> SignalDraftOutput:
                 evidence_refs=refs,
             )
         )
-    if not signals:  # never emit empty (contract: min 1) — keep weakest probe
+    # Contract requires >= 1 signal. If nothing crossed the threshold, surface
+    # the weakest probe as a low-confidence signal rather than emit an empty list.
+    if not signals:
         base = evidence.query_metric_baseline(*_PROBE[0])
         signals.append(
             Signal(
@@ -92,12 +100,16 @@ def analyst(question: str, date_range: DateRange) -> SignalDraftOutput:
 def strategist(signals: list[Signal]) -> HypothesisDraftOutput:
     hypotheses: list[Hypothesis] = []
     for sig in signals:
+        # Look for qualitative team-note evidence explaining this signal.
         notes = evidence.search_team_notes(sig.metric_name)
         if notes.get("ok"):
+            # Have a note -> attach it and frame as an association (never "caused").
             evidence_refs = list(sig.evidence_refs) + list(notes["evidence_refs"])
             statement = f"The {sig.metric_name} lift is associated with recent team activity."
             caveats = ["Association only; not a controlled test."]
-        else:  # no qualitative evidence -> quantitative-only + explicit caveat
+        else:
+            # No note -> proceed on quantitative evidence alone, with an explicit
+            # caveat so the reviewer's LOW_CONFIDENCE_WITHOUT_CAVEAT check passes.
             evidence_refs = list(sig.evidence_refs)
             statement = f"The {sig.metric_name} lift is associated with an unidentified driver."
             caveats = [
@@ -106,7 +118,7 @@ def strategist(signals: list[Signal]) -> HypothesisDraftOutput:
         hypotheses.append(
             Hypothesis(
                 id=hypothesis_id(),
-                signal_ids=[sig.id],
+                signal_ids=[sig.id],  # ties the hypothesis back to its signal
                 statement=statement,
                 rationale=(
                     f"{sig.metric_name} rose to {sig.lift_ratio}x baseline; "
@@ -121,9 +133,11 @@ def strategist(signals: list[Signal]) -> HypothesisDraftOutput:
 
 
 def writer(hypotheses: list[Hypothesis], date_range: DateRange) -> ExperimentPlanDraftOutput:
+    # Schedule the experiment at the start of the window's end day (demo value).
     scheduled = f"{date_range.end}T09:00:00+00:00"
     items: list[ExperimentItem] = []
     for hyp in hypotheses:
+        # One concrete experiment per hypothesis, tied back by hypothesis_id.
         items.append(
             ExperimentItem(
                 id=experiment_id(),

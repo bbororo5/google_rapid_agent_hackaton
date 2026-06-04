@@ -25,9 +25,14 @@ _APP = "launchpilot"
 
 
 def _build_agents():
+    # Imported here (not at module top) so importing this module never requires
+    # google-adk unless we actually run in real-LLM mode.
     from google.adk.agents import LlmAgent
 
     model = get_settings().gemini_model
+    # Analyst: has the two evidence tools AND an output schema. In ADK 2.x tools
+    # and output_schema compose (tools run during reasoning, schema shapes the
+    # final reply). output_key writes the result into shared session state.
     analyst = LlmAgent(
         name="analyst",
         model=model,
@@ -37,6 +42,7 @@ def _build_agents():
         output_schema=SignalDraftOutput,
         output_key="signals",
     )
+    # Strategist: one tool (team notes) + hypothesis schema.
     strategist = LlmAgent(
         name="strategist",
         model=model,
@@ -46,6 +52,7 @@ def _build_agents():
         output_schema=HypothesisDraftOutput,
         output_key="hypotheses",
     )
+    # Writer: no tools (pure generation) + experiment-plan schema.
     writer = LlmAgent(
         name="writer",
         model=model,
@@ -64,6 +71,8 @@ async def run_structured(kind: str, user_text: str) -> dict:
     from google.genai import types
 
     agent = _build_agents()[kind]
+    # Fresh in-memory session per worker call (the orchestrator threads state
+    # itself via prompts, so workers don't need a shared ADK session here).
     session_service = InMemorySessionService()
     runner = Runner(agent=agent, app_name=_APP, session_service=session_service)
     sid = f"sess_{uuid.uuid4().hex[:8]}"
@@ -71,6 +80,7 @@ async def run_structured(kind: str, user_text: str) -> dict:
 
     content = types.Content(role="user", parts=[types.Part(text=user_text)])
     final_text: str | None = None
+    # run_async yields a stream of events; the structured JSON is on the final one.
     async for event in runner.run_async(
         user_id="orchestrator", session_id=sid, new_message=content
     ):
@@ -79,4 +89,5 @@ async def run_structured(kind: str, user_text: str) -> dict:
 
     if not final_text:
         raise RuntimeError(f"{kind}: empty agent response")
+    # output_schema guarantees the final text is schema-conforming JSON.
     return json.loads(final_text)
