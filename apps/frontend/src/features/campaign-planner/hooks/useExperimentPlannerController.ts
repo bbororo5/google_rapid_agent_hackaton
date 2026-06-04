@@ -19,6 +19,7 @@ import type {
   ToolCallLog,
   ExperimentPlannerState,
   ImportCsvResponse,
+  PlannerPhase,
 } from "../state/experimentPlannerTypes";
 
 export interface ChecklistStep {
@@ -28,7 +29,7 @@ export interface ChecklistStep {
 
 type AgentDisplayState = "idle" | "selected" | "importing" | "processing" | "ready" | "approved" | "error";
 
-type ThreadLocalUserMessage = AgentMessage & { clientSequence: number };
+type ThreadLocalUserMessage = AgentMessage & { clientSequence: number; phaseAtSend: PlannerPhase };
 
 export type GateReview =
   | {
@@ -117,6 +118,7 @@ export interface StreamMessage {
   sequence: number;
   role: "user" | "assistant" | "system";
   createdAt: string | null;
+  clientPhase?: PlannerPhase;
   blocks: StreamMessageBlock[];
 }
 
@@ -371,6 +373,7 @@ function streamMessagesFromState(input: {
       sequence: "clientSequence" in message ? message.clientSequence : 10_000 + index,
       role: "user" as const,
       createdAt: null,
+      clientPhase: "phaseAtSend" in message ? message.phaseAtSend : undefined,
       blocks: [{ kind: "text" as const, text: message.content }],
     })),
   ];
@@ -886,6 +889,7 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
         role: "user",
         content: text,
         clientSequence: nextLocalSequence(),
+        phaseAtSend: current.phase,
       },
     ]);
     composerQuestionRef.current = "";

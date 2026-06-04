@@ -66,6 +66,34 @@ test.describe("conversation-first mock server", () => {
     expect(order.userIndex).toBeGreaterThan(order.signalIndex);
   });
 
+  test("keeps pre-approval follow-up before the experiment approval gate", async ({ page }) => {
+    await page.goto("/campaigns/comeback-teaser/planner");
+
+    await page.getByRole("textbox", { name: /message/i }).fill("이 데이터에서 이상한 점 찾아줘");
+    await page.getByRole("button", { name: /^send$/i }).click();
+    await expect(page.getByRole("button", { name: /use this signal/i })).toBeVisible({ timeout: 15000 });
+
+    await page.getByRole("textbox", { name: /message/i }).fill("ㅁㄴㅇㄹ아");
+    await page.getByRole("button", { name: /^send$/i }).click();
+    await page.getByRole("button", { name: /use this signal/i }).click();
+    await expect(page.getByRole("button", { name: /approve experiments|approve/i })).toBeVisible({ timeout: 15000 });
+
+    const order = await page.evaluate(() => {
+      const rows = [...document.querySelectorAll(".thread-scroll > article, .thread-scroll > section.thread-gate-inline")].map((element, index) => ({
+        index,
+        text: element.textContent ?? "",
+      }));
+      const userIndex = rows.find((row) => row.text.includes("ㅁㄴㅇㄹ아"))?.index ?? -1;
+      const planIndex = rows.find((row) => row.text.includes("experiment plan is ready"))?.index ?? -1;
+      const approvalIndex = rows.find((row) => row.text.includes("Experiment Approval"))?.index ?? -1;
+      return { userIndex, planIndex, approvalIndex };
+    });
+
+    expect(order.userIndex).toBeGreaterThanOrEqual(0);
+    expect(order.planIndex).toBeGreaterThan(order.userIndex);
+    expect(order.approvalIndex).toBeGreaterThan(order.planIndex);
+  });
+
   test("accepts natural-language approval and revision requests through message.send", async ({ page }) => {
     await page.goto("/campaigns/comeback-teaser/planner");
 

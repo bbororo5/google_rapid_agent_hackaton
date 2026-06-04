@@ -414,9 +414,11 @@ function ThreadPanel({
         return;
     }
   };
-  const gateInsertIndex = view.inspector.currentGate
-    ? view.thread.groups.findIndex((group) => group.role === "user" && group.messages.some((message) => message.id.startsWith("msg_local_")))
-    : -1;
+  const gateAnchorPhase = view.inspector.currentGate?.id === "signal" ? "signal_review" : view.inspector.currentGate?.id === "approval" ? "awaiting_approval" : null;
+  const gateInsertIndex =
+    view.inspector.currentGate && gateAnchorPhase
+      ? view.thread.groups.findIndex((group) => group.role === "user" && group.messages.some((message) => message.clientPhase === gateAnchorPhase))
+      : -1;
   const shouldRenderGateAfterGroups = Boolean(view.inspector.currentGate) && gateInsertIndex < 0;
 
   return (
