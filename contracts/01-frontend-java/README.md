@@ -1,8 +1,8 @@
 # LaunchPilot Frontend-Backend Contract
 
-Status: Draft v0.4  
+Status: Draft v0.5  
 Source: Gemini first-pass contract plus confirmed C1/C2/C3 diagrams and main user scenario  
-Last updated: 2026-06-02
+Last updated: 2026-06-04
 
 ## Contract Principles
 
@@ -22,7 +22,9 @@ Core runtime rules:
 - Candidate signals, hypotheses, and experiment plans are temporary before human approval. The frontend may edit them in React state, but the backend must not persist final calendar or brief documents before approval.
 - Approval is append-only. `approval.approve` over WebSocket is the primary approval command; `POST /api/agent/actions/{agent_run_id}/approve` remains the REST fallback. Approval creates new `calendar_events` and `growth_briefs` documents in Elastic.
 - Cancel is an intervention command. `run.cancel` over WebSocket is primary; `POST /api/agent/actions/{agent_run_id}/cancel` is the REST fallback.
-- Streamed reasoning must be glass-box, not raw private chain-of-thought. The backend sends user-visible observations, tool summaries, evidence references, and structured artifacts.
+- The Python Agent Service emits LaunchPilot timeline events in the order the user should observe them. The Java backend must not reconstruct, summarize, or reorder the agent narrative.
+- The Java backend relays the agent stream, assigns or validates per-run `sequence`, persists events for reconnect replay, and forwards them over WebSocket.
+- Streamed reasoning must be glass-box, not raw private chain-of-thought. The stream may include user-visible thought summaries, tool summaries, evidence references, and structured artifacts.
 - Response payloads use `snake_case` to match the Java Gateway and Python Agent contract.
 - Timestamps are ISO 8601 strings with timezone offsets, for example `2026-06-01T16:31:00+09:00`.
 
@@ -117,6 +119,8 @@ Response: `202 Accepted`
 
 Purpose: provide the live, persisted agent conversation and runtime timeline for the Campaign Agent Workspace.
 
+Current implementation scope: one Java backend instance relays and persists the active stream for reconnect replay. The Python Agent Service is responsible for emitting already ordered LaunchPilot timeline events; the Java backend is responsible for delivery, persistence, sequence handling, and intervention command routing.
+
 The WebSocket runtime is specified in `asyncapi.yaml`, not `openapi.yaml`.
 
 It supports two interaction modes:
@@ -157,6 +161,7 @@ Client-to-server command types:
 ```text
 connection.resume
 connection.full_sync
+run.continue
 run.cancel
 approval.update_payload
 approval.approve
@@ -181,12 +186,13 @@ Examples live beside both specs:
 The frontend should map stream events like this:
 
 - Every persisted timeline event has a monotonic per-run `sequence`. The frontend stores the last fully applied `sequence`.
+- Persisted events are emitted and replayed in user-observable narrative order. The frontend renders by `sequence` and must not infer a different story order.
 - After reconnecting, the frontend sends `connection.resume` with `last_received_sequence`.
 - The backend replays all missed persisted timeline events in sequence order. If incremental replay is unavailable, the backend sends `connection.full_sync_required`; the frontend then sends `connection.full_sync`, and the backend replays the full persisted timeline over WebSocket.
 - `step.updated` updates the fixed agent run status area.
 - `user.message.created` and `assistant.message.created` append direct conversation bubbles.
-- `document.created` appends a clickable document card in the conversation timeline. The frontend opens the card in the right-side inspector and renders `document.content` as markdown.
-- `observation.created`, `signal.detected`, `hypothesis.created`, and `experiment_plan.drafted` append visible workspace timeline messages.
+- `document.created` appends a clickable document row in the conversation timeline. The frontend opens the document in the right-side inspector and renders `document.content` as markdown.
+- `observation.created`, `signal.detected`, `hypothesis.created`, and `experiment_plan.drafted` append visible workspace timeline messages. They must not contain raw chain-of-thought, thought signatures, internal prompts, or private tool identifiers.
 - `approval.requested` opens the review surface with editable draft payload.
 - `approval.committed` carries `growth_brief_id` and `created_calendar_events` after the approved plan is persisted. The frontend uses this event, not the coarse snapshot, to route to the created brief or calendar artifacts on the WebSocket primary path.
 - `run.cancelled`, `run.completed`, and `run.failed` close the active run lifecycle.

@@ -1,18 +1,18 @@
 {
-  "event_id": "evt_004",
+  "event_id": "evt_010",
   "type": "document.created",
   "agent_run_id": "run_20260601_001",
   "session_id": "session_20260601_001",
-  "sequence": 4,
-  "occurred_at": "2026-06-01T16:31:08+09:00",
-  "status": "RUNNING_EVIDENCE_SEARCH",
+  "sequence": 10,
+  "occurred_at": "2026-06-01T16:31:10+09:00",
+  "status": "RUNNING_HYPOTHESIS_GENERATION",
   "document": {
     "document_id": "doc_evidence_scan_001",
     "kind": "evidence_scan",
-    "title": "Evidence scan started",
+    "title": "Evidence notes",
     "format": "markdown",
-    "summary": "Initial evidence scan over uploaded campaign metrics.",
-    "content": "## Evidence scan started\n\nI am comparing uploaded campaign metrics against the recent baseline.\n\n- Checking lift by channel\n- Looking for repeatable content patterns\n- Preparing candidate experiments"
+    "summary": "Evidence notes for the uploaded campaign metrics.",
+    "content": "## Evidence notes\n\nI am comparing uploaded campaign metrics against the recent baseline.\n\n- Checking lift by channel\n- Looking for repeatable content patterns\n- Preparing candidate experiments"
   },
   "error_message": null
 }
