@@ -1,12 +1,20 @@
-# 결정 기록 (Architecture Decisions)
+# Architecture Decision Records
 
-[아키텍처 개요](../overview.md)가 LaunchPilot의 이야기라면, 이 폴더는 그 이야기를 떠받치는 결정들의 깊은 판이다. 각 글은 결정만 나열하지 않는다. 그 결정을 강제한 압박과, 그 대가로 무엇을 포기했는지를 함께 적는다 — 포기가 없는 결정은 결정이 아니라 의견이기 때문이다.
+각 ADR은 하나의 결정을 고정 형식(상태 · 맥락 · 결정 · 결과 · 대안)으로 기록한다. 결정을 강제한 사실과 포기한 것을 함께 적는다. 카테고리별로 묶어 4개 문서에 담았다.
 
-처음 읽는다면 [개요](../overview.md)부터. 특정 선택의 근거가 궁금하다면 아래 네 글로.
+| ADR | 결정 | 문서 |
+|---|---|---|
+| 0001 | Elastic Cloud Serverless를 유일 데이터 저장소로 사용 | [데이터 · 기억](01-data-and-memory.md) |
+| 0002 | 에이전트 기억을 네 계층으로 분리 | [데이터 · 기억](01-data-and-memory.md) |
+| 0003 | 승인 전 데이터 비저장, 승인 게이트 Java 소유 | [데이터 · 기억](01-data-and-memory.md) |
+| 0004 | 단일 LLM 대신 4워커 멀티 에이전트 | [에이전트](02-the-agents.md) |
+| 0005 | Google ADK 직접 오케스트레이션 (Agent Builder 미사용) | [에이전트](02-the-agents.md) |
+| 0006 | 결정적 검수가 최종 권한, LLM 비평은 보조 | [에이전트](02-the-agents.md) |
+| 0007 | 형식 오류는 결정적 정규화, 의미 오류는 워커 백트래킹 | [에이전트](02-the-agents.md) |
+| 0008 | 영속 WebSocket 타임라인 + 재접속 리플레이 | [투명성 · 관측성](03-transparency.md) |
+| 0009 | Glass-box는 정규화 이벤트만 전송 | [투명성 · 관측성](03-transparency.md) |
+| 0010 | Phoenix/Arize L4 자가 성찰 | [투명성 · 관측성](03-transparency.md) |
+| 0011 | Contract-first (extra=forbid) | [엔지니어링 규율](04-discipline.md) |
+| 0012 | CSV import + 결정적 fallback | [엔지니어링 규율](04-discipline.md) |
 
-1. [데이터를 어디에, 어떻게 두는가](01-data-and-memory.md) — Elastic 단일 저장소, 기억의 네 층, 승인 전 비저장
-2. [AI를 어떻게 굴리는가](02-the-agents.md) — 네 워커, ADK 직접 제어, 결정적 검수, 실수의 두 종류
-3. [추론을 어떻게 보여주고 추적하는가](03-transparency.md) — 영속 타임라인, glass-box 정규화, 자가 성찰
-4. [어떻게 안정적으로 만드는가](04-discipline.md) — 계약 우선, 안정적인 데모
-
-> 폐기된 옛 설계 — 단일 에이전트, 매니지드 에이전트 플랫폼, 폴링, 관계형 DB, taxonomy 기반 의도 설계 — 가 왜 사라졌는지는 [개요의 "첫 설계가 무너진 자리"](../overview.md#첫-설계가-무너진-자리)와 각 글의 "버린 길"에 담겨 있다.
+상위 요약: [아키텍처 개요](../overview.md) · 구조 그림: [C4](../launchpilot-c4.md) · 제품 맥락: [PRD](../../product/LaunchPilot_PRD.md)
