@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { createWebSocketAgentStreamApi, type AgentStreamConnection, type AgentStreamApi } from "../api/agentStreamApi";
 import { createFetchExperimentPlannerApi, type ExperimentPlannerApi } from "../api/experimentPlannerApi";
-import { buildAgentRunRequest, buildApprovalRequest } from "../state/experimentPlannerRequests";
+import { buildApprovalRequest } from "../state/experimentPlannerRequests";
 import { initialExperimentPlannerState, experimentPlannerReducer } from "../state/experimentPlannerReducer";
 import type {
   ApproveExperimentPlanResponse,
@@ -231,10 +231,6 @@ function calendarEvents(state: ExperimentPlannerState) {
   return "calendarEvents" in state ? state.calendarEvents : [];
 }
 
-function lastReceivedSequence(state: ExperimentPlannerState) {
-  return "lastReceivedSequence" in state ? state.lastReceivedSequence : 0;
-}
-
 function streamRecoveryStatus(state: ExperimentPlannerState): AgentStreamRecoveryStatus {
   return "recoveryStatus" in state ? state.recoveryStatus : "idle";
 }
@@ -245,6 +241,11 @@ function stateImportResult(state: ExperimentPlannerState) {
 
 function commandId(prefix: string) {
   return `${prefix}_${crypto.randomUUID().replaceAll("-", "_")}`;
+}
+
+function agentThreadStreamUrl(threadId: string) {
+  const agentApiBaseUrl = process.env.NEXT_PUBLIC_AGENT_API_BASE_URL ?? "http://localhost:8090";
+  return `${agentApiBaseUrl}/api/agent/threads/${threadId}/stream`;
 }
 
 function toolBlock(tool: ToolCallLog): StreamMessageBlock {
@@ -788,14 +789,14 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
         agentRunId,
         streamUrl,
         onOpen: () => dispatch({ type: "STREAM_CONNECTED" }),
-        getLastReceivedSequence: () => lastReceivedSequence(stateRef.current),
-        onEvent: (streamEvent) => {
-          dispatch({ type: "STREAM_EVENT_RECEIVED", event: streamEvent });
-          if (streamEvent.type === "approval.requested" || streamEvent.type === "approval.committed" || streamEvent.type === "run.completed") {
+        onEvent: (streamMessage) => {
+          dispatch({ type: "STREAM_EVENT_RECEIVED", message: streamMessage });
+          if (streamMessage.blocks.some((block) => block.kind === "approval" || block.kind === "result")) {
             settle(resolve);
           }
-          if (streamEvent.type === "run.failed") {
-            settle(() => reject(new Error(streamEvent.error_message ?? "Agent run failed.")));
+          const errorBlock = streamMessage.blocks.find((block) => block.kind === "error");
+          if (errorBlock) {
+            settle(() => reject(new Error(errorBlock.detail ?? errorBlock.title)));
           }
         },
         onError: (message) => {
@@ -835,14 +836,15 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
       dispatch({ type: "RUN_AGENT_REQUESTED" });
       if (startingState.tag !== "starting_analysis") return;
 
-      const accepted = await api.runAgent(buildAgentRunRequest(startingState.source));
+      const threadId = `thread_${importResult.import_id.replace(/^imp_/, "")}`;
+      const streamUrl = agentThreadStreamUrl(threadId);
       dispatch({
         type: "RUN_AGENT_ACCEPTED",
-        agentRunId: accepted.agent_run_id,
-        streamUrl: accepted.stream_url,
-        snapshotUrl: accepted.next_poll_url,
+        agentRunId: threadId,
+        streamUrl,
+        snapshotUrl: "",
       });
-      await connectStream(accepted.agent_run_id, accepted.stream_url);
+      await connectStream(threadId, streamUrl);
     } catch (error) {
       dispatch({
         type: phase === "import" ? "IMPORT_FAILED" : "RUN_AGENT_FAILED",
@@ -866,7 +868,7 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
       streamRef.current?.send({
         command_id: commandId("cmd_message"),
         type: "message.send",
-        agent_run_id: current.agentRunId,
+        thread_id: current.agentRunId,
         content: text,
         client_created_at: new Date().toISOString(),
       });
@@ -892,7 +894,7 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
     streamRef.current?.send({
       command_id: commandId("cmd_continue"),
       type: "message.send",
-      agent_run_id: current.agentRunId,
+      thread_id: current.agentRunId,
       content: "Use this signal",
       client_created_at: new Date().toISOString(),
     });
@@ -915,11 +917,15 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
       });
       streamRef.current?.send({
         command_id: commandId("cmd_approve"),
-        type: "approval.approve",
-        agent_run_id: approvingState.agentRunId,
-        approval_id: approvingState.approvalId,
-        final_experiments: request.final_experiments,
-        reason: null,
+        type: "message.send",
+        thread_id: approvingState.agentRunId,
+        content: "Approve this experiment plan.",
+        action: {
+          name: "approve",
+          target_id: approvingState.approvalId,
+          payload: { final_experiments: request.final_experiments },
+        },
+        client_created_at: new Date().toISOString(),
       });
     } catch (error) {
       dispatch({ type: "APPROVE_FAILED", message: error instanceof Error ? error.message : "Approval failed." });
@@ -932,11 +938,11 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
 
     streamRef.current?.send({
       command_id: commandId("cmd_reject"),
-      type: "approval.reject",
-      agent_run_id: current.agentRunId,
-      approval_id: current.approvalId,
-      final_experiments: null,
-      reason,
+      type: "message.send",
+      thread_id: current.agentRunId,
+      content: reason,
+      action: { name: "reject", target_id: current.approvalId },
+      client_created_at: new Date().toISOString(),
     });
     dispatch({ type: "REJECT_SENT", reason });
   }
@@ -947,16 +953,13 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
 
     streamRef.current?.send({
       command_id: commandId("cmd_cancel"),
-      type: "run.cancel",
-      agent_run_id: current.agentRunId,
-      approval_id: "approvalId" in current ? current.approvalId : null,
-      final_experiments: null,
-      reason,
+      type: "message.send",
+      thread_id: current.agentRunId,
+      content: reason,
+      action: { name: "cancel", target_id: "approvalId" in current ? current.approvalId : null },
+      client_created_at: new Date().toISOString(),
     });
 
-    if (!streamRef.current) {
-      await api.cancelAgentRun(current.agentRunId, reason);
-    }
     dispatch({ type: "CANCEL_SENT", reason });
   }
 
@@ -967,11 +970,15 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
     const draftExperiments = current.draftExperiments.map((experiment) => (experiment.id === experimentId ? { ...experiment, title } : experiment));
     streamRef.current?.send({
       command_id: commandId("cmd_update_payload"),
-      type: "approval.update_payload",
-      agent_run_id: current.agentRunId,
-      approval_id: current.approvalId,
-      final_experiments: draftExperiments.filter((experiment) => current.selectedExperimentIds.includes(experiment.id)),
-      reason: null,
+      type: "message.send",
+      thread_id: current.agentRunId,
+      content: `Revise the experiment title to "${title}".`,
+      action: {
+        name: "revise_artifact",
+        target_id: current.payload.experiment_plan.id,
+        payload: { final_experiments: draftExperiments.filter((experiment) => current.selectedExperimentIds.includes(experiment.id)) },
+      },
+      client_created_at: new Date().toISOString(),
     });
     dispatch({ type: "EDIT_EXPERIMENT", experimentId, patch: { title } });
   }

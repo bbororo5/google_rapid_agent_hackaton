@@ -1,11 +1,10 @@
 import type {
   AgentResultPayload,
   AgentRunStatus,
-  AgentRunStatusResponse,
   AgentStepSnapshot,
   AgentDocument,
   AgentObservation,
-  AgentStreamServerEvent,
+  StreamMessage,
   AgentRunStage,
   AgentMessage,
   ApproveExperimentPlanResponse,
@@ -22,11 +21,10 @@ import type {
 export type {
   AgentResultPayload,
   AgentRunStatus,
-  AgentRunStatusResponse,
   AgentStepSnapshot,
   AgentDocument,
   AgentObservation,
-  AgentStreamServerEvent,
+  StreamMessage,
   AgentRunStage,
   AgentMessage,
   ApproveExperimentPlanResponse,
@@ -51,7 +49,7 @@ export type StartingAnalysisSource =
       continuityPrompt: string;
     };
 
-export type AgentStreamRecoveryStatus = "idle" | "resuming" | "replaying" | "full_syncing";
+export type AgentStreamRecoveryStatus = "idle";
 
 export type AgentTimelineItem =
   | { id: string; sequence: number; kind: "assistant_message"; message: AgentMessage }
@@ -223,9 +221,8 @@ export type ExperimentPlannerEvent =
   | { type: "RUN_AGENT_FAILED"; message: string }
   | { type: "STREAM_CONNECT_REQUESTED" }
   | { type: "STREAM_CONNECTED" }
-  | { type: "STREAM_EVENT_RECEIVED"; event: AgentStreamServerEvent }
+  | { type: "STREAM_EVENT_RECEIVED"; message: StreamMessage }
   | { type: "SIGNAL_CONFIRMED" }
-  | { type: "SNAPSHOT_RECOVERED"; snapshot: AgentRunStatusResponse }
   | { type: "STREAM_FAILED"; agentRunId?: string; message: string }
   | { type: "APPROVAL_REQUESTED"; approval: ApprovalGateRequest; toolLogs: ToolCallLog[] }
   | { type: "EDIT_EXPERIMENT"; experimentId: string; patch: Partial<ExperimentItem> }

@@ -16,7 +16,7 @@ public class WebSocketConfig implements WebSocketConfigurer {
 
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
-        registry.addHandler(handler, "/api/agent/runs/{agentRunId}/stream")
+        registry.addHandler(handler, "/api/agent/threads/{threadId}/stream")
                 .setAllowedOrigins("http://localhost:3000", "http://127.0.0.1:3000");
     }
 }

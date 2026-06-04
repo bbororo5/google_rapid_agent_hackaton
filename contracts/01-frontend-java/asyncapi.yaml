@@ -1,108 +1,62 @@
 asyncapi: 2.6.0
 info:
-  title: LaunchPilot Agent Runtime Stream
-  version: 0.2.0
+  title: LaunchPilot Conversation Stream
+  version: 1.0.0
   description: >
-    AsyncAPI contract for the active Campaign Agent WebSocket runtime between
-    the Next.js frontend and Java Spring Boot gateway. REST endpoints create
-    agent runs and provide coarse snapshots; live conversation delivery,
-    approval/cancel commands, reconnect resume, and missed-event replay are
-    handled over this WebSocket contract. The Python Agent Service emits
-    LaunchPilot timeline events in user-observable order. The Java backend
-    relays, persists, sequences, and replays those events without reconstructing
-    or reordering the agent narrative.
+    Current WebSocket contract between the Next.js frontend and Java Spring
+    Boot gateway. The client sends one command shape, message.send. The server
+    sends one frame shape, StreamMessage. UI behavior is determined only by
+    StreamMessage.blocks[].kind.
 servers:
   local:
     url: localhost:8080/api
     protocol: ws
-    description: Local Java gateway WebSocket server.
   production:
     url: api.launchpilot.example/api
     protocol: wss
-    description: Production Java gateway WebSocket server.
 channels:
-  /agent/runs/{agent_run_id}/stream:
-    description: Live persisted timeline, intervention, and reconnect recovery stream for one agent run.
+  /agent/threads/{thread_id}/stream:
+    description: Live persisted conversation stream for one LaunchPilot agent thread.
     parameters:
-      agent_run_id:
-        description: Agent run identifier returned by POST /api/agent/run.
+      thread_id:
+        description: Conversation thread identifier.
     subscribe:
-      summary: Receive persisted timeline events and connection recovery control events.
+      summary: Receive conversation messages, activities, documents, artifacts, approvals, results, and errors.
       message:
-        $ref: "#/components/messages/AgentStreamServerEvent"
+        $ref: "#/components/messages/StreamMessage"
     publish:
-      summary: Resume a disconnected stream, request a full timeline replay, or send runtime commands.
+      summary: Send a free-form user turn or a UI action expressed as a message.
       message:
-        $ref: "#/components/messages/AgentStreamClientCommand"
+        $ref: "#/components/messages/MessageSendCommand"
 components:
   messages:
-    AgentStreamServerEvent:
-      name: AgentStreamServerEvent
-      title: Agent stream server frame
+    StreamMessage:
+      name: StreamMessage
+      title: Stream message
       contentType: application/json
       payload:
-        $ref: "#/components/schemas/AgentStreamServerFrame"
+        $ref: "#/components/schemas/StreamMessage"
       examples:
-        - name: userMessageCreated
-          summary: Initial user question is persisted as a recoverable timeline event.
-          payload:
-            $ref: "./examples/agent-stream-user-message-created-event.json"
-        - name: runStarted
-          summary: Agent run enters the active runtime after REST run creation.
-          payload:
-            $ref: "./examples/agent-stream-run-started-event.json"
-        - name: observationCreated
-          summary: Agent reports a user-visible reasoning or evidence summary.
-          payload:
-            $ref: "./examples/agent-stream-observation-created-event.json"
-        - name: documentCreated
-          summary: Agent publishes a markdown document that can be opened in the inspector.
-          payload:
-            $ref: "./examples/agent-stream-document-created-event.json"
-        - name: approvalRequested
-          summary: Agent pauses before creating business outputs.
-          payload:
-            $ref: "./examples/agent-stream-approval-requested-event.json"
-        - name: approvalCommitted
-          summary: Approval was committed and created business document identifiers are available.
-          payload:
-            $ref: "./examples/agent-stream-approval-committed-event.json"
-        - name: resumeAccepted
-          summary: Server accepted a resume request and will replay missed events.
-          payload:
-            $ref: "./examples/agent-stream-resume-accepted-event.json"
-        - name: fullSyncRequired
-          summary: Incremental replay is unavailable and the client must request full timeline replay.
-          payload:
-            $ref: "./examples/agent-stream-full-sync-required-event.json"
         - name: streamMessageFrame
-          summary: Conversation-first stream message with text, activity, and markdown document blocks.
           payload:
             $ref: "./examples/agent-stream-message-frame.json"
-    AgentStreamClientCommand:
-      name: AgentStreamClientCommand
-      title: Agent stream client command
+    MessageSendCommand:
+      name: MessageSendCommand
+      title: Message send command
       contentType: application/json
       payload:
-        $ref: "#/components/schemas/AgentStreamClientCommand"
+        $ref: "#/components/schemas/MessageSendCommand"
       examples:
-        - name: resumeConnection
-          summary: Client reconnects and asks the server to replay missed events.
+        - name: userTurn
           payload:
-            $ref: "./examples/agent-stream-resume-command.json"
-        - name: requestFullSync
-          summary: Client asks the server to replay the full persisted timeline over WebSocket.
-          payload:
-            $ref: "./examples/agent-stream-full-sync-command.json"
-        - name: approvePlan
-          summary: User approves the edited experiment plan and resumes the run.
-          payload:
-            $ref: "./examples/agent-stream-approval-approve-command.json"
-        - name: cancelRun
-          summary: User cancels the active run.
-          payload:
-            $ref: "./examples/agent-stream-cancel-command.json"
+            $ref: "./examples/message-send-command.json"
   schemas:
+    Channel:
+      type: string
+      enum: [youtube, tiktok, instagram, x, unknown]
+    Confidence:
+      type: string
+      enum: [low, medium, medium_high, high]
     DateRange:
       type: object
       additionalProperties: false
@@ -114,322 +68,23 @@ components:
         end:
           type: string
           format: date
-    Channel:
-      type: string
-      enum: [youtube, tiktok, instagram, x, unknown]
-    Confidence:
-      type: string
-      enum: [low, medium, medium_high, high]
-    AgentRunStatus:
-      type: string
-      enum:
-        - PENDING
-        - RUNNING_SIGNAL_DETECTION
-        - RUNNING_EVIDENCE_SEARCH
-        - RUNNING_HYPOTHESIS_GENERATION
-        - RUNNING_EXPERIMENT_GENERATION
-        - WAITING_FOR_APPROVAL
-        - SUCCESS
-        - FAILED
-        - CANCELLED
-    AgentRunStage:
-      type: string
-      enum:
-        - IMPORT_METRICS
-        - DETECT_PERFORMANCE_SIGNAL
-        - GROUND_WITH_EVIDENCE
-        - GENERATE_HYPOTHESIS
-        - DRAFT_EXPERIMENT_PLAN
-        - WAIT_FOR_APPROVAL
-        - APPLY_APPROVED_PLAN
-    AgentStepStatus:
-      type: string
-      enum: [PENDING, IN_PROGRESS, SUCCEEDED, FAILED, SKIPPED]
-    AgentObservationKind:
-      type: string
-      enum: [progress, evidence, signal, hypothesis, plan, warning]
-    ApprovalGateKind:
-      type: string
-      enum: [EXPERIMENT_PLAN, CREATE_GROWTH_BRIEF, CREATE_CALENDAR_EVENTS]
-    AgentStreamServerEventType:
-      type: string
-      enum:
-        - connection.resume_accepted
-        - connection.replay_started
-        - connection.replay_completed
-        - connection.full_sync_required
-        - connection.reauth_required
-        - connection.session_expired
-        - run.started
-        - step.updated
-        - user.message.created
-        - assistant.message.created
-        - document.created
-        - observation.created
-        - tool.updated
-        - signal.detected
-        - hypothesis.created
-        - experiment_plan.drafted
-        - approval.requested
-        - approval.committed
-        - run.paused
-        - run.resumed
-        - run.cancelled
-        - run.completed
-        - run.failed
-    AgentStreamClientCommandType:
-      type: string
-      enum:
-        - message.send
-        - connection.resume
-        - connection.full_sync
-        - run.cancel
-        - approval.update_payload
-        - approval.approve
-        - approval.reject
-    AgentStepSnapshot:
+    CalendarEventRef:
       type: object
       additionalProperties: false
-      required: [id, order, stage, status]
+      required: [event_id, title, scheduled_at]
       properties:
-        id:
+        event_id:
           type: string
-        order:
-          type: integer
-          minimum: 1
-        stage:
-          $ref: "#/components/schemas/AgentRunStage"
-        status:
-          $ref: "#/components/schemas/AgentStepStatus"
-    AgentObservation:
-      type: object
-      additionalProperties: false
-      required: [id, kind, title, summary]
-      properties:
-        id:
-          type: string
-        kind:
-          $ref: "#/components/schemas/AgentObservationKind"
+          pattern: "^cal_[A-Za-z0-9_]+$"
         title:
           type: string
-        summary:
-          type: string
-          description: User-visible summary. Do not include private chain-of-thought.
-        evidence_refs:
-          type: array
-          items:
-            type: string
-    AgentMessage:
-      type: object
-      additionalProperties: false
-      required: [message_id, role, content]
-      properties:
-        message_id:
-          type: string
-          pattern: "^msg_[A-Za-z0-9_]+$"
-        role:
-          type: string
-          enum: [user, assistant]
-        content:
-          type: string
-          description: User-visible conversation content. Do not include private chain-of-thought.
-    StreamMessageRole:
-      type: string
-      enum: [user, assistant, system]
-    MessageBlockKind:
-      type: string
-      enum: [text, activity, markdown_document, artifact, approval, result, error]
-    TextBlock:
-      type: object
-      additionalProperties: false
-      required: [kind, text]
-      properties:
-        kind:
-          type: string
-          const: text
-        text:
-          type: string
-    ActivityBlock:
-      type: object
-      additionalProperties: false
-      required: [kind, title, status]
-      properties:
-        kind:
-          type: string
-          const: activity
-        id:
-          type: string
-        title:
-          type: string
-        status:
-          type: string
-          enum: [queued, running, done, failed]
-        detail:
-          type: string
-    MarkdownDocumentBlock:
-      type: object
-      additionalProperties: false
-      required: [kind, id, title, markdown]
-      properties:
-        kind:
-          type: string
-          const: markdown_document
-        id:
-          type: string
-        title:
-          type: string
-        summary:
-          type: string
-        markdown:
-          type: string
-          description: User-visible markdown content. Do not include private chain-of-thought.
-    ArtifactBlock:
-      type: object
-      additionalProperties: false
-      required: [kind, id, artifact_kind, title, content]
-      properties:
-        kind:
-          type: string
-          const: artifact
-        id:
-          type: string
-        artifact_kind:
-          type: string
-          enum: [signal, hypothesis, experiment_plan, growth_brief, generic]
-        title:
-          type: string
-        content:
-          description: Structured artifact payload. Shape depends on artifact_kind.
-    ApprovalBlock:
-      type: object
-      additionalProperties: false
-      required: [kind, id, title, target_id, actions]
-      properties:
-        kind:
-          type: string
-          const: approval
-        id:
-          type: string
-          pattern: "^appr_[A-Za-z0-9_]+$"
-        title:
-          type: string
-        target_id:
-          type: string
-        actions:
-          type: array
-          items:
-            type: string
-            enum: [approve, reject, request_changes]
-    ResultBlock:
-      type: object
-      additionalProperties: false
-      required: [kind, title]
-      properties:
-        kind:
-          type: string
-          const: result
-        title:
-          type: string
-        detail:
-          type: string
-        refs:
-          type: array
-          items:
-            type: object
-            additionalProperties: false
-            required: [kind, id, title]
-            properties:
-              kind:
-                type: string
-              id:
-                type: string
-              title:
-                type: string
-    ErrorBlock:
-      type: object
-      additionalProperties: false
-      required: [kind, title]
-      properties:
-        kind:
-          type: string
-          const: error
-        title:
-          type: string
-        detail:
-          type: string
-        retryable:
-          type: boolean
-    MessageBlock:
-      oneOf:
-        - $ref: "#/components/schemas/TextBlock"
-        - $ref: "#/components/schemas/ActivityBlock"
-        - $ref: "#/components/schemas/MarkdownDocumentBlock"
-        - $ref: "#/components/schemas/ArtifactBlock"
-        - $ref: "#/components/schemas/ApprovalBlock"
-        - $ref: "#/components/schemas/ResultBlock"
-        - $ref: "#/components/schemas/ErrorBlock"
-    StreamMessage:
-      type: object
-      additionalProperties: false
-      required: [id, thread_id, sequence, role, created_at, blocks]
-      properties:
-        id:
-          type: string
-          pattern: "^(msg|sys)_[A-Za-z0-9_]+$"
-        thread_id:
-          type: string
-          description: Conversation thread identifier. During the run-centric transition this may equal agent_run_id.
-        sequence:
-          type: integer
-          minimum: 1
-        role:
-          $ref: "#/components/schemas/StreamMessageRole"
-        created_at:
+        scheduled_at:
           type: string
           format: date-time
-        blocks:
-          type: array
-          minItems: 1
-          items:
-            $ref: "#/components/schemas/MessageBlock"
-    AgentDocumentKind:
-      type: string
-      enum: [evidence_scan, signal_summary, hypothesis_brief, experiment_plan, approval_receipt, generic]
-    AgentDocument:
-      type: object
-      additionalProperties: false
-      required: [document_id, kind, title, format, summary, content]
-      properties:
-        document_id:
-          type: string
-          pattern: "^doc_[A-Za-z0-9_]+$"
-        kind:
-          $ref: "#/components/schemas/AgentDocumentKind"
-        title:
-          type: string
-        format:
-          type: string
-          const: markdown
-        summary:
-          type: string
-        content:
-          type: string
-          description: User-visible markdown document content. Do not include private chain-of-thought.
     Signal:
       type: object
       additionalProperties: false
-      required:
-        - id
-        - type
-        - title
-        - description
-        - metric_name
-        - current_value
-        - baseline_value
-        - lift_ratio
-        - date_window
-        - confidence
-        - evidence_refs
+      required: [id, type, title, description, metric_name, current_value, baseline_value, lift_ratio, date_window, confidence, evidence_refs]
       properties:
         id:
           type: string
@@ -459,14 +114,7 @@ components:
     Hypothesis:
       type: object
       additionalProperties: false
-      required:
-        - id
-        - signal_ids
-        - statement
-        - rationale
-        - confidence
-        - supporting_evidence_refs
-        - caveats
+      required: [id, signal_ids, statement, rationale, confidence, supporting_evidence_refs, caveats]
       properties:
         id:
           type: string
@@ -493,18 +141,7 @@ components:
     ExperimentItem:
       type: object
       additionalProperties: false
-      required:
-        - id
-        - hypothesis_id
-        - title
-        - channel
-        - content_format
-        - hook
-        - cta
-        - target_metric
-        - success_criteria
-        - scheduled_at
-        - production_brief
+      required: [id, hypothesis_id, title, channel, content_format, hook, cta, target_metric, success_criteria, scheduled_at, production_brief]
       properties:
         id:
           type: string
@@ -562,55 +199,6 @@ components:
             $ref: "#/components/schemas/Hypothesis"
         experiment_plan:
           $ref: "#/components/schemas/ExperimentPlan"
-    ToolCallStatus:
-      type: string
-      enum: [PENDING, RUNNING, SUCCESS, FAILED]
-    ToolCallLog:
-      type: object
-      additionalProperties: false
-      required: [sequence, tool_name, status, duration_ms]
-      properties:
-        sequence:
-          type: integer
-          minimum: 1
-        tool_name:
-          type: string
-        status:
-          $ref: "#/components/schemas/ToolCallStatus"
-        duration_ms:
-          type:
-            - integer
-            - "null"
-          minimum: 0
-        error_message:
-          type:
-            - string
-            - "null"
-    ApprovalGateRequest:
-      type: object
-      additionalProperties: false
-      required: [approval_id, gate, payload]
-      properties:
-        approval_id:
-          type: string
-          pattern: "^appr_[A-Za-z0-9_]+$"
-        gate:
-          $ref: "#/components/schemas/ApprovalGateKind"
-        payload:
-          $ref: "#/components/schemas/AgentResultPayload"
-    CalendarEventRef:
-      type: object
-      additionalProperties: false
-      required: [event_id, title, scheduled_at]
-      properties:
-        event_id:
-          type: string
-          pattern: "^cal_[A-Za-z0-9_]+$"
-        title:
-          type: string
-        scheduled_at:
-          type: string
-          format: date-time
     ApprovalCommitResult:
       type: object
       additionalProperties: false
@@ -629,203 +217,169 @@ components:
         persisted_at:
           type: string
           format: date-time
-    ReplayScope:
+    StreamMessageRole:
       type: string
-      enum: [missed_events, full_timeline]
-    AgentStreamServerEvent:
+      enum: [user, assistant, system]
+    TextBlock:
       type: object
       additionalProperties: false
-      required: [event_id, type, occurred_at]
+      required: [kind, text]
       properties:
-        event_id:
+        kind:
           type: string
-        type:
-          $ref: "#/components/schemas/AgentStreamServerEventType"
-        agent_run_id:
-          type:
-            - string
-            - "null"
-          pattern: "^run_[A-Za-z0-9_]+$"
-        session_id:
-          type:
-            - string
-            - "null"
-        sequence:
-          type:
-            - integer
-            - "null"
-          minimum: 1
-          description: >
-            Monotonic per-agent-run sequence for persisted timeline events.
-            Persisted events are emitted and replayed in user-observable order.
-            Connection control events may omit sequence.
-        occurred_at:
+          const: text
+        text:
           type: string
-          format: date-time
+    ActivityBlock:
+      type: object
+      additionalProperties: false
+      required: [kind, title, status]
+      properties:
+        kind:
+          type: string
+          const: activity
+        id:
+          type: string
+        title:
+          type: string
         status:
-          oneOf:
-            - $ref: "#/components/schemas/AgentRunStatus"
-            - type: "null"
-        replay_scope:
-          oneOf:
-            - $ref: "#/components/schemas/ReplayScope"
-            - type: "null"
-        last_replayed_sequence:
-          type:
-            - integer
-            - "null"
-          minimum: 0
-        next_expected_sequence:
-          type:
-            - integer
-            - "null"
-          minimum: 1
-        step:
-          oneOf:
-            - $ref: "#/components/schemas/AgentStepSnapshot"
-            - type: "null"
-        message:
-          oneOf:
-            - $ref: "#/components/schemas/AgentMessage"
-            - type: "null"
-        document:
-          oneOf:
-            - $ref: "#/components/schemas/AgentDocument"
-            - type: "null"
-        observation:
-          oneOf:
-            - $ref: "#/components/schemas/AgentObservation"
-            - type: "null"
-        tool_call:
-          oneOf:
-            - $ref: "#/components/schemas/ToolCallLog"
-            - type: "null"
-        payload:
-          oneOf:
-            - $ref: "#/components/schemas/AgentResultPayload"
-            - type: "null"
-        approval_result:
-          oneOf:
-            - $ref: "#/components/schemas/ApprovalCommitResult"
-            - type: "null"
-        approval:
-          oneOf:
-            - $ref: "#/components/schemas/ApprovalGateRequest"
-            - type: "null"
-        error_message:
-          type:
-            - string
-            - "null"
-    AgentStreamServerFrame:
-      oneOf:
-        - $ref: "#/components/schemas/StreamMessage"
-        - $ref: "#/components/schemas/AgentStreamServerEvent"
-    ConnectionResumeCommand:
+          type: string
+          enum: [queued, running, done, failed]
+        detail:
+          type: string
+    MarkdownDocumentBlock:
       type: object
       additionalProperties: false
-      required: [command_id, type, client_id, agent_run_id, last_received_sequence]
+      required: [kind, id, title, markdown]
       properties:
-        command_id:
+        kind:
           type: string
-          description: Request correlation id for this resume attempt.
-        type:
+          const: markdown_document
+        id:
           type: string
-          const: connection.resume
-        client_id:
+          pattern: "^doc_[A-Za-z0-9_]+$"
+        title:
           type: string
-        session_id:
-          type:
-            - string
-            - "null"
-        agent_run_id:
+        summary:
           type: string
-          pattern: "^run_[A-Za-z0-9_]+$"
-        last_received_sequence:
-          type: integer
-          minimum: 0
-          description: Last persisted timeline event the client fully applied.
-    ConnectionFullSyncCommand:
+        markdown:
+          type: string
+    ArtifactBlock:
       type: object
       additionalProperties: false
-      required: [command_id, type, client_id, agent_run_id]
+      required: [kind, id, artifact_kind, title, content]
       properties:
-        command_id:
+        kind:
           type: string
-          description: Request correlation id for the full timeline replay request.
-        type:
+          const: artifact
+        id:
           type: string
-          const: connection.full_sync
-        client_id:
+        artifact_kind:
           type: string
-        session_id:
-          type:
-            - string
-            - "null"
-        agent_run_id:
+          enum: [signal, hypothesis, experiment_plan, growth_brief, generic]
+        title:
           type: string
-          pattern: "^run_[A-Za-z0-9_]+$"
-    RuntimeCommandBase:
-      type: object
-      additionalProperties: false
-      required: [command_id, type, agent_run_id]
-      properties:
-        command_id:
-          type: string
-          description: Idempotency key. The server must execute the same command_id at most once.
-        type:
-          type: string
-          enum:
-            - run.cancel
-            - approval.update_payload
-            - approval.approve
-            - approval.reject
-        agent_run_id:
-          type: string
-          pattern: "^run_[A-Za-z0-9_]+$"
-        approval_id:
-          type:
-            - string
-            - "null"
-          pattern: "^appr_[A-Za-z0-9_]+$"
-        final_experiments:
-          type:
-            - array
-            - "null"
-          items:
-            $ref: "#/components/schemas/ExperimentItem"
-        reason:
-          type:
-            - string
-            - "null"
-    MessageSendCommand:
-      type: object
-      additionalProperties: false
-      required: [command_id, type, agent_run_id, content, client_created_at]
-      properties:
-        command_id:
-          type: string
-          description: Idempotency key for the client message.
-        type:
-          type: string
-          const: message.send
-        agent_run_id:
-          type: string
-          pattern: "^run_[A-Za-z0-9_]+$"
         content:
+          description: Structured artifact payload.
+    ApprovalBlock:
+      type: object
+      additionalProperties: false
+      required: [kind, id, title, target_id, actions]
+      properties:
+        kind:
           type: string
-          minLength: 1
-          maxLength: 4000
-          description: User-authored free-form message content for the active agent stream. UI actions may provide a short natural-language equivalent such as "Approve this experiment plan."
-        action:
-          $ref: "#/components/schemas/MessageSendAction"
-        client_created_at:
+          const: approval
+        id:
+          type: string
+          pattern: "^appr_[A-Za-z0-9_]+$"
+        title:
+          type: string
+        target_id:
+          type: string
+        actions:
+          type: array
+          items:
+            type: string
+            enum: [approve, reject, request_changes]
+        payload:
+          $ref: "#/components/schemas/AgentResultPayload"
+    ResultBlock:
+      type: object
+      additionalProperties: false
+      required: [kind, title]
+      properties:
+        kind:
+          type: string
+          const: result
+        title:
+          type: string
+        detail:
+          type: string
+        approval_result:
+          $ref: "#/components/schemas/ApprovalCommitResult"
+        refs:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [kind, id, title]
+            properties:
+              kind:
+                type: string
+              id:
+                type: string
+              title:
+                type: string
+    ErrorBlock:
+      type: object
+      additionalProperties: false
+      required: [kind, title]
+      properties:
+        kind:
+          type: string
+          const: error
+        title:
+          type: string
+        detail:
+          type: string
+        retryable:
+          type: boolean
+    MessageBlock:
+      oneOf:
+        - $ref: "#/components/schemas/TextBlock"
+        - $ref: "#/components/schemas/ActivityBlock"
+        - $ref: "#/components/schemas/MarkdownDocumentBlock"
+        - $ref: "#/components/schemas/ArtifactBlock"
+        - $ref: "#/components/schemas/ApprovalBlock"
+        - $ref: "#/components/schemas/ResultBlock"
+        - $ref: "#/components/schemas/ErrorBlock"
+    StreamMessage:
+      type: object
+      additionalProperties: false
+      required: [id, thread_id, sequence, role, created_at, blocks]
+      properties:
+        id:
+          type: string
+          pattern: "^(msg|sys)_[A-Za-z0-9_]+$"
+        thread_id:
+          type: string
+        sequence:
+          type: integer
+          minimum: 1
+        role:
+          $ref: "#/components/schemas/StreamMessageRole"
+        created_at:
           type: string
           format: date-time
+        blocks:
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/MessageBlock"
     MessageSendAction:
       type: object
       additionalProperties: false
       required: [name]
-      description: Optional structured hint for a UI-originated action. Agent Core still interprets the turn in context; Java validates consequential actions before persistence.
       properties:
         name:
           type: string
@@ -834,28 +388,26 @@ components:
           type:
             - string
             - "null"
-          description: Optional approval, document, or artifact id the UI action refers to.
         payload:
-          description: Optional small action payload, for example edited draft fields.
-    AgentStreamClientCommand:
-      oneOf:
-        - $ref: "#/components/schemas/MessageSendCommand"
-        - $ref: "#/components/schemas/ConnectionResumeCommand"
-        - $ref: "#/components/schemas/ConnectionFullSyncCommand"
-        - $ref: "#/components/schemas/RuntimeCommandBase"
-    AgentStreamAck:
+          description: Optional small action payload.
+    MessageSendCommand:
       type: object
       additionalProperties: false
-      required: [ok, command_id, agent_run_id, accepted_at]
+      required: [command_id, type, thread_id, content, client_created_at]
       properties:
-        ok:
-          type: boolean
-          const: true
         command_id:
           type: string
-        agent_run_id:
+        type:
           type: string
-          pattern: "^run_[A-Za-z0-9_]+$"
-        accepted_at:
+          const: message.send
+        thread_id:
+          type: string
+        content:
+          type: string
+          minLength: 1
+          maxLength: 4000
+        action:
+          $ref: "#/components/schemas/MessageSendAction"
+        client_created_at:
           type: string
           format: date-time

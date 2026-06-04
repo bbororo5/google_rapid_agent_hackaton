@@ -1,4 +1,4 @@
-import type { AgentStreamClientCommand, AgentStreamServerEvent } from "@contracts/frontend-types";
+import type { AgentStreamClientCommand, StreamMessage } from "@contracts/frontend-types";
 
 export interface AgentStreamConnection {
   send(command: AgentStreamClientCommand): void;
@@ -11,10 +11,9 @@ export interface AgentStreamApi {
     agentRunId: string;
     streamUrl: string;
     onOpen: () => void;
-    onEvent: (event: AgentStreamServerEvent) => void;
+    onEvent: (message: StreamMessage) => void;
     onError: (message: string) => void;
     onClose?: () => void;
-    getLastReceivedSequence?: () => number;
   }): AgentStreamConnection;
 }
 
@@ -28,20 +27,6 @@ function toWebSocketUrl(streamUrl: string) {
   return url.toString();
 }
 
-function clientId() {
-  const storageKey = "launchpilot.agent.client_id";
-  const existing = window.localStorage.getItem(storageKey);
-  if (existing) return existing;
-
-  const generated = `client_${crypto.randomUUID().replaceAll("-", "_")}`;
-  window.localStorage.setItem(storageKey, generated);
-  return generated;
-}
-
-function commandId(prefix: string) {
-  return `${prefix}_${crypto.randomUUID().replaceAll("-", "_")}`;
-}
-
 function reconnectDelay(attempt: number) {
   const capped = Math.min(MAX_RECONNECT_DELAY_MS, BASE_RECONNECT_DELAY_MS * 2 ** Math.max(0, attempt - 1));
   return Math.round(capped * (0.7 + Math.random() * 0.6));
@@ -49,15 +34,13 @@ function reconnectDelay(attempt: number) {
 
 export function createWebSocketAgentStreamApi(): AgentStreamApi {
   return {
-    connect({ agentRunId, streamUrl, onOpen, onEvent, onError, onClose, getLastReceivedSequence }) {
+    connect({ streamUrl, onOpen, onEvent, onError, onClose }) {
       let socket: WebSocket | null = null;
       let closedByClient = false;
       let reconnectAttempts = 0;
       let reconnectTimer: number | null = null;
-      let sessionId: string | null = null;
       const pendingCommands: AgentStreamClientCommand[] = [];
       const wsUrl = toWebSocketUrl(streamUrl);
-      const stableClientId = clientId();
 
       const flushPendingCommands = () => {
         if (!socket || socket.readyState !== WebSocket.OPEN) return;
@@ -74,45 +57,19 @@ export function createWebSocketAgentStreamApi(): AgentStreamApi {
         pendingCommands.push(command);
       };
 
-      const sendResume = () => {
-        sendNowOrQueue({
-          command_id: commandId("cmd_resume"),
-          type: "connection.resume",
-          client_id: stableClientId,
-          session_id: sessionId,
-          agent_run_id: agentRunId,
-          last_received_sequence: getLastReceivedSequence?.() ?? 0,
-        });
-      };
-
       const connectSocket = () => {
         socket = new WebSocket(wsUrl);
 
         socket.addEventListener("open", () => {
           reconnectAttempts = 0;
           onOpen();
-          if ((getLastReceivedSequence?.() ?? 0) > 0) {
-            sendResume();
-          }
           flushPendingCommands();
         });
 
         socket.addEventListener("message", (message) => {
           try {
-            const streamEvent = JSON.parse(message.data as string) as AgentStreamServerEvent;
-            if (streamEvent.session_id) {
-              sessionId = streamEvent.session_id;
-            }
-            onEvent(streamEvent);
-            if (streamEvent.type === "connection.full_sync_required") {
-              sendNowOrQueue({
-                command_id: commandId("cmd_full_sync"),
-                type: "connection.full_sync",
-                client_id: stableClientId,
-                session_id: sessionId,
-                agent_run_id: agentRunId,
-              });
-            }
+            const streamMessage = JSON.parse(message.data as string) as StreamMessage;
+            onEvent(streamMessage);
           } catch {
             onError("Agent stream sent an invalid event.");
           }

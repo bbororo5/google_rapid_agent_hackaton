@@ -5,7 +5,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 final class MockPayloads {
-    static final String RUN_ID = "run_20260601_001";
+    static final String RUN_ID = "thread_20260601_001";
     static final String SESSION_ID = "session_20260601_001";
 
     private MockPayloads() {
@@ -21,46 +21,6 @@ final class MockPayloads {
                 "failed_count", 0,
                 "columns", List.of("post_id", "published_at", "channel", "views", "likes", "comments", "save_rate"),
                 "created_at", "2026-06-01T16:30:10+09:00"
-        );
-    }
-
-    static Map<String, Object> acceptedRun(String publicBaseUrl) {
-        return Map.of(
-                "ok", true,
-                "agent_run_id", RUN_ID,
-                "status", "PENDING",
-                "stream_url", publicBaseUrl.replace("http://", "ws://").replace("https://", "wss://") + "/api/agent/runs/" + RUN_ID + "/stream",
-                "next_poll_url", publicBaseUrl + "/api/agent/runs/" + RUN_ID,
-                "created_at", "2026-06-01T16:31:00+09:00"
-        );
-    }
-
-    static Map<String, Object> readyRun(String agentRunId) {
-        return map(
-                "agent_run_id", agentRunId,
-                "status", "WAITING_FOR_APPROVAL",
-                "current_stage", "WAIT_FOR_APPROVAL",
-                "retry_count", 0,
-                "error_message", null,
-                "payload", payload(),
-                "tool_call_logs", List.of(
-                        Map.of("sequence", 1, "tool_name", "query_metric_baseline", "status", "SUCCESS", "duration_ms", 142),
-                        Map.of("sequence", 2, "tool_name", "search_team_notes", "status", "SUCCESS", "duration_ms", 310)
-                )
-        );
-    }
-
-    static Map<String, Object> approvalResponse(String title) {
-        return Map.of(
-                "ok", true,
-                "message", "Human approval processed successfully.",
-                "growth_brief_id", "brief_20260601_001",
-                "created_calendar_events", List.of(Map.of(
-                        "event_id", "cal_20260603_001",
-                        "title", title,
-                        "scheduled_at", "2026-06-03T20:00:00+09:00"
-                )),
-                "persisted_at", "2026-06-01T16:33:15+09:00"
         );
     }
 

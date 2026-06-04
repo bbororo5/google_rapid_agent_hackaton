@@ -138,7 +138,6 @@ function evidenceRefIds() {
 function assertEvidenceRefsAreGrounded() {
   const known = evidenceRefIds();
   const payloads = [
-    "contracts/01-frontend-java/examples/agent-run-waiting-for-approval-response.json",
     "contracts/02-java-python-agent/examples/get-agent-run-ready-response.json",
     "contracts/05-agent-output/examples/final-agent-payload.json",
   ].map(readJson);
@@ -263,7 +262,6 @@ function main() {
   const counts = parseAllStructuredFiles(files);
 
   validateSchemaExamples();
-  assertStatusEnumsMatch();
   assertEvidenceRefsAreGrounded();
   assertAgentOutputInternalRefs();
   assertElasticApprovalRefs();
