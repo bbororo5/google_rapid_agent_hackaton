@@ -950,6 +950,7 @@ a {
   max-width: 100%;
   display: inline-flex;
   align-items: center;
+  gap: 8px;
   min-height: 34px;
   padding: 6px 10px;
   border: 1px solid var(--line);

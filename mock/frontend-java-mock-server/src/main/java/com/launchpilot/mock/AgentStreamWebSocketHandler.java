@@ -7,6 +7,7 @@ import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.TextMessage;
@@ -45,6 +46,19 @@ public class AgentStreamWebSocketHandler extends TextWebSocketHandler {
             new Thread(() -> replay(session, 1, checkpoints.getOrDefault(session.getId(), new AtomicInteger(11)).get())).start();
             return;
         }
+        if ("message.send".equals(type)) {
+            AtomicInteger checkpoint = checkpoints.computeIfAbsent(session.getId(), ignored -> new AtomicInteger(11));
+            int sequence = checkpoint.incrementAndGet();
+            send(session, event(sequence, "assistant.message.created", Map.of(
+                    "status", "RUNNING_EVIDENCE_SEARCH",
+                    "message", Map.of(
+                            "message_id", "msg_mock_assistant_free_" + sequence,
+                            "role", "assistant",
+                            "content", randomConversationReply()
+                    )
+            )));
+            return;
+        }
         if ("run.continue".equals(type)) {
             AtomicInteger checkpoint = checkpoints.computeIfAbsent(session.getId(), ignored -> new AtomicInteger(11));
             int fromSequence = checkpoint.get() + 1;
@@ -81,6 +95,22 @@ public class AgentStreamWebSocketHandler extends TextWebSocketHandler {
         if (lastReceivedSequence < 14) return 14;
         if (lastReceivedSequence < 15) return 15;
         return 16;
+    }
+
+    private String randomConversationReply() {
+        List<String> replies = List.of(
+                "좋아요. 지금 대화 맥락은 캠페인 실험 설계 쪽으로 이해했어요. 필요한 근거가 생기면 제가 먼저 확인하겠습니다.",
+                "그 관점 괜찮습니다. 우선 리텐션, 저장률, 댓글 전환처럼 다음 액션으로 이어지는 지표를 중심으로 보겠습니다.",
+                "메모해둘게요. 지금 요청은 단순 요약보다 다음 주 실행안을 만드는 쪽에 더 가깝습니다.",
+                "좋은 방향이에요. 데이터가 충분하면 근거를 붙이고, 부족하면 어떤 데이터가 필요한지 먼저 짚겠습니다.",
+                "이건 바로 실험안으로 밀기보다 가설을 한 번 더 좁혀보면 좋겠습니다. 사용자가 납득할 수 있는 근거를 우선하겠습니다.",
+                "알겠습니다. 지금은 과한 자동화보다 사용자가 검토하고 수정할 수 있는 초안을 만드는 방식이 더 안전해 보입니다.",
+                "그 요청은 캠페인 맥락과 지난 승인 브리프를 같이 보면 더 정확해집니다. 이어지는 흐름으로 정리하겠습니다.",
+                "좋아요. 제가 보기엔 숫자 변화, 콘텐츠 포맷, 팀 메모를 함께 묶어야 설명 가능한 결론이 나옵니다.",
+                "이 방향이면 스레드에는 짧게 요약하고, 자세한 문서는 우측 패널에 올리는 방식이 가장 읽기 좋겠습니다.",
+                "확인했습니다. 필요한 경우 도구 로그와 근거 문서를 남기되, 대화 흐름은 계속 자연스럽게 유지하겠습니다."
+        );
+        return replies.get(ThreadLocalRandom.current().nextInt(replies.size()));
     }
 
     private void replay(WebSocketSession session, int fromSequence, int toSequence) {

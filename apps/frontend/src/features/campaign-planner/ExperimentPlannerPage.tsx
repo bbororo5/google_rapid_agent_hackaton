@@ -1,6 +1,6 @@
 "use client";
 
-import { ChangeEvent, CSSProperties, useEffect, useMemo, useRef, useState } from "react";
+import { ChangeEvent, CSSProperties, ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Bell,
@@ -20,8 +20,8 @@ import {
   Target,
 } from "lucide-react";
 import { useExperimentPlannerController } from "@/features/campaign-planner/hooks/useExperimentPlannerController";
-import type { GateReview, PlannerProgressView, StatusRow } from "@/features/campaign-planner/hooks/useExperimentPlannerController";
-import type { AgentDocument, AgentMessage, AgentObservation, ExperimentItem, Hypothesis, Signal, ToolCallLog } from "@/features/campaign-planner/state/experimentPlannerTypes";
+import type { GateReview, PlannerProgressView, StatusRow, StreamMessage, StreamMessageBlock } from "@/features/campaign-planner/hooks/useExperimentPlannerController";
+import type { AgentDocument, ExperimentItem, Hypothesis, Signal } from "@/features/campaign-planner/state/experimentPlannerTypes";
 
 function formatPercent(value: number) {
   return `${(value * 100).toFixed(1)}%`;
@@ -40,31 +40,6 @@ function documentDisplayTitle(document: StreamDocument) {
   return document.title;
 }
 
-function toolDisplayName(toolName: string) {
-  const labels: Record<string, string> = {
-    query_metric_baseline: "metric baseline",
-    search_content_posts: "supporting posts",
-    search_team_notes: "team context",
-  };
-
-  if (labels[toolName]) return labels[toolName];
-
-  return toolName
-    .split("_")
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
-}
-
-function toolStatusLabel(tool: ToolCallLog) {
-  if (tool.status === "FAILED" && tool.error_message) return `Could not check ${toolDisplayName(tool.tool_name)}: ${tool.error_message}`;
-  if (tool.status === "FAILED") return `Could not check ${toolDisplayName(tool.tool_name)}`;
-  if (tool.status === "SUCCESS" && tool.duration_ms !== null) return `Checked ${toolDisplayName(tool.tool_name)} in ${tool.duration_ms}ms`;
-  if (tool.status === "SUCCESS") return `Checked ${toolDisplayName(tool.tool_name)}`;
-  if (tool.status === "RUNNING") return `Checking ${toolDisplayName(tool.tool_name)}`;
-  return `Queued ${toolDisplayName(tool.tool_name)}`;
-}
-
 function StreamingText({ text }: { text: string }) {
   const words = text.split(" ");
 
@@ -80,99 +55,6 @@ function StreamingText({ text }: { text: string }) {
   );
 }
 
-function UserMessageCard({ message }: { message: AgentMessage }) {
-  return (
-    <article className="thread-message user">
-      <div className="message-bubble">
-        <div className="message-meta">
-          <strong>You</strong>
-          <span>Message</span>
-        </div>
-        <p>{message.content}</p>
-      </div>
-    </article>
-  );
-}
-
-function AssistantTextFlow({
-  timelineItems,
-  primaryExperiment,
-  approval,
-  calendarEvents,
-  onOpenDocument,
-}: {
-  timelineItems: ExperimentPlannerView["thread"]["timelineItems"];
-  primaryExperiment?: ExperimentItem;
-  approval: ExperimentPlannerView["approval"]["receipt"];
-  calendarEvents: ExperimentPlannerView["approval"]["calendarEvents"];
-  onOpenDocument: (document: StreamDocument) => void;
-}) {
-  const finalLines = [
-    primaryExperiment ? `I drafted a recommended experiment: ${primaryExperiment.title}. ${primaryExperiment.production_brief}` : null,
-    approval ? `Approval complete. Growth brief ${approval.growth_brief_id} and ${calendarEvents.length} calendar event${calendarEvents.length === 1 ? "" : "s"} are ready.` : null,
-  ].filter((line): line is string => Boolean(line));
-
-  if (timelineItems.length === 0 && finalLines.length === 0) return null;
-
-  return (
-    <article className="thread-message assistant-flow-message">
-      <div className="message-avatar">LP</div>
-      <div className="assistant-flow">
-        <div className="assistant-flow-label">LaunchPilot</div>
-        <div className="assistant-timeline">
-          {timelineItems.map((item) => (
-            <TimelineItemRow key={item.id} item={item} onOpenDocument={onOpenDocument} />
-          ))}
-          {finalLines.map((line, index) => (
-            <TimelineTextRow key={`${line}-${index}`} text={line} tone="text" />
-          ))}
-        </div>
-      </div>
-    </article>
-  );
-}
-
-function TimelineItemRow({
-  item,
-  onOpenDocument,
-}: {
-  item: ExperimentPlannerView["thread"]["timelineItems"][number];
-  onOpenDocument: (document: StreamDocument) => void;
-}) {
-  if (item.kind === "tool") {
-    return (
-      <TimelineTextRow text={toolStatusLabel(item.tool)} tone={item.tool.status === "FAILED" ? "failed" : item.tool.status === "SUCCESS" ? "done" : "active"} />
-    );
-  }
-
-  if (item.kind === "document") {
-    return (
-      <button className="timeline-chain-row document done" type="button" onClick={() => onOpenDocument(item.document)} aria-label={`Open ${documentDisplayTitle(item.document)}`}>
-        <span className="timeline-glyph" aria-hidden="true" />
-        <span className="timeline-document-card">Prepared {documentDisplayTitle(item.document).toLowerCase()}</span>
-      </button>
-    );
-  }
-
-  if (item.kind === "observation") {
-    return <TimelineObservationBlock observation={item.observation} />;
-  }
-
-  return <TimelineTextRow text={item.message.content} tone="text" />;
-}
-
-function TimelineObservationBlock({ observation }: { observation: AgentObservation }) {
-  return (
-    <section className={`timeline-observation-block ${observation.kind}`} aria-label={observation.title}>
-      <div className="timeline-observation-copy">
-        <p>
-          <StreamingText text={observation.summary} />
-        </p>
-      </div>
-    </section>
-  );
-}
-
 function TimelineTextRow({ text, tone }: { text: string; tone: "text" | "active" | "done" | "failed" }) {
   return (
     <p className={`timeline-chain-row ${tone}`}>
@@ -182,6 +64,80 @@ function TimelineTextRow({ text, tone }: { text: string; tone: "text" | "active"
       </span>
     </p>
   );
+}
+
+function StreamMessageCard({
+  message,
+  onOpenDocument,
+}: {
+  message: StreamMessage;
+  onOpenDocument: (document: StreamDocument) => void;
+}) {
+  if (message.role === "user") {
+    const text = message.blocks
+      .filter((block): block is Extract<StreamMessageBlock, { kind: "text" }> => block.kind === "text")
+      .map((block) => block.text)
+      .join("\n");
+
+    return (
+      <article className="thread-message user">
+        <div className="message-bubble">
+          <div className="message-meta">
+            <strong>You</strong>
+            <span>Message</span>
+          </div>
+          <p>{text}</p>
+        </div>
+      </article>
+    );
+  }
+
+  return (
+    <article className="thread-message assistant-flow-message">
+      <div className="message-avatar">{message.role === "system" ? "!" : "LP"}</div>
+      <div className="assistant-flow">
+        <div className="assistant-flow-label">{message.role === "system" ? "System" : "LaunchPilot"}</div>
+        <div className="assistant-timeline">
+          {message.blocks.map((block, index) => (
+            <StreamBlockRow key={`${message.id}:${index}`} block={block} onOpenDocument={onOpenDocument} />
+          ))}
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function StreamBlockRow({
+  block,
+  onOpenDocument,
+}: {
+  block: StreamMessageBlock;
+  onOpenDocument: (document: StreamDocument) => void;
+}) {
+  switch (block.kind) {
+    case "text":
+      return <TimelineTextRow text={block.text} tone="text" />;
+    case "activity":
+      return <TimelineTextRow text={block.title} tone={block.status === "failed" ? "failed" : block.status === "done" ? "done" : "active"} />;
+    case "markdown_document":
+      return (
+        <button className="timeline-chain-row document done" type="button" onClick={() => onOpenDocument(block.document)} aria-label={`Open ${block.title}`}>
+          <span className="timeline-glyph" aria-hidden="true" />
+          <span className="timeline-document-card">
+            <FileText size={15} strokeWidth={1.8} />
+            <span>Prepared {block.title.toLowerCase()}</span>
+          </span>
+        </button>
+      );
+    case "artifact":
+      return <TimelineTextRow text={`${block.title}`} tone="done" />;
+    case "approval":
+      return <TimelineTextRow text={block.title} tone="active" />;
+    case "result":
+      return <TimelineTextRow text={block.detail ? `${block.title}. ${block.detail}` : block.title} tone="done" />;
+    case "error":
+      return <TimelineTextRow text={block.detail ? `${block.title}: ${block.detail}` : block.title} tone="failed" />;
+  }
 }
 
 function SystemStatusRows({ statuses }: { statuses: StatusRow[] }) {
@@ -372,16 +328,14 @@ function ThreadPanel({
   const scrollKey = useMemo(
     () =>
       [
-        view.thread.userMessages.length,
-        view.thread.timelineItems.length,
+        view.thread.streamMessages.length,
         view.screen.statusRows.length,
         view.screen.errorMessage ?? "",
         view.thread.primaryExperiment?.id ?? "",
         view.approval.receipt?.growth_brief_id ?? "",
       ].join(":"),
     [
-      view.thread.userMessages.length,
-      view.thread.timelineItems.length,
+      view.thread.streamMessages.length,
       view.screen.statusRows.length,
       view.screen.errorMessage,
       view.thread.primaryExperiment?.id,
@@ -392,9 +346,6 @@ function ThreadPanel({
   useEffect(() => {
     threadEndRef.current?.scrollIntoView({ block: "end", behavior: "auto" });
   }, [scrollKey]);
-
-  const initialUserMessages = view.thread.userMessages.filter((message) => !message.message_id.startsWith("msg_local_"));
-  const localUserMessages = view.thread.userMessages.filter((message) => message.message_id.startsWith("msg_local_"));
 
   const handleComposerPrimaryAction = () => {
     switch (view.composer.primaryAction.kind) {
@@ -426,31 +377,9 @@ function ThreadPanel({
 
         <SystemStatusRows statuses={view.screen.statusRows} />
 
-        {initialUserMessages.map((message) => (
-          <UserMessageCard key={message.message_id} message={message} />
+        {view.thread.streamMessages.map((message) => (
+          <StreamMessageCard key={message.id} message={message} onOpenDocument={onOpenDocument} />
         ))}
-
-        <AssistantTextFlow
-          timelineItems={view.thread.timelineItems}
-          primaryExperiment={view.thread.primaryExperiment ?? undefined}
-          approval={view.approval.receipt}
-          calendarEvents={view.approval.calendarEvents}
-          onOpenDocument={onOpenDocument}
-        />
-
-        {localUserMessages.map((message) => (
-          <UserMessageCard key={message.message_id} message={message} />
-        ))}
-
-        {view.screen.errorMessage ? (
-          <article className="thread-message assistant-flow-message">
-            <div className="message-avatar">LP</div>
-            <div className="assistant-flow">
-              <div className="assistant-flow-label">Agent run · {view.progress.stateLabel}</div>
-              <p className="error-message">{view.screen.errorMessage}</p>
-            </div>
-          </article>
-        ) : null}
         <div className="thread-scroll-anchor" ref={threadEndRef} aria-hidden="true" />
       </div>
 
@@ -662,6 +591,14 @@ function InspectorPanel({
           </section>
         ) : null}
 
+        {activeDocument ? (
+          <section className="inspector-section document-viewer" aria-label={documentDisplayTitle(activeDocument)}>
+            <article className="markdown-document">
+              <MarkdownContent markdown={activeDocument.content} />
+            </article>
+          </section>
+        ) : null}
+
         {view.inspector.currentGate ? (
           <section className="inspector-section" aria-label="Current decision">
             <div className="section-title">
@@ -691,6 +628,50 @@ function InspectorPanel({
       </div>
     </aside>
   );
+}
+
+function MarkdownContent({ markdown }: { markdown: string }) {
+  const lines = markdown.split("\n");
+  const elements: ReactNode[] = [];
+  let listItems: string[] = [];
+
+  const flushList = () => {
+    if (listItems.length === 0) return;
+    elements.push(
+      <ul key={`list-${elements.length}`}>
+        {listItems.map((item) => (
+          <li key={item}>{item}</li>
+        ))}
+      </ul>
+    );
+    listItems = [];
+  };
+
+  lines.forEach((line, index) => {
+    if (line.startsWith("## ")) {
+      flushList();
+      elements.push(<h2 key={index}>{line.slice(3)}</h2>);
+      return;
+    }
+    if (line.startsWith("# ")) {
+      flushList();
+      elements.push(<h1 key={index}>{line.slice(2)}</h1>);
+      return;
+    }
+    if (line.startsWith("- ")) {
+      listItems.push(line.slice(2));
+      return;
+    }
+    if (!line.trim()) {
+      flushList();
+      return;
+    }
+    flushList();
+    elements.push(<p key={index}>{line}</p>);
+  });
+  flushList();
+
+  return elements;
 }
 
 function CampaignAgentWorkspace({
@@ -725,10 +706,12 @@ export function ExperimentPlannerPage() {
   }, [view.inspector.activeGateKey]);
 
   useEffect(() => {
-    if (!selectedDocument && view.thread.documents.length > 0) {
-      setSelectedDocument(view.thread.documents[0]);
+    const latestDocument = view.thread.documents.at(-1) ?? null;
+    if (latestDocument && selectedDocument?.document_id !== latestDocument.document_id) {
+      setSelectedDocument(latestDocument);
+      setInspectorOpen(true);
     }
-  }, [selectedDocument, view.thread.documents]);
+  }, [selectedDocument?.document_id, view.thread.documents]);
 
   function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];

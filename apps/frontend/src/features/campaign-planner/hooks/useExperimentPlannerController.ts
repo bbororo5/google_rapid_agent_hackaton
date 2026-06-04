@@ -102,8 +102,26 @@ export interface PlannerProgressView {
   steps: ChecklistStep[];
 }
 
+export type StreamMessageBlock =
+  | { kind: "text"; text: string }
+  | { kind: "activity"; id: string; title: string; status: "queued" | "running" | "done" | "failed"; detail?: string }
+  | { kind: "markdown_document"; id: string; title: string; summary?: string; markdown: string; document: AgentDocument }
+  | { kind: "artifact"; id: string; artifactKind: "signal" | "hypothesis" | "experiment_plan" | "growth_brief"; title: string; content: unknown }
+  | { kind: "approval"; id: string; title: string; targetId: string; actions: ("approve" | "reject" | "request_changes")[] }
+  | { kind: "result"; title: string; detail?: string }
+  | { kind: "error"; title: string; detail?: string; retryable?: boolean };
+
+export interface StreamMessage {
+  id: string;
+  sequence: number;
+  role: "user" | "assistant" | "system";
+  createdAt: string | null;
+  blocks: StreamMessageBlock[];
+}
+
 export interface PlannerThreadView {
   hasActivity: boolean;
+  streamMessages: StreamMessage[];
   userMessages: AgentMessage[];
   assistantMessages: AgentMessage[];
   documents: AgentDocument[];
@@ -227,6 +245,167 @@ function stateImportResult(state: ExperimentPlannerState) {
 
 function commandId(prefix: string) {
   return `${prefix}_${crypto.randomUUID().replaceAll("-", "_")}`;
+}
+
+function toolBlock(tool: ToolCallLog): StreamMessageBlock {
+  const status = tool.status === "FAILED" ? "failed" : tool.status === "SUCCESS" ? "done" : tool.status === "RUNNING" ? "running" : "queued";
+  return {
+    kind: "activity",
+    id: `tool:${tool.sequence}:${tool.tool_name}`,
+    title: toolStatusLabel(tool),
+    status,
+    detail: tool.error_message ?? undefined,
+  };
+}
+
+function toolStatusLabel(tool: ToolCallLog) {
+  const labels: Record<string, string> = {
+    query_metric_baseline: "metric baseline",
+    search_content_posts: "supporting posts",
+    search_team_notes: "team context",
+  };
+  const displayName =
+    labels[tool.tool_name] ??
+    tool.tool_name
+      .split("_")
+      .filter(Boolean)
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(" ");
+
+  if (tool.status === "FAILED" && tool.error_message) return `Could not check ${displayName}: ${tool.error_message}`;
+  if (tool.status === "FAILED") return `Could not check ${displayName}`;
+  if (tool.status === "SUCCESS" && tool.duration_ms !== null) return `Checked ${displayName} in ${tool.duration_ms}ms`;
+  if (tool.status === "SUCCESS") return `Checked ${displayName}`;
+  if (tool.status === "RUNNING") return `Checking ${displayName}`;
+  return `Queued ${displayName}`;
+}
+
+function streamMessagesFromState(input: {
+  messages: AgentMessage[];
+  timelineItems: AgentTimelineItem[];
+  primaryExperiment: ExperimentItem | null;
+  approval: ApproveExperimentPlanResponse | null;
+  calendarEvents: CalendarEventRef[];
+  errorMessage: string | null;
+  stateLabel: string;
+}): StreamMessage[] {
+  const initialUserMessages = input.messages.filter((message) => message.role === "user" && !message.message_id.startsWith("msg_local_"));
+  const localUserMessages = input.messages.filter((message) => message.role === "user" && message.message_id.startsWith("msg_local_"));
+  const assistantMessages = input.messages.filter((message) => message.role === "assistant");
+  const streamMessages: StreamMessage[] = [
+    ...initialUserMessages.map((message, index) => ({
+      id: message.message_id,
+      sequence: index + 1,
+      role: "user" as const,
+      createdAt: null,
+      blocks: [{ kind: "text" as const, text: message.content }],
+    })),
+    ...assistantMessages.map((message, index) => ({
+      id: message.message_id,
+      sequence: 100 + index,
+      role: "assistant" as const,
+      createdAt: null,
+      blocks: [{ kind: "text" as const, text: message.content }],
+    })),
+    ...input.timelineItems.map((item) => {
+      if (item.kind === "tool") {
+        return {
+          id: item.id,
+          sequence: item.sequence,
+          role: "assistant" as const,
+          createdAt: null,
+          blocks: [toolBlock(item.tool)],
+        };
+      }
+      if (item.kind === "document") {
+        return {
+          id: item.id,
+          sequence: item.sequence,
+          role: "assistant" as const,
+          createdAt: null,
+          blocks: [
+            {
+              kind: "markdown_document" as const,
+              id: item.document.document_id,
+              title: item.document.title,
+              summary: item.document.summary,
+              markdown: item.document.content,
+              document: item.document,
+            },
+          ],
+        };
+      }
+      if (item.kind === "observation") {
+        return {
+          id: item.id,
+          sequence: item.sequence,
+          role: "assistant" as const,
+          createdAt: null,
+          blocks: [{ kind: "text" as const, text: item.observation.summary }],
+        };
+      }
+      return {
+        id: item.id,
+        sequence: item.sequence,
+        role: "assistant" as const,
+        createdAt: null,
+        blocks: [{ kind: "text" as const, text: item.message.content }],
+      };
+    }),
+    ...localUserMessages.map((message, index) => ({
+      id: message.message_id,
+      sequence: 10_000 + index,
+      role: "user" as const,
+      createdAt: null,
+      blocks: [{ kind: "text" as const, text: message.content }],
+    })),
+  ];
+
+  if (input.primaryExperiment) {
+    streamMessages.push({
+      id: `artifact:${input.primaryExperiment.id}`,
+      sequence: 20_000,
+      role: "assistant",
+      createdAt: null,
+      blocks: [
+        {
+          kind: "artifact",
+          id: input.primaryExperiment.id,
+          artifactKind: "experiment_plan",
+          title: input.primaryExperiment.title,
+          content: input.primaryExperiment,
+        },
+      ],
+    });
+  }
+
+  if (input.approval) {
+    streamMessages.push({
+      id: `result:${input.approval.growth_brief_id}`,
+      sequence: 20_100,
+      role: "assistant",
+      createdAt: null,
+      blocks: [
+        {
+          kind: "result",
+          title: "Approval complete",
+          detail: `Growth brief ${input.approval.growth_brief_id} and ${input.calendarEvents.length} calendar event${input.calendarEvents.length === 1 ? "" : "s"} are ready.`,
+        },
+      ],
+    });
+  }
+
+  if (input.errorMessage) {
+    streamMessages.push({
+      id: `error:${input.errorMessage}`,
+      sequence: 30_000,
+      role: "system",
+      createdAt: null,
+      blocks: [{ kind: "error", title: `Agent run · ${input.stateLabel}`, detail: input.errorMessage, retryable: true }],
+    });
+  }
+
+  return streamMessages.sort((a, b) => a.sequence - b.sequence);
 }
 
 function stateSignal(state: ExperimentPlannerState) {
@@ -683,6 +862,16 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
 
     if (!text) return;
 
+    if ("agentRunId" in current && current.agentRunId) {
+      streamRef.current?.send({
+        command_id: commandId("cmd_message"),
+        type: "message.send",
+        agent_run_id: current.agentRunId,
+        content: text,
+        client_created_at: new Date().toISOString(),
+      } as never);
+    }
+
     setLocalUserMessages((messages) => [
       ...messages,
       {
@@ -854,8 +1043,18 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
     campaignName: "Comeback Teaser",
     campaignStatus: displayState === "approved" ? "approved" : displayState === "ready" ? "needs_review" : displayState === "error" ? "error" : "active",
   };
+  const streamMessages = streamMessagesFromState({
+    messages: currentMessages,
+    timelineItems: timelineItems(state),
+    primaryExperiment,
+    approval: currentApproval,
+    calendarEvents: currentCalendarEvents,
+    errorMessage: stateMessage(state),
+    stateLabel: progress.stateLabel,
+  });
   const thread: PlannerThreadView = {
     hasActivity: statusRows.length > 0 || liveThreadActivity || toolLogs(state).length > 0 || Boolean(primaryExperiment) || Boolean(currentApproval) || Boolean(stateMessage(state)),
+    streamMessages,
     userMessages: currentMessages.filter((message) => message.role === "user"),
     assistantMessages: currentMessages.filter((message) => message.role === "assistant"),
     documents: currentDocuments,
