@@ -47,7 +47,7 @@ test.describe("main analysis approval happy path", () => {
     await expect(page.locator(".assistant-flow-message")).toHaveCount(1);
 
     await page.getByRole("button", { name: /open evidence notes/i }).click();
-    await expect(page.getByRole("complementary", { name: /markdown document/i })).toContainText("Evidence notes");
+    await expect(page.getByRole("complementary", { name: /output panel/i })).toContainText("Evidence notes");
     await expect(page.getByRole("button", { name: /use this signal/i })).toBeVisible();
 
     await page.getByRole("textbox", { name: /message/i }).fill("Please keep the signal grounded in short-form content.");
@@ -68,6 +68,9 @@ test.describe("main analysis approval happy path", () => {
 
     await expect(page.getByText("BTS face-first hook test edited").first()).toBeVisible();
     await expect(page.getByText(/human approval processed|approved|calendar/i).first()).toBeVisible();
+    await expect(page.getByRole("button", { name: /approved output approval complete/i })).toBeVisible();
+    await page.getByRole("button", { name: /approved output approval complete/i }).click();
+    await expect(page.getByRole("complementary", { name: /output panel/i })).toContainText("Growth brief");
 
   });
 });

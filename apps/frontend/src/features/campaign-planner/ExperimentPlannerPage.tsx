@@ -20,7 +20,7 @@ import {
   Target,
 } from "lucide-react";
 import { useExperimentPlannerController } from "@/features/campaign-planner/hooks/useExperimentPlannerController";
-import type { GateReview, PlannerProgressView, StatusRow, StreamMessageBlock, ThreadDisplayItem, ThreadMessageGroup } from "@/features/campaign-planner/hooks/useExperimentPlannerController";
+import type { GateReview, OutputPanelItem, PlannerProgressView, StatusRow, StreamMessageBlock, ThreadDisplayItem, ThreadMessageGroup } from "@/features/campaign-planner/hooks/useExperimentPlannerController";
 import type { AgentDocument, ExperimentItem, Hypothesis, Signal } from "@/features/campaign-planner/state/experimentPlannerTypes";
 
 function formatPercent(value: number) {
@@ -34,11 +34,6 @@ function confidenceLabel(value: string) {
 type ExperimentPlannerView = ReturnType<typeof useExperimentPlannerController>;
 
 type StreamDocument = AgentDocument;
-
-function documentDisplayTitle(document: StreamDocument) {
-  if (document.kind === "evidence_scan") return "Evidence notes";
-  return document.title;
-}
 
 function StreamingText({ text }: { text: string }) {
   const words = text.split(" ");
@@ -627,30 +622,52 @@ function GateCard({
 
 function InspectorPanel({
   open,
-  selectedDocument,
+  outputs,
+  activeOutputId,
+  onSelectOutput,
 }: {
   open: boolean;
-  selectedDocument: StreamDocument | null;
+  outputs: OutputPanelItem[];
+  activeOutputId: string | null;
+  onSelectOutput: (id: string) => void;
 }) {
+  const activeOutput = outputs.find((output) => output.id === activeOutputId) ?? outputs.at(-1) ?? null;
+
   return (
-    <aside className="inspector-panel markdown-only" aria-label="Markdown document" aria-hidden={!open} tabIndex={open ? -1 : undefined}>
+    <aside className="inspector-panel output-panel" aria-label="Output panel" aria-hidden={!open} tabIndex={open ? -1 : undefined}>
       <div className="inspector-top">
         <div>
-          <strong>{selectedDocument ? documentDisplayTitle(selectedDocument) : "Document"}</strong>
-          <span>Markdown</span>
+          <strong>{activeOutput ? activeOutput.title : "Outputs"}</strong>
+          <span>{activeOutput ? activeOutput.eyebrow : "No outputs yet"}</span>
         </div>
       </div>
 
       <div className="inspector-content">
-        {selectedDocument ? (
-          <section className="inspector-section document-viewer" aria-label={documentDisplayTitle(selectedDocument)}>
-            <article className="markdown-document">
-              <MarkdownContent markdown={selectedDocument.content} />
-            </article>
-          </section>
+        {outputs.length > 0 ? (
+          <>
+            <nav className="output-tab-list" aria-label="Saved outputs">
+              {outputs.map((output) => (
+                <button
+                  className={`output-tab-card${output.id === activeOutput?.id ? " active" : ""}`}
+                  type="button"
+                  aria-pressed={output.id === activeOutput?.id}
+                  key={output.id}
+                  onClick={() => onSelectOutput(output.id)}
+                >
+                  <span>{output.eyebrow}</span>
+                  <strong>{output.title}</strong>
+                </button>
+              ))}
+            </nav>
+            <section className="inspector-section document-viewer" aria-label={activeOutput?.title ?? "Selected output"}>
+              <article className="markdown-document">
+                <MarkdownContent markdown={activeOutput?.markdown ?? ""} />
+              </article>
+            </section>
+          </>
         ) : (
           <article className="markdown-empty">
-            <p>No markdown document selected.</p>
+            <p>No saved outputs yet.</p>
           </article>
         )}
       </div>
@@ -723,17 +740,21 @@ export function ExperimentPlannerPage() {
   const view = useExperimentPlannerController();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [inspectorOpen, setInspectorOpen] = useState(false);
-  const [selectedDocument, setSelectedDocument] = useState<StreamDocument | null>(null);
+  const [activeOutputId, setActiveOutputId] = useState<string | null>(null);
+  const previousOutputCountRef = useRef(0);
   const campaignStatus = view.shell.campaignStatus === "approved" ? "Approved" : view.shell.campaignStatus === "needs_review" ? "Needs approval" : view.shell.campaignStatus === "error" ? "Needs attention" : "Active";
-  const canToggleInspector = inspectorOpen || view.thread.documents.length > 0;
+  const canToggleInspector = inspectorOpen || view.inspector.outputs.length > 0;
 
   useEffect(() => {
-    const latestDocument = view.thread.documents.at(-1) ?? null;
-    if (latestDocument && selectedDocument?.document_id !== latestDocument.document_id) {
-      setSelectedDocument(latestDocument);
+    const latestOutput = view.inspector.outputs.at(-1) ?? null;
+    const activeOutputExists = activeOutputId ? view.inspector.outputs.some((output) => output.id === activeOutputId) : false;
+    const outputWasAdded = view.inspector.outputs.length > previousOutputCountRef.current;
+    previousOutputCountRef.current = view.inspector.outputs.length;
+    if (latestOutput && (outputWasAdded || !activeOutputId || !activeOutputExists)) {
+      setActiveOutputId(latestOutput.id);
       setInspectorOpen(true);
     }
-  }, [selectedDocument?.document_id, view.thread.documents]);
+  }, [activeOutputId, view.inspector.outputs]);
 
   function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -741,7 +762,7 @@ export function ExperimentPlannerPage() {
   }
 
   function handleOpenDocument(streamDocument: StreamDocument) {
-    setSelectedDocument(streamDocument);
+    setActiveOutputId(`document:${streamDocument.document_id}`);
     setInspectorOpen(true);
     window.setTimeout(() => focusWorkspace(".document-viewer"), 0);
   }
@@ -839,7 +860,12 @@ export function ExperimentPlannerPage() {
         />
         <InspectorPanel
           open={inspectorOpen}
-          selectedDocument={selectedDocument}
+          outputs={view.inspector.outputs}
+          activeOutputId={activeOutputId}
+          onSelectOutput={(id) => {
+            setActiveOutputId(id);
+            setInspectorOpen(true);
+          }}
         />
       </main>
     </div>

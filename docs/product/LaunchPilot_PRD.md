@@ -465,7 +465,7 @@ Java는 CSV를 import해 Elastic에 즉시 인덱싱하고, 이 첨부와 메시
 - `result`: 승인 완료 결과
 - `error`: 복구 가능한 오류
 
-**Step 6 — 문서와 산출물 표시.** `markdown_document` block을 받으면 중앙 stream에는 작은 문서 카드가 올라가고, 우측 패널은 자동으로 열려 마크다운 본문을 보여준다. 현재 MVP 1차 구현에서 우측 패널은 마크다운 문서 전용이다. `signal`, `hypothesis`, `experiment_plan` 같은 구조화 산출물과 승인 게이트는 main stream의 inline review card로 먼저 표시하고, 상세 편집 패널은 후속 고도화 범위로 둔다.
+**Step 6 — 문서와 산출물 표시.** `markdown_document` block을 받으면 중앙 stream에는 작은 문서 카드가 올라가고, 우측 패널은 자동으로 열려 마크다운 본문을 보여준다. 우측 패널은 산출물 리스트를 유지한다. 문서, 확정된 signal, experiment plan, approval result는 문서 제목이 있는 직사각형 카드 버튼으로 누적되고, 사용자가 카드를 클릭하면 해당 산출물의 마크다운 상세가 패널에 표시된다.
 
 **Step 7 — 수정.** Mina가 말한다.
 > "실험 제목을 더 짧게, BTS hook 중심으로 바꿔줘."
@@ -625,7 +625,7 @@ Gemini 스타일의 대화형 쉘이되, 순수 챗 앱은 아니다. 실험 계
 - `messages[]`: main stream의 단일 표시 단위.
 - `connection`: WS 연결, replay, full sync, error.
 - `composer`: 자유 입력, 첨부, 전송 상태.
-- `rightPanel`: 현재 MVP에서는 선택된 markdown document와 open 상태. artifact/approval 상세 패널은 후속 고도화 범위.
+- `rightPanel`: 저장된 output cards 목록, 선택된 output id, open 상태. 선택된 산출물은 마크다운 상세로 렌더링한다.
 - `draftEdits`: 승인 전 artifact에 대한 로컬 수정.
 - `activeWork`: 진행 중인 agent 작업의 표시용 thread id/status/cancellable 여부.
 
@@ -640,9 +640,9 @@ Gemini 스타일의 대화형 쉘이되, 순수 챗 앱은 아니다. 실험 계
 | `text` | 자유 대화 | main stream에 말풍선/문단으로 표시 | 변경 없음 | composer로 이어서 질문·수정·승인 의사 표현 |
 | `activity` | 관찰형 진행 | 도구 사용, 검증, 데이터 처리 상태를 compact row로 표시 | 변경 없음 | 필요 시 “중단해”, “이 기준으로 봐” 같은 `message.send` |
 | `markdown_document` | 관찰형 산출 | thread에 작은 문서 카드 표시 | 즉시 open, markdown 본문 렌더 | 문서 내용을 보고 follow-up 질문 또는 수정 요청 |
-| `artifact` | 전문 산출 | signal/hypothesis/experiment/brief 요약 카드 표시 | MVP: 변경 없음. 후속: 구조화 상세·편집 surface | “제목을 줄여줘”, “이 실험 제외해” 같은 `message.send` |
-| `approval` | 개입형 게이트 | 승인 필요 카드와 CTA 표시 | MVP: 변경 없음. 후속: 최종 draft와 승인 버튼 상세 표시 | 버튼 또는 자유 발화 모두 `message.send(content + optional action)` |
-| `result` | 관찰형 완료 | 완료 receipt 표시 | MVP: 변경 없음. 후속: 생성된 brief/calendar ref 표시 | 후속 질문 또는 이어서 다음 실험 요청 |
+| `artifact` | 전문 산출 | signal/hypothesis/experiment/brief 요약 카드 표시 | 확정/선택된 산출물을 output card로 누적, 클릭 시 마크다운 상세 표시 | “제목을 줄여줘”, “이 실험 제외해” 같은 `message.send` |
+| `approval` | 개입형 게이트 | 승인 필요 카드와 CTA 표시 | 승인 전에는 gate 유지. 승인 후 approval result를 output card로 누적 | 버튼 또는 자유 발화 모두 `message.send(content + optional action)` |
+| `result` | 관찰형 완료 | 완료 receipt 표시 | 승인 완료 산출물을 output card로 누적, 클릭 시 생성된 brief/calendar ref 표시 | 후속 질문 또는 이어서 다음 실험 요청 |
 | `error` | 개입형 복구 | 오류 row 표시, 복구 가능 여부 노출 | 필요 시 오류 상세 표시 | retry, 다른 지시, 취소를 자연어로 전송 |
 
 품질 기준:
@@ -650,7 +650,7 @@ Gemini 스타일의 대화형 쉘이되, 순수 챗 앱은 아니다. 실험 계
 - 관찰형 block은 사용자가 “에이전트가 무엇을 하고 있는지” 이해하게 해야 하지만, 사용자의 흐름을 막지 않는다.
 - 개입형 block은 저장, 캘린더 생성, 취소, 복구처럼 결과가 바뀌는 순간에만 강하게 드러난다.
 - 모든 개입은 대화로도 가능해야 한다. 버튼은 빠른 입력 수단이며 별도 계약 명령이 아니다.
-- 문서는 thread에 흔적을 남기고 우측 패널을 동시에 열어, 대화와 전문 출력이 분리되지 않게 한다. Approval은 MVP에서 inline gate로 처리하고, 우측 상세 패널은 후속 고도화한다.
+- 문서와 확정 산출물은 thread에 흔적을 남기고 우측 output panel 리스트에도 누적해, 대화와 전문 출력이 분리되지 않게 한다.
 
 ### 13.4 설계 원칙
 

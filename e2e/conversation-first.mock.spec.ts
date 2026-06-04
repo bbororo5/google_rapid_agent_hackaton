@@ -59,7 +59,8 @@ test.describe("conversation-first mock server", () => {
 
     await expect(page.getByRole("button", { name: /open evidence notes/i })).toBeVisible();
     await expect(page.getByRole("region", { name: /evidence notes/i })).toBeVisible();
-    await expect(page.getByRole("complementary").last()).toContainText("Evidence notes");
+    await expect(page.getByRole("complementary", { name: /output panel/i })).toContainText("Evidence notes");
+    await expect(page.getByRole("button", { name: /markdown document evidence notes/i })).toBeVisible();
 
     await page.getByRole("textbox", { name: /message/i }).fill("문서");
     await page.getByRole("button", { name: /^send$/i }).click();
@@ -88,6 +89,10 @@ test.describe("conversation-first mock server", () => {
     await expect(page.getByRole("button", { name: /use this signal/i })).toBeVisible();
 
     await page.getByRole("button", { name: /use this signal/i }).click();
+    await expect(page.getByRole("button", { name: /confirmed signal bts shorts outperformed recent baseline/i })).toBeVisible();
+    await page.getByRole("button", { name: /confirmed signal bts shorts outperformed recent baseline/i }).click();
+    await expect(page.getByRole("complementary", { name: /output panel/i })).toContainText("Evidence refs");
+
     await expect(page.getByText(/experiment plan is ready for review/i).first()).toBeVisible();
     await expect(page.getByRole("button", { name: /approve experiments|approve/i })).toBeVisible();
   });

@@ -1019,7 +1019,8 @@ a {
   background: var(--surface-chat);
 }
 
-.inspector-panel.markdown-only .document-viewer {
+.inspector-panel.markdown-only .document-viewer,
+.inspector-panel.output-panel .document-viewer {
   flex: 1 1 auto;
   padding: 0;
   border: 0;
@@ -1256,7 +1257,8 @@ a {
   transition: transform 180ms ease, opacity 160ms ease;
 }
 
-.inspector-panel.markdown-only {
+.inspector-panel.markdown-only,
+.inspector-panel.output-panel {
   padding: 76px 24px 24px;
   background: #fbfaf7;
 }
@@ -1275,7 +1277,8 @@ a {
   gap: 10px;
 }
 
-.inspector-panel.markdown-only .inspector-top {
+.inspector-panel.markdown-only .inspector-top,
+.inspector-panel.output-panel .inspector-top {
   padding-bottom: 12px;
   border-bottom: 1px solid var(--line);
 }
@@ -1301,6 +1304,56 @@ a {
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+.output-tab-list {
+  flex: 0 0 auto;
+  display: grid;
+  gap: 8px;
+}
+
+.output-tab-card {
+  width: 100%;
+  min-height: 62px;
+  padding: 11px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface-raised) 94%, white);
+  color: var(--ink);
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  cursor: pointer;
+}
+
+.output-tab-card span {
+  color: var(--ink-muted);
+  font-size: 11px;
+  font-weight: 750;
+  text-transform: uppercase;
+}
+
+.output-tab-card strong {
+  min-width: 0;
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.output-tab-card:hover {
+  border-color: color-mix(in srgb, var(--blue) 36%, var(--line));
+  background: var(--surface-chat);
+}
+
+.output-tab-card.active {
+  border-color: color-mix(in srgb, var(--blue) 54%, var(--line));
+  background: color-mix(in srgb, var(--blue-soft) 36%, white);
+  box-shadow: inset 3px 0 0 var(--blue);
 }
 
 .thread-gate-inline {

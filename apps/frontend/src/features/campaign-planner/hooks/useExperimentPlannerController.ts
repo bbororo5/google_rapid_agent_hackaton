@@ -153,6 +153,15 @@ export interface PlannerInspectorView {
   activeGateKey: string | null;
   currentGate: GateReview | null;
   history: GateReview[];
+  outputs: OutputPanelItem[];
+}
+
+export interface OutputPanelItem {
+  id: string;
+  title: string;
+  eyebrow: string;
+  markdown: string;
+  sequence: number;
 }
 
 export interface PlannerApprovalView {
@@ -261,6 +270,14 @@ function stateImportResult(state: ExperimentPlannerState) {
 
 function commandId(prefix: string) {
   return `${prefix}_${crypto.randomUUID().replaceAll("-", "_")}`;
+}
+
+function formatPercent(value: number) {
+  return `${(value * 100).toFixed(1)}%`;
+}
+
+function confidenceLabel(value: string) {
+  return value.replace("_", " ");
 }
 
 function agentThreadStreamUrl(threadId: string) {
@@ -487,6 +504,120 @@ function threadDisplayItemsFromProjection(input: { groups: ThreadMessageGroup[];
   }
 
   return items.sort((a, b) => a.sequence - b.sequence);
+}
+
+function documentPanelItem(document: AgentDocument, index: number): OutputPanelItem {
+  return {
+    id: `document:${document.document_id}`,
+    title: document.kind === "evidence_scan" ? "Evidence notes" : document.title,
+    eyebrow: "Markdown document",
+    markdown: document.content,
+    sequence: index + 1,
+  };
+}
+
+function signalMarkdown(signal: Signal) {
+  return [
+    `# ${signal.title}`,
+    "",
+    `**Signal:** ${signal.metric_name} · ${signal.lift_ratio.toFixed(1)}x · ${confidenceLabel(signal.confidence)}`,
+    "",
+    signal.description,
+    "",
+    `- Current: ${formatPercent(signal.current_value)}`,
+    `- Baseline: ${formatPercent(signal.baseline_value)}`,
+    `- Evidence refs: ${signal.evidence_refs.join(", ")}`,
+  ].join("\n");
+}
+
+function experimentPlanMarkdown(experiments: ExperimentItem[], hypothesis: Hypothesis | null) {
+  const lines = ["# Experiment plan", ""];
+  if (hypothesis) {
+    lines.push("## Hypothesis", "", hypothesis.statement, "", hypothesis.rationale, "");
+  }
+
+  experiments.forEach((experiment, index) => {
+    lines.push(`## ${index + 1}. ${experiment.title}`, "");
+    lines.push(`- Channel: ${experiment.channel}`);
+    lines.push(`- Scheduled: ${experiment.scheduled_at}`);
+    lines.push(`- Hook: ${experiment.hook}`);
+    lines.push(`- CTA: ${experiment.cta}`);
+    lines.push(`- Success criteria: ${experiment.success_criteria}`);
+    lines.push("", experiment.production_brief, "");
+  });
+
+  return lines.join("\n");
+}
+
+function approvalMarkdown(input: { approval: ApproveExperimentPlanResponse; experiments: ExperimentItem[]; calendarEvents: CalendarEventRef[] }) {
+  const lines = [
+    "# Approval complete",
+    "",
+    `Growth brief ${input.approval.growth_brief_id} was created.`,
+    "",
+    "## Approved experiments",
+    "",
+  ];
+
+  input.experiments.forEach((experiment) => {
+    lines.push(`- ${experiment.title} (${experiment.channel}, ${experiment.scheduled_at})`);
+  });
+
+  lines.push("", "## Calendar events", "");
+  input.calendarEvents.forEach((event) => {
+    lines.push(`- ${event.title} · ${event.scheduled_at}`);
+  });
+
+  return lines.join("\n");
+}
+
+function outputPanelItemsFromState(input: {
+  documents: AgentDocument[];
+  signalGate: GateReview | null;
+  approvalGate: GateReview | null;
+  draftExperiments: ExperimentItem[];
+  finalExperiments: ExperimentItem[];
+  approval: ApproveExperimentPlanResponse | null;
+  calendarEvents: CalendarEventRef[];
+}): OutputPanelItem[] {
+  const items = input.documents.map(documentPanelItem);
+  let sequence = items.length + 1;
+
+  if (input.signalGate?.id === "signal" && input.signalGate.status === "complete") {
+    items.push({
+      id: `signal:${input.signalGate.signal.id}`,
+      title: input.signalGate.signal.title,
+      eyebrow: "Confirmed signal",
+      markdown: signalMarkdown(input.signalGate.signal),
+      sequence: sequence++,
+    });
+  }
+
+  if (input.approvalGate?.id === "approval" && input.draftExperiments.length > 0) {
+    items.push({
+      id: `experiment-plan:${input.draftExperiments.map((experiment) => experiment.id).join(":")}`,
+      title: "Experiment plan",
+      eyebrow: input.approvalGate.status === "complete" ? "Approved draft" : "Draft artifact",
+      markdown: experimentPlanMarkdown(input.draftExperiments, input.approvalGate.hypothesis),
+      sequence: sequence++,
+    });
+  }
+
+  if (input.approval) {
+    items.push({
+      id: `approval:${input.approval.growth_brief_id}`,
+      title: "Approval complete",
+      eyebrow: "Approved output",
+      markdown: approvalMarkdown({
+        approval: input.approval,
+        experiments: input.finalExperiments.length > 0 ? input.finalExperiments : input.draftExperiments,
+        calendarEvents: input.calendarEvents,
+      }),
+      sequence: sequence++,
+    });
+  }
+
+  return items;
 }
 
 function stateSignal(state: ExperimentPlannerState) {
@@ -1103,6 +1234,15 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
   });
   const threadGroups = threadGroupsFromMessages(streamMessages);
   const threadItems = threadDisplayItemsFromProjection({ groups: threadGroups, currentGate });
+  const outputPanelItems = outputPanelItemsFromState({
+    documents: currentDocuments,
+    signalGate,
+    approvalGate,
+    draftExperiments: currentDraftExperiments,
+    finalExperiments: currentFinalExperiments,
+    approval: currentApproval,
+    calendarEvents: currentCalendarEvents,
+  });
   const thread: PlannerThreadView = {
     hasActivity: statusRows.length > 0 || liveThreadActivity || toolLogs(state).length > 0 || Boolean(primaryExperiment) || Boolean(currentApproval) || Boolean(stateMessage(state)),
     streamMessages,
@@ -1117,10 +1257,11 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
     primaryExperiment,
   };
   const inspector: PlannerInspectorView = {
-    canToggle: Boolean(currentGate) || gateHistory.length > 0 || Boolean(currentApproval),
+    canToggle: outputPanelItems.length > 0 || Boolean(currentGate) || gateHistory.length > 0 || Boolean(currentApproval),
     activeGateKey: currentGate ? `${currentGate.id}:${currentGate.status}` : null,
     currentGate,
     history: gateHistory,
+    outputs: outputPanelItems,
   };
   const approvalView: PlannerApprovalView = {
     canApprove: state.phase === "awaiting_approval" && currentDraftExperiments.length > 0 && !isApproving,
