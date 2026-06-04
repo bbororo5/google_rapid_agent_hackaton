@@ -380,6 +380,11 @@ function ThreadPanel({
         {view.thread.streamMessages.map((message) => (
           <StreamMessageCard key={message.id} message={message} onOpenDocument={onOpenDocument} />
         ))}
+        {view.inspector.currentGate ? (
+          <section className="thread-gate-inline" aria-label="Current decision">
+            <GateCard gate={view.inspector.currentGate} view={view} canApprove={view.approval.canApprove} current />
+          </section>
+        ) : null}
         <div className="thread-scroll-anchor" ref={threadEndRef} aria-hidden="true" />
       </div>
 
@@ -536,95 +541,33 @@ function GateCard({
 }
 
 function InspectorPanel({
-  view,
   open,
-  canApprove,
   selectedDocument,
-  onSelectDocument,
 }: {
-  view: ExperimentPlannerView;
   open: boolean;
-  canApprove: boolean;
   selectedDocument: StreamDocument | null;
-  onSelectDocument: (document: StreamDocument) => void;
 }) {
-  const documents = view.thread.documents;
-  const activeDocument = selectedDocument ?? documents[0] ?? null;
-
   return (
-    <aside className="inspector-panel" aria-label="Campaign work details" aria-hidden={!open} tabIndex={open ? -1 : undefined}>
+    <aside className="inspector-panel markdown-only" aria-label="Markdown document" aria-hidden={!open} tabIndex={open ? -1 : undefined}>
       <div className="inspector-top">
         <div>
-          <strong>Work Review</strong>
-          <span>{view.inspector.currentGate ? view.inspector.currentGate.title : activeDocument ? documentDisplayTitle(activeDocument) : "Awaiting a decision point"}</span>
+          <strong>{selectedDocument ? documentDisplayTitle(selectedDocument) : "Document"}</strong>
+          <span>Markdown</span>
         </div>
       </div>
 
       <div className="inspector-content">
-        {documents.length > 0 ? (
-          <section className="inspector-section document-list-section" aria-label="Stream documents">
-            <div className="section-title">
-              <span>Documents</span>
-              <small>{documents.length} output{documents.length === 1 ? "" : "s"}</small>
-            </div>
-            <div className="document-list" role="list">
-              {documents.map((streamDocument) => {
-                const selected = activeDocument?.document_id === streamDocument.document_id;
-
-                return (
-                  <button
-                    className={`document-list-item${selected ? " selected" : ""}`}
-                    type="button"
-                    aria-current={selected ? "true" : undefined}
-                    key={streamDocument.document_id}
-                    onClick={() => onSelectDocument(streamDocument)}
-                  >
-                    <FileText size={17} strokeWidth={1.8} />
-                    <span>
-                      <strong>{documentDisplayTitle(streamDocument)}</strong>
-                      <small>{streamDocument.kind.replaceAll("_", " ")}</small>
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </section>
-        ) : null}
-
-        {activeDocument && !view.inspector.currentGate ? (
-          <section className="inspector-section document-viewer" aria-label={documentDisplayTitle(activeDocument)}>
+        {selectedDocument ? (
+          <section className="inspector-section document-viewer" aria-label={documentDisplayTitle(selectedDocument)}>
             <article className="markdown-document">
-              <MarkdownContent markdown={activeDocument.content} />
+              <MarkdownContent markdown={selectedDocument.content} />
             </article>
           </section>
-        ) : null}
-
-        {view.inspector.currentGate ? (
-          <section className="inspector-section" aria-label="Current decision">
-            <div className="section-title">
-              <span>Current decision</span>
-              <small>Continue in chat</small>
-            </div>
-            <GateCard gate={view.inspector.currentGate} view={view} canApprove={canApprove} current />
-          </section>
-        ) : !activeDocument ? (
-          <article className="empty-card">
-            <h2>No active gate</h2>
-            <p>Attach campaign metrics and send context. Decisions and generated documents will appear here for review.</p>
+        ) : (
+          <article className="markdown-empty">
+            <p>No markdown document selected.</p>
           </article>
-        ) : null}
-
-        {view.inspector.history.length > 0 ? (
-          <section className="inspector-section gate-history" aria-label="Gate history">
-            <div className="section-title">
-              <span>Gate history</span>
-              <small>Read-only audit trail</small>
-            </div>
-            {view.inspector.history.map((gate) => (
-              <GateCard key={gate.id} gate={gate} view={view} canApprove={canApprove} />
-            ))}
-          </section>
-        ) : null}
+        )}
       </div>
     </aside>
   );
@@ -697,13 +640,7 @@ export function ExperimentPlannerPage() {
   const [inspectorOpen, setInspectorOpen] = useState(false);
   const [selectedDocument, setSelectedDocument] = useState<StreamDocument | null>(null);
   const campaignStatus = view.shell.campaignStatus === "approved" ? "Approved" : view.shell.campaignStatus === "needs_review" ? "Needs approval" : view.shell.campaignStatus === "error" ? "Needs attention" : "Active";
-  const canToggleInspector = inspectorOpen || view.thread.documents.length > 0 || view.inspector.canToggle;
-
-  useEffect(() => {
-    if (view.inspector.activeGateKey) {
-      setInspectorOpen(true);
-    }
-  }, [view.inspector.activeGateKey]);
+  const canToggleInspector = inspectorOpen || view.thread.documents.length > 0;
 
   useEffect(() => {
     const latestDocument = view.thread.documents.at(-1) ?? null;
@@ -721,7 +658,7 @@ export function ExperimentPlannerPage() {
   function handleOpenDocument(streamDocument: StreamDocument) {
     setSelectedDocument(streamDocument);
     setInspectorOpen(true);
-    window.setTimeout(() => focusWorkspace(".document-list-section"), 0);
+    window.setTimeout(() => focusWorkspace(".document-viewer"), 0);
   }
 
   function focusWorkspace(selector: string) {
@@ -816,11 +753,8 @@ export function ExperimentPlannerPage() {
           onOpenDocument={handleOpenDocument}
         />
         <InspectorPanel
-          view={view}
           open={inspectorOpen}
-          canApprove={view.approval.canApprove}
           selectedDocument={selectedDocument}
-          onSelectDocument={handleOpenDocument}
         />
       </main>
     </div>

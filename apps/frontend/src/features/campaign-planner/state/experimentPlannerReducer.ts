@@ -180,6 +180,7 @@ export function experimentPlannerReducer(state: ExperimentPlannerState, event: E
         ...clearError(state),
         phase: "input_ready",
         importResult: event.importResult,
+        composer: { ...state.composer, file: null },
       };
 
     case "IMPORT_FAILED":

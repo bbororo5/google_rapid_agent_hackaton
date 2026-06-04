@@ -47,8 +47,7 @@ test.describe("main analysis approval happy path", () => {
     await expect(page.getByText(/two BTS shorts that outperformed/i).first()).toBeVisible();
 
     await page.getByRole("button", { name: /open evidence notes/i }).click();
-    await expect(page.getByRole("region", { name: /stream documents/i })).toBeVisible();
-    await expect(page.getByRole("button", { name: /evidence notes evidence scan/i })).toBeVisible();
+    await expect(page.getByRole("complementary", { name: /markdown document/i })).toContainText("Evidence notes");
     await expect(page.getByRole("button", { name: /use this signal/i })).toBeVisible();
 
     await page.getByRole("textbox", { name: /message/i }).fill("Please keep the signal grounded in short-form content.");

@@ -969,7 +969,6 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
   const currentGate = gates.find((gate) => gate.status === "active") ?? null;
   const gateHistory = gates.filter((gate) => gate !== currentGate);
   const displayState = agentState(state);
-  const currentFileOrLast = currentFile ?? lastFileRef.current;
   const currentImportOrLast = currentImportResult ?? lastImportRef.current;
   const currentMessages = [...messages(state), ...localUserMessages];
   const currentDocuments = documents(state);
@@ -992,7 +991,7 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
     statusRows,
     errorMessage: stateMessage(state),
   };
-  const composer = composerFromState(state, displayState, currentQuestion, currentFileOrLast?.name ?? null);
+  const composer = composerFromState(state, displayState, currentQuestion, currentFile?.name ?? null);
   const progress: PlannerProgressView = {
     visible: displayState !== "idle" && displayState !== "selected",
     threadLabel: runShortId(state),

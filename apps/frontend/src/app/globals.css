@@ -973,6 +973,19 @@ a {
   background: var(--surface-chat);
 }
 
+.inspector-panel.markdown-only .document-viewer {
+  flex: 1 1 auto;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.markdown-empty {
+  color: var(--ink-muted);
+  font-size: 13px;
+}
+
 .markdown-document {
   color: var(--ink);
   font-size: 14px;
@@ -1195,6 +1208,11 @@ a {
   transition: transform 180ms ease, opacity 160ms ease;
 }
 
+.inspector-panel.markdown-only {
+  padding: 76px 24px 24px;
+  background: #fbfaf7;
+}
+
 .main-shell.inspector-closed .inspector-panel {
   opacity: 0;
   pointer-events: none;
@@ -1207,6 +1225,11 @@ a {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
+}
+
+.inspector-panel.markdown-only .inspector-top {
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
 }
 
 .inspector-top > div {
@@ -1230,6 +1253,11 @@ a {
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+.thread-gate-inline {
+  margin: 8px 0 0 60px;
+  max-width: 620px;
 }
 
 .gate-card {
