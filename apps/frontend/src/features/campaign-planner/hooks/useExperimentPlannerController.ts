@@ -130,10 +130,15 @@ export interface ThreadMessageGroup {
   blocks: StreamMessageBlock[];
 }
 
+export type ThreadDisplayItem =
+  | { kind: "message_group"; id: string; sequence: number; group: ThreadMessageGroup }
+  | { kind: "decision_gate"; id: string; sequence: number; gate: GateReview };
+
 export interface PlannerThreadView {
   hasActivity: boolean;
   streamMessages: StreamMessage[];
   groups: ThreadMessageGroup[];
+  items: ThreadDisplayItem[];
   userMessages: AgentMessage[];
   assistantMessages: AgentMessage[];
   documents: AgentDocument[];
@@ -455,6 +460,33 @@ function threadGroupsFromMessages(messages: StreamMessage[]): ThreadMessageGroup
   });
 
   return groups;
+}
+
+function gateAnchorPhase(gate: GateReview) {
+  return gate.id === "signal" ? "signal_review" : "awaiting_approval";
+}
+
+function threadDisplayItemsFromProjection(input: { groups: ThreadMessageGroup[]; currentGate: GateReview | null }): ThreadDisplayItem[] {
+  const items: ThreadDisplayItem[] = input.groups.map((group) => ({
+    kind: "message_group",
+    id: group.id,
+    sequence: group.sequence,
+    group,
+  }));
+
+  if (input.currentGate) {
+    const anchorPhase = gateAnchorPhase(input.currentGate);
+    const anchorGroup = input.groups.find((group) => group.role === "user" && group.messages.some((message) => message.clientPhase === anchorPhase));
+    const lastSequence = input.groups.at(-1)?.sequence ?? 0;
+    items.push({
+      kind: "decision_gate",
+      id: `decision:${input.currentGate.id}:${input.currentGate.status}`,
+      sequence: anchorGroup ? anchorGroup.sequence - 0.001 : lastSequence + 0.001,
+      gate: input.currentGate,
+    });
+  }
+
+  return items.sort((a, b) => a.sequence - b.sequence);
 }
 
 function stateSignal(state: ExperimentPlannerState) {
@@ -1070,10 +1102,12 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
     stateLabel: progress.stateLabel,
   });
   const threadGroups = threadGroupsFromMessages(streamMessages);
+  const threadItems = threadDisplayItemsFromProjection({ groups: threadGroups, currentGate });
   const thread: PlannerThreadView = {
     hasActivity: statusRows.length > 0 || liveThreadActivity || toolLogs(state).length > 0 || Boolean(primaryExperiment) || Boolean(currentApproval) || Boolean(stateMessage(state)),
     streamMessages,
     groups: threadGroups,
+    items: threadItems,
     userMessages: currentMessages.filter((message) => message.role === "user"),
     assistantMessages: currentMessages.filter((message) => message.role === "assistant"),
     documents: currentDocuments,

@@ -1,6 +1,6 @@
 "use client";
 
-import { ChangeEvent, CSSProperties, Fragment, ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { ChangeEvent, CSSProperties, ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Bell,
@@ -20,7 +20,7 @@ import {
   Target,
 } from "lucide-react";
 import { useExperimentPlannerController } from "@/features/campaign-planner/hooks/useExperimentPlannerController";
-import type { GateReview, PlannerProgressView, StatusRow, StreamMessageBlock, ThreadMessageGroup } from "@/features/campaign-planner/hooks/useExperimentPlannerController";
+import type { GateReview, PlannerProgressView, StatusRow, StreamMessageBlock, ThreadDisplayItem, ThreadMessageGroup } from "@/features/campaign-planner/hooks/useExperimentPlannerController";
 import type { AgentDocument, ExperimentItem, Hypothesis, Signal } from "@/features/campaign-planner/state/experimentPlannerTypes";
 
 function formatPercent(value: number) {
@@ -188,6 +188,26 @@ function StreamBlockRow({
     case "error":
       return <TimelineTextRow text={block.detail ? `${block.title}: ${block.detail}` : block.title} tone="failed" />;
   }
+}
+
+function ThreadDisplayItemRow({
+  item,
+  view,
+  onOpenDocument,
+}: {
+  item: ThreadDisplayItem;
+  view: ExperimentPlannerView;
+  onOpenDocument: (document: StreamDocument) => void;
+}) {
+  if (item.kind === "decision_gate") {
+    return (
+      <section className="thread-gate-inline" aria-label="Current decision">
+        <GateCard gate={item.gate} view={view} canApprove={view.approval.canApprove} current />
+      </section>
+    );
+  }
+
+  return <StreamMessageGroupCard group={item.group} onOpenDocument={onOpenDocument} />;
 }
 
 function SystemStatusRows({ statuses }: { statuses: StatusRow[] }) {
@@ -379,6 +399,7 @@ function ThreadPanel({
     () =>
       [
         view.thread.groups.length,
+        view.thread.items.length,
         view.screen.statusRows.length,
         view.screen.errorMessage ?? "",
         view.thread.primaryExperiment?.id ?? "",
@@ -386,6 +407,7 @@ function ThreadPanel({
       ].join(":"),
     [
       view.thread.groups.length,
+      view.thread.items.length,
       view.screen.statusRows.length,
       view.screen.errorMessage,
       view.thread.primaryExperiment?.id,
@@ -414,13 +436,6 @@ function ThreadPanel({
         return;
     }
   };
-  const gateAnchorPhase = view.inspector.currentGate?.id === "signal" ? "signal_review" : view.inspector.currentGate?.id === "approval" ? "awaiting_approval" : null;
-  const gateInsertIndex =
-    view.inspector.currentGate && gateAnchorPhase
-      ? view.thread.groups.findIndex((group) => group.role === "user" && group.messages.some((message) => message.clientPhase === gateAnchorPhase))
-      : -1;
-  const shouldRenderGateAfterGroups = Boolean(view.inspector.currentGate) && gateInsertIndex < 0;
-
   return (
     <section className={`thread-panel${view.thread.hasActivity ? "" : " empty-thread"}`} aria-label="Campaign agent thread" tabIndex={-1}>
       <div className="thread-scroll">
@@ -433,21 +448,9 @@ function ThreadPanel({
 
         <SystemStatusRows statuses={view.screen.statusRows} />
 
-        {view.thread.groups.map((group, index) => (
-          <Fragment key={group.id}>
-            {view.inspector.currentGate && index === gateInsertIndex ? (
-              <section className="thread-gate-inline" aria-label="Current decision">
-                <GateCard gate={view.inspector.currentGate} view={view} canApprove={view.approval.canApprove} current />
-              </section>
-            ) : null}
-            <StreamMessageGroupCard group={group} onOpenDocument={onOpenDocument} />
-          </Fragment>
+        {view.thread.items.map((item) => (
+          <ThreadDisplayItemRow key={item.id} item={item} view={view} onOpenDocument={onOpenDocument} />
         ))}
-        {shouldRenderGateAfterGroups && view.inspector.currentGate ? (
-          <section className="thread-gate-inline" aria-label="Current decision">
-            <GateCard gate={view.inspector.currentGate} view={view} canApprove={view.approval.canApprove} current />
-          </section>
-        ) : null}
         <div className="thread-scroll-anchor" ref={threadEndRef} aria-hidden="true" />
       </div>
 
