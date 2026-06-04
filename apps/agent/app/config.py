@@ -1,7 +1,9 @@
 """Runtime settings loaded from environment.
 
 Two modes are derived, not configured directly:
-- LLM:      real ADK/Gemini when GEMINI_API_KEY is set, else deterministic stub.
+- LLM:      real ADK when EITHER Vertex AI is configured (GOOGLE_GENAI_USE_VERTEXAI
+            + GOOGLE_CLOUD_PROJECT, auth via ADC) OR an AI Studio GEMINI_API_KEY
+            is set. Otherwise deterministic stub.
 - Evidence: real Elastic MCP when ELASTIC_MCP_URL is set, else seeded stub.
 
 This lets the contract-enforced golden path run end-to-end offline.

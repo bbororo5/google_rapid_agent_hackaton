@@ -10,5 +10,8 @@ RUN pip install --no-cache-dir .
 
 EXPOSE 8000
 
-# Reads env (GEMINI_API_KEY etc.) from the process env injected by compose.
+# Reads env (GOOGLE_GENAI_USE_VERTEXAI / GOOGLE_CLOUD_PROJECT for Vertex+ADC, or
+# GEMINI_API_KEY for AI Studio) from the process env injected by compose. For
+# Vertex+ADC in a container, mount a service-account JSON and point
+# GOOGLE_APPLICATION_CREDENTIALS at it (gcloud user ADC is host-only).
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

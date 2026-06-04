@@ -1,0 +1,47 @@
+post_id,published_at,channel,title,permalink,views,likes,comments,shares,saves,save_rate,engagement_rate,follower_count,watch_time_sec,retention_rate
+post_101,2026-05-04,tiktok,Weekly dance routine,https://tiktok.com/@team/101,62000,4100,210,640,1488,0.024,0.082,512000,21,0.41
+post_102,2026-05-06,tiktok,Studio behind the scenes,https://tiktok.com/@team/102,71000,4600,240,720,1633,0.023,0.079,512800,19,0.39
+post_103,2026-05-09,tiktok,Q&A with the crew,https://tiktok.com/@team/103,68000,4400,260,690,1700,0.025,0.085,513500,23,0.43
+post_104,2026-05-11,tiktok,Cover challenge attempt,https://tiktok.com/@team/104,83000,5200,300,810,2241,0.027,0.081,515000,22,0.40
+post_105,2026-05-13,tiktok,Day in the life,https://tiktok.com/@team/105,90000,5600,320,880,2430,0.027,0.083,516200,24,0.42
+post_106,2026-05-16,tiktok,Outfit transitions,https://tiktok.com/@team/106,97000,6000,350,940,2716,0.028,0.084,517500,20,0.38
+post_107,2026-05-18,tiktok,Rehearsal snippet,https://tiktok.com/@team/107,101000,6300,360,990,2929,0.029,0.086,519000,25,0.44
+post_108,2026-05-20,tiktok,Fan edits reaction,https://tiktok.com/@team/108,108000,6700,400,1040,3132,0.029,0.087,520500,26,0.45
+post_109,2026-05-23,tiktok,Mini vlog,https://tiktok.com/@team/109,112000,6900,420,1090,3248,0.029,0.088,522000,27,0.46
+post_110,2026-05-26,tiktok,BTS comeback teaser - 30s clip,https://tiktok.com/@team/110,412000,30500,2100,9100,30504,0.074,0.171,548000,29,0.61
+post_111,2026-05-28,tiktok,Teaser part 2 - choreography,https://tiktok.com/@team/111,388000,28900,1980,8600,29488,0.076,0.168,571000,28,0.59
+post_112,2026-05-30,tiktok,Comeback countdown,https://tiktok.com/@team/112,455000,34200,2400,10200,37310,0.082,0.179,602000,31,0.63
+post_201,2026-05-04,youtube,Long-form studio session,https://youtube.com/watch?v=201,151000,11800,640,420,2265,0.015,0.085,1240000,182,0.48
+post_202,2026-05-07,youtube,Songwriting process,https://youtube.com/watch?v=202,168000,12900,700,460,2520,0.015,0.086,1242000,190,0.49
+post_203,2026-05-10,youtube,Members interview,https://youtube.com/watch?v=203,175000,13400,720,500,2800,0.016,0.087,1245000,205,0.51
+post_204,2026-05-14,youtube,Dance practice full,https://youtube.com/watch?v=204,188000,14500,780,540,3196,0.017,0.089,1249000,221,0.52
+post_205,2026-05-17,youtube,Concept reveal,https://youtube.com/watch?v=205,205000,16100,860,610,3690,0.018,0.092,1255000,236,0.54
+post_206,2026-05-21,youtube,Photoshoot vlog,https://youtube.com/watch?v=206,221000,17400,940,680,4199,0.019,0.094,1262000,248,0.55
+post_207,2026-05-24,youtube,Album unboxing,https://youtube.com/watch?v=207,238000,18700,1020,760,4760,0.020,0.096,1270000,259,0.57
+post_208,2026-05-27,youtube,Comeback trailer,https://youtube.com/watch?v=208,262000,20800,1180,910,5502,0.021,0.099,1288000,271,0.59
+post_209,2026-05-30,youtube,MV teaser,https://youtube.com/watch?v=209,279000,22300,1290,1010,6138,0.022,0.101,1305000,283,0.60
+post_301,2026-05-05,instagram,Carousel: studio shots,https://instagram.com/p/301,72000,5400,160,210,1656,0.023,0.078,930000,0,0.0
+post_302,2026-05-08,instagram,Reel: quick teaser,https://instagram.com/p/302,78000,5800,180,240,1872,0.024,0.080,931000,12,0.36
+post_303,2026-05-12,instagram,Photo dump,https://instagram.com/p/303,69000,5100,150,200,1587,0.023,0.077,931500,0,0.0
+post_304,2026-05-15,instagram,Story highlight recap,https://instagram.com/p/304,81000,6000,190,250,1944,0.024,0.081,932200,0,0.0
+post_305,2026-05-19,instagram,Reel: outfit check,https://instagram.com/p/305,84000,6300,200,260,2016,0.024,0.082,933000,14,0.37
+post_306,2026-05-22,instagram,Carousel: concept,https://instagram.com/p/306,76000,5600,170,230,1748,0.023,0.078,933600,0,0.0
+post_307,2026-05-25,instagram,Reel: countdown,https://instagram.com/p/307,88000,6500,210,270,2112,0.024,0.083,935000,15,0.38
+post_308,2026-05-29,instagram,Photo: comeback poster,https://instagram.com/p/308,92000,6800,220,280,2208,0.024,0.084,937500,0,0.0
+post_401,2026-05-05,x,Thread: schedule drop,https://x.com/team/401,54000,2100,180,320,270,0.005,0.049,640000,0,0.0
+post_402,2026-05-09,x,Poll: title bias,https://x.com/team/402,49000,1900,160,290,294,0.006,0.047,640300,0,0.0
+post_403,2026-05-13,x,Teaser image,https://x.com/team/403,46000,1750,140,260,322,0.007,0.045,640500,0,0.0
+post_404,2026-05-17,x,Reply spotlight,https://x.com/team/404,41000,1500,120,220,287,0.007,0.043,640600,0,0.0
+post_405,2026-05-21,x,Countdown post,https://x.com/team/405,38000,1350,110,200,304,0.008,0.041,640650,0,0.0
+post_406,2026-05-25,x,Comeback date,https://x.com/team/406,44000,1700,150,260,396,0.009,0.046,641200,0,0.0
+post_407,2026-05-29,x,Spotify pre-save,https://x.com/team/407,36000,1250,100,180,288,0.008,0.040,641400,0,0.0
+post_501,2026-05-06,youtube,Shorts: 15s hook,https://youtube.com/shorts/501,98000,7200,300,260,1470,0.015,0.079,1241000,12,0.62
+post_502,2026-05-13,youtube,Shorts: dance loop,https://youtube.com/shorts/502,134000,9900,420,360,2278,0.017,0.083,1246000,13,0.64
+post_503,2026-05-20,youtube,Shorts: reaction,https://youtube.com/shorts/503,176000,13100,560,480,3344,0.019,0.088,1260000,14,0.66
+post_504,2026-05-27,youtube,Shorts: teaser cut,https://youtube.com/shorts/504,240000,18500,820,720,5040,0.021,0.097,1290000,15,0.69
+post_601,2026-05-07,instagram,Reel: trending audio,https://instagram.com/p/601,91000,6700,210,300,2002,0.022,0.080,930800,16,0.40
+post_602,2026-05-18,instagram,Reel: member focus,https://instagram.com/p/602,87000,6400,200,280,2088,0.024,0.082,932800,15,0.39
+post_603,2026-05-28,instagram,Reel: comeback hook,https://instagram.com/p/603,103000,7700,250,340,2575,0.025,0.086,936800,18,0.42
+post_701,2026-05-10,tiktok,Duet with fan,https://tiktok.com/@team/701,77000,4900,280,760,1848,0.024,0.083,514000,21,0.41
+post_702,2026-05-24,tiktok,Sound trend jump,https://tiktok.com/@team/702,119000,7400,460,1160,3451,0.029,0.089,523500,26,0.45
+post_703,2026-05-31,tiktok,Comeback day live clip,https://tiktok.com/@team/703,512000,39000,2900,12400,42496,0.083,0.184,640000,33,0.64
