@@ -1,4 +1,4 @@
-import type { AgentDocument, AgentMessage, AgentRunStatus, AgentStepSnapshot, ExperimentItem, ExperimentPlannerEvent, ExperimentPlannerState } from "./experimentPlannerTypes";
+import type { AgentDocument, AgentMessage, AgentObservation, AgentRunStatus, AgentStepSnapshot, AgentTimelineItem, AgentStreamRecoveryStatus, ExperimentItem, ExperimentPlannerEvent, ExperimentPlannerState, ToolCallLog } from "./experimentPlannerTypes";
 
 const runningStatuses: AgentRunStatus[] = [
   "RUNNING_SIGNAL_DETECTION",
@@ -36,11 +36,94 @@ function mergeDocument(documents: AgentDocument[], nextDocument: AgentDocument |
   return documents.map((document, index) => (index === existingIndex ? { ...document, ...nextDocument } : document));
 }
 
+function mergeToolLog(toolLogs: ToolCallLog[], nextToolLog: ToolCallLog | null | undefined) {
+  if (!nextToolLog) return toolLogs;
+  const existingIndex = toolLogs.findIndex((toolLog) => toolLog.sequence === nextToolLog.sequence && toolLog.tool_name === nextToolLog.tool_name);
+  if (existingIndex < 0) return [...toolLogs, nextToolLog].sort((a, b) => a.sequence - b.sequence);
+  return toolLogs.map((toolLog, index) => (index === existingIndex ? { ...toolLog, ...nextToolLog } : toolLog)).sort((a, b) => a.sequence - b.sequence);
+}
+
+function mergeTimelineItem(timelineItems: AgentTimelineItem[], event: ExperimentPlannerEvent & { type: "STREAM_EVENT_RECEIVED" }) {
+  const sequence = event.event.sequence;
+  if (typeof sequence !== "number") return timelineItems;
+
+  const item = timelineItemFromEvent(event, sequence);
+  if (!item) return timelineItems;
+
+  const existingIndex = timelineItems.findIndex((timelineItem) => timelineItem.id === item.id);
+  if (existingIndex < 0) return [...timelineItems, item].sort((a, b) => a.sequence - b.sequence);
+
+  return timelineItems
+    .map((timelineItem, index) => (index === existingIndex ? { ...timelineItem, ...item, sequence: timelineItem.sequence } : timelineItem))
+    .sort((a, b) => a.sequence - b.sequence);
+}
+
+function timelineItemFromEvent(event: ExperimentPlannerEvent & { type: "STREAM_EVENT_RECEIVED" }, sequence: number): AgentTimelineItem | null {
+  if (event.event.message?.role === "assistant") {
+    return { id: `message:${event.event.message.message_id}`, sequence, kind: "assistant_message", message: event.event.message };
+  }
+
+  if (event.event.document) {
+    return { id: `document:${event.event.document.document_id}`, sequence, kind: "document", document: event.event.document };
+  }
+
+  if (event.event.observation) {
+    return { id: `observation:${event.event.observation.id}`, sequence, kind: "observation", observation: event.event.observation };
+  }
+
+  if (event.event.tool_call) {
+    return {
+      id: `tool:${event.event.tool_call.sequence}:${event.event.tool_call.tool_name}`,
+      sequence,
+      kind: "tool",
+      tool: event.event.tool_call,
+    };
+  }
+
+  return null;
+}
+
 function nextSequence(current: number, sequence: number | null | undefined) {
   return typeof sequence === "number" ? Math.max(current, sequence) : current;
 }
 
-const defaultQuestion = "What should we test next week?";
+function cancelledStateFromTimeline(
+  state: {
+    agentRunId: string;
+    messages?: AgentMessage[];
+    documents?: AgentDocument[];
+    observations?: AgentObservation[];
+    toolLogs?: ToolCallLog[];
+    timelineItems?: AgentTimelineItem[];
+    lastReceivedSequence?: number;
+    recoveryStatus?: AgentStreamRecoveryStatus;
+  },
+  message: string,
+  overrides?: {
+    messages?: AgentMessage[];
+    documents?: AgentDocument[];
+    observations?: AgentObservation[];
+    toolLogs?: ToolCallLog[];
+    timelineItems?: AgentTimelineItem[];
+    lastReceivedSequence?: number;
+    recoveryStatus?: AgentStreamRecoveryStatus;
+  }
+): ExperimentPlannerState {
+  return {
+    tag: "analysis_cancelled",
+    agentRunId: state.agentRunId,
+    message,
+    messages: overrides?.messages ?? state.messages ?? [],
+    documents: overrides?.documents ?? state.documents ?? [],
+    observations: overrides?.observations ?? state.observations ?? [],
+    toolLogs: overrides?.toolLogs ?? state.toolLogs ?? [],
+    timelineItems: overrides?.timelineItems ?? state.timelineItems ?? [],
+    lastReceivedSequence: overrides?.lastReceivedSequence ?? state.lastReceivedSequence ?? 0,
+    recoveryStatus: overrides?.recoveryStatus ?? state.recoveryStatus ?? "idle",
+  };
+}
+
+const defaultQuestion = "";
 
 function questionFromState(state: ExperimentPlannerState) {
   return "question" in state ? state.question : defaultQuestion;
@@ -65,18 +148,14 @@ export function experimentPlannerReducer(state: ExperimentPlannerState, event: E
 
     case "IMPORT_SUCCEEDED":
       if (state.tag !== "importing_csv") return state;
-      return { tag: "import_review", file: state.file, importResult: event.importResult, question: state.question };
-
-    case "IMPORT_CONFIRMED":
-      if (state.tag !== "import_review") return state;
-      return { tag: "starting_analysis", source: { kind: "csv_import", importResult: state.importResult, question: state.question } };
+      return { tag: "import_succeeded", file: state.file, importResult: event.importResult, question: state.question };
 
     case "IMPORT_FAILED":
       if (state.tag !== "importing_csv") return { tag: "import_failed", question: questionFromState(state), message: event.message };
       return { tag: "import_failed", file: state.file, question: state.question, message: event.message };
 
     case "RUN_AGENT_REQUESTED":
-      if (state.tag === "import_review") {
+      if (state.tag === "import_succeeded") {
         return { tag: "starting_analysis", source: { kind: "csv_import", importResult: state.importResult, question: state.question } };
       }
       if (state.tag === "restored_context") {
@@ -111,6 +190,7 @@ export function experimentPlannerReducer(state: ExperimentPlannerState, event: E
         toolLogs: state.toolLogs,
         messages: [],
         documents: [],
+        timelineItems: [],
         lastReceivedSequence: 0,
         recoveryStatus: "idle",
       };
@@ -129,6 +209,7 @@ export function experimentPlannerReducer(state: ExperimentPlannerState, event: E
         documents: state.documents,
         observations: [],
         toolLogs: state.toolLogs,
+        timelineItems: state.timelineItems,
         lastReceivedSequence: state.lastReceivedSequence,
         recoveryStatus: state.recoveryStatus,
       };
@@ -183,6 +264,7 @@ export function experimentPlannerReducer(state: ExperimentPlannerState, event: E
               documents: state.documents,
               observations: [],
               toolLogs: state.toolLogs,
+              timelineItems: state.timelineItems,
               lastReceivedSequence: state.lastReceivedSequence,
               recoveryStatus: state.recoveryStatus,
             }
@@ -191,7 +273,8 @@ export function experimentPlannerReducer(state: ExperimentPlannerState, event: E
       const messages = mergeMessage(base.messages, event.event.message);
       const documents = mergeDocument(base.documents, event.event.document);
       const observations = event.event.observation ? [...base.observations, event.event.observation] : base.observations;
-      const toolLogs = event.event.tool_call ? [...base.toolLogs, event.event.tool_call] : base.toolLogs;
+      const toolLogs = mergeToolLog(base.toolLogs, event.event.tool_call);
+      const timelineItems = mergeTimelineItem(base.timelineItems, event);
       const lastReceivedSequence = nextSequence(base.lastReceivedSequence, event.event.sequence);
 
       if (event.event.type === "signal.detected" && event.event.payload?.signals[0]) {
@@ -209,6 +292,7 @@ export function experimentPlannerReducer(state: ExperimentPlannerState, event: E
           documents,
           observations,
           toolLogs,
+          timelineItems,
           lastReceivedSequence,
           recoveryStatus: base.recoveryStatus,
         };
@@ -230,6 +314,7 @@ export function experimentPlannerReducer(state: ExperimentPlannerState, event: E
           documents,
           observations,
           toolLogs,
+          timelineItems,
           lastReceivedSequence,
           recoveryStatus: base.recoveryStatus,
         };
@@ -254,17 +339,42 @@ export function experimentPlannerReducer(state: ExperimentPlannerState, event: E
           documents,
           observations,
           toolLogs,
+          timelineItems,
           lastReceivedSequence,
           recoveryStatus: base.recoveryStatus,
         };
       }
 
       if (event.event.type === "run.cancelled") {
-        return { tag: "analysis_cancelled", agentRunId: base.agentRunId, message: "Agent run cancelled." };
+        return cancelledStateFromTimeline(base, "Agent run cancelled.", {
+          messages,
+          documents,
+          observations,
+          toolLogs,
+          timelineItems,
+          lastReceivedSequence,
+          recoveryStatus: base.recoveryStatus,
+        });
       }
 
       if (event.event.type === "run.failed") {
         return { tag: "analysis_failed", agentRunId: base.agentRunId, message: event.event.error_message ?? "Agent run failed.", recoverable: true };
+      }
+
+      if (state.tag === "signal_review") {
+        return {
+          ...state,
+          status: event.event.status && isRunningStatus(event.event.status) ? event.event.status : state.status,
+          currentStage: event.event.step?.stage ?? state.currentStage,
+          steps,
+          messages,
+          documents,
+          observations,
+          toolLogs,
+          timelineItems,
+          lastReceivedSequence,
+          recoveryStatus: base.recoveryStatus,
+        };
       }
 
       if (state.tag !== "stream_connecting" && state.tag !== "analysis_running" && (!event.event.status || !isRunningStatus(event.event.status))) {
@@ -275,6 +385,7 @@ export function experimentPlannerReducer(state: ExperimentPlannerState, event: E
           documents,
           observations,
           toolLogs,
+          timelineItems,
           lastReceivedSequence,
           recoveryStatus: base.recoveryStatus,
         };
@@ -293,6 +404,7 @@ export function experimentPlannerReducer(state: ExperimentPlannerState, event: E
           documents,
           observations,
           toolLogs,
+          timelineItems,
           lastReceivedSequence,
           recoveryStatus: base.recoveryStatus,
         };
@@ -310,6 +422,7 @@ export function experimentPlannerReducer(state: ExperimentPlannerState, event: E
         documents,
         observations,
         toolLogs,
+        timelineItems,
         lastReceivedSequence,
         recoveryStatus: base.recoveryStatus,
       };
@@ -329,6 +442,7 @@ export function experimentPlannerReducer(state: ExperimentPlannerState, event: E
         documents: state.documents,
         observations: state.observations,
         toolLogs: state.toolLogs,
+        timelineItems: state.timelineItems,
         lastReceivedSequence: state.lastReceivedSequence,
         recoveryStatus: state.recoveryStatus,
       };
@@ -340,6 +454,7 @@ export function experimentPlannerReducer(state: ExperimentPlannerState, event: E
         const existingMessages = "messages" in state ? state.messages : [];
         const existingDocuments = "documents" in state ? state.documents : [];
         const existingObservations = "observations" in state ? state.observations : [];
+        const existingTimelineItems = "timelineItems" in state ? state.timelineItems : [];
         return {
           tag: "waiting_for_approval",
           agentRunId: event.snapshot.agent_run_id,
@@ -354,6 +469,7 @@ export function experimentPlannerReducer(state: ExperimentPlannerState, event: E
           documents: existingDocuments,
           observations: existingObservations,
           toolLogs: event.snapshot.tool_call_logs,
+          timelineItems: existingTimelineItems,
           lastReceivedSequence: "lastReceivedSequence" in state ? state.lastReceivedSequence : 0,
           recoveryStatus: "recoveryStatus" in state ? state.recoveryStatus : "idle",
         };
@@ -374,6 +490,7 @@ export function experimentPlannerReducer(state: ExperimentPlannerState, event: E
         documents: "documents" in state ? state.documents : [],
         observations: "observations" in state ? state.observations : [],
         toolLogs: event.snapshot.tool_call_logs,
+        timelineItems: "timelineItems" in state ? state.timelineItems : [],
         lastReceivedSequence: "lastReceivedSequence" in state ? state.lastReceivedSequence : 0,
         recoveryStatus: "recoveryStatus" in state ? state.recoveryStatus : "idle",
       };
@@ -411,6 +528,7 @@ export function experimentPlannerReducer(state: ExperimentPlannerState, event: E
         documents: state.documents,
         observations: state.observations,
         toolLogs: state.toolLogs,
+        timelineItems: state.timelineItems,
         lastReceivedSequence: state.lastReceivedSequence,
         recoveryStatus: state.recoveryStatus,
       };
@@ -428,6 +546,7 @@ export function experimentPlannerReducer(state: ExperimentPlannerState, event: E
         documents: state.documents,
         observations: state.observations,
         toolLogs: state.toolLogs,
+        timelineItems: state.timelineItems,
         lastReceivedSequence: state.lastReceivedSequence,
         recoveryStatus: state.recoveryStatus,
       };
@@ -437,15 +556,15 @@ export function experimentPlannerReducer(state: ExperimentPlannerState, event: E
 
     case "CANCEL_SENT":
       if (!("agentRunId" in state) || !state.agentRunId) return state;
-      return { tag: "analysis_cancelled", agentRunId: state.agentRunId, message: event.reason ?? "Agent run cancelled." };
+      return cancelledStateFromTimeline({ ...state, agentRunId: state.agentRunId }, event.reason ?? "Agent run cancelled.");
 
     case "REJECT_SENT":
       if (!("agentRunId" in state) || !state.agentRunId) return state;
-      return { tag: "analysis_cancelled", agentRunId: state.agentRunId, message: event.reason ?? "Approval rejected." };
+      return cancelledStateFromTimeline({ ...state, agentRunId: state.agentRunId }, event.reason ?? "Approval rejected.");
 
     case "RUN_CANCELLED":
       if (!("agentRunId" in state) || !state.agentRunId) return state;
-      return { tag: "analysis_cancelled", agentRunId: state.agentRunId, message: event.message };
+      return cancelledStateFromTimeline({ ...state, agentRunId: state.agentRunId }, event.message);
 
     case "RESET":
       return initialExperimentPlannerState;

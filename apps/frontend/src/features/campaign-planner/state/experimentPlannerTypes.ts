@@ -53,11 +53,17 @@ export type StartingAnalysisSource =
 
 export type AgentStreamRecoveryStatus = "idle" | "resuming" | "replaying" | "full_syncing";
 
+export type AgentTimelineItem =
+  | { id: string; sequence: number; kind: "assistant_message"; message: AgentMessage }
+  | { id: string; sequence: number; kind: "document"; document: AgentDocument }
+  | { id: string; sequence: number; kind: "observation"; observation: AgentObservation }
+  | { id: string; sequence: number; kind: "tool"; tool: ToolCallLog };
+
 export type ExperimentPlannerState =
   | { tag: "idle"; question: string }
   | { tag: "csv_selected"; file: File; question: string }
   | { tag: "importing_csv"; file: File; question: string }
-  | { tag: "import_review"; file: File; importResult: ImportCsvResponse; question: string }
+  | { tag: "import_succeeded"; file: File; importResult: ImportCsvResponse; question: string }
   | { tag: "import_failed"; file?: File; question: string; message: string }
   | { tag: "starting_analysis"; source: StartingAnalysisSource }
   | { tag: "analysis_pending"; agentRunId: string; streamUrl: string; snapshotUrl: string; status: "PENDING"; toolLogs: ToolCallLog[] }
@@ -70,6 +76,7 @@ export type ExperimentPlannerState =
       lastReceivedSequence: number;
       messages: AgentMessage[];
       documents: AgentDocument[];
+      timelineItems: AgentTimelineItem[];
       recoveryStatus: AgentStreamRecoveryStatus;
     }
   | {
@@ -84,6 +91,7 @@ export type ExperimentPlannerState =
       documents: AgentDocument[];
       observations: AgentObservation[];
       toolLogs: ToolCallLog[];
+      timelineItems: AgentTimelineItem[];
       lastReceivedSequence: number;
       recoveryStatus: AgentStreamRecoveryStatus;
     }
@@ -101,6 +109,7 @@ export type ExperimentPlannerState =
       documents: AgentDocument[];
       observations: AgentObservation[];
       toolLogs: ToolCallLog[];
+      timelineItems: AgentTimelineItem[];
       lastReceivedSequence: number;
       recoveryStatus: AgentStreamRecoveryStatus;
     }
@@ -118,6 +127,7 @@ export type ExperimentPlannerState =
       documents: AgentDocument[];
       observations: AgentObservation[];
       toolLogs: ToolCallLog[];
+      timelineItems: AgentTimelineItem[];
       lastReceivedSequence: number;
       recoveryStatus: AgentStreamRecoveryStatus;
     }
@@ -135,6 +145,7 @@ export type ExperimentPlannerState =
       documents: AgentDocument[];
       observations: AgentObservation[];
       toolLogs: ToolCallLog[];
+      timelineItems: AgentTimelineItem[];
       lastReceivedSequence: number;
       recoveryStatus: AgentStreamRecoveryStatus;
       dirty: true;
@@ -153,6 +164,7 @@ export type ExperimentPlannerState =
       documents: AgentDocument[];
       observations: AgentObservation[];
       toolLogs: ToolCallLog[];
+      timelineItems: AgentTimelineItem[];
       lastReceivedSequence: number;
       recoveryStatus: AgentStreamRecoveryStatus;
     }
@@ -167,6 +179,7 @@ export type ExperimentPlannerState =
       documents: AgentDocument[];
       observations: AgentObservation[];
       toolLogs: ToolCallLog[];
+      timelineItems: AgentTimelineItem[];
       lastReceivedSequence: number;
       recoveryStatus: AgentStreamRecoveryStatus;
     }
@@ -184,6 +197,13 @@ export type ExperimentPlannerState =
       tag: "analysis_cancelled";
       agentRunId: string;
       message: string;
+      messages: AgentMessage[];
+      documents: AgentDocument[];
+      observations: AgentObservation[];
+      toolLogs: ToolCallLog[];
+      timelineItems: AgentTimelineItem[];
+      lastReceivedSequence: number;
+      recoveryStatus: AgentStreamRecoveryStatus;
     }
   | {
       tag: "analysis_failed" | "approval_failed";
@@ -197,7 +217,6 @@ export type ExperimentPlannerEvent =
   | { type: "SELECT_CSV"; file: File }
   | { type: "IMPORT_REQUESTED" }
   | { type: "IMPORT_SUCCEEDED"; importResult: ImportCsvResponse }
-  | { type: "IMPORT_CONFIRMED" }
   | { type: "IMPORT_FAILED"; message: string }
   | { type: "RUN_AGENT_REQUESTED" }
   | { type: "RUN_AGENT_ACCEPTED"; agentRunId: string; streamUrl: string; snapshotUrl: string }

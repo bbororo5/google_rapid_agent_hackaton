@@ -24,6 +24,12 @@ async function parseJsonResponse<T>(response: Response): Promise<T> {
   return (await response.json()) as T;
 }
 
+const agentApiBaseUrl = process.env.NEXT_PUBLIC_AGENT_API_BASE_URL ?? "http://localhost:8090";
+
+function apiUrl(path: string) {
+  return `${agentApiBaseUrl}${path}`;
+}
+
 export function createFetchExperimentPlannerApi(): ExperimentPlannerApi {
   return {
     async importCsv({ file, workspaceId, campaignId }) {
@@ -33,7 +39,7 @@ export function createFetchExperimentPlannerApi(): ExperimentPlannerApi {
       formData.append("campaign_id", campaignId);
       formData.append("source_platform", "tiktok");
 
-      const response = await fetch("/api/import/csv", {
+      const response = await fetch(apiUrl("/api/import/csv"), {
         method: "POST",
         body: formData,
       });
@@ -42,7 +48,7 @@ export function createFetchExperimentPlannerApi(): ExperimentPlannerApi {
     },
 
     async runAgent(request) {
-      const response = await fetch("/api/agent/run", {
+      const response = await fetch(apiUrl("/api/agent/run"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -54,12 +60,12 @@ export function createFetchExperimentPlannerApi(): ExperimentPlannerApi {
     },
 
     async getAgentRun(agentRunId) {
-      const response = await fetch(`/api/agent/runs/${agentRunId}`);
+      const response = await fetch(apiUrl(`/api/agent/runs/${agentRunId}`));
       return parseJsonResponse<AgentRunStatusResponse>(response);
     },
 
     async approveExperimentPlan(agentRunId, request) {
-      const response = await fetch(`/api/agent/actions/${agentRunId}/approve`, {
+      const response = await fetch(apiUrl(`/api/agent/actions/${agentRunId}/approve`), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -71,7 +77,7 @@ export function createFetchExperimentPlannerApi(): ExperimentPlannerApi {
     },
 
     async cancelAgentRun(agentRunId, reason) {
-      const response = await fetch(`/api/agent/actions/${agentRunId}/cancel`, {
+      const response = await fetch(apiUrl(`/api/agent/actions/${agentRunId}/cancel`), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

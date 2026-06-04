@@ -1,10 +1,10 @@
 {
-  "event_id": "evt_003",
+  "event_id": "evt_006",
   "type": "observation.created",
   "agent_run_id": "run_20260601_001",
   "session_id": "session_20260601_001",
-  "sequence": 3,
-  "occurred_at": "2026-06-01T16:31:09+09:00",
+  "sequence": 6,
+  "occurred_at": "2026-06-01T16:31:06+09:00",
   "status": "RUNNING_EVIDENCE_SEARCH",
   "step": {
     "id": "step_ground_with_evidence",
@@ -13,11 +13,11 @@
     "status": "IN_PROGRESS"
   },
   "observation": {
-    "id": "obs_001",
-    "kind": "evidence",
-    "title": "BTS clips are above baseline",
-    "summary": "Two BTS short-form posts are tracking 2.8x above the 30-day save-rate baseline.",
-    "evidence_refs": ["post_014", "post_017"]
+    "id": "obs_reasoning_metric_first",
+    "kind": "progress",
+    "title": "Reasoning update",
+    "summary": "The save-rate lift looks repeatable, so I am checking whether content evidence supports it.",
+    "evidence_refs": []
   },
   "payload": null,
   "approval": null,

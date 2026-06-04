@@ -1,8 +1,19 @@
 node_modules/
 
+# Build artifacts
+.next/
+apps/*/.next/
+test-results/
+playwright-report/
+*.tsbuildinfo
+mock/**/.gradle/
+mock/**/build/
+
 # Secrets: shared env at repo root (never commit)
 .env
 .env.local
+apps/*/.env*.local
+apps/*/.env.production
 
 # Service-account keys / ADC credentials (never commit)
 secrets/
