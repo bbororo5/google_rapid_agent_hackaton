@@ -11,11 +11,20 @@ contract example JSONs against them.
 
 | | real | stub (default offline) |
 |---|---|---|
-| **LLM** | ADK/Gemini when `GEMINI_API_KEY` set | deterministic workers |
+| **LLM** | ADK on Vertex AI (ADC) when `GOOGLE_GENAI_USE_VERTEXAI=TRUE` + `GOOGLE_CLOUD_PROJECT` set, or AI Studio when `GEMINI_API_KEY` set | deterministic workers |
 | **Evidence** | Elastic MCP when `ELASTIC_MCP_URL` set | seeded BTS demo data |
 
-Stub mode lets the whole pipeline + API + WS run and be tested without Gemini or
+Stub mode lets the whole pipeline + API + WS run and be tested without an LLM or
 a live Elastic cluster.
+
+**Vertex AI (ADC) is the recommended LLM path** — no API key in the repo. ADK
+authenticates through Application Default Credentials. Set ADC up once:
+
+```bash
+gcloud auth application-default login
+gcloud config set project rapid-agent-hackacthon
+# then in .env: GOOGLE_GENAI_USE_VERTEXAI=TRUE, GOOGLE_CLOUD_PROJECT=rapid-agent-hackacthon
+```
 
 ## What maps to what
 

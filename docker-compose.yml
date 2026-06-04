@@ -12,6 +12,13 @@ services:
   agent:
     build: ./apps/agent
     env_file: .env
+    # Vertex AI auth via ADC: mount the service-account key (host path from
+    # GOOGLE_ADC_FILE in .env, default ./secrets/adc.json) read-only and point
+    # the SDK at the in-container path. Overrides any host path leaking from .env.
+    volumes:
+      - "${GOOGLE_ADC_FILE:-./secrets/adc.json}:/secrets/adc.json:ro"
+    environment:
+      GOOGLE_APPLICATION_CREDENTIALS: /secrets/adc.json
     ports:
       - "${AGENT_HOST_PORT:-8000}:8000"
     healthcheck:

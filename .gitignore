@@ -3,3 +3,6 @@ node_modules/
 # Secrets: shared env at repo root (never commit)
 .env
 .env.local
+
+# Service-account keys / ADC credentials (never commit)
+secrets/
