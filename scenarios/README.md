@@ -1,37 +1,11 @@
-# Scenario Contract Tests
+# Scenarios
 
-Scenario contract tests describe end-to-end product flows before the implementation exists.
+The old contract-scenario JSON files were removed with the run-based contract.
 
-They do not start the frontend, Java backend, Python agent, Elastic, or Phoenix. Instead, they verify that the contract fixtures already describe a coherent executable scenario:
+Current end-to-end behavior is covered by:
 
-- request and response order,
-- state transitions,
-- ID propagation,
-- approval persistence links,
-- evidence grounding,
-- OpenInference trace linkage.
+- `contracts/01-frontend-java`: public conversation stream contract.
+- `contracts/02-java-python-agent`: internal Agent Core turn and stream contract.
+- `e2e/main-analysis-approval.mock.spec.ts`: mock browser flow using `message.send` and `StreamMessage.blocks[]`.
 
-This is the first stage of E2E testing.
-
-```text
-Phase 1: Scenario contract test
-  Uses contract fixtures only.
-
-Phase 2: Mock E2E
-  Runs against mocks/stubs generated from the same contracts.
-
-Phase 3: Real E2E
-  Runs against frontend + Java + Python + test Elastic/Phoenix.
-```
-
-Run:
-
-```sh
-npm run test:scenarios
-```
-
-Run all repository gates:
-
-```sh
-npm test
-```
+Keep future scenarios conversation-first: user messages drive the flow, and specialized UI behavior comes from received block kinds.

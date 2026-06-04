@@ -18,7 +18,7 @@
 > 2. Google Cloud Agent Builder 사용 → **Google ADK 직접 오케스트레이션** + Elasticsearch MCP Server.
 > 3. 별도 App DB(Postgres/SQLite) → **Elastic Cloud Serverless 단일 데이터 저장소**, Java 백엔드는 순수 게이트웨이.
 > 4. 관측성 부재 → **Arize/Phoenix L4 메타 기억** 및 OpenInference 트레이싱 추가.
-> 5. 버튼 중심 run flow가 아니라 **자유 대화 main stream**을 제품의 기본 표면으로 둔다.
+> 5. 버튼 중심 process flow가 아니라 **자유 대화 main stream**을 제품의 기본 표면으로 둔다.
 > 6. 프론트 계약은 단일 송신 `message.send`와 단일 수신 `StreamMessage.blocks[]`만 노출한다.
 
 ---
@@ -198,7 +198,7 @@ LaunchPilot은 **멀티 에이전트 Signal-to-Experiment 워룸**이다.
 | 컨테이너 | 스택 | 책임 |
 |---|---|---|
 | Frontend | React / Next.js | War Room UI, CSV 업로드, 캘린더/브리프 뷰. **Java 공개 API만 호출한다.** |
-| Business Backend | Java 21 / Spring Boot | 순수 게이트웨이. `agent_run_id` 생성, CSV 스트리밍 파싱, Elastic 즉시 인덱싱, 비동기 잡 관리, 승인 시 불변 적재. **RDB 미사용.** |
+| Business Backend | Java 21 / Spring Boot | 순수 게이트웨이. `thread_id` 생성, CSV 스트리밍 파싱, Elastic 즉시 인덱싱, 비동기 잡 관리, 승인 시 불변 적재. **RDB 미사용.** |
 | Agent Service | Python / FastAPI / Google ADK | 멀티 에이전트 오케스트레이션. Gemini 호출, Elastic MCP 검색, Phoenix MCP 성찰, OpenInference 트레이싱, 후보 payload 생성. **사람 승인은 처리하지 않는다.** |
 
 ### 5.2 외부 시스템 (3개)
@@ -222,7 +222,7 @@ LaunchPilot은 **멀티 에이전트 Signal-to-Experiment 워룸**이다.
 
 | 계층 | 저장소 | 내용 |
 |---|---|---|
-| L1/L2 단기 기억 | Shared Context Object (Pydantic State Store, Python 인메모리) | 한 agent run 동안 Signals → Hypotheses → Experiments 단계별 JSON 누적 |
+| L1/L2 단기 기억 | Shared Context Object (Pydantic State Store, Python 인메모리) | 한 conversation turn 동안 Signals → Hypotheses → Experiments 단계별 JSON 누적 |
 | L3 장기 기억 | Elastic Cloud Serverless | SNS 로그, 콘텐츠, 캠페인, 캘린더, 팀 메모, 승인된 과거 브리프 |
 | L4 메타 기억 | Arize / Phoenix Cloud | 과거 실행 트레이스, 평가 점수, 실패 패턴. Phoenix MCP로 조회 |
 
@@ -334,7 +334,7 @@ LaunchPilot의 에이전트성은 **단일 LLM이 아니라 역할이 분리된 
 - 초기 세션에서 `parent_brief_id`가 있으면 `load_growth_brief_context`로 과거 스냅숏을 주입한다.
 - 모든 단계를 Tracer 모듈을 통해 OpenInference로 계측한다.
 
-### 6.8 Agent run 상태 머신
+### 6.8 Agent activity projection
 
 ```text
 PENDING
@@ -526,7 +526,7 @@ GrowthSignal 1 ── N Hypothesis
 Hypothesis 1 ── N ExperimentItem
 ExperimentPlan 1 ── N ExperimentItem
 ExperimentPlan 1 ── 1 GrowthBrief (승인 시 생성)
-AgentRun 1 ── N ToolCallLog / OpenInference span
+AgentThread 1 ── N ToolCallLog / OpenInference span
 ```
 
 > 시그널·가설·실험 후보는 승인 전까지 어떤 저장소에도 들어가지 않는다(frontend-local). 승인 시 `growth_briefs` 문서 안에 임베드되어 불변 저장된다.
@@ -535,8 +535,8 @@ AgentRun 1 ── N ToolCallLog / OpenInference span
 
 - `Channel`: `youtube | tiktok | instagram | x | unknown`
 - `Confidence`: `low | medium | medium_high | high`
-- `AgentRunStatus` (생명주기 축, 9): `PENDING | RUNNING_SIGNAL_DETECTION | RUNNING_EVIDENCE_SEARCH | RUNNING_HYPOTHESIS_GENERATION | RUNNING_EXPERIMENT_GENERATION | WAITING_FOR_APPROVAL | SUCCESS | FAILED | CANCELLED`
-- `AgentRunStage` (WS 진행축, 7, asyncapi 전용): `IMPORT_METRICS | DETECT_PERFORMANCE_SIGNAL | GROUND_WITH_EVIDENCE | GENERATE_HYPOTHESIS | DRAFT_EXPERIMENT_PLAN | WAIT_FOR_APPROVAL | APPLY_APPROVED_PLAN`
+- Agent activity is exposed as `activity` blocks, not as a lifecycle enum.
+- Approval is exposed as an `approval` block, not as a screen-wide process state.
 - `AgentResultPayload`: `{ signals: Signal[], hypotheses: Hypothesis[], experiment_plan: ExperimentPlan }`
 - `ExperimentItem`: `{ id, hypothesis_id, title, channel, content_format, hook, cta, target_metric, success_criteria, scheduled_at, production_brief }`
 
@@ -585,13 +585,13 @@ Java가 내부로 유지하는 필드: `agent_diagnostics`(worker, validator_pas
 
 ### 12.4 ID 규약
 
-- `agent_run_id`: Java 생성, 형식 `run_*`.
+- `thread_id`: Java 생성, 형식 `run_*`.
 - `trace_context.request_id`: Java가 공개 요청마다 생성, 형식 `req_*`.
 - `approval_id`: Java 생성(승인 게이트), 형식 `appr_*`.
 - `message_id`: Java 생성(대화 메시지), 형식 `msg_*`.
 - WS 클라 `message.send.command_id`는 멱등 키 — 서버는 동일 `command_id`를 최대 1회만 실행한다.
-- Python은 모든 응답에 `agent_run_id`를 echo한다.
-- 같은 `agent_run_id` 재시도 → 현재 상태 반환. 다른 body로 재사용 → `409 Conflict`.
+- Python은 모든 응답에 `thread_id`를 echo한다.
+- 같은 `thread_id` 재시도 → 현재 상태 반환. 다른 body로 재사용 → `409 Conflict`.
 
 ---
 
@@ -627,9 +627,9 @@ Gemini 스타일의 대화형 쉘이되, 순수 챗 앱은 아니다. 실험 계
 - `composer`: 자유 입력, 첨부, 전송 상태.
 - `rightPanel`: 선택된 문서/artifact/approval과 open 상태.
 - `draftEdits`: 승인 전 artifact에 대한 로컬 수정.
-- `activeWork`: 진행 중인 agent 작업의 표시용 run id/status/cancellable 여부.
+- `activeWork`: 진행 중인 agent 작업의 표시용 thread id/status/cancellable 여부.
 
-`RUNNING_SIGNAL_DETECTION`, `WAITING_FOR_APPROVAL` 같은 agent run status는 전체 화면 상태가 아니라 `activity` 또는 `approval` block의 내용으로 표현한다.
+`RUNNING_SIGNAL_DETECTION`, `WAITING_FOR_APPROVAL` 같은 thread status는 전체 화면 상태가 아니라 `activity` 또는 `approval` block의 내용으로 표현한다.
 
 ### 13.3 수신 Block별 UI/UX 반응표
 

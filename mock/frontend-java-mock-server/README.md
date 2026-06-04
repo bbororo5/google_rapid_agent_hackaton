@@ -21,4 +21,4 @@ Frontend env:
 NEXT_PUBLIC_AGENT_API_BASE_URL=http://localhost:8090
 ```
 
-Then run the frontend on port 3000 and inspect `ws://localhost:8090/api/agent/runs/{runId}/stream` in DevTools.
+Then run the frontend on port 3000 and inspect `ws://localhost:8090/api/agent/threads/{threadId}/stream` in DevTools.

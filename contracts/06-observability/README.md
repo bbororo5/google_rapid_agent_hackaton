@@ -6,7 +6,7 @@ Last updated: 2026-06-01
 
 ## Purpose
 
-This contract defines how LaunchPilot agent runs are traced and how trace IDs connect back to Java polling responses.
+This contract defines how LaunchPilot threads are traced and how trace IDs connect back to Java polling responses.
 
 This is not an application API contract. It is a trace semantics contract based on OpenInference conventions over OpenTelemetry.
 
@@ -18,10 +18,10 @@ Phoenix receives traces over OTLP. OpenInference defines the AI-specific span ki
 
 ## Required Trace Identity
 
-Every agent run trace must include these identifiers:
+Every thread trace must include these identifiers:
 
 - `trace_id`: OpenTelemetry trace ID. This should be surfaced to Java as `agent_diagnostics.trace_id`.
-- `agent_run_id`: Java-generated run ID, stored in `metadata.agent_run_id`.
+- `thread_id`: Java-generated run ID, stored in `metadata.thread_id`.
 - `session.id`: stable session key. Recommended value: `workspace_id:campaign_id`.
 - `metadata.workspace_id`
 - `metadata.campaign_id`
@@ -34,7 +34,7 @@ Java should not expose full trace attributes to the frontend. Java may expose on
 Required shape:
 
 ```text
-AGENT launchpilot.agent_run
+AGENT launchpilot.thread
   CHAIN launchpilot.orchestrator
     PROMPT launchpilot.prompt.render
     RETRIEVER launchpilot.evidence.search_content_posts
@@ -63,7 +63,7 @@ Use `openinference.span.kind` on every AI span.
 
 Required kinds for LaunchPilot:
 
-- `AGENT`: whole agent run.
+- `AGENT`: whole thread.
 - `CHAIN`: orchestrator pipeline or worker handoff.
 - `PROMPT`: prompt/template rendering.
 - `RETRIEVER`: evidence retrieval from Elastic.
@@ -92,7 +92,7 @@ The `metadata` JSON string should include:
 
 ```json
 {
-  "agent_run_id": "run_20260601_001",
+  "thread_id": "run_20260601_001",
   "workspace_id": "demo_workspace",
   "campaign_id": "camp_comeback_teaser",
   "worker": "Data Analyst Worker",
@@ -108,7 +108,7 @@ Retriever spans must include:
 
 - `openinference.span.kind`: `RETRIEVER`
 - `retrieval.documents`
-- `metadata.agent_run_id`
+- `metadata.thread_id`
 - `metadata.tool_name`
 
 Each retrieved document must include:

@@ -2,7 +2,7 @@
   "growth_brief_id": "brief_20260601_001",
   "workspace_id": "demo_workspace",
   "campaign_id": "camp_comeback_teaser",
-  "agent_run_id": "run_20260601_001",
+  "thread_id": "run_20260601_001",
   "experiment_plan_id": "plan_001",
   "approved_by": "demo_user",
   "approved_at": "2026-06-01T16:33:15+09:00",

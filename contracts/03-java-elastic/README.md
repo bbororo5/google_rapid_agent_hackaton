@@ -11,7 +11,7 @@ This contract defines the documents Java writes to Elastic and the invariants ot
 Elastic is the single data store for LaunchPilot. In the MVP, Java writes three primary document families:
 
 - `content_posts`: normalized SNS metric rows imported from CSV.
-- `growth_briefs`: immutable approval snapshots used for history and context restoration.
+- `growth_briefs`: immutable approval records used for history and context restoration.
 - `calendar_events`: calendar-optimized projections created from approved experiments.
 
 Python Agent reads evidence from Elastic through MCP/tooling, but Java owns CSV ingestion and final approval persistence.
@@ -21,7 +21,7 @@ Python Agent reads evidence from Elastic through MCP/tooling, but Java owns CSV 
 | Index | Writer | Reader | Mutability | Purpose |
 | --- | --- | --- | --- | --- |
 | `content_posts` | Java `ImportService` | Python Agent evidence tools, Java import diagnostics | Upsert during import | Normalized SNS metric evidence from CSV. |
-| `growth_briefs` | Java `BusinessDataService` | Java session restore, Python Agent parent context | Append-only | Approved experiment plan snapshot. |
+| `growth_briefs` | Java `BusinessDataService` | Java session restore, Python Agent parent context | Append-only | Approved experiment plan record. |
 | `calendar_events` | Java `BusinessDataService` | Frontend calendar through Java | Append-only | Fast calendar view projection. |
 
 ## Core Invariants
@@ -33,7 +33,7 @@ Python Agent reads evidence from Elastic through MCP/tooling, but Java owns CSV 
 - Agent `evidence_refs` must point to stable source IDs such as `post_id` or `note_id`.
 - `growth_briefs` and `calendar_events` are append-only. Do not update approved documents in place.
 - Corrections create a new `growth_brief_id`, new `calendar_events`, and an incremented `version`.
-- Approval for the same `agent_run_id` is single-use. Java must reject duplicate approval with `409 Conflict`.
+- Approval for the same `thread_id` is single-use. Java must reject duplicate approval with `409 Conflict`.
 
 ## Refresh Policy
 
@@ -89,7 +89,7 @@ Required fields:
 
 ## Index: `growth_briefs`
 
-Purpose: immutable approved snapshot and context restoration source for `parent_brief_id`.
+Purpose: immutable approved record and context restoration source for `parent_brief_id`.
 
 Document ID recommendation: `growth_brief_id`.
 
@@ -98,7 +98,7 @@ Required fields:
 - `growth_brief_id`
 - `workspace_id`
 - `campaign_id`
-- `agent_run_id`
+- `thread_id`
 - `experiment_plan_id`
 - `approved_by`
 - `approved_at`
@@ -143,7 +143,7 @@ Recommended prefixes:
 - `post_` for content post evidence.
 - `brief_` for approved growth briefs.
 - `cal_` for calendar events.
-- `run_` for agent runs.
+- `run_` for threads.
 - `plan_` for experiment plans.
 - `exp_` for experiment items.
 - `hyp_` for hypotheses.

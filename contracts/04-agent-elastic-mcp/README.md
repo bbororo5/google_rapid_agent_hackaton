@@ -43,7 +43,7 @@ Raw MCP tools that inspect cluster metadata, such as `list_indices` and `get_map
 
 All wrapper requests include:
 
-- `agent_run_id`: Current Java-generated agent run ID.
+- `thread_id`: Current Java-generated thread ID.
 - `workspace_id`: Workspace scope.
 - `campaign_id`: Campaign scope.
 
@@ -98,7 +98,7 @@ Request:
 
 ```json
 {
-  "agent_run_id": "run_20260601_001",
+  "thread_id": "run_20260601_001",
   "workspace_id": "demo_workspace",
   "campaign_id": "camp_comeback_teaser",
   "date_range": {
@@ -142,7 +142,7 @@ Request:
 
 ```json
 {
-  "agent_run_id": "run_20260601_001",
+  "thread_id": "run_20260601_001",
   "workspace_id": "demo_workspace",
   "campaign_id": "camp_comeback_teaser",
   "metric_name": "save_rate",

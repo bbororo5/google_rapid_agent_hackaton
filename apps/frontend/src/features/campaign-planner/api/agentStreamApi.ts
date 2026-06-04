@@ -8,7 +8,7 @@ export interface AgentStreamConnection {
 
 export interface AgentStreamApi {
   connect(input: {
-    agentRunId: string;
+    threadId: string;
     streamUrl: string;
     onOpen: () => void;
     onEvent: (message: StreamMessage) => void;

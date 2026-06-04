@@ -25,9 +25,9 @@
     },
     "commonRequestFields": {
       "type": "object",
-      "required": ["agent_run_id", "workspace_id", "campaign_id"],
+      "required": ["thread_id", "workspace_id", "campaign_id"],
       "properties": {
-        "agent_run_id": {
+        "thread_id": {
           "type": "string",
           "pattern": "^run_[A-Za-z0-9_]+$"
         },

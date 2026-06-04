@@ -11,12 +11,12 @@ import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 
-/** 계약 01 asyncapi: FE-facing WS 서버 핸들러 (/api/agent/runs/{id}/stream). */
+/** FE-facing conversation WebSocket handler (/api/agent/threads/{threadId}/stream). */
 @Component
 public class AgentStreamHandler extends TextWebSocketHandler {
 
     private static final Logger log = LoggerFactory.getLogger(AgentStreamHandler.class);
-    private static final String RUN_ID_ATTR = "agentRunId";
+    private static final String THREAD_ID_ATTR = "threadId";
 
     private final AgentStreamSessionRegistry sessions;
     private final AgentStreamRelayService relay;
@@ -33,8 +33,8 @@ public class AgentStreamHandler extends TextWebSocketHandler {
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) {
-        String runId = extractRunId(session);
-        if (runId == null) {
+        String threadId = extractThreadId(session);
+        if (threadId == null) {
             try {
                 session.close(CloseStatus.BAD_DATA);
             } catch (Exception ignored) {
@@ -42,44 +42,45 @@ public class AgentStreamHandler extends TextWebSocketHandler {
             }
             return;
         }
-        session.getAttributes().put(RUN_ID_ATTR, runId);
-        sessions.register(runId, session);
+        session.getAttributes().put(THREAD_ID_ATTR, threadId);
+        sessions.register(threadId, session);
+        relay.ensureStarted(threadId);
     }
 
     @Override
     protected void handleTextMessage(WebSocketSession session, TextMessage message) {
-        String runId = (String) session.getAttributes().get(RUN_ID_ATTR);
-        if (runId == null) {
+        String threadId = (String) session.getAttributes().get(THREAD_ID_ATTR);
+        if (threadId == null) {
             return;
         }
         try {
             AgentStreamClientCommand cmd =
                     mapper.readValue(message.getPayload(), AgentStreamClientCommand.class);
-            relay.handleCommand(session, runId, cmd);
+            relay.handleCommand(session, threadId, cmd);
         } catch (Exception e) {
-            log.warn("client command parse failed (run {}): {}", runId, e.getMessage());
+            log.warn("client command parse failed (thread {}): {}", threadId, e.getMessage());
         }
     }
 
     @Override
     public void afterConnectionClosed(WebSocketSession session, CloseStatus status) {
-        String runId = (String) session.getAttributes().get(RUN_ID_ATTR);
-        if (runId != null) {
-            sessions.unregister(runId, session);
+        String threadId = (String) session.getAttributes().get(THREAD_ID_ATTR);
+        if (threadId != null) {
+            sessions.unregister(threadId, session);
         }
     }
 
-    private String extractRunId(WebSocketSession session) {
+    private String extractThreadId(WebSocketSession session) {
         if (session.getUri() == null) {
             return null;
         }
         String path = session.getUri().getPath();
-        int start = path.indexOf("/runs/");
+        int start = path.indexOf("/threads/");
         int end = path.lastIndexOf("/stream");
-        if (start < 0 || end < 0 || end <= start + 6) {
+        if (start < 0 || end < 0 || end <= start + 9) {
             return null;
         }
-        String runId = path.substring(start + 6, end);
-        return runId.matches("^run_[A-Za-z0-9_]+$") ? runId : null;
+        String threadId = path.substring(start + 9, end);
+        return threadId.matches("^thread_[A-Za-z0-9_]+$") ? threadId : null;
     }
 }

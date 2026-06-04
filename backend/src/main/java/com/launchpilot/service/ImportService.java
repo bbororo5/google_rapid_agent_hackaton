@@ -27,6 +27,7 @@ public class ImportService {
     private final CsvStreamingParser parser;
     private final ElasticDocumentWriter writer;
     private final IdGenerator ids;
+    private final AgentThreadRegistry registry;
 
     /**
      * Constructs an ImportService with the components required to parse CSV input,
@@ -36,10 +37,11 @@ public class ImportService {
      * @param writer writer responsible for bulk-indexing ContentPostDoc documents
      * @param ids generator for import IDs and fallback post IDs
      */
-    public ImportService(CsvStreamingParser parser, ElasticDocumentWriter writer, IdGenerator ids) {
+    public ImportService(CsvStreamingParser parser, ElasticDocumentWriter writer, IdGenerator ids, AgentThreadRegistry registry) {
         this.parser = parser;
         this.writer = writer;
         this.ids = ids;
+        this.registry = registry;
     }
 
     /**
@@ -61,6 +63,8 @@ public class ImportService {
             Channel sourcePlatform) {
 
         String importId = ids.newImportId();
+        String threadId = "thread_" + importId.substring("imp_".length());
+        registry.put(threadId, new AgentThreadRegistry.RunContext(workspaceId, campaignId));
         String ingestedAt = OffsetDateTime.now().toString();
         List<ContentPostDoc> docs = new ArrayList<>();
 

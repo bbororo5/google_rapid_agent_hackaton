@@ -176,7 +176,7 @@ function Topbar({
       <div className="topbar-context" aria-label="Current workspace">
         <span>{campaignName}</span>
       </div>
-      {progress.visible ? <AgentRunProgress progress={progress} /> : null}
+      {progress.visible ? <AgentSessionProgress progress={progress} /> : null}
       <div className="account-tools">
         <button className="round-button" aria-label="Notifications">
           <Bell size={17} strokeWidth={1.8} />
@@ -205,17 +205,17 @@ function Topbar({
   );
 }
 
-function AgentRunProgress({ progress }: { progress: PlannerProgressView }) {
+function AgentSessionProgress({ progress }: { progress: PlannerProgressView }) {
   const steps = progress.steps;
   const activeIndex = steps.findIndex((step) => step.status === "active");
   const completedCount = steps.filter((step) => step.status === "complete").length;
   const currentStep = steps[activeIndex >= 0 ? activeIndex : Math.min(completedCount, steps.length - 1)];
 
   return (
-    <section className="agent-run-progress" aria-label="Agent run status">
+    <section className="agent-session-progress" aria-label="Agent session status">
       <div className="agent-run-summary">
         <div>
-          <strong>{currentStep?.label ?? "Agent run"}</strong>
+          <strong>{currentStep?.label ?? "Agent session"}</strong>
           <span>{progress.stateLabel}</span>
         </div>
         <span className="run-progress-count">

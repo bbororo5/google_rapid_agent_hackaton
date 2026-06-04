@@ -22,9 +22,9 @@
     "metadata": {
       "type": "object",
       "additionalProperties": true,
-      "required": ["agent_run_id", "workspace_id", "campaign_id"],
+      "required": ["thread_id", "workspace_id", "campaign_id"],
       "properties": {
-        "agent_run_id": {
+        "thread_id": {
           "type": "string",
           "pattern": "^run_[A-Za-z0-9_]+$"
         },
@@ -187,13 +187,13 @@
     "trace": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["trace_id", "agent_run_id", "session_id", "spans"],
+      "required": ["trace_id", "thread_id", "session_id", "spans"],
       "properties": {
         "trace_id": {
           "type": "string",
           "pattern": "^trc_[A-Za-z0-9_]+$"
         },
-        "agent_run_id": {
+        "thread_id": {
           "type": "string",
           "pattern": "^run_[A-Za-z0-9_]+$"
         },

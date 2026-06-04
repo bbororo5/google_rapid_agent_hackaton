@@ -1,4 +1,4 @@
-import type { AgentDocument, AgentMessage, AgentObservation, AgentResultPayload, AgentTimelineItem, AgentStreamRecoveryStatus, ExperimentItem, ExperimentPlannerEvent, ExperimentPlannerState, ToolCallLog } from "./experimentPlannerTypes";
+import type { AgentDocument, AgentMessage, AgentThreadObservation, AgentResultPayload, AgentTimelineItem, AgentStreamRecoveryStatus, ExperimentItem, ExperimentPlannerEvent, ExperimentPlannerState, ToolCallLog } from "./experimentPlannerTypes";
 
 function updateDraftExperiment(items: ExperimentItem[], experimentId: string, patch: Partial<ExperimentItem>) {
   return items.map((item) => (item.id === experimentId ? { ...item, ...patch } : item));
@@ -111,10 +111,10 @@ function nextSequence(current: number, sequence: number | null | undefined) {
 
 function cancelledStateFromTimeline(
   state: {
-    agentRunId: string;
+    threadId: string;
     messages?: AgentMessage[];
     documents?: AgentDocument[];
-    observations?: AgentObservation[];
+    observations?: AgentThreadObservation[];
     toolLogs?: ToolCallLog[];
     timelineItems?: AgentTimelineItem[];
     lastReceivedSequence?: number;
@@ -124,7 +124,7 @@ function cancelledStateFromTimeline(
   overrides?: {
     messages?: AgentMessage[];
     documents?: AgentDocument[];
-    observations?: AgentObservation[];
+    observations?: AgentThreadObservation[];
     toolLogs?: ToolCallLog[];
     timelineItems?: AgentTimelineItem[];
     lastReceivedSequence?: number;
@@ -133,7 +133,7 @@ function cancelledStateFromTimeline(
 ): ExperimentPlannerState {
   return {
     tag: "analysis_cancelled",
-    agentRunId: state.agentRunId,
+    threadId: state.threadId,
     message,
     messages: overrides?.messages ?? state.messages ?? [],
     documents: overrides?.documents ?? state.documents ?? [],
@@ -176,7 +176,7 @@ export function experimentPlannerReducer(state: ExperimentPlannerState, event: E
       if (state.tag !== "importing_csv") return { tag: "import_failed", question: questionFromState(state), message: event.message };
       return { tag: "import_failed", file: state.file, question: state.question, message: event.message };
 
-    case "RUN_AGENT_REQUESTED":
+    case "AGENT_SESSION_REQUESTED":
       if (state.tag === "import_succeeded") {
         return { tag: "starting_analysis", source: { kind: "csv_import", importResult: state.importResult, question: state.question } };
       }
@@ -195,20 +195,19 @@ export function experimentPlannerReducer(state: ExperimentPlannerState, event: E
       }
       return state;
 
-    case "RUN_AGENT_ACCEPTED":
+    case "AGENT_SESSION_ACCEPTED":
       if (state.tag !== "starting_analysis") return state;
-      return { tag: "analysis_pending", agentRunId: event.agentRunId, streamUrl: event.streamUrl, snapshotUrl: event.snapshotUrl, status: "PENDING", toolLogs: [] };
+      return { tag: "analysis_pending", threadId: event.threadId, streamUrl: event.streamUrl, status: "PENDING", toolLogs: [] };
 
-    case "RUN_AGENT_FAILED":
+    case "AGENT_SESSION_FAILED":
       return { tag: "analysis_failed", message: event.message, recoverable: true };
 
     case "STREAM_CONNECT_REQUESTED":
       if (state.tag !== "analysis_pending") return state;
       return {
         tag: "stream_connecting",
-        agentRunId: state.agentRunId,
+        threadId: state.threadId,
         streamUrl: state.streamUrl,
-        snapshotUrl: state.snapshotUrl,
         toolLogs: state.toolLogs,
         messages: [],
         documents: [],
@@ -221,10 +220,9 @@ export function experimentPlannerReducer(state: ExperimentPlannerState, event: E
       if (state.tag !== "stream_connecting") return state;
       return {
         tag: "analysis_running",
-        agentRunId: state.agentRunId,
+        threadId: state.threadId,
         streamUrl: state.streamUrl,
-        snapshotUrl: state.snapshotUrl,
-        status: "RUNNING_SIGNAL_DETECTION",
+        status: "ANALYZING_SIGNAL",
         currentStage: null,
         steps: [],
         messages: state.messages,
@@ -254,9 +252,8 @@ export function experimentPlannerReducer(state: ExperimentPlannerState, event: E
       const base =
         state.tag === "stream_connecting"
           ? {
-              agentRunId: state.agentRunId,
+              threadId: state.threadId,
               streamUrl: state.streamUrl,
-              snapshotUrl: state.snapshotUrl,
               steps: [],
               messages: state.messages,
               documents: state.documents,
@@ -287,15 +284,14 @@ export function experimentPlannerReducer(state: ExperimentPlannerState, event: E
       const signal = payload?.signals[0] ?? null;
 
       if (errorBlock) {
-        return { tag: "analysis_failed", agentRunId: base.agentRunId, message: errorBlock.detail ?? errorBlock.title, recoverable: errorBlock.retryable ?? true };
+        return { tag: "analysis_failed", threadId: base.threadId, message: errorBlock.detail ?? errorBlock.title, recoverable: errorBlock.retryable ?? true };
       }
 
       if (approvalBlock?.kind === "approval" && payload) {
         return {
           tag: "waiting_for_approval",
-          agentRunId: base.agentRunId,
+          threadId: base.threadId,
           streamUrl: base.streamUrl,
-          snapshotUrl: base.snapshotUrl,
           approvalId: approvalBlock.id,
           payload,
           selectedExperimentIds: payload.experiment_plan.items.map((item) => item.id),
@@ -315,7 +311,7 @@ export function experimentPlannerReducer(state: ExperimentPlannerState, event: E
         const finalExperiments = "draftExperiments" in base ? base.draftExperiments.filter((experiment) => base.selectedExperimentIds.includes(experiment.id)) : [];
         return {
           tag: "approved",
-          agentRunId: base.agentRunId,
+          threadId: base.threadId,
           approval: {
             ok: true,
             message: resultBlock.title,
@@ -339,10 +335,9 @@ export function experimentPlannerReducer(state: ExperimentPlannerState, event: E
       if (signal && payload && state.tag !== "waiting_for_approval" && state.tag !== "editing_plan" && state.tag !== "approving") {
         return {
           tag: "signal_review",
-          agentRunId: base.agentRunId,
+          threadId: base.threadId,
           streamUrl: base.streamUrl,
-          snapshotUrl: base.snapshotUrl,
-          status: "RUNNING_HYPOTHESIS_GENERATION",
+          status: "GENERATING_HYPOTHESIS",
           currentStage: null,
           signal,
           payload,
@@ -388,10 +383,9 @@ export function experimentPlannerReducer(state: ExperimentPlannerState, event: E
 
       return {
         tag: "analysis_running",
-        agentRunId: base.agentRunId,
+        threadId: base.threadId,
         streamUrl: base.streamUrl,
-        snapshotUrl: base.snapshotUrl,
-        status: "RUNNING_EVIDENCE_SEARCH",
+        status: "SEARCHING_EVIDENCE",
         currentStage: null,
         steps,
         messages,
@@ -408,9 +402,8 @@ export function experimentPlannerReducer(state: ExperimentPlannerState, event: E
       if (state.tag !== "signal_review") return state;
       return {
         tag: "analysis_running",
-        agentRunId: state.agentRunId,
+        threadId: state.threadId,
         streamUrl: state.streamUrl,
-        snapshotUrl: state.snapshotUrl,
         status: state.status,
         currentStage: state.currentStage,
         steps: state.steps,
@@ -426,7 +419,7 @@ export function experimentPlannerReducer(state: ExperimentPlannerState, event: E
     case "STREAM_FAILED":
       return {
         tag: "analysis_failed",
-        agentRunId: event.agentRunId,
+        threadId: event.threadId,
         message: event.message,
         recoverable: true,
       };
@@ -444,9 +437,8 @@ export function experimentPlannerReducer(state: ExperimentPlannerState, event: E
       if (state.tag !== "waiting_for_approval" && state.tag !== "editing_plan") return state;
       return {
         tag: "approving",
-        agentRunId: state.agentRunId,
+        threadId: state.threadId,
         streamUrl: state.streamUrl,
-        snapshotUrl: state.snapshotUrl,
         approvalId: state.approvalId,
         payload: state.payload,
         selectedExperimentIds: state.selectedExperimentIds,
@@ -465,7 +457,7 @@ export function experimentPlannerReducer(state: ExperimentPlannerState, event: E
       if (state.tag !== "approving") return state;
       return {
         tag: "approved",
-        agentRunId: state.agentRunId,
+        threadId: state.threadId,
         approval: event.approval,
         approvalResult: null,
         calendarEvents: event.approval.created_calendar_events,
@@ -483,16 +475,16 @@ export function experimentPlannerReducer(state: ExperimentPlannerState, event: E
       return { tag: "approval_failed", message: event.message, recoverable: true };
 
     case "CANCEL_SENT":
-      if (!("agentRunId" in state) || !state.agentRunId) return state;
-      return cancelledStateFromTimeline({ ...state, agentRunId: state.agentRunId }, event.reason ?? "Agent run cancelled.");
+      if (!("threadId" in state) || !state.threadId) return state;
+      return cancelledStateFromTimeline({ ...state, threadId: state.threadId }, event.reason ?? "Agent session cancelled.");
 
     case "REJECT_SENT":
-      if (!("agentRunId" in state) || !state.agentRunId) return state;
-      return cancelledStateFromTimeline({ ...state, agentRunId: state.agentRunId }, event.reason ?? "Approval rejected.");
+      if (!("threadId" in state) || !state.threadId) return state;
+      return cancelledStateFromTimeline({ ...state, threadId: state.threadId }, event.reason ?? "Approval rejected.");
 
     case "RUN_CANCELLED":
-      if (!("agentRunId" in state) || !state.agentRunId) return state;
-      return cancelledStateFromTimeline({ ...state, agentRunId: state.agentRunId }, event.message);
+      if (!("threadId" in state) || !state.threadId) return state;
+      return cancelledStateFromTimeline({ ...state, threadId: state.threadId }, event.message);
 
     case "RESET":
       return initialExperimentPlannerState;

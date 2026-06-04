@@ -1,7 +1,7 @@
 package com.launchpilot.client;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.launchpilot.dto.internal.AgentWorkflowEvent;
+import com.launchpilot.dto.common.StreamMessage;
 import java.util.function.BiConsumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,8 +14,8 @@ import org.springframework.web.socket.client.standard.StandardWebSocketClient;
 import org.springframework.web.socket.handler.AbstractWebSocketHandler;
 
 /**
- * 계약 02 asyncapi: Python 내부 workflow 스트림(WS) 수신 클라이언트.
- * Java는 이 스트림을 구독만 한다. Java->Python 명령(cancel)은 REST fallback을 쓴다.
+ * 계약 02 asyncapi: Python Agent Core 내부 스트림(WS) 수신 클라이언트.
+ * Java는 사용자 turn을 REST로 전달하고 이 스트림을 구독한다.
  */
 @Component
 public class AgentWorkflowStreamClient {
@@ -36,30 +36,30 @@ public class AgentWorkflowStreamClient {
     /**
      * Python 내부 스트림에 접속해 workflow 이벤트를 수신하고 onEvent로 넘긴다.
      *
-     * @param agentRunId 구독할 런 id
-     * @param onEvent    (runId, event) 콜백 (relay)
+     * @param threadId 구독할 thread id
+     * @param onEvent  (threadId, event) 콜백 (relay)
      */
-    public void connect(String agentRunId, BiConsumer<String, AgentWorkflowEvent> onEvent) {
-        String uri = wsBaseUrl + "/internal/agent/runs/" + agentRunId + "/stream";
+    public void connect(String threadId, BiConsumer<String, StreamMessage> onEvent) {
+        String uri = wsBaseUrl + "/internal/agent/threads/" + threadId + "/stream";
         client.execute(new AbstractWebSocketHandler() {
             @Override
             protected void handleTextMessage(WebSocketSession session, TextMessage message) {
                 try {
-                    AgentWorkflowEvent e =
-                            mapper.readValue(message.getPayload(), AgentWorkflowEvent.class);
-                    onEvent.accept(agentRunId, e);
+                    StreamMessage e =
+                            mapper.readValue(message.getPayload(), StreamMessage.class);
+                    onEvent.accept(threadId, e);
                 } catch (Exception ex) {
-                    log.warn("workflow event parse failed (run {}): {}", agentRunId, ex.getMessage());
+                    log.warn("workflow event parse failed (thread {}): {}", threadId, ex.getMessage());
                 }
             }
 
             @Override
             public void afterConnectionClosed(WebSocketSession session, CloseStatus status) {
-                log.info("python workflow stream closed (run {}): {}", agentRunId, status);
+                log.info("python workflow stream closed (thread {}): {}", threadId, status);
             }
         }, uri).whenComplete((session, ex) -> {
             if (ex != null) {
-                log.warn("python workflow stream connect failed (run {}): {}", agentRunId, ex.getMessage());
+                log.warn("python workflow stream connect failed (thread {}): {}", threadId, ex.getMessage());
             }
         });
     }

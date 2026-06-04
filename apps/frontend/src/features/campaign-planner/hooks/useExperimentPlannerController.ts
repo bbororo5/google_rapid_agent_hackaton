@@ -10,10 +10,10 @@ import type {
   CalendarEventRef,
   ExperimentItem,
   AgentDocument,
-  AgentObservation,
+  AgentThreadObservation,
   AgentMessage,
   AgentStreamRecoveryStatus,
-  AgentRunStage,
+  AgentActivityStage,
   AgentTimelineItem,
   Hypothesis,
   Signal,
@@ -125,7 +125,7 @@ export interface PlannerThreadView {
   userMessages: AgentMessage[];
   assistantMessages: AgentMessage[];
   documents: AgentDocument[];
-  observations: AgentObservation[];
+  observations: AgentThreadObservation[];
   toolLogs: ToolCallLog[];
   timelineItems: AgentTimelineItem[];
   primaryExperiment: ExperimentItem | null;
@@ -402,7 +402,7 @@ function streamMessagesFromState(input: {
       sequence: 30_000,
       role: "system",
       createdAt: null,
-      blocks: [{ kind: "error", title: `Agent run · ${input.stateLabel}`, detail: input.errorMessage, retryable: true }],
+      blocks: [{ kind: "error", title: `Agent session · ${input.stateLabel}`, detail: input.errorMessage, retryable: true }],
     });
   }
 
@@ -420,7 +420,7 @@ function buildChecklist(state: ExperimentPlannerState): ChecklistStep[] {
   const pending = "pending" as const;
   const pendingRunSteps: ChecklistStep[] = [
     { label: "Import metrics", status: pending },
-    { label: "Start agent run", status: pending },
+    { label: "Start agent session", status: pending },
     { label: "Connect stream", status: pending },
     { label: "Analyze signal", status: pending },
     { label: "Draft experiment plan", status: pending },
@@ -436,7 +436,7 @@ function buildChecklist(state: ExperimentPlannerState): ChecklistStep[] {
 
     return [
       ...(hasImportStep ? [] : [{ label: "Import metrics", status: complete }]),
-      { label: "Start agent run", status: complete },
+      { label: "Start agent session", status: complete },
       { label: "Connect stream", status: complete },
       ...streamSteps,
     ];
@@ -449,7 +449,7 @@ function buildChecklist(state: ExperimentPlannerState): ChecklistStep[] {
   if (state.tag === "importing_csv" || state.tag === "import_succeeded") {
     return [
       { label: "Import metrics", status: state.tag === "importing_csv" ? active : complete },
-      { label: "Start agent run", status: state.tag === "import_succeeded" ? active : pending },
+      { label: "Start agent session", status: state.tag === "import_succeeded" ? active : pending },
       { label: "Connect stream", status: pending },
       { label: "Analyze signal", status: pending },
       { label: "Draft experiment plan", status: pending },
@@ -460,7 +460,7 @@ function buildChecklist(state: ExperimentPlannerState): ChecklistStep[] {
   if (state.tag === "starting_analysis") {
     return [
       { label: "Import metrics", status: complete },
-      { label: "Start agent run", status: active },
+      { label: "Start agent session", status: active },
       { label: "Connect stream", status: pending },
       { label: "Analyze signal", status: pending },
       { label: "Draft experiment plan", status: pending },
@@ -471,7 +471,7 @@ function buildChecklist(state: ExperimentPlannerState): ChecklistStep[] {
   if (state.tag === "analysis_pending" || state.tag === "stream_connecting") {
     return [
       { label: "Import metrics", status: complete },
-      { label: "Start agent run", status: complete },
+      { label: "Start agent session", status: complete },
       { label: "Connect stream", status: active },
       { label: "Analyze signal", status: pending },
       { label: "Draft experiment plan", status: pending },
@@ -482,7 +482,7 @@ function buildChecklist(state: ExperimentPlannerState): ChecklistStep[] {
   if (state.tag === "analysis_running") {
     return [
       { label: "Import metrics", status: complete },
-      { label: "Start agent run", status: complete },
+      { label: "Start agent session", status: complete },
       { label: "Connect stream", status: complete },
       { label: "Analyze signal", status: active },
       { label: "Draft experiment plan", status: pending },
@@ -493,7 +493,7 @@ function buildChecklist(state: ExperimentPlannerState): ChecklistStep[] {
   if (state.tag === "waiting_for_approval" || state.tag === "editing_plan" || state.tag === "approving" || state.tag === "approved") {
     return [
       { label: "Import metrics", status: complete },
-      { label: "Start agent run", status: complete },
+      { label: "Start agent session", status: complete },
       { label: "Connect stream", status: complete },
       { label: "Analyze signal", status: complete },
       { label: "Draft experiment plan", status: complete },
@@ -504,7 +504,7 @@ function buildChecklist(state: ExperimentPlannerState): ChecklistStep[] {
   return pendingRunSteps;
 }
 
-function stageLabel(stage: AgentRunStage) {
+function stageLabel(stage: AgentActivityStage) {
   switch (stage) {
     case "IMPORT_METRICS":
       return "Import metrics";
@@ -538,7 +538,7 @@ function agentState(state: ExperimentPlannerState): AgentDisplayState {
 }
 
 function runShortId(state: ExperimentPlannerState) {
-  return "agentRunId" in state && state.agentRunId ? state.agentRunId.slice(-3) : null;
+  return "threadId" in state && state.threadId ? state.threadId.slice(-3) : null;
 }
 
 function readableWorkflowState(state: ExperimentPlannerState, displayState: AgentDisplayState) {
@@ -649,7 +649,7 @@ function composerFromState(state: ExperimentPlannerState, displayState: AgentDis
         primaryAction: {
           kind: "stop",
           label: "Stop",
-          disabled: !("agentRunId" in state),
+          disabled: !("threadId" in state),
           title: "Stop this analysis run",
         },
       };
@@ -712,7 +712,7 @@ function buildStatusRows(state: ExperimentPlannerState, importResult: ImportCsvR
         },
       ];
     case "analysis_pending":
-      return [{ title: "Agent run accepted.", detail: "Opening the live agent stream." }];
+      return [{ title: "Agent session ready.", detail: "Opening the live agent stream." }];
     case "stream_connecting":
       return [{ title: "Connecting live agent stream...", detail: "Signal and evidence events will appear here as they arrive." }];
     case "analysis_running":
@@ -773,7 +773,7 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
     lastSignalRef.current = currentSignal;
   }
 
-  async function connectStream(agentRunId: string, streamUrl: string) {
+  async function connectStream(threadId: string, streamUrl: string) {
     streamRef.current?.close();
     dispatch({ type: "STREAM_CONNECT_REQUESTED" });
 
@@ -786,7 +786,7 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
       };
 
       streamRef.current = streamApi.connect({
-        agentRunId,
+        threadId,
         streamUrl,
         onOpen: () => dispatch({ type: "STREAM_CONNECTED" }),
         onEvent: (streamMessage) => {
@@ -800,7 +800,7 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
           }
         },
         onError: (message) => {
-          dispatch({ type: "STREAM_FAILED", agentRunId, message });
+          dispatch({ type: "STREAM_FAILED", threadId, message });
           settle(() => reject(new Error(message)));
         },
       });
@@ -831,23 +831,22 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
 
       const startingState = experimentPlannerReducer(
         { ...importedState, question: composerQuestionRef.current },
-        { type: "RUN_AGENT_REQUESTED" },
+        { type: "AGENT_SESSION_REQUESTED" },
       );
-      dispatch({ type: "RUN_AGENT_REQUESTED" });
+      dispatch({ type: "AGENT_SESSION_REQUESTED" });
       if (startingState.tag !== "starting_analysis") return;
 
       const threadId = `thread_${importResult.import_id.replace(/^imp_/, "")}`;
       const streamUrl = agentThreadStreamUrl(threadId);
       dispatch({
-        type: "RUN_AGENT_ACCEPTED",
-        agentRunId: threadId,
+        type: "AGENT_SESSION_ACCEPTED",
+        threadId: threadId,
         streamUrl,
-        snapshotUrl: "",
       });
       await connectStream(threadId, streamUrl);
     } catch (error) {
       dispatch({
-        type: phase === "import" ? "IMPORT_FAILED" : "RUN_AGENT_FAILED",
+        type: phase === "import" ? "IMPORT_FAILED" : "AGENT_SESSION_FAILED",
         message: error instanceof Error ? error.message : phase === "import" ? "Import failed." : "Analysis failed.",
       });
     }
@@ -864,11 +863,11 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
 
     if (!text) return;
 
-    if ("agentRunId" in current && current.agentRunId) {
+    if ("threadId" in current && current.threadId) {
       streamRef.current?.send({
         command_id: commandId("cmd_message"),
         type: "message.send",
-        thread_id: current.agentRunId,
+        thread_id: current.threadId,
         content: text,
         client_created_at: new Date().toISOString(),
       });
@@ -894,7 +893,7 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
     streamRef.current?.send({
       command_id: commandId("cmd_continue"),
       type: "message.send",
-      thread_id: current.agentRunId,
+      thread_id: current.threadId,
       content: "Use this signal",
       client_created_at: new Date().toISOString(),
     });
@@ -918,7 +917,7 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
       streamRef.current?.send({
         command_id: commandId("cmd_approve"),
         type: "message.send",
-        thread_id: approvingState.agentRunId,
+        thread_id: approvingState.threadId,
         content: "Approve this experiment plan.",
         action: {
           name: "approve",
@@ -939,7 +938,7 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
     streamRef.current?.send({
       command_id: commandId("cmd_reject"),
       type: "message.send",
-      thread_id: current.agentRunId,
+      thread_id: current.threadId,
       content: reason,
       action: { name: "reject", target_id: current.approvalId },
       client_created_at: new Date().toISOString(),
@@ -947,14 +946,14 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
     dispatch({ type: "REJECT_SENT", reason });
   }
 
-  async function cancelRun(reason = "User cancelled the agent run.") {
+  async function cancelRun(reason = "User cancelled the agent session.") {
     const current = stateRef.current;
-    if (!("agentRunId" in current) || !current.agentRunId) return;
+    if (!("threadId" in current) || !current.threadId) return;
 
     streamRef.current?.send({
       command_id: commandId("cmd_cancel"),
       type: "message.send",
-      thread_id: current.agentRunId,
+      thread_id: current.threadId,
       content: reason,
       action: { name: "cancel", target_id: "approvalId" in current ? current.approvalId : null },
       client_created_at: new Date().toISOString(),
@@ -971,7 +970,7 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
     streamRef.current?.send({
       command_id: commandId("cmd_update_payload"),
       type: "message.send",
-      thread_id: current.agentRunId,
+      thread_id: current.threadId,
       content: `Revise the experiment title to "${title}".`,
       action: {
         name: "revise_artifact",

@@ -1,25 +1,20 @@
 package com.launchpilot.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.launchpilot.client.AgentServiceClient;
 import com.launchpilot.client.AgentWorkflowStreamClient;
-import com.launchpilot.dto.common.AgentMessage;
 import com.launchpilot.dto.common.AgentResultPayload;
-import com.launchpilot.dto.common.AgentRunStatus;
-import com.launchpilot.dto.common.AgentStreamAck;
 import com.launchpilot.dto.common.AgentStreamClientCommand;
-import com.launchpilot.dto.common.AgentStreamServerEvent;
-import com.launchpilot.dto.common.AgentStreamServerEventType;
 import com.launchpilot.dto.common.ApprovalCommitResult;
-import com.launchpilot.dto.common.ApprovalGateKind;
 import com.launchpilot.dto.common.ApprovalGateRequest;
-import com.launchpilot.dto.common.ReplayScope;
-import com.launchpilot.dto.internal.AgentWorkflowEvent;
+import com.launchpilot.dto.common.MessageSendAction;
+import com.launchpilot.dto.common.StreamMessage;
+import com.launchpilot.dto.internal.InternalAgentTurnRequest;
 import com.launchpilot.dto.pub.ApproveExperimentPlanRequest;
 import com.launchpilot.dto.pub.ApproveExperimentPlanResponse;
-import com.launchpilot.ws.AgentRunTimeline;
+import com.launchpilot.ws.AgentThreadTimeline;
 import com.launchpilot.ws.AgentStreamSessionRegistry;
-import com.launchpilot.ws.ServerEventBuilder;
-import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -28,201 +23,156 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.socket.WebSocketSession;
 
-/**
- * 계약 01/02 WS 런타임 코어.
- * Python workflow 스트림(02)을 구독해 FE WS 이벤트(01)로 릴레이하고,
- * 승인 게이트/승인 결과/취소/재접속 리플레이를 Java가 소유한다.
- */
+/** Conversation-first FE stream relay. Frontend sees only StreamMessage.blocks[]. */
 @Service
 public class AgentStreamRelayService {
 
     private static final Logger log = LoggerFactory.getLogger(AgentStreamRelayService.class);
 
-    private final AgentRunTimeline timeline;
+    private final AgentThreadTimeline timeline;
     private final AgentStreamSessionRegistry sessions;
     private final AgentWorkflowStreamClient pythonStream;
-    private final AgentServiceClient agentClient;
+    private final AgentServiceClient agent;
     private final BusinessDataService business;
     private final IdGenerator ids;
+    private final ObjectMapper mapper;
 
-    /** runId -> 열린 승인 게이트 (approve 검증/적재용). */
     private final Map<String, ApprovalGateRequest> gates = new ConcurrentHashMap<>();
-    /** command_id 멱등 (최대 1회 실행). */
     private final Set<String> processedCommands = ConcurrentHashMap.newKeySet();
+    private final Set<String> startedThreads = ConcurrentHashMap.newKeySet();
 
     public AgentStreamRelayService(
-            AgentRunTimeline timeline,
+            AgentThreadTimeline timeline,
             AgentStreamSessionRegistry sessions,
             AgentWorkflowStreamClient pythonStream,
-            AgentServiceClient agentClient,
+            AgentServiceClient agent,
             BusinessDataService business,
-            IdGenerator ids) {
+            IdGenerator ids,
+            ObjectMapper mapper) {
         this.timeline = timeline;
         this.sessions = sessions;
         this.pythonStream = pythonStream;
-        this.agentClient = agentClient;
+        this.agent = agent;
         this.business = business;
         this.ids = ids;
+        this.mapper = mapper;
     }
 
-    /** 런 시작: 초기 대화/시작 이벤트 적재 후 Python workflow 스트림 구독. */
-    public void startRelay(String agentRunId, String question) {
-        if (question != null && !question.isBlank()) {
-            AgentMessage msg = new AgentMessage(ids.newMessageId(), "user", question);
-            commitAndBroadcast(agentRunId, new ServerEventBuilder(
-                    AgentStreamServerEventType.USER_MESSAGE_CREATED).message(msg));
-        }
-        commitAndBroadcast(agentRunId, new ServerEventBuilder(
-                AgentStreamServerEventType.RUN_STARTED).status(AgentRunStatus.PENDING));
-        pythonStream.connect(agentRunId, this::onWorkflowEvent);
-    }
-
-    /** 02 workflow 이벤트 -> 01 서버 이벤트 릴레이. WAITING_FOR_APPROVAL 도달 시 승인 게이트 합성. */
-    private void onWorkflowEvent(String agentRunId, AgentWorkflowEvent w) {
-        commitAndBroadcast(agentRunId, new ServerEventBuilder(mapType(w.type()))
-                .status(w.status())
-                .step(w.step())
-                .observation(w.observation())
-                .payload(w.payload())
-                .errorMessage(w.errorMessage()));
-
-        if (w.status() == AgentRunStatus.WAITING_FOR_APPROVAL
-                && w.payload() != null
-                && !gates.containsKey(agentRunId)) {
-            openApprovalGate(agentRunId, w.payload());
+    public void ensureStarted(String threadId) {
+        if (startedThreads.add(threadId)) {
+            pythonStream.connect(threadId, this::onWorkflowEvent);
         }
     }
 
-    private void openApprovalGate(String agentRunId, AgentResultPayload payload) {
-        ApprovalGateRequest gate = new ApprovalGateRequest(
-                ids.newApprovalId(), ApprovalGateKind.EXPERIMENT_PLAN, payload);
-        gates.put(agentRunId, gate);
-        commitAndBroadcast(agentRunId, new ServerEventBuilder(
-                AgentStreamServerEventType.APPROVAL_REQUESTED)
-                .status(AgentRunStatus.WAITING_FOR_APPROVAL)
-                .approval(gate));
-    }
-
-    /** FE 클라 명령 처리 (멱등). */
-    public void handleCommand(WebSocketSession session, String agentRunId, AgentStreamClientCommand cmd) {
-        if (cmd.type() == null) {
+    public void handleCommand(WebSocketSession session, String threadId, AgentStreamClientCommand cmd) {
+        if (cmd.type() == null || cmd.content() == null || cmd.content().isBlank()) {
             return;
         }
-        switch (cmd.type()) {
-            case MESSAGE_SEND -> { runOnce(cmd, () -> appendUserMessage(agentRunId, cmd)); ack(session, agentRunId, cmd); }
-            case CONNECTION_RESUME -> replay(session, agentRunId, ReplayScope.MISSED_EVENTS,
-                    cmd.lastReceivedSequence() == null ? 0L : cmd.lastReceivedSequence());
-            case CONNECTION_FULL_SYNC -> replay(session, agentRunId, ReplayScope.FULL_TIMELINE, 0L);
-            case RUN_CANCEL -> { runOnce(cmd, () -> cancel(agentRunId)); ack(session, agentRunId, cmd); }
-            case APPROVAL_APPROVE -> { runOnce(cmd, () -> approve(agentRunId, cmd)); ack(session, agentRunId, cmd); }
-            case APPROVAL_REJECT, APPROVAL_UPDATE_PAYLOAD -> ack(session, agentRunId, cmd);
-            default -> ack(session, agentRunId, cmd);
-        }
-    }
-
-    private void runOnce(AgentStreamClientCommand cmd, Runnable action) {
         if (cmd.commandId() != null && !processedCommands.add(cmd.commandId())) {
-            return; // 이미 실행됨
-        }
-        action.run();
-    }
-
-    private void appendUserMessage(String agentRunId, AgentStreamClientCommand cmd) {
-        String content = cmd.content() == null ? "" : cmd.content().trim();
-        if (content.isEmpty()) {
             return;
         }
-        AgentMessage msg = new AgentMessage(ids.newMessageId(), "user", content);
-        commitAndBroadcast(agentRunId, new ServerEventBuilder(
-                AgentStreamServerEventType.USER_MESSAGE_CREATED).message(msg));
+
+        commitAndBroadcast(threadId, "user", List.of(textBlock(cmd.content().trim())));
+        sendTurnToAgentCore(threadId, cmd);
+
+        MessageSendAction action = cmd.action();
+        if (action != null && "approve".equals(action.name())) {
+            approve(threadId, action);
+        } else if (action != null && ("reject".equals(action.name()) || "cancel".equals(action.name()))) {
+            commitAndBroadcast(threadId, "system", List.of(resultBlock(
+                    "cancel".equals(action.name()) ? "Run cancelled" : "Approval rejected",
+                    cmd.content().trim())));
+        }
     }
 
-    private void cancel(String agentRunId) {
+    private void sendTurnToAgentCore(String threadId, AgentStreamClientCommand cmd) {
         try {
-            agentClient.cancelRun(agentRunId);
-        } catch (RuntimeException e) {
-            log.warn("cancel forward failed (run {}): {}", agentRunId, e.getMessage());
+            agent.sendTurn(new InternalAgentTurnRequest(
+                    threadId,
+                    null,
+                    null,
+                    cmd.content().trim(),
+                    List.of(),
+                    cmd.clientCreatedAt(),
+                    null));
+        } catch (Exception e) {
+            log.warn("agent turn submit failed (thread {}): {}", threadId, e.getMessage());
         }
-        commitAndBroadcast(agentRunId, new ServerEventBuilder(
-                AgentStreamServerEventType.RUN_CANCELLED).status(AgentRunStatus.CANCELLED));
     }
 
-    private void approve(String agentRunId, AgentStreamClientCommand cmd) {
-        ApprovalGateRequest gate = gates.get(agentRunId);
-        if (gate == null) {
-            log.warn("approve with no open gate (run {})", agentRunId);
+    private void onWorkflowEvent(String threadId, StreamMessage message) {
+        List<Map<String, Object>> blocks = message.blocks() == null ? List.of() : message.blocks();
+        if (blocks.isEmpty()) {
             return;
         }
-        if (cmd.approvalId() != null && !cmd.approvalId().equals(gate.approvalId())) {
-            log.warn("approval_id mismatch (run {})", agentRunId);
-            return;
-        }
-        var finalExperiments = (cmd.finalExperiments() != null && !cmd.finalExperiments().isEmpty())
-                ? cmd.finalExperiments()
-                : gate.payload().experimentPlan().items();
-        String approvedBy = cmd.clientId() != null ? cmd.clientId() : "ws-client";
+        captureApprovalGate(threadId, blocks);
+        commitAndBroadcast(threadId, message.role() == null ? "assistant" : message.role(), blocks);
+    }
 
-        ApproveExperimentPlanResponse resp = business.approve(agentRunId,
+    private void captureApprovalGate(String threadId, List<Map<String, Object>> blocks) {
+        if (gates.containsKey(threadId)) {
+            return;
+        }
+        for (Map<String, Object> block : blocks) {
+            if (!"approval".equals(block.get("kind")) || block.get("payload") == null) {
+                continue;
+            }
+            AgentResultPayload payload = mapper.convertValue(block.get("payload"), AgentResultPayload.class);
+            String approvalId = block.get("id") instanceof String id ? id : ids.newApprovalId();
+            gates.put(threadId, new ApprovalGateRequest(
+                    approvalId,
+                    com.launchpilot.dto.common.ApprovalGateKind.EXPERIMENT_PLAN,
+                    payload));
+            return;
+        }
+    }
+
+    private void approve(String threadId, MessageSendAction action) {
+        ApprovalGateRequest gate = gates.get(threadId);
+        if (gate == null) {
+            commitAndBroadcast(threadId, "system", List.of(errorBlock("No approval is open", "There is no approval target for this thread.")));
+            return;
+        }
+        if (action.targetId() != null && !action.targetId().equals(gate.approvalId())) {
+            commitAndBroadcast(threadId, "system", List.of(errorBlock("Approval target mismatch", "The requested approval target is no longer active.")));
+            return;
+        }
+
+        ApproveExperimentPlanResponse resp = business.approvePayload(threadId, gate.payload(),
                 new ApproveExperimentPlanRequest(
-                        gate.payload().experimentPlan().id(), approvedBy, finalExperiments));
+                        gate.payload().experimentPlan().id(),
+                        "message.send",
+                        gate.payload().experimentPlan().items()));
 
         ApprovalCommitResult result = new ApprovalCommitResult(
                 gate.approvalId(), resp.growthBriefId(), resp.createdCalendarEvents(), resp.persistedAt());
-        commitAndBroadcast(agentRunId, new ServerEventBuilder(
-                AgentStreamServerEventType.APPROVAL_COMMITTED)
-                .status(AgentRunStatus.SUCCESS)
-                .approvalResult(result));
-        commitAndBroadcast(agentRunId, new ServerEventBuilder(
-                AgentStreamServerEventType.RUN_COMPLETED).status(AgentRunStatus.SUCCESS));
-        gates.remove(agentRunId);
+        commitAndBroadcast(threadId, "assistant", List.of(resultBlock(result)));
+        gates.remove(threadId);
     }
 
-    /** 재접속 리플레이: control 이벤트 + 누락 영속 이벤트 재생 (control 이벤트는 미적재). */
-    private void replay(WebSocketSession session, String agentRunId, ReplayScope scope, long afterSequence) {
-        sessions.sendTo(session, control(agentRunId,
-                AgentStreamServerEventType.CONNECTION_RESUME_ACCEPTED).replayScope(scope).build());
-        sessions.sendTo(session, control(agentRunId,
-                AgentStreamServerEventType.CONNECTION_REPLAY_STARTED).replayScope(scope).build());
-        var events = scope == ReplayScope.FULL_TIMELINE
-                ? timeline.all(agentRunId)
-                : timeline.eventsAfter(agentRunId, afterSequence);
-        for (AgentStreamServerEvent e : events) {
-            sessions.sendTo(session, e);
-        }
-        sessions.sendTo(session, control(agentRunId,
-                AgentStreamServerEventType.CONNECTION_REPLAY_COMPLETED)
-                .lastReplayedSequence(timeline.lastSequence(agentRunId))
-                .nextExpectedSequence(timeline.lastSequence(agentRunId) + 1)
-                .build());
+    private void commitAndBroadcast(String threadId, String role, List<Map<String, Object>> blocks) {
+        var message = timeline.commit(threadId, role, blocks);
+        sessions.broadcast(threadId, message);
     }
 
-    private ServerEventBuilder control(String agentRunId, AgentStreamServerEventType type) {
-        return new ServerEventBuilder(type)
-                .agentRunId(agentRunId)
-                .eventId("evt_ctrl_" + System.identityHashCode(this) + "_" + type.name())
-                .occurredAt(OffsetDateTime.now().toString());
+    private Map<String, Object> textBlock(String text) {
+        return Map.of("kind", "text", "text", text);
     }
 
-    private void ack(WebSocketSession session, String agentRunId, AgentStreamClientCommand cmd) {
-        sessions.sendObject(session, new AgentStreamAck(
-                true, cmd.commandId(), agentRunId, OffsetDateTime.now().toString()));
+    private Map<String, Object> resultBlock(ApprovalCommitResult result) {
+        return Map.of(
+                "kind", "result",
+                "title", "Approval complete",
+                "detail", "Growth brief " + result.growthBriefId() + " and "
+                        + result.createdCalendarEvents().size() + " calendar event(s) are ready.",
+                "approval_result", result);
     }
 
-    private void commitAndBroadcast(String agentRunId, ServerEventBuilder builder) {
-        AgentStreamServerEvent event = timeline.commit(agentRunId, builder);
-        sessions.broadcast(agentRunId, event);
+    private Map<String, Object> resultBlock(String title, String detail) {
+        return Map.of("kind", "result", "title", title, "detail", detail);
     }
 
-    private AgentStreamServerEventType mapType(com.launchpilot.dto.internal.AgentWorkflowEventType t) {
-        return switch (t) {
-            case RUN_STARTED -> AgentStreamServerEventType.RUN_STARTED;
-            case STEP_UPDATED -> AgentStreamServerEventType.STEP_UPDATED;
-            case OBSERVATION_CREATED -> AgentStreamServerEventType.OBSERVATION_CREATED;
-            case SIGNAL_DETECTED -> AgentStreamServerEventType.SIGNAL_DETECTED;
-            case HYPOTHESIS_CREATED -> AgentStreamServerEventType.HYPOTHESIS_CREATED;
-            case EXPERIMENT_PLAN_DRAFTED -> AgentStreamServerEventType.EXPERIMENT_PLAN_DRAFTED;
-            case RUN_CANCELLED -> AgentStreamServerEventType.RUN_CANCELLED;
-            case RUN_FAILED -> AgentStreamServerEventType.RUN_FAILED;
-        };
+    private Map<String, Object> errorBlock(String title, String detail) {
+        return Map.of("kind", "error", "title", title, "detail", detail, "retryable", true);
     }
 }

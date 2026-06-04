@@ -2,37 +2,9 @@ export type Channel = "youtube" | "tiktok" | "instagram" | "x" | "unknown";
 
 export type Confidence = "low" | "medium" | "medium_high" | "high";
 
-export type AgentRunStatus =
-  | "PENDING"
-  | "RUNNING_SIGNAL_DETECTION"
-  | "RUNNING_EVIDENCE_SEARCH"
-  | "RUNNING_HYPOTHESIS_GENERATION"
-  | "RUNNING_EXPERIMENT_GENERATION"
-  | "WAITING_FOR_APPROVAL"
-  | "SUCCESS"
-  | "FAILED"
-  | "CANCELLED";
-
 export type ToolCallStatus = "PENDING" | "RUNNING" | "SUCCESS" | "FAILED";
 
-export type AgentRunStage =
-  | "IMPORT_METRICS"
-  | "DETECT_PERFORMANCE_SIGNAL"
-  | "GROUND_WITH_EVIDENCE"
-  | "GENERATE_HYPOTHESIS"
-  | "DRAFT_EXPERIMENT_PLAN"
-  | "WAIT_FOR_APPROVAL"
-  | "APPLY_APPROVED_PLAN";
-
-export type AgentStepStatus = "PENDING" | "IN_PROGRESS" | "SUCCEEDED" | "FAILED" | "SKIPPED";
-
-export type AgentObservationKind = "progress" | "evidence" | "signal" | "hypothesis" | "plan" | "warning";
-
-export type ApprovalGateKind = "EXPERIMENT_PLAN" | "CREATE_GROWTH_BRIEF" | "CREATE_CALENDAR_EVENTS";
-
 export type AgentStreamClientCommandType = "message.send";
-
-export type ReplayScope = "missed_events" | "full_timeline";
 
 export interface DateRange {
   start: string;
@@ -48,27 +20,6 @@ export interface ImportCsvResponse {
   failed_count: number;
   columns: string[];
   created_at: string;
-}
-
-export interface AgentStepSnapshot {
-  id: string;
-  order: number;
-  stage: AgentRunStage;
-  status: AgentStepStatus;
-}
-
-export interface AgentObservation {
-  id: string;
-  kind: AgentObservationKind;
-  title: string;
-  summary: string;
-  evidence_refs?: string[];
-}
-
-export interface ApprovalGateRequest {
-  approval_id: string;
-  gate: ApprovalGateKind;
-  payload: AgentResultPayload;
 }
 
 export interface ApprovalCommitResult {
@@ -133,13 +84,6 @@ export interface MessageSendCommand {
 }
 
 export type AgentStreamClientCommand = MessageSendCommand;
-
-export interface AgentStreamAck {
-  ok: true;
-  command_id: string;
-  agent_run_id: string;
-  accepted_at: string;
-}
 
 export interface AgentResultPayload {
   signals: Signal[];

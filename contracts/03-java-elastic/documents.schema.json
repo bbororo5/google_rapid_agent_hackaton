@@ -264,7 +264,7 @@
         "growth_brief_id",
         "workspace_id",
         "campaign_id",
-        "agent_run_id",
+        "thread_id",
         "experiment_plan_id",
         "approved_by",
         "approved_at",
@@ -288,7 +288,7 @@
         "campaign_id": {
           "type": "string"
         },
-        "agent_run_id": {
+        "thread_id": {
           "type": "string",
           "pattern": "^run_[A-Za-z0-9_]+$"
         },

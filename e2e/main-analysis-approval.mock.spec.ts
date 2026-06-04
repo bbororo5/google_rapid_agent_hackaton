@@ -26,7 +26,7 @@ test.describe("main analysis approval happy path", () => {
 
     await expect(page.getByText(/what should we test next week/i).first()).toBeVisible();
     await expect(page.getByText(/checked metric baseline/i).first()).toBeVisible();
-    await expect(page.getByText(/agent run cancelled|user cancelled/i).first()).toBeVisible();
+    await expect(page.getByText(/agent session cancelled|user cancelled/i).first()).toBeVisible();
     await expect(page.getByText(/find the signal in this campaign/i)).toHaveCount(0);
   });
 
@@ -37,7 +37,7 @@ test.describe("main analysis approval happy path", () => {
 
     await page.getByRole("button", { name: /send|analy[sz]e|run analysis/i }).click();
 
-    await expect(page.getByRole("region", { name: /agent run status/i }).getByText(/analyze signal/i).first()).toBeVisible();
+    await expect(page.getByRole("region", { name: /agent session status/i }).getByText(/analyze signal/i).first()).toBeVisible();
     await expect(page.getByText(/save-rate lift looks repeatable/i).first()).toBeVisible();
     await expect(page.getByText(/checked metric baseline/i).first()).toBeVisible();
     await expect(page.getByText(/checked supporting posts/i).first()).toBeVisible();

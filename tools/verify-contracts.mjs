@@ -138,12 +138,14 @@ function evidenceRefIds() {
 function assertEvidenceRefsAreGrounded() {
   const known = evidenceRefIds();
   const payloads = [
-    "contracts/02-java-python-agent/examples/get-agent-run-ready-response.json",
+    "contracts/02-java-python-agent/examples/internal-stream-message.json",
     "contracts/05-agent-output/examples/final-agent-payload.json",
   ].map(readJson);
 
   const refs = payloads.flatMap((payload) => {
-    const result = payload.payload ?? payload;
+    const approvalBlock = (payload.blocks ?? []).find((block) => block.kind === "approval" && block.payload);
+    const artifactBlock = (payload.blocks ?? []).find((block) => block.kind === "artifact" && block.content);
+    const result = approvalBlock?.payload ?? artifactBlock?.content ?? payload.payload ?? payload;
     return [
       ...(result.signals ?? []).flatMap((signal) => signal.evidence_refs ?? []),
       ...(result.hypotheses ?? []).flatMap((hypothesis) => hypothesis.supporting_evidence_refs ?? []),
@@ -184,10 +186,9 @@ function assertElasticApprovalRefs() {
 
 function assertObservabilityTraceRefs() {
   const trace = readJson("contracts/06-observability/examples/agent-run-trace.json");
-  const internal = readJson("contracts/02-java-python-agent/examples/get-agent-run-ready-response.json");
 
-  assert(trace.trace_id === internal.agent_diagnostics.trace_id, "Trace ID must match internal agent diagnostics");
-  assert(trace.agent_run_id === internal.agent_run_id, "Trace agent_run_id must match internal response");
+  assert(typeof trace.trace_id === "string" && trace.trace_id.length > 0, "Trace ID must be present");
+  assert(typeof trace.thread_id === "string" && trace.thread_id.length > 0, "Trace thread_id must be present");
 
   const spanIds = trace.spans.map((span) => span.span_id);
   const missingParents = trace.spans

@@ -9,7 +9,7 @@ public record GrowthBriefDoc(
         String growthBriefId,
         String workspaceId,
         String campaignId,
-        String agentRunId,
+        String threadId,
         String experimentPlanId,
         String approvedBy,
         String approvedAt,

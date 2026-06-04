@@ -1,0 +1,18 @@
+{
+  "id": "msg_agent_001",
+  "thread_id": "thread_20260601_001",
+  "sequence": 4,
+  "role": "assistant",
+  "created_at": "2026-06-01T16:31:10+09:00",
+  "blocks": [
+    {
+      "kind": "activity",
+      "title": "Checked metric baseline",
+      "status": "done"
+    },
+    {
+      "kind": "text",
+      "text": "The save-rate lift looks repeatable."
+    }
+  ]
+}

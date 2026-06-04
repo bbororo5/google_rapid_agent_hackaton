@@ -92,15 +92,15 @@ public class ElasticDocumentWriter {
     }
 
     /**
-     * Checks whether a growth brief with the given agent run id already exists.
+     * Checks whether a growth brief with the given thread id already exists.
      *
-     * @param agentRunId the agent run identifier to match
-     * @return `true` if at least one growth brief exists for the given agent run id, `false` otherwise
+     * @param threadId the thread identifier to match
+     * @return `true` if at least one growth brief exists for the given thread id, `false` otherwise
      * @throws IOException if an I/O error occurs while querying Elasticsearch
      */
-    public boolean growthBriefExistsForRun(String agentRunId) throws IOException {
+    public boolean growthBriefExistsForThread(String threadId) throws IOException {
         long count = es.count(c -> c.index(GROWTH_BRIEFS)
-                .query(q -> q.term(t -> t.field("agent_run_id").value(agentRunId))))
+                .query(q -> q.term(t -> t.field("thread_id").value(threadId))))
                 .count();
         return count > 0;
     }
@@ -165,7 +165,7 @@ public class ElasticDocumentWriter {
                   "growth_brief_id": {"type": "keyword"},
                   "workspace_id": {"type": "keyword"},
                   "campaign_id": {"type": "keyword"},
-                  "agent_run_id": {"type": "keyword"},
+                  "thread_id": {"type": "keyword"},
                   "experiment_plan_id": {"type": "keyword"},
                   "approved_by": {"type": "keyword"},
                   "approved_at": {"type": "date"},

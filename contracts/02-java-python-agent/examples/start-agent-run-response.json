@@ -1,8 +1,0 @@
-{
-  "ok": true,
-  "agent_run_id": "run_20260601_001",
-  "status": "PENDING",
-  "stream_url": "/internal/agent/runs/run_20260601_001/stream",
-  "snapshot_url": "/internal/agent/runs/run_20260601_001",
-  "accepted_at": "2026-06-01T16:31:00+09:00"
-}

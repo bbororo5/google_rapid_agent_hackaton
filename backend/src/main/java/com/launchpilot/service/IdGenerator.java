@@ -8,8 +8,8 @@ import org.springframework.stereotype.Component;
 
 /**
  * 계약 03 ID 규칙. 같은 논리 연산의 재시도는 결정적 ID를 보장해야 한다.
- * - run/imp/req: 시간 + 카운터 (신규 생성).
- * - brief/cal: agent_run_id 파생 (결정적, 멱등).
+ * - imp/req/msg/appr: 시간 + 카운터 (신규 생성).
+ * - brief/cal: thread_id 파생 (결정적, 멱등).
  */
 @Component
 public class IdGenerator {
@@ -32,10 +32,7 @@ public class IdGenerator {
     }
 
     /**
-     * Generate a new run identifier prefixed with "run_".
-     *
-     * @return a string of the form `run_yyyyMMdd_HHmmss_NNNN` where the timestamp is UTC formatted as `yyyyMMdd_HHmmss`
-     *         and `NNNN` is a zero-padded 4-digit sequence value (00-9999)
+     * Deprecated internally: generate a run identifier for older local fixtures.
      */
     public String newRunId() {
         return "run_" + stamp();
@@ -80,28 +77,28 @@ public class IdGenerator {
     }
 
     /**
-     * Create a deterministic brief identifier derived from an agent run identifier.
+     * Create a deterministic brief identifier derived from a thread identifier.
      *
-     * @param agentRunId an agent run identifier; may include the leading "run_" prefix
-     * @return `brief_<stamp>` where `<stamp>` is the agent run id with a leading "run_" removed if present (for example, `brief_20260601_001`)
+     * @param threadId a thread identifier; may include the leading "thread_" prefix
+     * @return `brief_<stamp>` where `<stamp>` is the thread id with a leading "thread_" removed if present
      */
-    public String briefIdFor(String agentRunId) {
-        return "brief_" + stripRunPrefix(agentRunId);
+    public String briefIdFor(String threadId) {
+        return "brief_" + stripRunPrefix(threadId);
     }
 
     /**
      * Create a deterministic calendar event identifier for a specific experiment row.
      *
-     * The returned identifier is formed by removing a leading "run_" prefix from the provided
-     * agentRunId (if present), prefixing the remainder with "cal_", and appending "_" followed by
+     * The returned identifier is formed by removing a leading "thread_" prefix from the provided
+     * thread id (if present), prefixing the remainder with "cal_", and appending "_" followed by
      * the supplied index.
      *
-     * @param agentRunId the agent run identifier that may start with "run_"
+     * @param threadId the thread identifier that may start with "run_"
      * @param index the zero-based (or contextual) row/index value to append to the id
-     * @return the calendar event id in the form `cal_<agentRunIdWithoutRunPrefix>_<index>`
+     * @return the calendar event id in the form `cal_<threadIdWithoutRunPrefix>_<index>`
      */
-    public String calendarEventId(String agentRunId, int index) {
-        return "cal_" + stripRunPrefix(agentRunId) + "_" + index;
+    public String calendarEventId(String threadId, int index) {
+        return "cal_" + stripRunPrefix(threadId) + "_" + index;
     }
 
     /**
@@ -116,12 +113,15 @@ public class IdGenerator {
     }
 
     /**
-     * Remove a leading "run_" prefix from an agent run identifier, if present.
+     * Remove a leading "thread_" or "run_" prefix from an identifier, if present.
      *
-     * @param agentRunId the agent run identifier which may start with "run_"
+     * @param threadId the thread identifier which may start with "run_"
      * @return the identifier without the leading "run_" if present, otherwise the original identifier
      */
-    private String stripRunPrefix(String agentRunId) {
-        return agentRunId.startsWith("run_") ? agentRunId.substring("run_".length()) : agentRunId;
+    private String stripRunPrefix(String threadId) {
+        if (threadId.startsWith("thread_")) {
+            return threadId.substring("thread_".length());
+        }
+        return threadId.startsWith("run_") ? threadId.substring("run_".length()) : threadId;
     }
 }

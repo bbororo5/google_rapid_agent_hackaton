@@ -6,7 +6,7 @@ import org.springframework.web.socket.config.annotation.EnableWebSocket;
 import org.springframework.web.socket.config.annotation.WebSocketConfigurer;
 import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry;
 
-/** 계약 01 asyncapi: FE-facing WS 엔드포인트 등록. */
+/** FE-facing conversation WebSocket endpoint registration. */
 @Configuration
 @EnableWebSocket
 public class WebSocketConfig implements WebSocketConfigurer {
@@ -19,7 +19,7 @@ public class WebSocketConfig implements WebSocketConfigurer {
 
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
-        registry.addHandler(handler, "/api/agent/runs/*/stream")
+        registry.addHandler(handler, "/api/agent/threads/*/stream")
                 .setAllowedOriginPatterns("*");
     }
 }
