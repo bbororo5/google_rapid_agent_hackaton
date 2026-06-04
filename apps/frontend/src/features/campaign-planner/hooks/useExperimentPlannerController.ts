@@ -869,7 +869,7 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
         agent_run_id: current.agentRunId,
         content: text,
         client_created_at: new Date().toISOString(),
-      } as never);
+      });
     }
 
     setLocalUserMessages((messages) => [
@@ -891,11 +891,10 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
     dispatch({ type: "SIGNAL_CONFIRMED" });
     streamRef.current?.send({
       command_id: commandId("cmd_continue"),
-      type: "run.continue",
+      type: "message.send",
       agent_run_id: current.agentRunId,
-      approval_id: null,
-      final_experiments: null,
-      reason: "signal.accepted",
+      content: "Use this signal",
+      client_created_at: new Date().toISOString(),
     });
   }
 

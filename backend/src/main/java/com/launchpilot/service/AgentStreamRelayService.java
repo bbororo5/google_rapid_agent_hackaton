@@ -109,6 +109,7 @@ public class AgentStreamRelayService {
             return;
         }
         switch (cmd.type()) {
+            case MESSAGE_SEND -> { runOnce(cmd, () -> appendUserMessage(agentRunId, cmd)); ack(session, agentRunId, cmd); }
             case CONNECTION_RESUME -> replay(session, agentRunId, ReplayScope.MISSED_EVENTS,
                     cmd.lastReceivedSequence() == null ? 0L : cmd.lastReceivedSequence());
             case CONNECTION_FULL_SYNC -> replay(session, agentRunId, ReplayScope.FULL_TIMELINE, 0L);
@@ -124,6 +125,16 @@ public class AgentStreamRelayService {
             return; // 이미 실행됨
         }
         action.run();
+    }
+
+    private void appendUserMessage(String agentRunId, AgentStreamClientCommand cmd) {
+        String content = cmd.content() == null ? "" : cmd.content().trim();
+        if (content.isEmpty()) {
+            return;
+        }
+        AgentMessage msg = new AgentMessage(ids.newMessageId(), "user", content);
+        commitAndBroadcast(agentRunId, new ServerEventBuilder(
+                AgentStreamServerEventType.USER_MESSAGE_CREATED).message(msg));
     }
 
     private void cancel(String agentRunId) {

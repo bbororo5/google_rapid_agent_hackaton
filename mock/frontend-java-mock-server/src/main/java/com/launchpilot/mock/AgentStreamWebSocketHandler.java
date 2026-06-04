@@ -48,6 +48,13 @@ public class AgentStreamWebSocketHandler extends TextWebSocketHandler {
         }
         if ("message.send".equals(type)) {
             AtomicInteger checkpoint = checkpoints.computeIfAbsent(session.getId(), ignored -> new AtomicInteger(11));
+            Object content = command.get("content");
+            if (content instanceof String value && "Use this signal".equalsIgnoreCase(value.trim())) {
+                int fromSequence = checkpoint.get() + 1;
+                checkpoint.set(16);
+                new Thread(() -> replay(session, fromSequence, 16)).start();
+                return;
+            }
             int sequence = checkpoint.incrementAndGet();
             send(session, event(sequence, "assistant.message.created", Map.of(
                     "status", "RUNNING_EVIDENCE_SEARCH",
@@ -57,13 +64,6 @@ public class AgentStreamWebSocketHandler extends TextWebSocketHandler {
                             "content", randomConversationReply()
                     )
             )));
-            return;
-        }
-        if ("run.continue".equals(type)) {
-            AtomicInteger checkpoint = checkpoints.computeIfAbsent(session.getId(), ignored -> new AtomicInteger(11));
-            int fromSequence = checkpoint.get() + 1;
-            checkpoint.set(16);
-            new Thread(() -> replay(session, fromSequence, 16)).start();
             return;
         }
         if ("approval.approve".equals(type)) {

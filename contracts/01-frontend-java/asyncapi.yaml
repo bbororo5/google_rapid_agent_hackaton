@@ -176,9 +176,9 @@ components:
     AgentStreamClientCommandType:
       type: string
       enum:
+        - message.send
         - connection.resume
         - connection.full_sync
-        - run.continue
         - run.cancel
         - approval.update_payload
         - approval.approve
@@ -608,7 +608,6 @@ components:
         type:
           type: string
           enum:
-            - run.continue
             - run.cancel
             - approval.update_payload
             - approval.approve
@@ -631,8 +630,31 @@ components:
           type:
             - string
             - "null"
+    MessageSendCommand:
+      type: object
+      additionalProperties: false
+      required: [command_id, type, agent_run_id, content, client_created_at]
+      properties:
+        command_id:
+          type: string
+          description: Idempotency key for the client message.
+        type:
+          type: string
+          const: message.send
+        agent_run_id:
+          type: string
+          pattern: "^run_[A-Za-z0-9_]+$"
+        content:
+          type: string
+          minLength: 1
+          maxLength: 4000
+          description: User-authored free-form message content for the active agent stream.
+        client_created_at:
+          type: string
+          format: date-time
     AgentStreamClientCommand:
       oneOf:
+        - $ref: "#/components/schemas/MessageSendCommand"
         - $ref: "#/components/schemas/ConnectionResumeCommand"
         - $ref: "#/components/schemas/ConnectionFullSyncCommand"
         - $ref: "#/components/schemas/RuntimeCommandBase"

@@ -159,9 +159,9 @@ run.failed
 Client-to-server command types:
 
 ```text
+message.send
 connection.resume
 connection.full_sync
-run.continue
 run.cancel
 approval.update_payload
 approval.approve

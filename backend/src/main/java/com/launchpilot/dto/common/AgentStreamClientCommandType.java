@@ -2,8 +2,9 @@ package com.launchpilot.dto.common;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-/** 계약 01 asyncapi: 클라→서버 명령 타입 6종. */
+/** 계약 01 asyncapi: 클라→서버 명령 타입. */
 public enum AgentStreamClientCommandType {
+    @JsonProperty("message.send") MESSAGE_SEND,
     @JsonProperty("connection.resume") CONNECTION_RESUME,
     @JsonProperty("connection.full_sync") CONNECTION_FULL_SYNC,
     @JsonProperty("run.cancel") RUN_CANCEL,

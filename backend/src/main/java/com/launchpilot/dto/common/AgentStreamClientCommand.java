@@ -16,4 +16,6 @@ public record AgentStreamClientCommand(
         Long lastReceivedSequence,
         String approvalId,
         List<ExperimentItem> finalExperiments,
-        String reason) {}
+        String reason,
+        String content,
+        String clientCreatedAt) {}

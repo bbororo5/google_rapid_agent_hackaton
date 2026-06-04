@@ -56,9 +56,9 @@ export type AgentStreamServerEventType =
   | "run.failed";
 
 export type AgentStreamClientCommandType =
+  | "message.send"
   | "connection.resume"
   | "connection.full_sync"
-  | "run.continue"
   | "run.cancel"
   | "approval.update_payload"
   | "approval.approve"
@@ -185,14 +185,23 @@ export interface ConnectionFullSyncCommand {
 
 export interface RuntimeCommand {
   command_id: string;
-  type: "run.continue" | "run.cancel" | "approval.update_payload" | "approval.approve" | "approval.reject";
+  type: "run.cancel" | "approval.update_payload" | "approval.approve" | "approval.reject";
   agent_run_id: string;
   approval_id?: string | null;
   final_experiments?: ExperimentItem[] | null;
   reason?: string | null;
 }
 
+export interface MessageSendCommand {
+  command_id: string;
+  type: "message.send";
+  agent_run_id: string;
+  content: string;
+  client_created_at: string;
+}
+
 export type AgentStreamClientCommand =
+  | MessageSendCommand
   | ConnectionResumeCommand
   | ConnectionFullSyncCommand
   | RuntimeCommand;
