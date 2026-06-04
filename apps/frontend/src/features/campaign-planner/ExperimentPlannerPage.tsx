@@ -1,6 +1,6 @@
 "use client";
 
-import { ChangeEvent, CSSProperties, useEffect, useState } from "react";
+import { ChangeEvent, CSSProperties, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Bell,
@@ -16,30 +16,12 @@ import {
   Paperclip,
   RotateCcw,
   Send,
+  Square,
   Target,
 } from "lucide-react";
 import { useExperimentPlannerController } from "@/features/campaign-planner/hooks/useExperimentPlannerController";
-import type { ChecklistStep, GateReview } from "@/features/campaign-planner/hooks/useExperimentPlannerController";
-import type { AgentDocument, AgentMessage, ExperimentItem, Hypothesis, Signal } from "@/features/campaign-planner/state/experimentPlannerTypes";
-
-function statusLabel(agentState: string) {
-  switch (agentState) {
-    case "selected":
-      return "CSV_SELECTED";
-    case "importing":
-      return "IMPORTING_CSV";
-    case "processing":
-      return "RUNNING_EVIDENCE_SEARCH";
-    case "ready":
-      return "WAITING_FOR_APPROVAL";
-    case "approved":
-      return "SUCCESS";
-    case "error":
-      return "FAILED";
-    default:
-      return "IDLE";
-  }
-}
+import type { GateReview, PlannerProgressView, StatusRow } from "@/features/campaign-planner/hooks/useExperimentPlannerController";
+import type { AgentDocument, AgentMessage, AgentObservation, ExperimentItem, Hypothesis, Signal, ToolCallLog } from "@/features/campaign-planner/state/experimentPlannerTypes";
 
 function formatPercent(value: number) {
   return `${(value * 100).toFixed(1)}%`;
@@ -49,13 +31,39 @@ function confidenceLabel(value: string) {
   return value.replace("_", " ");
 }
 
-function runShortId(state: ReturnType<typeof useExperimentPlannerController>["state"]) {
-  return "agentRunId" in state && state.agentRunId ? state.agentRunId.slice(-3) : "new";
-}
-
 type ExperimentPlannerView = ReturnType<typeof useExperimentPlannerController>;
 
 type StreamDocument = AgentDocument;
+
+function documentDisplayTitle(document: StreamDocument) {
+  if (document.kind === "evidence_scan") return "Evidence notes";
+  return document.title;
+}
+
+function toolDisplayName(toolName: string) {
+  const labels: Record<string, string> = {
+    query_metric_baseline: "metric baseline",
+    search_content_posts: "supporting posts",
+    search_team_notes: "team context",
+  };
+
+  if (labels[toolName]) return labels[toolName];
+
+  return toolName
+    .split("_")
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function toolStatusLabel(tool: ToolCallLog) {
+  if (tool.status === "FAILED" && tool.error_message) return `Could not check ${toolDisplayName(tool.tool_name)}: ${tool.error_message}`;
+  if (tool.status === "FAILED") return `Could not check ${toolDisplayName(tool.tool_name)}`;
+  if (tool.status === "SUCCESS" && tool.duration_ms !== null) return `Checked ${toolDisplayName(tool.tool_name)} in ${tool.duration_ms}ms`;
+  if (tool.status === "SUCCESS") return `Checked ${toolDisplayName(tool.tool_name)}`;
+  if (tool.status === "RUNNING") return `Checking ${toolDisplayName(tool.tool_name)}`;
+  return `Queued ${toolDisplayName(tool.tool_name)}`;
+}
 
 function StreamingText({ text }: { text: string }) {
   const words = text.split(" ");
@@ -63,148 +71,186 @@ function StreamingText({ text }: { text: string }) {
   return (
     <span className="streaming-text" aria-label={text}>
       {words.map((word, index) => (
-        <span className="stream-word" style={{ "--word-index": index } as CSSProperties} aria-hidden="true" key={`${word}-${index}`}>
+        <span className="stream-word" style={{ "--word-index": index } as CSSProperties} key={`${word}-${index}`}>
           {word}
+          {index === words.length - 1 ? "" : " "}
         </span>
       ))}
     </span>
   );
 }
 
-function MarkdownDocument({ markdown }: { markdown: string }) {
-  const blocks = markdown.split(/\n{2,}/).map((block) => block.trim()).filter(Boolean);
+function UserMessageCard({ message }: { message: AgentMessage }) {
+  return (
+    <article className="thread-message user">
+      <div className="message-bubble">
+        <div className="message-meta">
+          <strong>You</strong>
+          <span>Message</span>
+        </div>
+        <p>{message.content}</p>
+      </div>
+    </article>
+  );
+}
+
+function AssistantTextFlow({
+  timelineItems,
+  primaryExperiment,
+  approval,
+  calendarEvents,
+  onOpenDocument,
+}: {
+  timelineItems: ExperimentPlannerView["thread"]["timelineItems"];
+  primaryExperiment?: ExperimentItem;
+  approval: ExperimentPlannerView["approval"]["receipt"];
+  calendarEvents: ExperimentPlannerView["approval"]["calendarEvents"];
+  onOpenDocument: (document: StreamDocument) => void;
+}) {
+  const finalLines = [
+    primaryExperiment ? `I drafted a recommended experiment: ${primaryExperiment.title}. ${primaryExperiment.production_brief}` : null,
+    approval ? `Approval complete. Growth brief ${approval.growth_brief_id} and ${calendarEvents.length} calendar event${calendarEvents.length === 1 ? "" : "s"} are ready.` : null,
+  ].filter((line): line is string => Boolean(line));
+
+  if (timelineItems.length === 0 && finalLines.length === 0) return null;
 
   return (
-    <div className="markdown-document">
-      {blocks.map((block, index) => {
-        if (block.startsWith("## ")) return <h2 key={index}>{block.slice(3)}</h2>;
-        if (block.startsWith("# ")) return <h1 key={index}>{block.slice(2)}</h1>;
-        if (block.startsWith("- ")) {
-          return (
-            <ul key={index}>
-              {block.split("\n").map((line) => (
-                <li key={line}>{line.replace(/^-\s*/, "")}</li>
-              ))}
-            </ul>
-          );
-        }
-        return <p key={index}>{block}</p>;
-      })}
+    <article className="thread-message assistant-flow-message">
+      <div className="message-avatar">LP</div>
+      <div className="assistant-flow">
+        <div className="assistant-flow-label">LaunchPilot</div>
+        <div className="assistant-timeline">
+          {timelineItems.map((item) => (
+            <TimelineItemRow key={item.id} item={item} onOpenDocument={onOpenDocument} />
+          ))}
+          {finalLines.map((line, index) => (
+            <TimelineTextRow key={`${line}-${index}`} text={line} tone="text" />
+          ))}
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function TimelineItemRow({
+  item,
+  onOpenDocument,
+}: {
+  item: ExperimentPlannerView["thread"]["timelineItems"][number];
+  onOpenDocument: (document: StreamDocument) => void;
+}) {
+  if (item.kind === "tool") {
+    return (
+      <TimelineTextRow text={toolStatusLabel(item.tool)} tone={item.tool.status === "FAILED" ? "failed" : item.tool.status === "SUCCESS" ? "done" : "active"} />
+    );
+  }
+
+  if (item.kind === "document") {
+    return (
+      <button className="timeline-chain-row document done" type="button" onClick={() => onOpenDocument(item.document)} aria-label={`Open ${documentDisplayTitle(item.document)}`}>
+        <span className="timeline-glyph" aria-hidden="true" />
+        <span className="timeline-document-card">Prepared {documentDisplayTitle(item.document).toLowerCase()}</span>
+      </button>
+    );
+  }
+
+  if (item.kind === "observation") {
+    return <TimelineObservationBlock observation={item.observation} />;
+  }
+
+  return <TimelineTextRow text={item.message.content} tone="text" />;
+}
+
+function TimelineObservationBlock({ observation }: { observation: AgentObservation }) {
+  return (
+    <section className={`timeline-observation-block ${observation.kind}`} aria-label={observation.title}>
+      <div className="timeline-observation-copy">
+        <p>
+          <StreamingText text={observation.summary} />
+        </p>
+      </div>
+    </section>
+  );
+}
+
+function TimelineTextRow({ text, tone }: { text: string; tone: "text" | "active" | "done" | "failed" }) {
+  return (
+    <p className={`timeline-chain-row ${tone}`}>
+      <span className="timeline-glyph" aria-hidden="true" />
+      <span>
+        <StreamingText text={text} />
+      </span>
+    </p>
+  );
+}
+
+function SystemStatusRows({ statuses }: { statuses: StatusRow[] }) {
+  if (statuses.length === 0) return null;
+
+  return (
+    <div className="system-status-list" aria-label="System progress">
+      {statuses.map((status) => (
+        <div className="system-status-row" key={status.title}>
+          <span className="status-pulse" aria-hidden="true" />
+          <div>
+            <strong>{status.title}</strong>
+            <p>{status.detail}</p>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
 
-function StreamMessageBubble({ message }: { message: AgentMessage }) {
-  return (
-    <article className={`thread-message ${message.role}`}>
-      {message.role === "assistant" ? <div className="message-avatar">LP</div> : null}
-      <div className="message-bubble">
-        <div className="message-meta">
-          <strong>{message.role === "assistant" ? "LaunchPilot" : "You"}</strong>
-          <span>Message</span>
-        </div>
-        <p>
-          <StreamingText text={message.content} />
-        </p>
-      </div>
-    </article>
-  );
-}
-
-function StreamDocumentCard({ document, onOpen }: { document: StreamDocument; onOpen: (document: StreamDocument) => void }) {
-  return (
-    <article className="thread-message assistant compact">
-      <div className="message-avatar">LP</div>
-      <button className="message-bubble document-card" type="button" onClick={() => onOpen(document)}>
-        <div className="message-meta">
-          <strong>{document.title}</strong>
-          <span>{document.kind.replaceAll("_", " ")}</span>
-        </div>
-        <p>{document.summary}</p>
-      </button>
-    </article>
-  );
-}
-
 function Topbar({
-  state,
-  agentState,
-  steps,
+  campaignName,
+  progress,
   inspectorOpen,
+  canToggleInspector,
   onToggleInspector,
-}: Pick<ExperimentPlannerView, "state"> & {
-  agentState: ExperimentPlannerView["agentState"];
-  steps: ChecklistStep[];
+}: {
+  campaignName: string;
+  progress: PlannerProgressView;
   inspectorOpen: boolean;
+  canToggleInspector: boolean;
   onToggleInspector: () => void;
 }) {
   return (
-    <header className="topbar">
+    <header className={`topbar${progress.visible ? "" : " no-progress"}`}>
       <div className="topbar-context" aria-label="Current workspace">
-        <span>Comeback Teaser</span>
+        <span>{campaignName}</span>
       </div>
-      <AgentRunProgress agentState={agentState} steps={steps} />
+      {progress.visible ? <AgentRunProgress progress={progress} /> : null}
       <div className="account-tools">
         <button className="round-button" aria-label="Notifications">
           <Bell size={17} strokeWidth={1.8} />
         </button>
-        <button className="credit-pill" type="button">
-          <span>Run</span>
-          <b>{runShortId(state)}</b>
-        </button>
+        {progress.runLabel ? (
+          <button className="credit-pill" type="button">
+            <span>Run</span>
+            <b>{progress.runLabel}</b>
+          </button>
+        ) : null}
         <button className="avatar" aria-label="Profile">S</button>
-        <button
-          className={`round-button view-toggle${inspectorOpen ? " active" : ""}`}
-          type="button"
-          aria-label={inspectorOpen ? "Hide details panel" : "Show details panel"}
-          aria-pressed={inspectorOpen}
-          title={inspectorOpen ? "Hide details" : "Show details"}
-          onClick={onToggleInspector}
-        >
-          {inspectorOpen ? <PanelRightClose size={17} strokeWidth={1.8} /> : <PanelRightOpen size={17} strokeWidth={1.8} />}
-        </button>
+        {canToggleInspector ? (
+          <button
+            className={`round-button view-toggle${inspectorOpen ? " active" : ""}`}
+            type="button"
+            aria-label={inspectorOpen ? "Hide details panel" : "Show details panel"}
+            aria-pressed={inspectorOpen}
+            title={inspectorOpen ? "Hide details" : "Show details"}
+            onClick={onToggleInspector}
+          >
+            {inspectorOpen ? <PanelRightClose size={17} strokeWidth={1.8} /> : <PanelRightOpen size={17} strokeWidth={1.8} />}
+          </button>
+        ) : null}
       </div>
     </header>
   );
 }
 
-function readableAgentState(agentState: ExperimentPlannerView["agentState"]) {
-  switch (agentState) {
-    case "selected":
-      return "Ready to analyze";
-    case "importing":
-      return "Importing metrics";
-    case "processing":
-      return "Analyzing";
-    case "ready":
-      return "Review needed";
-    case "approved":
-      return "Approved";
-    case "error":
-      return "Needs attention";
-    default:
-      return "Waiting for evidence";
-  }
-}
-
-function analyzeButtonLabel(agentState: ExperimentPlannerView["agentState"]) {
-  switch (agentState) {
-    case "importing":
-      return "Importing";
-    case "processing":
-      return "Analyzing";
-    default:
-      return "Analyze";
-  }
-}
-
-function AgentRunProgress({
-  agentState,
-  steps,
-}: {
-  agentState: ExperimentPlannerView["agentState"];
-  steps: ChecklistStep[];
-}) {
+function AgentRunProgress({ progress }: { progress: PlannerProgressView }) {
+  const steps = progress.steps;
   const activeIndex = steps.findIndex((step) => step.status === "active");
   const completedCount = steps.filter((step) => step.status === "complete").length;
   const currentStep = steps[activeIndex >= 0 ? activeIndex : Math.min(completedCount, steps.length - 1)];
@@ -214,7 +260,7 @@ function AgentRunProgress({
       <div className="agent-run-summary">
         <div>
           <strong>{currentStep?.label ?? "Agent run"}</strong>
-          <span>{readableAgentState(agentState)}</span>
+          <span>{progress.stateLabel}</span>
         </div>
         <span className="run-progress-count">
           {Math.min(completedCount + (activeIndex >= 0 ? 1 : 0), steps.length)} / {steps.length}
@@ -315,136 +361,136 @@ function ExperimentEditor({
 
 function ThreadPanel({
   view,
-  canAnalyze,
-  primaryExperiment,
   onFileChange,
   onOpenDocument,
-  onReviewSpec,
 }: {
   view: ExperimentPlannerView;
-  canAnalyze: boolean;
-  primaryExperiment?: ExperimentItem;
   onFileChange: (event: ChangeEvent<HTMLInputElement>) => void;
   onOpenDocument: (document: StreamDocument) => void;
-  onReviewSpec: () => void;
 }) {
+  const threadEndRef = useRef<HTMLDivElement | null>(null);
+  const scrollKey = useMemo(
+    () =>
+      [
+        view.thread.userMessages.length,
+        view.thread.timelineItems.length,
+        view.screen.statusRows.length,
+        view.screen.errorMessage ?? "",
+        view.thread.primaryExperiment?.id ?? "",
+        view.approval.receipt?.growth_brief_id ?? "",
+      ].join(":"),
+    [
+      view.thread.userMessages.length,
+      view.thread.timelineItems.length,
+      view.screen.statusRows.length,
+      view.screen.errorMessage,
+      view.thread.primaryExperiment?.id,
+      view.approval.receipt?.growth_brief_id,
+    ]
+  );
+
+  useEffect(() => {
+    threadEndRef.current?.scrollIntoView({ block: "end", behavior: "auto" });
+  }, [scrollKey]);
+
+  const initialUserMessages = view.thread.userMessages.filter((message) => !message.message_id.startsWith("msg_local_"));
+  const localUserMessages = view.thread.userMessages.filter((message) => message.message_id.startsWith("msg_local_"));
+
+  const handleComposerPrimaryAction = () => {
+    switch (view.composer.primaryAction.kind) {
+      case "analyze":
+      case "retry":
+        void view.commands.analyze();
+        return;
+      case "send":
+        view.commands.sendMessage();
+        return;
+      case "stop":
+        void view.commands.cancel();
+        return;
+      case "new_run":
+      case "none":
+        return;
+    }
+  };
+
   return (
-    <section className="thread-panel" aria-label="Campaign agent thread" tabIndex={-1}>
+    <section className={`thread-panel${view.thread.hasActivity ? "" : " empty-thread"}`} aria-label="Campaign agent thread" tabIndex={-1}>
       <div className="thread-scroll">
-        <article className="thread-message assistant">
-          <div className="message-avatar">LP</div>
-          <div className="message-bubble">
-            <div className="message-meta">
-              <strong>LaunchPilot</strong>
-              <span>{readableAgentState(view.agentState)}</span>
-            </div>
-            <h1>What should we test next week?</h1>
-            <p>Attach campaign metrics and I will turn the evidence into editable experiments for Comeback Teaser.</p>
+        {view.screen.intro ? (
+          <div className="thread-empty-intro" aria-label="LaunchPilot prompt">
+            <h1>{view.screen.intro.title}</h1>
+            <p>{view.screen.intro.description}</p>
           </div>
-        </article>
+        ) : null}
 
-        {view.messages.map((message) => (
-          <StreamMessageBubble key={message.message_id} message={message} />
+        <SystemStatusRows statuses={view.screen.statusRows} />
+
+        {initialUserMessages.map((message) => (
+          <UserMessageCard key={message.message_id} message={message} />
         ))}
 
-        {view.documents.map((document) => (
-          <StreamDocumentCard key={document.document_id} document={document} onOpen={onOpenDocument} />
+        <AssistantTextFlow
+          timelineItems={view.thread.timelineItems}
+          primaryExperiment={view.thread.primaryExperiment ?? undefined}
+          approval={view.approval.receipt}
+          calendarEvents={view.approval.calendarEvents}
+          onOpenDocument={onOpenDocument}
+        />
+
+        {localUserMessages.map((message) => (
+          <UserMessageCard key={message.message_id} message={message} />
         ))}
 
-        {view.errorMessage ? (
-          <article className="thread-message assistant">
+        {view.screen.errorMessage ? (
+          <article className="thread-message assistant-flow-message">
             <div className="message-avatar">LP</div>
-            <div className="message-bubble">
-              <div className="message-meta">
-                <strong>Agent run</strong>
-                <span>{statusLabel(view.agentState)}</span>
-              </div>
-              <p className="error-message">{view.errorMessage}</p>
+            <div className="assistant-flow">
+              <div className="assistant-flow-label">Agent run · {view.progress.stateLabel}</div>
+              <p className="error-message">{view.screen.errorMessage}</p>
             </div>
           </article>
         ) : null}
-
-        {view.observations.map((observation) => (
-          <article className="thread-message assistant compact" key={observation.id}>
-            <div className="message-avatar">LP</div>
-            <div className="message-bubble observation">
-              <div className="message-meta">
-                <strong>{observation.title}</strong>
-                <span>{observation.kind}</span>
-              </div>
-              <p>
-                <StreamingText text={observation.summary} />
-              </p>
-              {observation.evidence_refs && observation.evidence_refs.length > 0 ? <small>Evidence: {observation.evidence_refs.join(", ")}</small> : null}
-            </div>
-          </article>
-        ))}
-
-        {primaryExperiment ? (
-          <article className="thread-message assistant">
-            <div className="message-avatar">LP</div>
-            <div className="message-bubble result">
-              <div className="message-meta">
-                <strong>Recommended experiment</strong>
-                <span>{readableAgentState(view.agentState)}</span>
-              </div>
-              <h2>{primaryExperiment.title}</h2>
-              <p>
-                <StreamingText text={primaryExperiment.production_brief} />
-              </p>
-              <button className="secondary-button" type="button" onClick={onReviewSpec}>
-                Review & edit campaign spec
-              </button>
-            </div>
-          </article>
-        ) : null}
-
-        {view.approval ? (
-          <article className="thread-message assistant">
-            <div className="message-avatar">LP</div>
-            <div className="message-bubble success">
-              <div className="message-meta">
-                <strong>Approval complete</strong>
-                <span>Outputs created</span>
-              </div>
-              <p>
-                Growth brief {view.approval.growth_brief_id} and {view.calendarEvents.length} calendar event
-                {view.calendarEvents.length === 1 ? "" : "s"} are ready.
-              </p>
-            </div>
-          </article>
-        ) : null}
+        <div className="thread-scroll-anchor" ref={threadEndRef} aria-hidden="true" />
       </div>
 
       <div className="thread-composer">
-        <input id="csv-input" type="file" accept=".csv,text/csv" aria-label="CSV file" onChange={onFileChange} />
+        <input id="csv-input" type="file" accept=".csv,text/csv" aria-label="CSV file" disabled={!view.composer.canAttachCsv} onChange={onFileChange} />
         <label className="composer-label" htmlFor="agent-question">Agent instructions</label>
         <textarea
           id="agent-question"
           className="composer-input"
-          value={view.question}
+          value={view.composer.value}
+          placeholder={view.composer.placeholder}
           rows={2}
-          disabled={view.agentState === "importing" || view.agentState === "processing"}
+          disabled={view.composer.inputDisabled}
           onChange={(event) => view.commands.updateQuestion(event.target.value)}
         />
         <div className="composer-toolbar">
-          <label className="composer-attach" htmlFor="csv-input" title="Attach CSV" aria-label="Attach CSV campaign metrics">
-            <Paperclip size={18} strokeWidth={1.8} />
-          </label>
-          {view.currentFile ? (
-            <span className="file-chip" id="file-name">{view.currentFile.name}</span>
-          ) : (
-            <span className="composer-hint" id="file-name">Attach campaign metrics CSV</span>
-          )}
-          <button
-            className="primary-button"
-            type="button"
-            disabled={!canAnalyze || view.agentState === "importing" || view.agentState === "processing"}
-            onClick={view.commands.analyze}
+          <label
+            className={`composer-attach${view.composer.fileName ? "" : " empty"}${view.composer.canAttachCsv ? "" : " disabled"}`}
+            htmlFor="csv-input"
+            title={view.composer.fileName ? "Replace CSV" : "Attach CSV"}
+            aria-label={view.composer.fileName ? "Replace CSV campaign metrics" : "Attach CSV campaign metrics"}
           >
-            <Send size={16} strokeWidth={1.8} />
-            {analyzeButtonLabel(view.agentState)}
-          </button>
+            <Paperclip size={18} strokeWidth={1.8} />
+            {view.composer.fileName ? null : <span>Attach campaign metrics CSV</span>}
+          </label>
+          {view.composer.fileName ? (
+            <span className="file-chip" id="file-name">{view.composer.fileName}</span>
+          ) : null}
+          {view.composer.primaryAction.kind !== "none" ? (
+            <button
+              className={`primary-button composer-action-${view.composer.primaryAction.kind}`}
+              type="button"
+              disabled={view.composer.primaryAction.disabled}
+              title={view.composer.primaryAction.title}
+              onClick={handleComposerPrimaryAction}
+            >
+              {view.composer.primaryAction.kind === "stop" ? <Square size={14} strokeWidth={2.1} fill="currentColor" /> : <Send size={16} strokeWidth={1.8} />}
+              {view.composer.primaryAction.label}
+            </button>
+          ) : null}
         </div>
       </div>
     </section>
@@ -452,14 +498,6 @@ function ThreadPanel({
 }
 
 function GateSummary({ gate }: { gate: GateReview }) {
-  if (gate.id === "import") {
-    return (
-      <span>
-        {gate.importResult.indexed_count} rows indexed · {gate.importResult.failed_count} failed
-      </span>
-    );
-  }
-
   if (gate.id === "signal") {
     return (
       <span>
@@ -480,41 +518,6 @@ function GateContent({
   view: ExperimentPlannerView;
   canApprove: boolean;
 }) {
-  if (gate.id === "import") {
-    return (
-      <div className="gate-body">
-        <dl className="gate-metrics">
-          <div>
-            <dt>File</dt>
-            <dd>{gate.fileName}</dd>
-          </div>
-          <div>
-            <dt>Rows indexed</dt>
-            <dd>{gate.importResult.indexed_count}</dd>
-          </div>
-          <div>
-            <dt>Failed rows</dt>
-            <dd>{gate.importResult.failed_count}</dd>
-          </div>
-          <div>
-            <dt>Columns</dt>
-            <dd>{gate.importResult.columns.length}</dd>
-          </div>
-        </dl>
-        <div className="column-list" aria-label="Detected CSV columns">
-          {gate.importResult.columns.map((column) => (
-            <span key={column}>{column}</span>
-          ))}
-        </div>
-        {gate.status === "active" ? (
-          <button className="approve-button" type="button" onClick={view.commands.continueImportReview}>
-            {gate.actionLabel}
-          </button>
-        ) : null}
-      </div>
-    );
-  }
-
   if (gate.id === "signal") {
     return (
       <div className="gate-body">
@@ -550,7 +553,7 @@ function GateContent({
     <div className="gate-body">
       {gate.hypothesis ? <HypothesisCard hypothesis={gate.hypothesis} /> : null}
       {gate.experiment ? <ExperimentEditor experiment={gate.experiment} onEdit={view.commands.editExperiment} /> : null}
-      {view.draftExperiments.slice(1).map((experiment) => (
+      {view.approval.draftExperiments.slice(1).map((experiment) => (
         <article className="experiment-card" key={experiment.id}>
           <div className="card-topline">
             <span className={`channel ${experiment.channel}`}>{experiment.channel}</span>
@@ -560,18 +563,18 @@ function GateContent({
           <p>{experiment.production_brief}</p>
         </article>
       ))}
-      {view.approval ? (
+      {view.approval.receipt ? (
         <div className="approval-receipt" tabIndex={-1}>
           <strong>Human approval processed</strong>
           <span>
-            Approved: {view.finalExperiments[0]?.title ?? "experiment plan"}. Growth brief {view.approval.growth_brief_id} and{" "}
-            {view.calendarEvents.length} calendar event{view.calendarEvents.length === 1 ? "" : "s"} created.
+            Approved: {view.approval.finalExperiments[0]?.title ?? "experiment plan"}. Growth brief {view.approval.receipt.growth_brief_id} and{" "}
+            {view.approval.calendarEvents.length} calendar event{view.approval.calendarEvents.length === 1 ? "" : "s"} created.
           </span>
         </div>
       ) : null}
       {gate.status === "active" ? (
-        <button className={`approve-button${view.agentState === "approved" ? " approved" : ""}`} type="button" disabled={!canApprove} onClick={view.commands.approve}>
-          {view.isApproving ? "Approving" : gate.actionLabel}
+        <button className={`approve-button${view.shell.campaignStatus === "approved" ? " approved" : ""}`} type="button" disabled={!canApprove} onClick={view.commands.approve}>
+          {view.approval.isApproving ? "Approving" : gate.actionLabel}
         </button>
       ) : null}
     </div>
@@ -607,43 +610,80 @@ function InspectorPanel({
   view,
   open,
   canApprove,
-  document,
+  selectedDocument,
+  onSelectDocument,
 }: {
   view: ExperimentPlannerView;
   open: boolean;
   canApprove: boolean;
-  document: StreamDocument | null;
+  selectedDocument: StreamDocument | null;
+  onSelectDocument: (document: StreamDocument) => void;
 }) {
+  const documents = view.thread.documents;
+  const activeDocument = selectedDocument ?? documents[0] ?? null;
+
   return (
     <aside className="inspector-panel" aria-label="Campaign work details" aria-hidden={!open} tabIndex={open ? -1 : undefined}>
       <div className="inspector-top">
         <div>
-          <strong>{document ? "Stream Document" : "Gate Review"}</strong>
-          <span>{document?.title ?? (view.currentGate ? view.currentGate.title : "Awaiting a decision point")}</span>
+          <strong>Work Review</strong>
+          <span>{view.inspector.currentGate ? view.inspector.currentGate.title : activeDocument ? documentDisplayTitle(activeDocument) : "Awaiting a decision point"}</span>
         </div>
       </div>
 
       <div className="inspector-content">
-        {document ? (
-          <article className="document-viewer" tabIndex={-1}>
-            <MarkdownDocument markdown={document.content} />
-          </article>
-        ) : view.currentGate ? (
-          <GateCard gate={view.currentGate} view={view} canApprove={canApprove} current />
-        ) : (
+        {documents.length > 0 ? (
+          <section className="inspector-section document-list-section" aria-label="Stream documents">
+            <div className="section-title">
+              <span>Documents</span>
+              <small>{documents.length} output{documents.length === 1 ? "" : "s"}</small>
+            </div>
+            <div className="document-list" role="list">
+              {documents.map((streamDocument) => {
+                const selected = activeDocument?.document_id === streamDocument.document_id;
+
+                return (
+                  <button
+                    className={`document-list-item${selected ? " selected" : ""}`}
+                    type="button"
+                    aria-current={selected ? "true" : undefined}
+                    key={streamDocument.document_id}
+                    onClick={() => onSelectDocument(streamDocument)}
+                  >
+                    <FileText size={17} strokeWidth={1.8} />
+                    <span>
+                      <strong>{documentDisplayTitle(streamDocument)}</strong>
+                      <small>{streamDocument.kind.replaceAll("_", " ")}</small>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+        ) : null}
+
+        {view.inspector.currentGate ? (
+          <section className="inspector-section" aria-label="Current decision">
+            <div className="section-title">
+              <span>Current decision</span>
+              <small>Continue the run</small>
+            </div>
+            <GateCard gate={view.inspector.currentGate} view={view} canApprove={canApprove} current />
+          </section>
+        ) : !activeDocument ? (
           <article className="empty-card">
             <h2>No active gate</h2>
-            <p>Attach campaign metrics and run Analyze. Each decision point will appear here for review.</p>
+            <p>Attach campaign metrics and send context. Decisions and generated documents will appear here for review.</p>
           </article>
-        )}
+        ) : null}
 
-        {view.gateHistory.length > 0 ? (
+        {view.inspector.history.length > 0 ? (
           <section className="inspector-section gate-history" aria-label="Gate history">
             <div className="section-title">
               <span>Gate history</span>
               <small>Read-only audit trail</small>
             </div>
-            {view.gateHistory.map((gate) => (
+            {view.inspector.history.map((gate) => (
               <GateCard key={gate.id} gate={gate} view={view} canApprove={canApprove} />
             ))}
           </section>
@@ -655,22 +695,16 @@ function InspectorPanel({
 
 function CampaignAgentWorkspace({
   view,
-  canAnalyze,
-  primaryExperiment,
   onFileChange,
   onOpenDocument,
-  onReviewSpec,
 }: {
   view: ExperimentPlannerView;
-  canAnalyze: boolean;
-  primaryExperiment?: ExperimentItem;
   onFileChange: (event: ChangeEvent<HTMLInputElement>) => void;
   onOpenDocument: (document: StreamDocument) => void;
-  onReviewSpec: () => void;
 }) {
   return (
     <section className="campaign-agent-workspace" aria-label="Campaign agent workspace">
-      <ThreadPanel view={view} canAnalyze={canAnalyze} primaryExperiment={primaryExperiment} onFileChange={onFileChange} onOpenDocument={onOpenDocument} onReviewSpec={onReviewSpec} />
+      <ThreadPanel view={view} onFileChange={onFileChange} onOpenDocument={onOpenDocument} />
     </section>
   );
 }
@@ -681,33 +715,30 @@ export function ExperimentPlannerPage() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [inspectorOpen, setInspectorOpen] = useState(false);
   const [selectedDocument, setSelectedDocument] = useState<StreamDocument | null>(null);
-  const primaryExperiment = view.draftExperiments[0] ?? view.finalExperiments[0];
-  const canAnalyze = view.agentState === "selected" && view.question.trim().length > 0;
-  const canApprove = view.agentState === "ready" && view.draftExperiments.length > 0 && !view.isApproving;
-  const campaignStatus = view.agentState === "approved" ? "Approved" : view.agentState === "ready" ? "Needs approval" : "Active";
-  const currentGateKey = view.currentGate ? `${view.currentGate.id}:${view.currentGate.status}` : null;
+  const campaignStatus = view.shell.campaignStatus === "approved" ? "Approved" : view.shell.campaignStatus === "needs_review" ? "Needs approval" : view.shell.campaignStatus === "error" ? "Needs attention" : "Active";
+  const canToggleInspector = inspectorOpen || view.thread.documents.length > 0 || view.inspector.canToggle;
 
   useEffect(() => {
-    if (currentGateKey) {
-      setSelectedDocument(null);
+    if (view.inspector.activeGateKey) {
       setInspectorOpen(true);
     }
-  }, [currentGateKey]);
+  }, [view.inspector.activeGateKey]);
+
+  useEffect(() => {
+    if (!selectedDocument && view.thread.documents.length > 0) {
+      setSelectedDocument(view.thread.documents[0]);
+    }
+  }, [selectedDocument, view.thread.documents]);
 
   function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (file) view.commands.selectCsv(file);
   }
 
-  function handleReviewSpec() {
-    setSelectedDocument(null);
+  function handleOpenDocument(streamDocument: StreamDocument) {
+    setSelectedDocument(streamDocument);
     setInspectorOpen(true);
-    window.setTimeout(() => document.querySelector<HTMLInputElement>("#experiment-title")?.focus(), 0);
-  }
-
-  function handleOpenDocument(document: StreamDocument) {
-    setSelectedDocument(document);
-    setInspectorOpen(true);
+    window.setTimeout(() => focusWorkspace(".document-list-section"), 0);
   }
 
   function focusWorkspace(selector: string) {
@@ -718,7 +749,7 @@ export function ExperimentPlannerPage() {
 
   function handleOutputClick() {
     setInspectorOpen(true);
-    window.setTimeout(() => focusWorkspace(view.approval ? ".approval-receipt" : ".gate-card"), 0);
+    window.setTimeout(() => focusWorkspace(view.approval.receipt ? ".approval-receipt" : ".gate-card"), 0);
   }
 
   return (
@@ -754,7 +785,7 @@ export function ExperimentPlannerPage() {
                 <Target size={18} strokeWidth={1.8} />
               </div>
               <div className="side-row-label">
-                <strong>Comeback Teaser</strong>
+                <strong>{view.shell.campaignName}</strong>
                 <small>{campaignStatus}</small>
               </div>
             </button>
@@ -763,11 +794,11 @@ export function ExperimentPlannerPage() {
                 <FlaskConical size={18} strokeWidth={1.8} />
                 <span>Experiment Planner</span>
               </button>
-              <button className="nav-item child" type="button" data-locked={!view.approval} title={view.approval ? "View created calendar events" : "Approve experiments to create calendar events"} onClick={handleOutputClick}>
+              <button className="nav-item child" type="button" data-locked={!view.approval.receipt} title={view.approval.receipt ? "View created calendar events" : "Approve experiments to create calendar events"} onClick={handleOutputClick}>
                 <CalendarDays size={18} strokeWidth={1.8} />
                 <span>Calendar</span>
               </button>
-              <button className="nav-item child" type="button" data-locked={!view.approval} title={view.approval ? "View created Growth Brief" : "Approve experiments to create a Growth Brief"} onClick={handleOutputClick}>
+              <button className="nav-item child" type="button" data-locked={!view.approval.receipt} title={view.approval.receipt ? "View created Growth Brief" : "Approve experiments to create a Growth Brief"} onClick={handleOutputClick}>
                 <FileText size={18} strokeWidth={1.8} />
                 <span>Briefs</span>
               </button>
@@ -790,25 +821,23 @@ export function ExperimentPlannerPage() {
 
       <main className={`main-shell${inspectorOpen ? " inspector-open" : " inspector-closed"}`}>
         <Topbar
-          state={view.state}
-          agentState={view.agentState}
-          steps={view.reasoningChecklist}
+          campaignName={view.shell.campaignName}
+          progress={view.progress}
           inspectorOpen={inspectorOpen}
+          canToggleInspector={canToggleInspector}
           onToggleInspector={() => setInspectorOpen((open) => !open)}
         />
         <CampaignAgentWorkspace
           view={view}
-          canAnalyze={canAnalyze}
-          primaryExperiment={primaryExperiment}
           onFileChange={handleFileChange}
           onOpenDocument={handleOpenDocument}
-          onReviewSpec={handleReviewSpec}
         />
         <InspectorPanel
           view={view}
           open={inspectorOpen}
-          canApprove={canApprove}
-          document={selectedDocument}
+          canApprove={view.approval.canApprove}
+          selectedDocument={selectedDocument}
+          onSelectDocument={handleOpenDocument}
         />
       </main>
     </div>
