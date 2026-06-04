@@ -41,6 +41,31 @@ test.describe("conversation-first mock server", () => {
     await expect(page.getByRole("button", { name: /approve experiments|approve/i })).toBeVisible();
   });
 
+  test("places follow-up chat after the active signal decision", async ({ page }) => {
+    await page.goto("/campaigns/comeback-teaser/planner");
+
+    await page.getByRole("textbox", { name: /message/i }).fill("이 데이터에서 이상한 점 찾아줘");
+    await page.getByRole("button", { name: /^send$/i }).click();
+    await expect(page.getByRole("button", { name: /use this signal/i })).toBeVisible({ timeout: 15000 });
+
+    await page.getByRole("textbox", { name: /message/i }).fill("이제 이 시그널 기준으로 카피만 좁혀줘");
+    await page.getByRole("button", { name: /^send$/i }).click();
+    await expect(page.getByText(/이제 이 시그널 기준/)).toBeVisible();
+
+    const order = await page.evaluate(() => {
+      const rows = [...document.querySelectorAll(".thread-scroll > article, .thread-scroll > section.thread-gate-inline")].map((element, index) => ({
+        index,
+        text: element.textContent ?? "",
+      }));
+      const signalIndex = rows.find((row) => row.text.includes("Signal Review"))?.index ?? -1;
+      const userIndex = rows.find((row) => row.text.includes("이제 이 시그널 기준"))?.index ?? -1;
+      return { signalIndex, userIndex };
+    });
+
+    expect(order.signalIndex).toBeGreaterThanOrEqual(0);
+    expect(order.userIndex).toBeGreaterThan(order.signalIndex);
+  });
+
   test("accepts natural-language approval and revision requests through message.send", async ({ page }) => {
     await page.goto("/campaigns/comeback-teaser/planner");
 

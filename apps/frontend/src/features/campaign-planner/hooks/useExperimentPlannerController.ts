@@ -28,6 +28,8 @@ export interface ChecklistStep {
 
 type AgentDisplayState = "idle" | "selected" | "importing" | "processing" | "ready" | "approved" | "error";
 
+type ThreadLocalUserMessage = AgentMessage & { clientSequence: number };
+
 export type GateReview =
   | {
       id: "signal";
@@ -293,7 +295,7 @@ function toolStatusLabel(tool: ToolCallLog) {
 }
 
 function streamMessagesFromState(input: {
-  messages: AgentMessage[];
+  messages: Array<AgentMessage | ThreadLocalUserMessage>;
   timelineItems: AgentTimelineItem[];
   primaryExperiment: ExperimentItem | null;
   approval: ApproveExperimentPlanResponse | null;
@@ -366,7 +368,7 @@ function streamMessagesFromState(input: {
     }),
     ...localUserMessages.map((message, index) => ({
       id: message.message_id,
-      sequence: 10_000 + index,
+      sequence: "clientSequence" in message ? message.clientSequence : 10_000 + index,
       role: "user" as const,
       createdAt: null,
       blocks: [{ kind: "text" as const, text: message.content }],
@@ -704,7 +706,7 @@ function buildStatusRows(state: ExperimentPlannerState, importResult: ImportCsvR
 export function useExperimentPlannerController(apiOverride?: ExperimentPlannerApi, streamOverride?: AgentStreamApi): ExperimentPlannerViewModel {
   const [state, dispatch] = useReducer(experimentPlannerReducer, initialExperimentPlannerState);
   const [composerQuestion, setComposerQuestion] = useState(stateQuestion(initialExperimentPlannerState));
-  const [localUserMessages, setLocalUserMessages] = useState<AgentMessage[]>([]);
+  const [localUserMessages, setLocalUserMessages] = useState<ThreadLocalUserMessage[]>([]);
   const [isApproving, setIsApproving] = useState(false);
   const stateRef = useRef(state);
   const composerQuestionRef = useRef(composerQuestion);
@@ -714,6 +716,7 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
   const lastSignalRef = useRef<Signal | null>(null);
   const lastSignalsRef = useRef<Signal[]>([]);
   const lastHypothesesRef = useRef<Hypothesis[]>([]);
+  const nextLocalSequenceRef = useRef(0);
   const api = useMemo(() => apiOverride ?? createFetchExperimentPlannerApi(), [apiOverride]);
   const streamApi = useMemo(() => streamOverride ?? createWebSocketAgentStreamApi(), [streamOverride]);
   stateRef.current = state;
@@ -847,6 +850,13 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
     return threadId;
   }
 
+  function nextLocalSequence() {
+    const current = stateRef.current;
+    const baseline = current.thread.lastReceivedSequence + 0.1;
+    nextLocalSequenceRef.current = Math.max(nextLocalSequenceRef.current + 0.01, baseline);
+    return nextLocalSequenceRef.current;
+  }
+
   async function sendComposerMessage() {
     const text = composerQuestionRef.current.trim();
     const current = stateRef.current;
@@ -875,6 +885,7 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
         message_id: `msg_local_${Date.now()}`,
         role: "user",
         content: text,
+        clientSequence: nextLocalSequence(),
       },
     ]);
     composerQuestionRef.current = "";
@@ -1113,6 +1124,7 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
         lastSignalRef.current = null;
         lastSignalsRef.current = [];
         lastHypothesesRef.current = [];
+        nextLocalSequenceRef.current = 0;
         composerQuestionRef.current = stateQuestion(initialExperimentPlannerState);
         setComposerQuestion(stateQuestion(initialExperimentPlannerState));
         setLocalUserMessages([]);

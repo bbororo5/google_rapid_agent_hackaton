@@ -1,6 +1,6 @@
 "use client";
 
-import { ChangeEvent, CSSProperties, ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { ChangeEvent, CSSProperties, Fragment, ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Bell,
@@ -414,6 +414,10 @@ function ThreadPanel({
         return;
     }
   };
+  const gateInsertIndex = view.inspector.currentGate
+    ? view.thread.groups.findIndex((group) => group.role === "user" && group.messages.some((message) => message.id.startsWith("msg_local_")))
+    : -1;
+  const shouldRenderGateAfterGroups = Boolean(view.inspector.currentGate) && gateInsertIndex < 0;
 
   return (
     <section className={`thread-panel${view.thread.hasActivity ? "" : " empty-thread"}`} aria-label="Campaign agent thread" tabIndex={-1}>
@@ -427,10 +431,17 @@ function ThreadPanel({
 
         <SystemStatusRows statuses={view.screen.statusRows} />
 
-        {view.thread.groups.map((group) => (
-          <StreamMessageGroupCard key={group.id} group={group} onOpenDocument={onOpenDocument} />
+        {view.thread.groups.map((group, index) => (
+          <Fragment key={group.id}>
+            {view.inspector.currentGate && index === gateInsertIndex ? (
+              <section className="thread-gate-inline" aria-label="Current decision">
+                <GateCard gate={view.inspector.currentGate} view={view} canApprove={view.approval.canApprove} current />
+              </section>
+            ) : null}
+            <StreamMessageGroupCard group={group} onOpenDocument={onOpenDocument} />
+          </Fragment>
         ))}
-        {view.inspector.currentGate ? (
+        {shouldRenderGateAfterGroups && view.inspector.currentGate ? (
           <section className="thread-gate-inline" aria-label="Current decision">
             <GateCard gate={view.inspector.currentGate} view={view} canApprove={view.approval.canApprove} current />
           </section>
