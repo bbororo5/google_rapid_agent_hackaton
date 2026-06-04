@@ -285,7 +285,7 @@ erDiagram
 
 **미정(Open Decisions):**
 - Reviewer Gate retry limit 값
-- formatter = 별도 LlmAgent vs Python normalization
+- ~~formatter = 별도 LlmAgent vs Python normalization~~ → **확정: Python 정규화(결정론, LLM 아님).** 형식 오류만 처리, 의미 오류는 Class2 백트래킹. 근거: agent-tool-spec §6
 - 내부 서비스 인증 (connection.reauth_required/session_expired 들어옴 → 세션/인증 모델 확정 필요)
 - agent-tool-spec §8 D1~D6 (도구 예산/임계값/재시도 2축 등)
 
