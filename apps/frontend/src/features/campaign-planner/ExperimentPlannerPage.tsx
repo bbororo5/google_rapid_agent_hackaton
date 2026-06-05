@@ -1,6 +1,6 @@
 "use client";
 
-import { ChangeEvent, CSSProperties, ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { ChangeEvent, CSSProperties, KeyboardEvent, ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Bell,
@@ -18,9 +18,10 @@ import {
   Send,
   Square,
   Target,
+  X,
 } from "lucide-react";
 import { useExperimentPlannerController } from "@/features/campaign-planner/hooks/useExperimentPlannerController";
-import type { GateReview, PlannerProgressView, StatusRow, StreamMessage, StreamMessageBlock } from "@/features/campaign-planner/hooks/useExperimentPlannerController";
+import type { GateReview, OutputPanelItem, PlannerProgressView, StatusRow, StreamMessageBlock, ThreadDisplayItem, ThreadMessageGroup } from "@/features/campaign-planner/hooks/useExperimentPlannerController";
 import type { AgentDocument, ExperimentItem, Hypothesis, Signal } from "@/features/campaign-planner/state/experimentPlannerTypes";
 
 function formatPercent(value: number) {
@@ -34,11 +35,6 @@ function confidenceLabel(value: string) {
 type ExperimentPlannerView = ReturnType<typeof useExperimentPlannerController>;
 
 type StreamDocument = AgentDocument;
-
-function documentDisplayTitle(document: StreamDocument) {
-  if (document.kind === "evidence_scan") return "Evidence notes";
-  return document.title;
-}
 
 function StreamingText({ text }: { text: string }) {
   const words = text.split(" ");
@@ -66,15 +62,61 @@ function TimelineTextRow({ text, tone }: { text: string; tone: "text" | "active"
   );
 }
 
-function StreamMessageCard({
-  message,
+function activityTarget(title: string) {
+  return title
+    .replace(/^Checking\s+/i, "")
+    .replace(/^Checked\s+/i, "")
+    .replace(/^Queued\s+/i, "")
+    .replace(/^Could not check\s+/i, "")
+    .replace(/\s+in\s+\d+ms$/i, "")
+    .trim()
+    .toLowerCase();
+}
+
+function compactActivityBlocks(blocks: Extract<StreamMessageBlock, { kind: "activity" }>[]) {
+  return [...blocks.reduce((latest, block) => latest.set(activityTarget(block.title), block), new Map<string, Extract<StreamMessageBlock, { kind: "activity" }> >()).values()];
+}
+
+function toolSummary(blocks: Extract<StreamMessageBlock, { kind: "activity" }>[]) {
+  const failed = blocks.filter((block) => block.status === "failed").length;
+  const running = blocks.filter((block) => block.status === "running").length;
+  const done = blocks.filter((block) => block.status === "done").length;
+
+  if (failed > 0) return `${failed} tool check${failed === 1 ? "" : "s"} need attention`;
+  if (running > 0) return `${running} tool check${running === 1 ? "" : "s"} running`;
+  return `${done} tool check${done === 1 ? "" : "s"} completed`;
+}
+
+function ActivitySummary({ blocks }: { blocks: Extract<StreamMessageBlock, { kind: "activity" }>[] }) {
+  const compactedBlocks = compactActivityBlocks(blocks);
+  if (compactedBlocks.length === 0) return null;
+
+  return (
+    <details className="tool-summary">
+      <summary>
+        <span className="timeline-glyph" aria-hidden="true" />
+        <span>{toolSummary(compactedBlocks)}</span>
+      </summary>
+      <div className="tool-summary-list">
+        {compactedBlocks.map((block) => (
+          <span className={block.status} key={block.id}>
+            {block.title}
+          </span>
+        ))}
+      </div>
+    </details>
+  );
+}
+
+function StreamMessageGroupCard({
+  group,
   onOpenDocument,
 }: {
-  message: StreamMessage;
+  group: ThreadMessageGroup;
   onOpenDocument: (document: StreamDocument) => void;
 }) {
-  if (message.role === "user") {
-    const text = message.blocks
+  if (group.role === "user") {
+    const text = group.blocks
       .filter((block): block is Extract<StreamMessageBlock, { kind: "text" }> => block.kind === "text")
       .map((block) => block.text)
       .join("\n");
@@ -92,15 +134,19 @@ function StreamMessageCard({
     );
   }
 
+  const activityBlocks = group.blocks.filter((block): block is Extract<StreamMessageBlock, { kind: "activity" }> => block.kind === "activity");
+  const visibleBlocks = group.blocks.filter((block) => block.kind !== "activity");
+
   return (
     <article className="thread-message assistant-flow-message">
-      <div className="message-avatar">{message.role === "system" ? "!" : "LP"}</div>
+      <div className="message-avatar">{group.role === "system" ? "!" : "LP"}</div>
       <div className="assistant-flow">
-        <div className="assistant-flow-label">{message.role === "system" ? "System" : "LaunchPilot"}</div>
+        <div className="assistant-flow-label">{group.role === "system" ? "System" : "LaunchPilot"}</div>
         <div className="assistant-timeline">
-          {message.blocks.map((block, index) => (
-            <StreamBlockRow key={`${message.id}:${index}`} block={block} onOpenDocument={onOpenDocument} />
+          {visibleBlocks.map((block, index) => (
+            <StreamBlockRow key={`${group.id}:${index}`} block={block} onOpenDocument={onOpenDocument} />
           ))}
+          <ActivitySummary blocks={activityBlocks} />
         </div>
       </div>
     </article>
@@ -138,6 +184,26 @@ function StreamBlockRow({
     case "error":
       return <TimelineTextRow text={block.detail ? `${block.title}: ${block.detail}` : block.title} tone="failed" />;
   }
+}
+
+function ThreadDisplayItemRow({
+  item,
+  view,
+  onOpenDocument,
+}: {
+  item: ThreadDisplayItem;
+  view: ExperimentPlannerView;
+  onOpenDocument: (document: StreamDocument) => void;
+}) {
+  if (item.kind === "decision_gate") {
+    return (
+      <section className="thread-gate-inline" aria-label="Current decision">
+        <GateCard gate={item.gate} view={view} canApprove={view.approval.canApprove} current />
+      </section>
+    );
+  }
+
+  return <StreamMessageGroupCard group={item.group} onOpenDocument={onOpenDocument} />;
 }
 
 function SystemStatusRows({ statuses }: { statuses: StatusRow[] }) {
@@ -181,10 +247,10 @@ function Topbar({
         <button className="round-button" aria-label="Notifications">
           <Bell size={17} strokeWidth={1.8} />
         </button>
-        {progress.runLabel ? (
+        {progress.threadLabel ? (
           <button className="credit-pill" type="button">
-            <span>Run</span>
-            <b>{progress.runLabel}</b>
+            <span>Thread</span>
+            <b>{progress.threadLabel}</b>
           </button>
         ) : null}
         <button className="avatar" aria-label="Profile">S</button>
@@ -325,17 +391,20 @@ function ThreadPanel({
   onOpenDocument: (document: StreamDocument) => void;
 }) {
   const threadEndRef = useRef<HTMLDivElement | null>(null);
+  const composerInputRef = useRef<HTMLTextAreaElement | null>(null);
   const scrollKey = useMemo(
     () =>
       [
-        view.thread.streamMessages.length,
+        view.thread.groups.length,
+        view.thread.items.length,
         view.screen.statusRows.length,
         view.screen.errorMessage ?? "",
         view.thread.primaryExperiment?.id ?? "",
         view.approval.receipt?.growth_brief_id ?? "",
       ].join(":"),
     [
-      view.thread.streamMessages.length,
+      view.thread.groups.length,
+      view.thread.items.length,
       view.screen.statusRows.length,
       view.screen.errorMessage,
       view.thread.primaryExperiment?.id,
@@ -347,6 +416,14 @@ function ThreadPanel({
     threadEndRef.current?.scrollIntoView({ block: "end", behavior: "auto" });
   }, [scrollKey]);
 
+  useEffect(() => {
+    const input = composerInputRef.current;
+    if (!input) return;
+    input.style.height = "auto";
+    input.style.height = `${Math.min(input.scrollHeight, 112)}px`;
+    input.style.overflowY = input.scrollHeight > 112 ? "auto" : "hidden";
+  }, [view.composer.value]);
+
   const handleComposerPrimaryAction = () => {
     switch (view.composer.primaryAction.kind) {
       case "analyze":
@@ -354,15 +431,22 @@ function ThreadPanel({
         void view.commands.analyze();
         return;
       case "send":
-        view.commands.sendMessage();
+        void view.commands.sendMessage();
         return;
       case "stop":
         void view.commands.cancel();
         return;
-      case "new_run":
+      case "new_session":
       case "none":
         return;
     }
+  };
+
+  const handleComposerKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key !== "Enter" || event.shiftKey || event.nativeEvent.isComposing) return;
+    if (view.composer.primaryAction.kind === "none" || view.composer.primaryAction.disabled) return;
+    event.preventDefault();
+    handleComposerPrimaryAction();
   };
 
   return (
@@ -377,23 +461,25 @@ function ThreadPanel({
 
         <SystemStatusRows statuses={view.screen.statusRows} />
 
-        {view.thread.streamMessages.map((message) => (
-          <StreamMessageCard key={message.id} message={message} onOpenDocument={onOpenDocument} />
+        {view.thread.items.map((item) => (
+          <ThreadDisplayItemRow key={item.id} item={item} view={view} onOpenDocument={onOpenDocument} />
         ))}
         <div className="thread-scroll-anchor" ref={threadEndRef} aria-hidden="true" />
       </div>
 
       <div className="thread-composer">
         <input id="csv-input" type="file" accept=".csv,text/csv" aria-label="CSV file" disabled={!view.composer.canAttachCsv} onChange={onFileChange} />
-        <label className="composer-label" htmlFor="agent-question">Agent instructions</label>
         <textarea
+          ref={composerInputRef}
           id="agent-question"
           className="composer-input"
+          aria-label="Message"
           value={view.composer.value}
           placeholder={view.composer.placeholder}
-          rows={2}
+          rows={1}
           disabled={view.composer.inputDisabled}
           onChange={(event) => view.commands.updateQuestion(event.target.value)}
+          onKeyDown={handleComposerKeyDown}
         />
         <div className="composer-toolbar">
           <label
@@ -536,95 +622,83 @@ function GateCard({
 }
 
 function InspectorPanel({
-  view,
   open,
-  canApprove,
-  selectedDocument,
-  onSelectDocument,
+  outputs,
+  activeOutputId,
+  openOutputIds,
+  onSelectOutput,
+  onCloseOutput,
 }: {
-  view: ExperimentPlannerView;
   open: boolean;
-  canApprove: boolean;
-  selectedDocument: StreamDocument | null;
-  onSelectDocument: (document: StreamDocument) => void;
+  outputs: OutputPanelItem[];
+  activeOutputId: string | null;
+  openOutputIds: string[];
+  onSelectOutput: (id: string) => void;
+  onCloseOutput: (id: string) => void;
 }) {
-  const documents = view.thread.documents;
-  const activeDocument = selectedDocument ?? documents[0] ?? null;
+  const openOutputs = openOutputIds.map((id) => outputs.find((output) => output.id === id)).filter((output): output is OutputPanelItem => Boolean(output));
+  const activeOutput = openOutputs.find((output) => output.id === activeOutputId) ?? openOutputs.at(-1) ?? null;
 
   return (
-    <aside className="inspector-panel" aria-label="Campaign work details" aria-hidden={!open} tabIndex={open ? -1 : undefined}>
+    <aside className="inspector-panel output-panel" aria-label="Output panel" aria-hidden={!open} tabIndex={open ? -1 : undefined}>
       <div className="inspector-top">
         <div>
-          <strong>Work Review</strong>
-          <span>{view.inspector.currentGate ? view.inspector.currentGate.title : activeDocument ? documentDisplayTitle(activeDocument) : "Awaiting a decision point"}</span>
+          <strong>Outputs</strong>
+          <span>{outputs.length > 0 ? `${outputs.length} saved output${outputs.length === 1 ? "" : "s"}` : "No outputs yet"}</span>
         </div>
       </div>
 
       <div className="inspector-content">
-        {documents.length > 0 ? (
-          <section className="inspector-section document-list-section" aria-label="Stream documents">
-            <div className="section-title">
-              <span>Documents</span>
-              <small>{documents.length} output{documents.length === 1 ? "" : "s"}</small>
-            </div>
-            <div className="document-list" role="list">
-              {documents.map((streamDocument) => {
-                const selected = activeDocument?.document_id === streamDocument.document_id;
+        {outputs.length > 0 ? (
+          <>
+            <section className="output-library" aria-label="Saved outputs">
+              <div className="output-library-heading">
+                <strong>Saved</strong>
+                <span>{outputs.length}</span>
+              </div>
+              {outputs.map((output) => (
+                <button
+                  className={`output-list-card${output.id === activeOutput?.id ? " active" : ""}`}
+                  type="button"
+                  aria-pressed={output.id === activeOutput?.id}
+                  aria-label={`${output.eyebrow} ${output.title}`}
+                  key={output.id}
+                  onClick={() => onSelectOutput(output.id)}
+                >
+                  <span className={`output-kind-dot ${output.kind}`} aria-hidden="true" />
+                  <span className="output-list-copy">
+                    <strong>{output.title}</strong>
+                    <small>{output.summary}</small>
+                  </span>
+                  <span className="output-list-eyebrow">{output.eyebrow}</span>
+                </button>
+              ))}
+            </section>
 
-                return (
-                  <button
-                    className={`document-list-item${selected ? " selected" : ""}`}
-                    type="button"
-                    aria-current={selected ? "true" : undefined}
-                    key={streamDocument.document_id}
-                    onClick={() => onSelectDocument(streamDocument)}
-                  >
-                    <FileText size={17} strokeWidth={1.8} />
-                    <span>
-                      <strong>{documentDisplayTitle(streamDocument)}</strong>
-                      <small>{streamDocument.kind.replaceAll("_", " ")}</small>
-                    </span>
+            <nav className="output-browser-tabs" aria-label="Open output tabs">
+              {openOutputs.map((output) => (
+                <div className={`output-browser-tab${output.id === activeOutput?.id ? " active" : ""}`} key={output.id}>
+                  <button type="button" onClick={() => onSelectOutput(output.id)} aria-pressed={output.id === activeOutput?.id}>
+                    <span>{output.title}</span>
                   </button>
-                );
-              })}
-            </div>
-          </section>
-        ) : null}
+                  <button className="output-tab-close" type="button" aria-label={`Close ${output.title}`} onClick={() => onCloseOutput(output.id)}>
+                    <X size={13} strokeWidth={2} />
+                  </button>
+                </div>
+              ))}
+            </nav>
 
-        {activeDocument ? (
-          <section className="inspector-section document-viewer" aria-label={documentDisplayTitle(activeDocument)}>
-            <article className="markdown-document">
-              <MarkdownContent markdown={activeDocument.content} />
-            </article>
-          </section>
-        ) : null}
-
-        {view.inspector.currentGate ? (
-          <section className="inspector-section" aria-label="Current decision">
-            <div className="section-title">
-              <span>Current decision</span>
-              <small>Continue the run</small>
-            </div>
-            <GateCard gate={view.inspector.currentGate} view={view} canApprove={canApprove} current />
-          </section>
-        ) : !activeDocument ? (
-          <article className="empty-card">
-            <h2>No active gate</h2>
-            <p>Attach campaign metrics and send context. Decisions and generated documents will appear here for review.</p>
+            <section className="inspector-section document-viewer" aria-label={activeOutput?.title ?? "Selected output"}>
+              <article className="markdown-document">
+                <MarkdownContent markdown={activeOutput?.markdown ?? ""} />
+              </article>
+            </section>
+          </>
+        ) : (
+          <article className="markdown-empty">
+            <p>No saved outputs yet.</p>
           </article>
-        ) : null}
-
-        {view.inspector.history.length > 0 ? (
-          <section className="inspector-section gate-history" aria-label="Gate history">
-            <div className="section-title">
-              <span>Gate history</span>
-              <small>Read-only audit trail</small>
-            </div>
-            {view.inspector.history.map((gate) => (
-              <GateCard key={gate.id} gate={gate} view={view} canApprove={canApprove} />
-            ))}
-          </section>
-        ) : null}
+        )}
       </div>
     </aside>
   );
@@ -695,23 +769,25 @@ export function ExperimentPlannerPage() {
   const view = useExperimentPlannerController();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [inspectorOpen, setInspectorOpen] = useState(false);
-  const [selectedDocument, setSelectedDocument] = useState<StreamDocument | null>(null);
+  const [activeOutputId, setActiveOutputId] = useState<string | null>(null);
+  const [openOutputIds, setOpenOutputIds] = useState<string[]>([]);
+  const previousOutputCountRef = useRef(0);
   const campaignStatus = view.shell.campaignStatus === "approved" ? "Approved" : view.shell.campaignStatus === "needs_review" ? "Needs approval" : view.shell.campaignStatus === "error" ? "Needs attention" : "Active";
-  const canToggleInspector = inspectorOpen || view.thread.documents.length > 0 || view.inspector.canToggle;
+  const canToggleInspector = inspectorOpen || view.inspector.outputs.length > 0;
 
   useEffect(() => {
-    if (view.inspector.activeGateKey) {
-      setInspectorOpen(true);
+    const latestOutput = view.inspector.outputs.at(-1) ?? null;
+    const activeOutputExists = activeOutputId ? view.inspector.outputs.some((output) => output.id === activeOutputId) : false;
+    const outputWasAdded = view.inspector.outputs.length > previousOutputCountRef.current;
+    previousOutputCountRef.current = view.inspector.outputs.length;
+    if (latestOutput && (outputWasAdded || !activeOutputId || !activeOutputExists)) {
+      setActiveOutputId(latestOutput.id);
+      setOpenOutputIds((ids) => (ids.includes(latestOutput.id) ? ids : [...ids, latestOutput.id]));
+      if (outputWasAdded && latestOutput.id.startsWith("document:")) {
+        setInspectorOpen(true);
+      }
     }
-  }, [view.inspector.activeGateKey]);
-
-  useEffect(() => {
-    const latestDocument = view.thread.documents.at(-1) ?? null;
-    if (latestDocument && selectedDocument?.document_id !== latestDocument.document_id) {
-      setSelectedDocument(latestDocument);
-      setInspectorOpen(true);
-    }
-  }, [selectedDocument?.document_id, view.thread.documents]);
+  }, [activeOutputId, view.inspector.outputs]);
 
   function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -719,9 +795,11 @@ export function ExperimentPlannerPage() {
   }
 
   function handleOpenDocument(streamDocument: StreamDocument) {
-    setSelectedDocument(streamDocument);
+    const id = `document:${streamDocument.document_id}`;
+    setActiveOutputId(id);
+    setOpenOutputIds((ids) => (ids.includes(id) ? ids : [...ids, id]));
     setInspectorOpen(true);
-    window.setTimeout(() => focusWorkspace(".document-list-section"), 0);
+    window.setTimeout(() => focusWorkspace(".document-viewer"), 0);
   }
 
   function focusWorkspace(selector: string) {
@@ -816,11 +894,22 @@ export function ExperimentPlannerPage() {
           onOpenDocument={handleOpenDocument}
         />
         <InspectorPanel
-          view={view}
           open={inspectorOpen}
-          canApprove={view.approval.canApprove}
-          selectedDocument={selectedDocument}
-          onSelectDocument={handleOpenDocument}
+          outputs={view.inspector.outputs}
+          activeOutputId={activeOutputId}
+          openOutputIds={openOutputIds}
+          onSelectOutput={(id) => {
+            setActiveOutputId(id);
+            setOpenOutputIds((ids) => (ids.includes(id) ? ids : [...ids, id]));
+            setInspectorOpen(true);
+          }}
+          onCloseOutput={(id) => {
+            setOpenOutputIds((ids) => ids.filter((openId) => openId !== id));
+            if (activeOutputId === id) {
+              const remaining = openOutputIds.filter((openId) => openId !== id);
+              setActiveOutputId(remaining.at(-1) ?? view.inspector.outputs.at(-1)?.id ?? null);
+            }
+          }}
         />
       </main>
     </div>

@@ -29,7 +29,7 @@ The UI decides what to render from each block `kind`, not from transport-specifi
 
 | Layer | Owns |
 | --- | --- |
-| Frontend | Free conversation UI, right panel rendering, approval buttons, local candidate editing before approval. |
+| Frontend | Free conversation UI, output panel list/detail rendering, inline review/approval cards, local candidate editing before approval. |
 | Java | Public WebSocket, message timeline, approval gate, CSV import, Elastic writes. |
 | Python Agent Core | Contextual interpretation, tool use, reasoning, markdown/artifact/approval/result block production. |
 | Elastic | Imported content and approved immutable outputs. |
@@ -55,9 +55,9 @@ The UI decides what to render from each block `kind`, not from transport-specifi
 | `text` | Render as normal assistant conversation. |
 | `activity` | Update lightweight progress/status. |
 | `markdown_document` | Add a small document card to the thread and open the right panel with the document. |
-| `artifact` | Show generated structured output in the right panel. |
-| `approval` | Open the right panel and show approval/reject/request-change controls. |
-| `result` | Show completion or receipt state. |
+| `artifact` | Show generated structured output as an inline review card and save accepted output in the right panel. |
+| `approval` | Show approval/reject/request-change controls as an inline gate. |
+| `result` | Show completion or receipt state and save the approved output in the right panel. |
 | `error` | Show recoverable error state. |
 
 ## Non-Goals

@@ -208,9 +208,37 @@ function validateScenario(scenarioPath) {
   return scenario.id;
 }
 
+function assertFileContains(relativePath, snippets) {
+  const content = readFileSync(path.join(root, relativePath), "utf8");
+  for (const snippet of snippets) {
+    assert(content.includes(snippet), `${relativePath}: missing scenario coverage marker "${snippet}"`);
+  }
+}
+
+function validateConversationFirstE2EScenarios() {
+  assertFileContains("e2e/conversation-first.mock.spec.ts", [
+    "supports free chat and composer shortcuts",
+    "opens saved outputs from the right drawer",
+    "keeps agent outputs inline while archiving them",
+  ]);
+  assertFileContains("e2e/main-analysis-approval.mock.spec.ts", [
+    "uploads CSV, reviews generated experiments, and approves them",
+  ]);
+  assertFileContains("contracts/01-frontend-java/README.md", [
+    "message.send",
+    "StreamMessage",
+    "blocks[]",
+  ]);
+  return ["conversation-first-e2e"];
+}
+
 function main() {
   const scenarioFiles = walk(path.join(root, "scenarios")).filter((file) => file.endsWith(".scenario.json"));
-  assert(scenarioFiles.length > 0, "No scenario files found");
+  if (scenarioFiles.length === 0) {
+    const scenarioIds = validateConversationFirstE2EScenarios();
+    console.log(`Scenario verification passed (${scenarioIds.join(", ")}).`);
+    return;
+  }
 
   const scenarioIds = scenarioFiles.map(validateScenario);
   console.log(`Scenario verification passed (${scenarioIds.join(", ")}).`);

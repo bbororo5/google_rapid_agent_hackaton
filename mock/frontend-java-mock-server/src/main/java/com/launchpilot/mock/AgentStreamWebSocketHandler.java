@@ -3,6 +3,7 @@ package com.launchpilot.mock;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
+import java.net.URI;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
@@ -17,7 +18,7 @@ import org.springframework.web.socket.handler.TextWebSocketHandler;
 @Component
 public class AgentStreamWebSocketHandler extends TextWebSocketHandler {
     private final ObjectMapper objectMapper;
-    private final Map<String, AtomicInteger> checkpoints = new ConcurrentHashMap<>();
+    private final Map<String, SessionState> sessions = new ConcurrentHashMap<>();
 
     public AgentStreamWebSocketHandler(ObjectMapper objectMapper) {
         this.objectMapper = objectMapper;
@@ -25,35 +26,87 @@ public class AgentStreamWebSocketHandler extends TextWebSocketHandler {
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) {
-        checkpoints.put(session.getId(), new AtomicInteger(11));
-        new Thread(() -> replay(session, 1, 11)).start();
+        String threadId = threadIdFromSession(session);
+        SessionState state = new SessionState(threadId);
+        sessions.put(session.getId(), state);
+
+        if (MockPayloads.RUN_ID.equals(threadId)) {
+            state.sequence.set(11);
+            new Thread(() -> replay(session, state, 1, 11)).start();
+        }
     }
 
     @Override
     protected void handleTextMessage(WebSocketSession session, TextMessage message) throws Exception {
         Map<?, ?> command = objectMapper.readValue(message.getPayload(), Map.class);
-        Object type = command.get("type");
-        if ("message.send".equals(type)) {
-            AtomicInteger checkpoint = checkpoints.computeIfAbsent(session.getId(), ignored -> new AtomicInteger(11));
-            Object content = command.get("content");
-            Object action = command.get("action");
-            if (action instanceof Map<?, ?> actionMap && "approve".equals(actionMap.get("name"))) {
-                send(session, approvalCommitted());
-                return;
-            }
-            if (action instanceof Map<?, ?> actionMap && ("reject".equals(actionMap.get("name")) || "cancel".equals(actionMap.get("name")))) {
-                return;
-            }
-            if (content instanceof String value && "Use this signal".equalsIgnoreCase(value.trim())) {
-                int fromSequence = checkpoint.get() + 1;
-                checkpoint.set(16);
-                new Thread(() -> replay(session, fromSequence, 16)).start();
-                return;
-            }
-            int sequence = checkpoint.incrementAndGet();
-            send(session, streamMessage(sequence, "assistant", List.of(Map.of("kind", "text", "text", randomConversationReply()))));
+        if (!"message.send".equals(command.get("type"))) {
             return;
         }
+
+        SessionState state = sessions.computeIfAbsent(session.getId(), ignored -> new SessionState(threadIdFromSession(session)));
+        Object content = command.get("content");
+        Object action = command.get("action");
+        String text = content instanceof String value ? value.trim() : "";
+
+        if (action instanceof Map<?, ?> actionMap) {
+            String actionName = String.valueOf(actionMap.get("name"));
+            if ("approve".equals(actionName)) {
+                send(session, approvalCommitted(state));
+                return;
+            }
+            if ("revise_artifact".equals(actionName)) {
+                return;
+            }
+            if ("cancel".equals(actionName)) {
+                send(session, assistantText(state, "User cancelled the agent session. The streamed timeline remains available for review."));
+                return;
+            }
+            if ("reject".equals(actionName)) {
+                send(session, assistantText(state, "알겠습니다. 이 안은 승인하지 않고 대화 맥락만 남겨둘게요. 다른 방향으로 다시 좁혀볼 수 있습니다."));
+                return;
+            }
+        }
+
+        Intent intent = classify(text);
+        switch (intent) {
+            case APPROVE -> send(session, approvalCommitted(state));
+            case REJECT -> send(session, assistantText(state, "승인은 보류했습니다. 어떤 기준을 바꾸면 좋을지 알려주면 수정안을 다시 만들겠습니다."));
+            case REQUEST_CHANGES -> sendRevisionApproval(session, state);
+            case USE_SIGNAL -> {
+                int fromSequence = Math.max(state.sequence.get() + 1, 12);
+                state.sequence.set(16);
+                new Thread(() -> replay(session, state, fromSequence, 16)).start();
+            }
+            case SHOW_DOCUMENT -> send(session, evidenceDocument(state));
+            case ANALYZE -> new Thread(() -> replay(session, state, 2, 11)).start();
+            case DUPLICATE -> sendDuplicateSignal(session, state);
+            case ERROR -> send(session, errorMessage(state));
+            case FREE_CHAT -> send(session, assistantText(state, deterministicOrRandomReply(text)));
+        }
+    }
+
+    private Intent classify(String text) {
+        String normalized = text.toLowerCase();
+        if (normalized.contains("duplicate") || text.contains("중복")) return Intent.DUPLICATE;
+        if (normalized.contains("error") || text.contains("에러")) return Intent.ERROR;
+        if (normalized.contains("approve") || text.contains("승인") || text.contains("좋아 진행")) return Intent.APPROVE;
+        if (normalized.contains("reject") || text.contains("거절") || text.contains("보류")) return Intent.REJECT;
+        if (normalized.contains("remove") || normalized.contains("revise") || text.contains("빼") || text.contains("수정")) return Intent.REQUEST_CHANGES;
+        if (normalized.contains("use this signal") || text.contains("시그널 사용할") || text.contains("signal 사용할")) return Intent.USE_SIGNAL;
+        if (normalized.contains("document") || normalized.contains("evidence") || text.contains("문서") || text.contains("근거")) return Intent.SHOW_DOCUMENT;
+        if (normalized.contains("analyze") || normalized.contains("analysis") || text.contains("분석") || text.contains("이상한 점") || text.contains("찾아줘")) return Intent.ANALYZE;
+        return Intent.FREE_CHAT;
+    }
+
+    private String deterministicOrRandomReply(String text) {
+        String normalized = text.toLowerCase();
+        if (normalized.contains("what") || text.contains("뭐부터") || text.contains("무엇부터")) {
+            return "우선 저장률과 댓글 전환처럼 다음 실행으로 이어지는 지표부터 보겠습니다. 데이터가 들어오면 제가 근거 문서와 실험 후보를 함께 올릴게요.";
+        }
+        if (normalized.contains("retention") || text.contains("리텐션")) {
+            return "좋아요. 리텐션 관점이면 단순 조회수보다 저장률, 재방문을 유도한 CTA, 댓글의 후속 행동 신호를 우선 보겠습니다.";
+        }
+        return randomConversationReply();
     }
 
     private String randomConversationReply() {
@@ -72,8 +125,9 @@ public class AgentStreamWebSocketHandler extends TextWebSocketHandler {
         return replies.get(ThreadLocalRandom.current().nextInt(replies.size()));
     }
 
-    private void replay(WebSocketSession session, int fromSequence, int toSequence) {
-        for (Map<String, Object> event : events()) {
+    private void replay(WebSocketSession session, SessionState state, int fromSequence, int toSequence) {
+        state.sequence.updateAndGet(current -> Math.max(current, toSequence));
+        for (Map<String, Object> event : events(state.threadId)) {
             Object sequence = event.get("sequence");
             if (sequence instanceof Number number && (number.intValue() < fromSequence || number.intValue() > toSequence)) {
                 continue;
@@ -88,50 +142,98 @@ public class AgentStreamWebSocketHandler extends TextWebSocketHandler {
         }
     }
 
-    private List<Map<String, Object>> events() {
+    private List<Map<String, Object>> events(String threadId) {
         return List.of(
-        streamMessage(1, "user", List.of(Map.of("kind", "text", "text", "What should we test next week?"))),
-        streamMessage(2, "assistant", List.of(Map.of("kind", "activity", "id", "act_import_metrics", "title", "Imported campaign metrics", "status", "done"))),
-        streamMessage(3, "assistant", List.of(Map.of("kind", "text", "text", "I am comparing the uploaded campaign metrics against the recent baseline and preparing an evidence document."))),
-        streamMessage(4, "assistant", List.of(Map.of("kind", "activity", "id", "query_metric_baseline", "title", "Checking metric baseline", "status", "running"))),
-        streamMessage(5, "assistant", List.of(Map.of("kind", "activity", "id", "query_metric_baseline", "title", "Checked metric baseline", "status", "done", "detail", "Completed in 412ms."))),
-        streamMessage(6, "assistant", List.of(Map.of("kind", "text", "text", "The save-rate lift looks repeatable, so I am checking whether content evidence supports it."))),
-        streamMessage(7, "assistant", List.of(Map.of("kind", "activity", "id", "search_content_posts", "title", "Searching supporting posts", "status", "running"))),
-        streamMessage(8, "assistant", List.of(Map.of("kind", "activity", "id", "search_content_posts", "title", "Checked supporting posts", "status", "done", "detail", "Completed in 586ms."))),
-        streamMessage(9, "assistant", List.of(
-                Map.of("kind", "text", "text", "The agent found two BTS shorts that outperformed the recent baseline."),
-                Map.of("kind", "artifact", "id", "artifact_signal_payload", "artifact_kind", "signal", "title", "BTS shorts outperformed recent baseline", "content", MockPayloads.payload())
-        )),
-        streamMessage(10, "assistant", List.of(Map.of(
+                streamMessage(threadId, 1, "user", List.of(Map.of("kind", "text", "text", "What should we test next week?"))),
+                streamMessage(threadId, 2, "assistant", List.of(Map.of("kind", "activity", "id", "act_import_metrics", "title", "Imported campaign metrics", "status", "done"))),
+                streamMessage(threadId, 3, "assistant", List.of(Map.of("kind", "text", "text", "I am comparing the uploaded campaign metrics against the recent baseline and preparing an evidence document."))),
+                streamMessage(threadId, 4, "assistant", List.of(Map.of("kind", "activity", "id", "query_metric_baseline", "title", "Checking metric baseline", "status", "running"))),
+                streamMessage(threadId, 5, "assistant", List.of(Map.of("kind", "activity", "id", "query_metric_baseline", "title", "Checked metric baseline", "status", "done", "detail", "Completed in 412ms."))),
+                streamMessage(threadId, 6, "assistant", List.of(Map.of("kind", "text", "text", "The save-rate lift looks repeatable, so I am checking whether content evidence supports it."))),
+                streamMessage(threadId, 7, "assistant", List.of(Map.of("kind", "activity", "id", "search_content_posts", "title", "Searching supporting posts", "status", "running"))),
+                streamMessage(threadId, 8, "assistant", List.of(Map.of("kind", "activity", "id", "search_content_posts", "title", "Checked supporting posts", "status", "done", "detail", "Completed in 586ms."))),
+                streamMessage(threadId, 9, "assistant", List.of(
+                        Map.of("kind", "text", "text", "The agent found two BTS shorts that outperformed the recent baseline."),
+                        Map.of("kind", "artifact", "id", "artifact_signal_payload", "artifact_kind", "signal", "title", "BTS shorts outperformed recent baseline", "content", MockPayloads.payload())
+                )),
+                evidenceDocument(threadId, 10),
+                streamMessage(threadId, 12, "assistant", List.of(Map.of("kind", "activity", "id", "search_team_notes", "title", "Searching team notes", "status", "running"))),
+                streamMessage(threadId, 13, "assistant", List.of(Map.of("kind", "activity", "id", "search_team_notes", "title", "Checked team notes", "status", "done", "detail", "Completed in 344ms."))),
+                streamMessage(threadId, 14, "assistant", List.of(
+                        Map.of("kind", "text", "text", "Raw behind-the-scenes clips may be converting passive viewers into deeper engagement."),
+                        Map.of("kind", "artifact", "id", "artifact_hypothesis_payload", "artifact_kind", "hypothesis", "title", "Hypothesis generated", "content", MockPayloads.payload())
+                )),
+                streamMessage(threadId, 15, "assistant", List.of(
+                        Map.of("kind", "text", "text", "An experiment plan is ready for review."),
+                        Map.of("kind", "artifact", "id", "artifact_plan_payload", "artifact_kind", "experiment_plan", "title", "Experiment plan drafted", "content", MockPayloads.payload())
+                )),
+                approvalRequest(threadId, 16, MockPayloads.payload())
+        );
+    }
+
+    private Map<String, Object> assistantText(SessionState state, String text) {
+        return streamMessage(state.threadId, state.sequence.incrementAndGet(), "assistant", List.of(Map.of("kind", "text", "text", text)));
+    }
+
+    private Map<String, Object> evidenceDocument(SessionState state) {
+        return evidenceDocument(state.threadId, state.sequence.incrementAndGet(), true);
+    }
+
+    private Map<String, Object> evidenceDocument(String threadId, int sequence) {
+        return evidenceDocument(threadId, sequence, false);
+    }
+
+    private Map<String, Object> evidenceDocument(String threadId, int sequence, boolean includeThreadReply) {
+        List<Map<String, Object>> blocks = new java.util.ArrayList<>();
+        if (includeThreadReply) {
+            blocks.add(Map.of("kind", "text", "text", "문서를 다시 열어둘게요. 우측 패널에서 Evidence notes를 확인할 수 있습니다."));
+        }
+        blocks.add(Map.of(
                 "kind", "markdown_document",
                 "id", "doc_evidence_scan_001",
                 "title", "Evidence notes",
                 "summary", "Evidence notes for the uploaded campaign metrics.",
                 "markdown", "## Evidence notes\n\nI am comparing uploaded campaign metrics against the recent baseline.\n\n- Checking lift by channel\n- Looking for repeatable content patterns\n- Preparing candidate experiments"
-        ))),
-        streamMessage(12, "assistant", List.of(Map.of("kind", "activity", "id", "search_team_notes", "title", "Searching team notes", "status", "running"))),
-        streamMessage(13, "assistant", List.of(Map.of("kind", "activity", "id", "search_team_notes", "title", "Checked team notes", "status", "done", "detail", "Completed in 344ms."))),
-        streamMessage(14, "assistant", List.of(
-                Map.of("kind", "text", "text", "Raw behind-the-scenes clips may be converting passive viewers into deeper engagement."),
-                Map.of("kind", "artifact", "id", "artifact_hypothesis_payload", "artifact_kind", "hypothesis", "title", "Hypothesis generated", "content", MockPayloads.payload())
-        )),
-        streamMessage(15, "assistant", List.of(
-                Map.of("kind", "text", "text", "An experiment plan is ready for review."),
-                Map.of("kind", "artifact", "id", "artifact_plan_payload", "artifact_kind", "experiment_plan", "title", "Experiment plan drafted", "content", MockPayloads.payload())
-        )),
-        streamMessage(16, "assistant", List.of(Map.of(
+        ));
+        return streamMessage(threadId, sequence, "assistant", blocks);
+    }
+
+    private Map<String, Object> approvalRequest(String threadId, int sequence, Map<String, Object> payload) {
+        return streamMessage(threadId, sequence, "assistant", List.of(Map.of(
                 "kind", "approval",
                 "id", "appr_mock_001",
                 "title", "Approve experiment plan",
                 "target_id", "plan_001",
                 "actions", List.of("approve", "reject", "request_changes"),
-                "payload", MockPayloads.payload()
-        )))
-        );
+                "payload", payload
+        )));
     }
 
-    private Map<String, Object> approvalCommitted() {
-        return streamMessage(17, "assistant", List.of(Map.of(
+    private void sendRevisionApproval(WebSocketSession session, SessionState state) throws IOException {
+        send(session, streamMessage(state.threadId, state.sequence.incrementAndGet(), "assistant", List.of(Map.of("kind", "text", "text", "두 번째 실험은 제외하고 승인 가능한 초안으로 다시 정리했습니다."))));
+        send(session, approvalRequest(state.threadId, state.sequence.incrementAndGet(), MockPayloads.payloadWithoutSecondExperiment()));
+    }
+
+    private void sendDuplicateSignal(WebSocketSession session, SessionState state) throws IOException {
+        int sequence = state.sequence.incrementAndGet();
+        Map<String, Object> signal = streamMessage(state.threadId, sequence, "assistant", List.of(
+                Map.of("kind", "artifact", "id", "artifact_duplicate_signal_payload", "artifact_kind", "signal", "title", "Duplicate signal fixture", "content", MockPayloads.payload())
+        ));
+        send(session, signal);
+        send(session, signal);
+    }
+
+    private Map<String, Object> errorMessage(SessionState state) {
+        return streamMessage(state.threadId, state.sequence.incrementAndGet(), "system", List.of(Map.of(
+                "kind", "error",
+                "title", "Mock agent tool error",
+                "detail", "The mock server generated a retryable error block for E2E coverage.",
+                "retryable", true
+        )));
+    }
+
+    private Map<String, Object> approvalCommitted(SessionState state) {
+        return streamMessage(state.threadId, state.sequence.incrementAndGet(), "assistant", List.of(Map.of(
                 "kind", "result",
                 "title", "Approval complete",
                 "detail", "Growth brief brief_20260601_001 and 1 calendar event are ready.",
@@ -148,15 +250,27 @@ public class AgentStreamWebSocketHandler extends TextWebSocketHandler {
         )));
     }
 
-    private Map<String, Object> streamMessage(int sequence, String role, List<Map<String, Object>> blocks) {
+    private Map<String, Object> streamMessage(String threadId, int sequence, String role, List<Map<String, Object>> blocks) {
         Map<String, Object> message = new java.util.LinkedHashMap<>();
         message.put("id", "msg_mock_" + String.format("%03d", sequence));
-        message.put("thread_id", MockPayloads.RUN_ID);
+        message.put("thread_id", threadId);
         message.put("sequence", sequence);
         message.put("role", role);
         message.put("created_at", OffsetDateTime.now().toString());
         message.put("blocks", blocks);
         return message;
+    }
+
+    private String threadIdFromSession(WebSocketSession session) {
+        URI uri = session.getUri();
+        if (uri == null) return MockPayloads.RUN_ID;
+        String path = uri.getPath();
+        String marker = "/api/agent/threads/";
+        int start = path.indexOf(marker);
+        if (start < 0) return MockPayloads.RUN_ID;
+        int idStart = start + marker.length();
+        int idEnd = path.indexOf("/stream", idStart);
+        return idEnd > idStart ? path.substring(idStart, idEnd) : MockPayloads.RUN_ID;
     }
 
     private void send(WebSocketSession session, Map<String, Object> payload) throws IOException {
@@ -167,5 +281,27 @@ public class AgentStreamWebSocketHandler extends TextWebSocketHandler {
 
     private String toJson(Map<String, Object> payload) throws JsonProcessingException {
         return objectMapper.writeValueAsString(payload);
+    }
+
+    private enum Intent {
+        FREE_CHAT,
+        ANALYZE,
+        SHOW_DOCUMENT,
+        USE_SIGNAL,
+        APPROVE,
+        REJECT,
+        REQUEST_CHANGES,
+        DUPLICATE,
+        ERROR
+    }
+
+    private static final class SessionState {
+        final String threadId;
+        final AtomicInteger sequence;
+
+        SessionState(String threadId) {
+            this.threadId = threadId;
+            this.sequence = new AtomicInteger(0);
+        }
     }
 }

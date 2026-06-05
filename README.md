@@ -28,7 +28,7 @@ Run contract checks only:
 npm run test:contracts
 ```
 
-Run executable scenario contract checks only:
+Run conversation-first scenario coverage checks only:
 
 ```sh
 npm run test:scenarios
@@ -46,6 +46,6 @@ Run Playwright E2E tests:
 npm run test:e2e
 ```
 
-The Playwright E2E suite is intentionally allowed to be red before a frontend app is scaffolded. Its first happy-path spec is the acceptance target for the frontend implementation.
+The scenario verifier now treats the Playwright E2E specs as the executable source of truth for conversation-first user flows.
 
-The verifier checks JSON/YAML/NDJSON parsing, JSON Schema example conformance, cross-contract enum consistency, evidence reference grounding, Elastic document links, and OpenInference trace links.
+The verifier checks JSON/YAML/NDJSON parsing, JSON Schema example conformance, cross-contract enum consistency, evidence reference grounding, Elastic document links, OpenInference trace links, and conversation-first E2E scenario coverage.

@@ -41,9 +41,9 @@ The WebSocket remains the transport, but transport state is not exposed as a pro
 | `text` | Conversational answer. |
 | `activity` | Progress row/status. |
 | `markdown_document` | Thread document card plus opened right panel. |
-| `artifact` | Structured result in the right panel. |
-| `approval` | Approval controls in the right panel. |
-| `result` | Receipt/completion state. |
+| `artifact` | Structured review card in the main stream and saved output card when accepted. |
+| `approval` | Approval controls in the main stream. |
+| `result` | Receipt/completion state and saved output card. |
 | `error` | Error notice and retry affordance. |
 
 ## Data Writes

@@ -25,6 +25,44 @@ final class MockPayloads {
     }
 
     static Map<String, Object> payload() {
+        return payload(true);
+    }
+
+    static Map<String, Object> payloadWithoutSecondExperiment() {
+        return payload(false);
+    }
+
+    private static Map<String, Object> payload(boolean includeSecondExperiment) {
+        List<Map<String, Object>> experiments = new java.util.ArrayList<>();
+        experiments.add(map(
+                "id", "exp_001",
+                "hypothesis_id", "hyp_001",
+                "title", "BTS face-first hook test",
+                "channel", "tiktok",
+                "content_format", "12-second short",
+                "hook", "Open with a close-up reaction in the first 2 seconds.",
+                "cta", "Ask fans to comment which practice moment they want next.",
+                "target_metric", "save_rate",
+                "success_criteria", "save_rate >= 1.5x TikTok 30-day baseline within 48 hours",
+                "scheduled_at", "2026-06-03T20:00:00+09:00",
+                "production_brief", "Use raw rehearsal footage, minimal polish, subtitles on-screen."
+        ));
+        if (includeSecondExperiment) {
+            experiments.add(map(
+                    "id", "exp_002",
+                    "hypothesis_id", "hyp_001",
+                    "title", "Polished teaser contrast test",
+                    "channel", "instagram",
+                    "content_format", "15-second reel",
+                    "hook", "Open with the final polished teaser frame before showing the rehearsal contrast.",
+                    "cta", "Ask viewers which version feels more rewatchable.",
+                    "target_metric", "save_rate",
+                    "success_criteria", "save_rate >= 1.2x Instagram 30-day baseline within 48 hours",
+                    "scheduled_at", "2026-06-04T20:00:00+09:00",
+                    "production_brief", "Pair one polished teaser moment with raw behind-the-scenes footage."
+            ));
+        }
+
         return map(
                 "signals", List.of(map(
                         "id", "sig_001",
@@ -52,19 +90,7 @@ final class MockPayloads {
                         "id", "plan_001",
                         "summary", "This week's strongest signal is repeated overperformance from BTS short-form clips.",
                         "overall_confidence", "medium_high",
-                        "items", List.of(map(
-                                "id", "exp_001",
-                                "hypothesis_id", "hyp_001",
-                                "title", "BTS face-first hook test",
-                                "channel", "tiktok",
-                                "content_format", "12-second short",
-                                "hook", "Open with a close-up reaction in the first 2 seconds.",
-                                "cta", "Ask fans to comment which practice moment they want next.",
-                                "target_metric", "save_rate",
-                                "success_criteria", "save_rate >= 1.5x TikTok 30-day baseline within 48 hours",
-                                "scheduled_at", "2026-06-03T20:00:00+09:00",
-                                "production_brief", "Use raw rehearsal footage, minimal polish, subtitles on-screen."
-                        ))
+                        "items", experiments
                 )
         );
     }
