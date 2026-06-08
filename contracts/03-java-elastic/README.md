@@ -143,7 +143,7 @@ Recommended prefixes:
 - `post_` for content post evidence.
 - `brief_` for approved growth briefs.
 - `cal_` for calendar events.
-- `run_` for threads.
+- `thread_` for threads.
 - `plan_` for experiment plans.
 - `exp_` for experiment items.
 - `hyp_` for hypotheses.

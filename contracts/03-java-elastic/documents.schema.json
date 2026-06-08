@@ -290,7 +290,7 @@
         },
         "thread_id": {
           "type": "string",
-          "pattern": "^run_[A-Za-z0-9_]+$"
+          "pattern": "^thread_[A-Za-z0-9_]+$"
         },
         "experiment_plan_id": {
           "type": "string",
