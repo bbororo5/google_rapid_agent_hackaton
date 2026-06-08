@@ -37,6 +37,30 @@ Python Agent Core owns:
 - hypothesis and experiment drafting,
 - user-safe block output.
 
+## Action Handling
+
+A frontend `message.send` may carry a structured `action`
+(`approve`, `reject`, `cancel`, `revise_artifact`). These are deterministic
+state transitions, not reasoning tasks, and they are resolved entirely in Java:
+
+- Java executes the action (approval validation, immutable `growth_briefs` /
+  `calendar_events` writes, gate close) and broadcasts the resulting block.
+- A turn carrying an `action` is **not** forwarded to Agent Core. The agent
+  never re-interprets a structured action, so the committed result is exactly
+  what the user approved (no probabilistic step between approval and persistence).
+- Only action-less turns (free-form `content`) reach `POST /internal/agent/turns`
+  for agent interpretation.
+
+`approve` uses the user's edited final list when present
+(`action.payload.final_experiments`), else the drafted plan items. Mid-stream
+`revise_artifact` edits are visual-only; the authoritative edited list arrives
+with `approve`.
+
+Outcome notification: when an action changes thread state, Java MAY send Agent
+Core a context-only turn describing the outcome so the agent's memory stays
+consistent. This is one-way synchronization, never a request for the agent to
+act. (Not yet implemented; reserved.)
+
 ## Internal Turn
 
 `POST /internal/agent/turns`
