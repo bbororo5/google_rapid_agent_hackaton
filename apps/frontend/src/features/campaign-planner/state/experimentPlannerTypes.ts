@@ -57,6 +57,7 @@ export interface AgentThreadObservation {
 }
 
 export type AgentTimelineItem =
+  | { id: string; sequence: number; kind: "user_message"; message: AgentMessage }
   | { id: string; sequence: number; kind: "assistant_message"; message: AgentMessage }
   | { id: string; sequence: number; kind: "document"; document: AgentDocument }
   | { id: string; sequence: number; kind: "observation"; observation: AgentThreadObservation }
@@ -85,6 +86,8 @@ export interface ReviewState {
   payload: AgentResultPayload | null;
   activeSignalId: string | null;
   approvalId: string | null;
+  // Null = show/approve all hypotheses' experiments. Set = filter to one hypothesis.
+  selectedHypothesisId: string | null;
   selectedExperimentIds: string[];
   draftExperiments: ExperimentItem[];
   dirty: boolean;
@@ -128,6 +131,8 @@ export type ExperimentPlannerEvent =
   | { type: "SIGNAL_CONFIRMED" }
   | { type: "STREAM_FAILED"; threadId?: string; message: string }
   | { type: "EDIT_EXPERIMENT"; experimentId: string; patch: Partial<ExperimentItem> }
+  | { type: "TOGGLE_EXPERIMENT"; experimentId: string }
+  | { type: "SELECT_HYPOTHESIS"; hypothesisId: string }
   | { type: "APPROVE_SENT" }
   | { type: "SESSION_COMPLETED"; approval: ApproveExperimentPlanResponse }
   | { type: "APPROVE_FAILED"; message: string }

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { createWebSocketAgentStreamApi, type AgentStreamConnection, type AgentStreamApi } from "../api/agentStreamApi";
 import { createFetchExperimentPlannerApi, type ExperimentPlannerApi } from "../api/experimentPlannerApi";
 import { buildApprovalRequest } from "../state/experimentPlannerRequests";
+import { getCampaign, setCampaignThread } from "../state/campaignStore";
 import { initialExperimentPlannerState, experimentPlannerReducer } from "../state/experimentPlannerReducer";
 import type {
   ApproveExperimentPlanResponse,
@@ -44,6 +45,8 @@ export type GateReview =
       title: "Experiment Approval";
       status: "active" | "complete";
       hypothesis: Hypothesis | null;
+      hypotheses: Hypothesis[];
+      selectedHypothesisId: string | null;
       experiment: ExperimentItem | null;
       actionLabel: string;
     };
@@ -169,6 +172,7 @@ export interface OutputPanelItem {
 export interface PlannerApprovalView {
   canApprove: boolean;
   isApproving: boolean;
+  selectedExperimentIds: string[];
   draftExperiments: ExperimentItem[];
   finalExperiments: ExperimentItem[];
   primaryExperiment: ExperimentItem | null;
@@ -196,6 +200,8 @@ export interface ExperimentPlannerViewModel {
     analyze: () => Promise<void>;
     continueSignalReview: () => void;
     editExperiment: (experimentId: string, title: string) => void;
+    toggleExperiment: (experimentId: string) => void;
+    selectHypothesis: (hypothesisId: string) => void;
     approve: () => Promise<void>;
     reject: (reason?: string) => void;
     cancel: (reason?: string) => Promise<void>;
@@ -283,8 +289,46 @@ function confidenceLabel(value: string) {
 }
 
 function agentThreadStreamUrl(threadId: string) {
-  const agentApiBaseUrl = process.env.NEXT_PUBLIC_AGENT_API_BASE_URL ?? "http://localhost:8090";
+  const agentApiBaseUrl = process.env.NEXT_PUBLIC_AGENT_API_BASE_URL ?? "http://localhost:8080";
   return `${agentApiBaseUrl}/api/agent/threads/${threadId}/stream`;
+}
+
+const THREAD_STORAGE_KEY = "launchpilot.thread";
+
+function persistThread(threadId: string, streamUrl: string) {
+  try {
+    window.localStorage.setItem(THREAD_STORAGE_KEY, JSON.stringify({ threadId, streamUrl }));
+  } catch {
+    // storage unavailable (private mode) -> best effort
+  }
+  try {
+    // Reflect the live thread in the URL so a refresh (or ?new start) restores
+    // this exact conversation instead of a blank slate.
+    window.history.replaceState(null, "", `${window.location.pathname}?thread=${encodeURIComponent(threadId)}`);
+  } catch {
+    // history API unavailable -> best effort
+  }
+}
+
+function readPersistedThread(): { threadId: string; streamUrl: string } | null {
+  try {
+    const raw = window.localStorage.getItem(THREAD_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { threadId?: unknown; streamUrl?: unknown };
+    return typeof parsed.threadId === "string" && typeof parsed.streamUrl === "string"
+      ? { threadId: parsed.threadId, streamUrl: parsed.streamUrl }
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function clearPersistedThread() {
+  try {
+    window.localStorage.removeItem(THREAD_STORAGE_KEY);
+  } catch {
+    // ignore
+  }
 }
 
 function toolBlock(tool: ToolCallLog): StreamMessageBlock {
@@ -330,25 +374,37 @@ function streamMessagesFromState(input: {
   errorMessage: string | null;
   stateLabel: string;
 }): StreamMessage[] {
-  const initialUserMessages = input.messages.filter((message) => message.role === "user" && !message.message_id.startsWith("msg_local_"));
   const localUserMessages = input.messages.filter((message) => message.role === "user" && message.message_id.startsWith("msg_local_"));
-  const assistantMessages = input.messages.filter((message) => message.role === "assistant");
+  // Server-echoed user messages now arrive as user_message timeline items, which
+  // keep their real stream sequence so they interleave with assistant blocks.
+  const serverUserMessages = input.timelineItems.filter((item) => item.kind === "user_message");
+  // Drop optimistic local user bubbles once the server has echoed the same text
+  // back into the timeline (otherwise every sent message renders twice).
+  const echoedUserCounts = new Map<string, number>();
+  for (const item of serverUserMessages) {
+    const key = item.message.content.trim();
+    echoedUserCounts.set(key, (echoedUserCounts.get(key) ?? 0) + 1);
+  }
+  const pendingLocalUserMessages = localUserMessages.filter((message) => {
+    const key = message.content.trim();
+    const remaining = echoedUserCounts.get(key) ?? 0;
+    if (remaining > 0) {
+      echoedUserCounts.set(key, remaining - 1);
+      return false;
+    }
+    return true;
+  });
   const streamMessages: StreamMessage[] = [
-    ...initialUserMessages.map((message, index) => ({
-      id: message.message_id,
-      sequence: index + 1,
-      role: "user" as const,
-      createdAt: null,
-      blocks: [{ kind: "text" as const, text: message.content }],
-    })),
-    ...assistantMessages.map((message, index) => ({
-      id: message.message_id,
-      sequence: 100 + index,
-      role: "assistant" as const,
-      createdAt: null,
-      blocks: [{ kind: "text" as const, text: message.content }],
-    })),
     ...input.timelineItems.map((item) => {
+      if (item.kind === "user_message") {
+        return {
+          id: item.id,
+          sequence: item.sequence,
+          role: "user" as const,
+          createdAt: null,
+          blocks: [{ kind: "text" as const, text: item.message.content }],
+        };
+      }
       if (item.kind === "tool") {
         return {
           id: item.id,
@@ -393,7 +449,7 @@ function streamMessagesFromState(input: {
         blocks: [{ kind: "text" as const, text: item.message.content }],
       };
     }),
-    ...localUserMessages.map((message, index) => ({
+    ...pendingLocalUserMessages.map((message, index) => ({
       id: message.message_id,
       sequence: "clientSequence" in message ? message.clientSequence : 10_000 + index,
       role: "user" as const,
@@ -641,30 +697,24 @@ function buildChecklist(state: ExperimentPlannerState): ChecklistStep[] {
   const complete = "complete" as const;
   const active = "active" as const;
   const pending = "pending" as const;
-  const imported = Boolean(state.importResult) || state.phase === "importing";
+  // A CSV run shows the import step; a baseline (chat-started) run skips it so
+  // the bar doesn't appear to "start" several steps in.
+  const csvRun = Boolean(state.importResult) || state.phase === "importing";
   const started = Boolean(state.thread.threadId) || ["starting", "connecting", "live", "signal_review", "awaiting_approval", "approved"].includes(state.phase);
   const connected = state.thread.connection === "open" || ["live", "signal_review", "awaiting_approval", "approved"].includes(state.phase);
-  const hasSignal = Boolean(state.review.payload?.signals.length);
+  const hasSignal = Boolean(state.review.payload?.signals.length) || state.phase === "signal_review";
   const hasPlan = Boolean(state.review.payload?.experiment_plan.items.length);
   const needsApproval = state.phase === "awaiting_approval" || state.review.approving;
   const approved = state.phase === "approved";
 
-  if (state.phase === "signal_review") {
-    return [
-      { label: "Import metrics", status: complete },
-      { label: "Start agent session", status: complete },
-      { label: "Connect stream", status: complete },
-      { label: "Analyze signal", status: complete },
-      { label: "Review signal", status: active },
-      { label: "Review experiment plan", status: pending },
-    ];
-  }
-
   return [
-    { label: "Import metrics", status: state.phase === "importing" ? active : imported ? complete : pending },
-    { label: "Start agent session", status: state.phase === "starting" ? active : started ? complete : imported ? active : pending },
+    // Baseline runs have no CSV: mark import complete (skipped) once the session
+    // started, so the 6 steps still fill in order 1->6 instead of leaving step 1
+    // pending while later steps complete.
+    { label: "Import metrics", status: state.phase === "importing" ? active : csvRun || started ? complete : pending },
+    { label: "Start agent session", status: state.phase === "starting" ? active : started ? complete : pending },
     { label: "Connect stream", status: state.phase === "connecting" ? active : connected ? complete : started ? active : pending },
-    { label: "Analyze signal", status: hasSignal ? complete : connected ? active : pending },
+    { label: "Analyze signals", status: hasSignal ? complete : connected ? active : pending },
     { label: "Draft experiment plan", status: hasPlan ? complete : hasSignal ? active : pending },
     { label: "Review experiment plan", status: approved ? complete : needsApproval ? active : pending },
   ];
@@ -796,12 +846,17 @@ function composerFromState(state: ExperimentPlannerState, displayState: AgentDis
         },
       };
     case "live": {
-      const analysisInProgress = Boolean(state.importResult && !state.review.payload);
+      // Analysis is in progress when the agent is still producing pipeline output
+      // and hasn't reached the approval payload yet. Covers both CSV-started runs
+      // (importResult) and chat-started runs (artifact documents stream in); plain
+      // free chat produces neither, so it keeps the Send button.
+      const analysisInProgress =
+        !state.review.payload && (Boolean(state.importResult) || state.thread.documents.length > 0);
       return {
         ...base,
         mode: "session_in_progress",
         inputDisabled: false,
-        canAttachCsv: false,
+        canAttachCsv: !analysisInProgress,
         primaryAction: analysisInProgress
           ? {
               kind: "stop",
@@ -817,7 +872,7 @@ function composerFromState(state: ExperimentPlannerState, displayState: AgentDis
         ...base,
         mode: "review_gate",
         inputDisabled: false,
-        canAttachCsv: false,
+        canAttachCsv: true,
         primaryAction: { kind: "send", label: "Send", disabled: !value.trim(), title: "Send a message to the thread" },
       };
     case "awaiting_approval":
@@ -825,7 +880,7 @@ function composerFromState(state: ExperimentPlannerState, displayState: AgentDis
         ...base,
         mode: "approval_gate",
         inputDisabled: false,
-        canAttachCsv: false,
+        canAttachCsv: true,
         primaryAction: { kind: "send", label: "Send", disabled: !value.trim(), title: "Send a message to the thread" },
       };
     case "approved":
@@ -833,7 +888,7 @@ function composerFromState(state: ExperimentPlannerState, displayState: AgentDis
         ...base,
         mode: "completed",
         inputDisabled: false,
-        canAttachCsv: false,
+        canAttachCsv: true,
         primaryAction: { kind: "send", label: "Send", disabled: !value.trim(), title: "Send a message to the thread" },
       };
     case "failed":
@@ -843,7 +898,7 @@ function composerFromState(state: ExperimentPlannerState, displayState: AgentDis
         ...base,
         mode: "error",
         inputDisabled: false,
-        canAttachCsv: false,
+        canAttachCsv: true,
         primaryAction: { kind: "send", label: "Send", disabled: !value.trim(), title: "Send a message to the thread" },
       };
     default:
@@ -903,6 +958,40 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
     return () => {
       streamRef.current?.close();
     };
+  }, []);
+
+  // Restore a thread on mount: a specific one via ?thread=<id> (from the home
+  // page conversation list), nothing for ?new (start a fresh conversation), or
+  // the last-active thread otherwise (so a plain refresh survives). The backend
+  // replays the committed history on reconnect.
+  const restoredRef = useRef(false);
+  const campaignIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (restoredRef.current) return;
+    restoredRef.current = true;
+    if (stateRef.current.thread.threadId) return;
+
+    const params = new URLSearchParams(window.location.search);
+    const campaignId = params.get("campaign");
+    campaignIdRef.current = campaignId;
+
+    let target: { threadId: string; streamUrl: string } | null = null;
+    if (campaignId) {
+      // A user campaign card: restore its bound thread if it has one, else stay
+      // blank (the first message creates the thread and binds it).
+      const camp = getCampaign(campaignId);
+      if (camp?.threadId) {
+        target = { threadId: camp.threadId, streamUrl: camp.streamUrl ?? agentThreadStreamUrl(camp.threadId) };
+      }
+    } else {
+      // The demo campaign / plain planner: restore the last-active thread so a
+      // refresh survives.
+      target = readPersistedThread();
+    }
+    if (!target) return;
+    dispatch({ type: "AGENT_SESSION_ACCEPTED", threadId: target.threadId, streamUrl: target.streamUrl });
+    void connectStream(target.threadId, target.streamUrl);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const currentFile = stateFile(state);
@@ -999,6 +1088,8 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
         threadId: threadId,
         streamUrl,
       });
+      persistThread(threadId, streamUrl);
+      bindThreadToCampaign(threadId);
       await connectStream(threadId, streamUrl);
     } catch (error) {
       dispatch({
@@ -1023,6 +1114,7 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
       threadId,
       streamUrl,
     });
+    persistThread(threadId, streamUrl);
     await connectStream(threadId, streamUrl);
     return threadId;
   }
@@ -1032,6 +1124,51 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
     const baseline = current.thread.lastReceivedSequence + 0.1;
     nextLocalSequenceRef.current = Math.max(nextLocalSequenceRef.current + 0.01, baseline);
     return nextLocalSequenceRef.current;
+  }
+
+  function bindThreadToCampaign(threadId: string) {
+    // If this planner was opened from a user campaign card, bind the live thread
+    // to that campaign so re-opening the card restores this conversation.
+    if (campaignIdRef.current) {
+      setCampaignThread(campaignIdRef.current, threadId, agentThreadStreamUrl(threadId), Date.now());
+    }
+  }
+
+  async function attachCsv(file: File) {
+    const current = stateRef.current;
+    // Pre-analysis (no live thread yet): keep the normal selection flow that
+    // arms the Analyze action.
+    if (!current.thread.threadId) {
+      dispatch({ type: "SELECT_CSV", file });
+      return;
+    }
+    // Mid-conversation: ingest the new metrics into Elastic, then ask the agent
+    // to re-analyze in place on the existing thread (no phase reset).
+    const threadId = current.thread.threadId;
+    const content = `Analyze the campaign metrics I just uploaded (${file.name}).`;
+    setLocalUserMessages((messages) => [
+      ...messages,
+      {
+        message_id: `msg_local_${Date.now()}`,
+        role: "user",
+        content,
+        clientSequence: nextLocalSequence(),
+        phaseAtSend: current.phase,
+      },
+    ]);
+    try {
+      await api.importCsv({ file, workspaceId: "demo_workspace", campaignId: "camp_comeback_teaser" });
+    } catch {
+      // Ingestion failed; still let the agent analyze whatever baseline exists.
+    }
+    streamRef.current?.send({
+      command_id: commandId("cmd_message"),
+      type: "message.send",
+      thread_id: threadId,
+      content,
+      client_created_at: new Date().toISOString(),
+    });
+    bindThreadToCampaign(threadId);
   }
 
   async function sendComposerMessage() {
@@ -1054,6 +1191,7 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
         content: text,
         client_created_at: new Date().toISOString(),
       });
+      bindThreadToCampaign(threadId);
     }
 
     setLocalUserMessages((messages) => [
@@ -1166,13 +1304,29 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
     dispatch({ type: "EDIT_EXPERIMENT", experimentId, patch: { title } });
   }
 
+  function toggleExperiment(experimentId: string) {
+    const current = stateRef.current;
+    if (current.phase !== "awaiting_approval") return;
+    dispatch({ type: "TOGGLE_EXPERIMENT", experimentId });
+  }
+
+  function selectHypothesis(hypothesisId: string) {
+    const current = stateRef.current;
+    if (current.phase !== "awaiting_approval") return;
+    dispatch({ type: "SELECT_HYPOTHESIS", hypothesisId });
+  }
+
   useEffect(() => {
     if (!state.review.approving) {
       setIsApproving(false);
     }
   }, [state.review.approving]);
 
-  const primaryHypothesis = currentHypotheses[0] ?? lastHypothesesRef.current[0] ?? null;
+  const allHypotheses = currentHypotheses.length > 0 ? currentHypotheses : lastHypothesesRef.current;
+  const selectedHypothesisId = state.review.selectedHypothesisId;
+  const primaryHypothesis =
+    (selectedHypothesisId ? allHypotheses.find((h) => h.id === selectedHypothesisId) : null) ??
+    allHypotheses[0] ?? null;
   const primaryExperiment = draftExperiments(state)[0] ?? finalExperiments(state)[0] ?? null;
   const signalGate: GateReview | null = lastSignalRef.current
     ? {
@@ -1190,6 +1344,8 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
           title: "Experiment Approval",
           status: state.phase === "approved" ? "complete" : "active",
           hypothesis: primaryHypothesis,
+          hypotheses: allHypotheses,
+          selectedHypothesisId,
           experiment: primaryExperiment,
           actionLabel: state.phase === "approved" ? "Approved" : "Approve Experiments",
         }
@@ -1274,8 +1430,9 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
     outputs: outputPanelItems,
   };
   const approvalView: PlannerApprovalView = {
-    canApprove: state.phase === "awaiting_approval" && currentDraftExperiments.length > 0 && !isApproving,
+    canApprove: state.phase === "awaiting_approval" && state.review.selectedExperimentIds.length > 0 && !isApproving,
     isApproving,
+    selectedExperimentIds: state.review.selectedExperimentIds,
     draftExperiments: currentDraftExperiments,
     finalExperiments: currentFinalExperiments,
     primaryExperiment,
@@ -1302,11 +1459,13 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
         setComposerQuestion(question);
         dispatch({ type: "UPDATE_QUESTION", question });
       },
-      selectCsv: (file) => dispatch({ type: "SELECT_CSV", file }),
+      selectCsv: attachCsv,
       sendMessage: sendComposerMessage,
       analyze,
       continueSignalReview,
       editExperiment,
+      toggleExperiment,
+      selectHypothesis,
       approve: approvePlan,
       reject: rejectApproval,
       cancel: cancelSession,
@@ -1320,6 +1479,7 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
         composerQuestionRef.current = stateQuestion(initialExperimentPlannerState);
         setComposerQuestion(stateQuestion(initialExperimentPlannerState));
         setLocalUserMessages([]);
+        clearPersistedThread();
         dispatch({ type: "RESET" });
       },
     },

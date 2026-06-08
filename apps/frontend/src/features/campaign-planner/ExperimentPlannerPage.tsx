@@ -349,14 +349,22 @@ function HypothesisCard({ hypothesis }: { hypothesis: Hypothesis }) {
 
 function ExperimentEditor({
   experiment,
+  selected,
+  onToggle,
   onEdit,
 }: {
   experiment: ExperimentItem;
+  selected: boolean;
+  onToggle: (experimentId: string) => void;
   onEdit: (experimentId: string, title: string) => void;
 }) {
   return (
-    <article className="experiment-card selected">
+    <article className={`experiment-card${selected ? " selected" : " excluded"}`}>
       <div className="card-topline">
+        <label className="experiment-include">
+          <input type="checkbox" checked={selected} onChange={() => onToggle(experiment.id)} aria-label={`Include experiment ${experiment.title}`} />
+          <span>{selected ? "Included" : "Excluded"}</span>
+        </label>
         <span className={`channel ${experiment.channel}`}>{experiment.channel}</span>
         <span>{experiment.scheduled_at}</span>
       </div>
@@ -564,20 +572,62 @@ function GateContent({
     );
   }
 
+  const selectedHypothesisId = gate.selectedHypothesisId;
   return (
     <div className="gate-body">
-      {gate.hypothesis ? <HypothesisCard hypothesis={gate.hypothesis} /> : null}
-      {gate.experiment ? <ExperimentEditor experiment={gate.experiment} onEdit={view.commands.editExperiment} /> : null}
-      {view.approval.draftExperiments.slice(1).map((experiment) => (
-        <article className="experiment-card" key={experiment.id}>
-          <div className="card-topline">
-            <span className={`channel ${experiment.channel}`}>{experiment.channel}</span>
-            <span>{experiment.scheduled_at}</span>
+      {gate.hypotheses.length > 1 ? (
+        <div className="hypothesis-selector" role="group" aria-label="Focus one hypothesis">
+          <span className="hypothesis-selector-label">Focus hypothesis (approves only its experiments)</span>
+          <div className="hypothesis-chips">
+            {gate.hypotheses.map((hypothesis, index) => (
+              <button
+                key={hypothesis.id}
+                type="button"
+                className={`hypothesis-chip${selectedHypothesisId === hypothesis.id ? " selected" : ""}`}
+                title={hypothesis.statement}
+                onClick={() => view.commands.selectHypothesis(hypothesis.id)}
+              >
+                H{index + 1}: {hypothesis.statement}
+              </button>
+            ))}
+            {selectedHypothesisId ? (
+              <button
+                type="button"
+                className="hypothesis-chip clear"
+                onClick={() => view.commands.selectHypothesis(selectedHypothesisId)}
+              >
+                Show all
+              </button>
+            ) : null}
           </div>
-          <h3>{experiment.title}</h3>
-          <p>{experiment.production_brief}</p>
-        </article>
-      ))}
+        </div>
+      ) : null}
+      {gate.hypothesis ? <HypothesisCard hypothesis={gate.hypothesis} /> : null}
+      {gate.experiment ? (
+        <ExperimentEditor
+          experiment={gate.experiment}
+          selected={view.approval.selectedExperimentIds.includes(gate.experiment.id)}
+          onToggle={view.commands.toggleExperiment}
+          onEdit={view.commands.editExperiment}
+        />
+      ) : null}
+      {view.approval.draftExperiments.slice(1).map((experiment) => {
+        const selected = view.approval.selectedExperimentIds.includes(experiment.id);
+        return (
+          <article className={`experiment-card${selected ? "" : " excluded"}`} key={experiment.id}>
+            <div className="card-topline">
+              <label className="experiment-include">
+                <input type="checkbox" checked={selected} onChange={() => view.commands.toggleExperiment(experiment.id)} aria-label={`Include experiment ${experiment.title}`} />
+                <span>{selected ? "Included" : "Excluded"}</span>
+              </label>
+              <span className={`channel ${experiment.channel}`}>{experiment.channel}</span>
+              <span>{experiment.scheduled_at}</span>
+            </div>
+            <h3>{experiment.title}</h3>
+            <p>{experiment.production_brief}</p>
+          </article>
+        );
+      })}
       {view.approval.receipt ? (
         <div className="approval-receipt" tabIndex={-1}>
           <strong>Human approval processed</strong>
@@ -589,7 +639,11 @@ function GateContent({
       ) : null}
       {gate.status === "active" ? (
         <button className={`approve-button${view.shell.campaignStatus === "approved" ? " approved" : ""}`} type="button" disabled={!canApprove} onClick={view.commands.approve}>
-          {view.approval.isApproving ? "Approving" : gate.actionLabel}
+          {view.approval.isApproving
+            ? "Approving"
+            : view.approval.selectedExperimentIds.length === 0
+              ? "Select at least one experiment"
+              : `${gate.actionLabel} (${view.approval.selectedExperimentIds.length})`}
         </button>
       ) : null}
     </div>

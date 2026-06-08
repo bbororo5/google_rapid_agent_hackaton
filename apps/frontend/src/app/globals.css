@@ -98,6 +98,35 @@ a {
 .campaign-list {
   width: min(980px, 100%);
   margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.campaign-entry-action-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.campaign-delete-button {
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--ink-soft);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.campaign-delete-button:hover {
+  background: #fdecec;
+  color: #c0392b;
+  border-color: #f0c4c0;
 }
 
 .campaign-entry {
@@ -181,6 +210,134 @@ a {
   background: var(--blue);
   color: #fff;
   font-weight: 750;
+}
+
+/* --- Conversations list (home page) --- */
+.conversation-list {
+  width: min(980px, 100%);
+  margin: 20px auto 0;
+}
+
+.conversation-list-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.conversation-list-head h2 {
+  font-size: 17px;
+  font-weight: 750;
+  color: var(--ink);
+}
+
+.new-conversation-button {
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: 7px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--blue);
+  color: #fff;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.conversation-empty {
+  padding: 18px 16px;
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  color: var(--ink-soft);
+  font-size: 13px;
+  background: var(--surface);
+}
+
+.conversation-banners {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.conversation-banner {
+  display: flex;
+  align-items: stretch;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.conversation-banner-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  color: inherit;
+}
+
+.conversation-banner-main:hover {
+  background: var(--surface-muted);
+}
+
+.conversation-banner-icon {
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-muted);
+  color: var(--blue);
+}
+
+.conversation-banner-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.conversation-banner-text h3 {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.conversation-banner-text span {
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+.conversation-banner-arrow {
+  flex: 0 0 auto;
+  color: var(--ink-soft);
+}
+
+.conversation-banner-delete {
+  flex: 0 0 auto;
+  width: 48px;
+  border: none;
+  border-left: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.conversation-banner-delete:hover {
+  background: #fdecec;
+  color: #c0392b;
 }
 
 .sidebar-shell {
@@ -1833,6 +1990,26 @@ input[type="text"] {
 .hypothesis-card,
 .experiment-card {
   padding: 16px;
+}
+
+.experiment-card.excluded {
+  opacity: 0.55;
+  background: var(--surface-muted, #f5f6f8);
+}
+
+.experiment-include {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: auto;
+  font-size: 12px;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+
+.experiment-include input {
+  accent-color: #2f6fed;
+  cursor: pointer;
 }
 
 .signal-card.primary {

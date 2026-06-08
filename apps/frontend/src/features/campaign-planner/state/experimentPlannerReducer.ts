@@ -1,6 +1,5 @@
 import type {
   AgentDocument,
-  AgentMessage,
   AgentResultPayload,
   AgentTimelineItem,
   ExperimentItem,
@@ -11,12 +10,6 @@ import type {
 
 function updateDraftExperiment(items: ExperimentItem[], experimentId: string, patch: Partial<ExperimentItem>) {
   return items.map((item) => (item.id === experimentId ? { ...item, ...patch } : item));
-}
-
-function mergeMessage(messages: AgentMessage[], nextMessage: AgentMessage | null | undefined) {
-  if (!nextMessage) return messages;
-  if (messages.some((message) => message.message_id === nextMessage.message_id)) return messages;
-  return [...messages, nextMessage];
 }
 
 function mergeDocument(documents: AgentDocument[], nextDocument: AgentDocument | null | undefined) {
@@ -80,9 +73,11 @@ function timelineItemsFromStreamMessage(event: ExperimentPlannerEvent & { type: 
   const sequence = event.message.sequence;
   const text = textFromStreamMessage(event);
   const textItem: AgentTimelineItem[] =
-    text && event.message.role === "assistant"
-      ? [{ id: `message:${event.message.id}`, sequence, kind: "assistant_message", message: { message_id: event.message.id, role: "assistant", content: text } }]
-      : [];
+    text && event.message.role === "user"
+      ? [{ id: `message:${event.message.id}`, sequence, kind: "user_message", message: { message_id: event.message.id, role: "user", content: text } }]
+      : text && event.message.role === "assistant"
+        ? [{ id: `message:${event.message.id}`, sequence, kind: "assistant_message", message: { message_id: event.message.id, role: "assistant", content: text } }]
+        : [];
   const documentItems: AgentTimelineItem[] = documentsFromStreamMessage(event).map((document) => ({
     id: `document:${document.document_id}`,
     sequence,
@@ -138,6 +133,7 @@ export const initialExperimentPlannerState: ExperimentPlannerState = {
     payload: null,
     activeSignalId: null,
     approvalId: null,
+    selectedHypothesisId: null,
     selectedExperimentIds: [],
     draftExperiments: [],
     dirty: false,
@@ -215,6 +211,7 @@ export function experimentPlannerReducer(state: ExperimentPlannerState, event: E
           payload: null,
           activeSignalId: null,
           approvalId: null,
+          selectedHypothesisId: null,
           selectedExperimentIds: [],
           draftExperiments: [],
           dirty: false,
@@ -247,15 +244,12 @@ export function experimentPlannerReducer(state: ExperimentPlannerState, event: E
     case "STREAM_EVENT_RECEIVED": {
       if (state.thread.receivedMessageIds.includes(event.message.id)) return state;
 
-      const text = textFromStreamMessage(event);
-      const messageFromFrame: AgentMessage | null =
-        text && event.message.role === "user"
-          ? { message_id: event.message.id, role: "user", content: text }
-          : null;
       const documents = documentsFromStreamMessage(event).reduce((nextDocuments, document) => mergeDocument(nextDocuments, document), state.thread.documents);
       const toolLogs = toolLogsFromStreamMessage(event).reduce((nextToolLogs, toolLog) => mergeToolLog(nextToolLogs, toolLog), state.thread.toolLogs);
       const timelineItems = mergeTimelineItems(state.thread.timelineItems, timelineItemsFromStreamMessage(event));
-      const messages = mergeMessage(state.thread.messages, messageFromFrame);
+      // Server-echoed user text now flows through timelineItems (kind user_message)
+      // so it keeps its real stream sequence and interleaves with assistant blocks.
+      const messages = state.thread.messages;
       const payload = payloadFromStreamMessage(event) ?? state.review.payload;
       const approvalBlock = event.message.blocks.find((block) => block.kind === "approval");
       const resultBlock = event.message.blocks.find((block) => block.kind === "result");
@@ -275,8 +269,9 @@ export function experimentPlannerReducer(state: ExperimentPlannerState, event: E
       if (errorBlock) {
         return {
           ...state,
-          phase: "failed",
+          phase: state.review.approving ? "awaiting_approval" : "failed",
           thread,
+          review: { ...state.review, approving: false },
           error: { message: errorBlock.detail ?? errorBlock.title, recoverable: errorBlock.retryable ?? true },
         };
       }
@@ -315,6 +310,7 @@ export function experimentPlannerReducer(state: ExperimentPlannerState, event: E
             payload,
             activeSignalId: payload.signals[0]?.id ?? state.review.activeSignalId,
             approvalId: approvalBlock.id,
+            selectedHypothesisId: null,
             selectedExperimentIds: payload.experiment_plan.items.map((item) => item.id),
             draftExperiments: payload.experiment_plan.items,
             dirty: false,
@@ -366,6 +362,35 @@ export function experimentPlannerReducer(state: ExperimentPlannerState, event: E
           draftExperiments: updateDraftExperiment(state.review.draftExperiments, event.experimentId, event.patch),
         },
       };
+
+    case "TOGGLE_EXPERIMENT": {
+      if (state.phase !== "awaiting_approval") return state;
+      const selected = state.review.selectedExperimentIds.includes(event.experimentId)
+        ? state.review.selectedExperimentIds.filter((id) => id !== event.experimentId)
+        : [...state.review.selectedExperimentIds, event.experimentId];
+      // Manually toggling an experiment leaves the "single hypothesis" filter mode.
+      return { ...state, review: { ...state.review, dirty: true, selectedHypothesisId: null, selectedExperimentIds: selected } };
+    }
+
+    case "SELECT_HYPOTHESIS": {
+      if (state.phase !== "awaiting_approval") return state;
+      // Visual filter (option A): toggling a hypothesis scopes the approved set to
+      // that hypothesis's experiments. Re-selecting it clears back to all.
+      const clearing = state.review.selectedHypothesisId === event.hypothesisId;
+      const items = state.review.draftExperiments;
+      const selected = clearing
+        ? items.map((item) => item.id)
+        : items.filter((item) => item.hypothesis_id === event.hypothesisId).map((item) => item.id);
+      return {
+        ...state,
+        review: {
+          ...state.review,
+          dirty: true,
+          selectedHypothesisId: clearing ? null : event.hypothesisId,
+          selectedExperimentIds: selected,
+        },
+      };
+    }
 
     case "APPROVE_SENT":
       if (state.phase !== "awaiting_approval") return state;
