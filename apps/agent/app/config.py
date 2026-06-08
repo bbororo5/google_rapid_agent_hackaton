@@ -48,14 +48,27 @@ class Settings(BaseModel):
     google_cloud_project: str | None = None
     google_cloud_location: str = "us-central1"
 
-    # --- Evidence (Elastic via MCP) ---
+    # --- Evidence (Elastic) ---
+    # Direct ES read of the same cluster Java writes (contract 03). When both URL
+    # and API key are set, the agent reads real campaign data; otherwise seed stub.
+    elastic_url: str | None = None
+    elastic_api_key: str | None = None
     elastic_mcp_url: str | None = None
     elastic_mcp_transport: str = "streamable_http"
+    # Route evidence through the Elasticsearch MCP server (contract 04, method B:
+    # the wrapper opens an MCP stdio session). Opt-in; falls back to direct ES.
+    elastic_use_mcp: bool = False
+    # npx package for the Elasticsearch MCP server. Default exposes esql_query +
+    # es_search (the official @elastic 0.3.1 has search only, no ES|QL).
+    elastic_mcp_package: str = "@tocharianou/elasticsearch-mcp"
 
     # --- Reflection export (Phoenix Cloud / Arize track) ---
     phoenix_endpoint: str | None = None
     phoenix_api_key: str | None = None
     phoenix_project: str = "launchpilot-agent"
+    # Read side (contract 06 §Reflection): query Phoenix MCP for past failure
+    # patterns at session start. Opt-in; advisory only (cannot override review).
+    phoenix_use_mcp: bool = False
 
     # --- Server ---
     port: int = 8000
@@ -76,8 +89,19 @@ class Settings(BaseModel):
 
     @property
     def use_real_elastic(self) -> bool:
-        # Presence of an MCP URL is the single switch between live Elastic and seed.
-        return bool(self.elastic_mcp_url)
+        # Real evidence when we can reach the cluster directly (URL + API key).
+        return bool(self.elastic_url and self.elastic_api_key)
+
+    @property
+    def elastic_mcp_enabled(self) -> bool:
+        # MCP evidence path (contract 04). Needs the flag + ES creds (the MCP
+        # server is spawned via npx and authenticates to the same cluster).
+        return bool(self.elastic_use_mcp and self.elastic_url and self.elastic_api_key)
+
+    @property
+    def reflection_enabled(self) -> bool:
+        # Phoenix MCP read side. Needs the flag + a Phoenix API key.
+        return bool(self.phoenix_use_mcp and self.phoenix_api_key)
 
 
 @lru_cache
@@ -89,11 +113,16 @@ def get_settings() -> Settings:
         use_vertexai=(os.environ.get("GOOGLE_GENAI_USE_VERTEXAI", "").upper() in ("TRUE", "1")),
         google_cloud_project=os.environ.get("GOOGLE_CLOUD_PROJECT") or None,
         google_cloud_location=os.environ.get("GOOGLE_CLOUD_LOCATION") or "us-central1",
+        elastic_url=os.environ.get("ELASTIC_URL") or None,
+        elastic_api_key=os.environ.get("ELASTIC_API_KEY") or None,
         elastic_mcp_url=os.environ.get("ELASTIC_MCP_URL") or None,
         elastic_mcp_transport=os.environ.get("ELASTIC_MCP_TRANSPORT") or "streamable_http",
+        elastic_use_mcp=(os.environ.get("ELASTIC_USE_MCP", "").upper() in ("TRUE", "1")),
+        elastic_mcp_package=os.environ.get("ELASTIC_MCP_PACKAGE") or "@tocharianou/elasticsearch-mcp",
         phoenix_endpoint=os.environ.get("PHOENIX_COLLECTOR_ENDPOINT") or None,
         phoenix_api_key=os.environ.get("PHOENIX_API_KEY") or None,
         phoenix_project=os.environ.get("PHOENIX_PROJECT_NAME") or "launchpilot-agent",
+        phoenix_use_mcp=(os.environ.get("PHOENIX_USE_MCP", "").upper() in ("TRUE", "1")),
         port=_int("PORT", 8000),
         signal_threshold_high=_float("SIGNAL_THRESHOLD_HIGH", 2.0),
         signal_threshold_low=_float("SIGNAL_THRESHOLD_LOW", 1.3),

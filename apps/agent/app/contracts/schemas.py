@@ -3,6 +3,10 @@
 Source of truth = the JSON Schema / OpenAPI / AsyncAPI files under contracts/.
 If those change, change here too. tests/test_contract_conformance.py validates
 the shipped contract example JSONs against these models.
+
+Conversation-first model (contract 02 v1.0): Java sends user turns to
+`POST /internal/agent/turns`; Python streams user-safe block messages over
+`WS /internal/agent/threads/{thread_id}/stream`.
 """
 from __future__ import annotations
 
@@ -36,65 +40,19 @@ class Confidence(str, Enum):
     high = "high"
 
 
-class AgentRunStatus(str, Enum):
-    PENDING = "PENDING"
-    RUNNING_SIGNAL_DETECTION = "RUNNING_SIGNAL_DETECTION"
-    RUNNING_EVIDENCE_SEARCH = "RUNNING_EVIDENCE_SEARCH"
-    RUNNING_HYPOTHESIS_GENERATION = "RUNNING_HYPOTHESIS_GENERATION"
-    RUNNING_EXPERIMENT_GENERATION = "RUNNING_EXPERIMENT_GENERATION"
-    WAITING_FOR_APPROVAL = "WAITING_FOR_APPROVAL"
-    SUCCESS = "SUCCESS"
-    FAILED = "FAILED"
-    CANCELLED = "CANCELLED"
+class BlockKind(str, Enum):
+    text = "text"
+    activity = "activity"
+    markdown_document = "markdown_document"
+    artifact = "artifact"
+    approval = "approval"
+    result = "result"
+    error = "error"
 
 
-class AgentRunStage(str, Enum):
-    IMPORT_METRICS = "IMPORT_METRICS"
-    DETECT_PERFORMANCE_SIGNAL = "DETECT_PERFORMANCE_SIGNAL"
-    GROUND_WITH_EVIDENCE = "GROUND_WITH_EVIDENCE"
-    GENERATE_HYPOTHESIS = "GENERATE_HYPOTHESIS"
-    DRAFT_EXPERIMENT_PLAN = "DRAFT_EXPERIMENT_PLAN"
-    WAIT_FOR_APPROVAL = "WAIT_FOR_APPROVAL"
-    APPLY_APPROVED_PLAN = "APPLY_APPROVED_PLAN"
-
-
-class AgentStepStatus(str, Enum):
-    PENDING = "PENDING"
-    IN_PROGRESS = "IN_PROGRESS"
-    SUCCEEDED = "SUCCEEDED"
-    FAILED = "FAILED"
-    SKIPPED = "SKIPPED"
-
-
-class AgentObservationKind(str, Enum):
-    progress = "progress"
-    evidence = "evidence"
-    signal = "signal"
-    hypothesis = "hypothesis"
-    plan = "plan"
-    warning = "warning"
-
-
-class AgentWorkflowEventType(str, Enum):
-    run_started = "run.started"
-    step_updated = "step.updated"
-    observation_created = "observation.created"
-    signal_detected = "signal.detected"
-    hypothesis_created = "hypothesis.created"
-    experiment_plan_drafted = "experiment_plan.drafted"
-    run_cancelled = "run.cancelled"
-    run_failed = "run.failed"
-
-
-class InternalAgentCommandType(str, Enum):
-    run_cancel = "run.cancel"
-
-
-class ToolCallStatus(str, Enum):
-    PENDING = "PENDING"
-    RUNNING = "RUNNING"
-    SUCCESS = "SUCCESS"
-    FAILED = "FAILED"
+class StreamRole(str, Enum):
+    assistant = "assistant"
+    system = "system"
 
 
 class ValidationSeverity(str, Enum):
@@ -118,8 +76,6 @@ class ValidationIssueCode(str, Enum):
 
 class ErrorCode(str, Enum):
     INVALID_REQUEST = "INVALID_REQUEST"
-    RUN_NOT_FOUND = "RUN_NOT_FOUND"
-    RUN_ID_CONFLICT = "RUN_ID_CONFLICT"
     AGENT_BUSY = "AGENT_BUSY"
     TOOL_CALL_FAILED = "TOOL_CALL_FAILED"
     GEMINI_FAILED = "GEMINI_FAILED"
@@ -127,14 +83,14 @@ class ErrorCode(str, Enum):
     INTERNAL_AGENT_ERROR = "INTERNAL_AGENT_ERROR"
 
 
-_RUN = r"^run_[A-Za-z0-9_]+$"
 _SIG = r"^sig_[A-Za-z0-9_]+$"
 _HYP = r"^hyp_[A-Za-z0-9_]+$"
 _EXP = r"^exp_[A-Za-z0-9_]+$"
 _PLAN = r"^plan_[A-Za-z0-9_]+$"
 _BRIEF = r"^brief_[A-Za-z0-9_]+$"
 _REQ = r"^req_[A-Za-z0-9_]+$"
-_TRC = r"^trc_[A-Za-z0-9_]+$"
+_MSG = r"^msg_[A-Za-z0-9_]+$"
+_THREAD = r"^thread_[A-Za-z0-9_]+$"
 
 
 # --------------------------------------------------------------------------
@@ -226,7 +182,7 @@ class ValidationReport(_Strict):
 
 
 # --------------------------------------------------------------------------
-# 02 REST run API
+# 02 REST turn API (Java -> Python)
 # --------------------------------------------------------------------------
 class TraceContext(_Strict):
     request_id: str = Field(pattern=_REQ)
@@ -234,60 +190,28 @@ class TraceContext(_Strict):
     otel_trace_id: Optional[str] = None
 
 
-class InternalAgentRunRequest(_Strict):
-    agent_run_id: str = Field(pattern=_RUN)
-    workspace_id: str = Field(min_length=1)
-    campaign_id: str = Field(min_length=1)
-    question: str = Field(min_length=1, max_length=2000)
-    date_range: DateRange
-    parent_brief_id: Optional[str] = Field(default=None, pattern=_BRIEF)
-    trace_context: TraceContext
+class AttachmentRef(_Strict):
+    kind: str  # csv_import | growth_brief | document | artifact
+    id: str
 
 
-class InternalAgentRunAcceptedResponse(_Strict):
+class InternalAgentTurn(_Strict):
+    # Inbound is intentionally lenient: Java currently sends trace_context=null
+    # and may send null workspace/campaign on a registry miss. Only thread_id +
+    # content are hard requirements so a valid turn is never rejected at 422.
+    thread_id: str = Field(pattern=_THREAD)
+    workspace_id: Optional[str] = None
+    campaign_id: Optional[str] = None
+    content: str = Field(min_length=1, max_length=4000)
+    attachments: list[AttachmentRef] = Field(default_factory=list)
+    client_created_at: Optional[str] = None
+    trace_context: Optional[TraceContext] = None
+
+
+class InternalAgentTurnAccepted(_Strict):
     ok: bool = True
-    agent_run_id: str = Field(pattern=_RUN)
-    status: str = "PENDING"
-    stream_url: str
-    snapshot_url: str
+    thread_id: str = Field(pattern=_THREAD)
     accepted_at: str
-
-
-class ToolCallLog(_Strict):
-    sequence: int = Field(ge=1)
-    tool_name: str
-    status: ToolCallStatus
-    duration_ms: Optional[int] = Field(default=None, ge=0)
-    error_message: Optional[str] = None
-
-
-class AgentDiagnostics(_Strict):
-    worker: Optional[str] = None
-    validator_passed: Optional[bool] = None
-    backtrack_count: int = Field(ge=0)
-    phoenix_reflection_used: bool
-    trace_id: Optional[str] = Field(default=None, pattern=_TRC)
-
-
-class InternalAgentRunStatusResponse(_Strict):
-    agent_run_id: str = Field(pattern=_RUN)
-    status: AgentRunStatus
-    current_stage: Optional[str] = None
-    retry_count: int = Field(ge=0)
-    error_message: Optional[str] = None
-    payload: Optional[AgentResultPayload] = None
-    tool_call_logs: list[ToolCallLog]
-    agent_diagnostics: AgentDiagnostics
-    started_at: Optional[str] = None
-    updated_at: str
-    completed_at: Optional[str] = None
-
-
-class InternalAgentRunCancelledResponse(_Strict):
-    ok: bool = True
-    agent_run_id: str = Field(pattern=_RUN)
-    status: str = "CANCELLED"
-    cancelled_at: str
 
 
 class ErrorBody(_Strict):
@@ -303,38 +227,15 @@ class ErrorResponse(_Strict):
 
 
 # --------------------------------------------------------------------------
-# 02 WS workflow stream
+# 02 WS block stream (Python -> Java)
 # --------------------------------------------------------------------------
-class AgentStepSnapshot(_Strict):
-    id: str
-    order: int = Field(ge=1)
-    stage: AgentRunStage
-    status: AgentStepStatus
-
-
-class AgentObservation(_Strict):
-    id: str
-    kind: AgentObservationKind
-    title: str
-    summary: str
-    evidence_refs: Optional[list[str]] = None
-
-
-class AgentWorkflowEvent(_Strict):
-    event_id: str
-    type: AgentWorkflowEventType
-    agent_run_id: str = Field(pattern=_RUN)
+class InternalStreamMessage(_Strict):
+    id: str = Field(pattern=_MSG)
+    thread_id: str = Field(pattern=_THREAD)
     sequence: int = Field(ge=1)
-    occurred_at: str
-    status: Optional[AgentRunStatus] = None
-    step: Optional[AgentStepSnapshot] = None
-    observation: Optional[AgentObservation] = None
-    payload: Optional[AgentResultPayload] = None
-    error_message: Optional[str] = None
-
-
-class InternalAgentCommand(_Strict):
-    command_id: str
-    type: InternalAgentCommandType
-    agent_run_id: str = Field(pattern=_RUN)
-    reason: Optional[str] = None
+    role: StreamRole
+    created_at: str
+    # Blocks are open dicts (kind + kind-specific fields) so the agent can emit
+    # the full block vocabulary without a model per variant. Each must carry a
+    # valid `kind`; the FE/Java contract (01) defines the per-kind fields.
+    blocks: list[dict] = Field(min_length=1)

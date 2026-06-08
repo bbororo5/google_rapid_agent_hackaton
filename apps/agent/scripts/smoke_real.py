@@ -1,10 +1,10 @@
-"""Real-mode smoke: one full pipeline run with tracing on.
+"""Real-mode smoke: one full pipeline turn with tracing on.
 
 Run from apps/agent with the repo-root .env present (GEMINI + PHOENIX keys):
     PYTHONPATH=. python scripts/smoke_real.py
 
-Prints the resolved modes, runs the orchestrator end-to-end, and reports the
-final status + payload summary. Exits non-zero on failure.
+Prints the resolved modes, processes one turn end-to-end, and reports the
+emitted block summary + final approval payload. Exits non-zero on failure.
 """
 from __future__ import annotations
 
@@ -12,10 +12,9 @@ import asyncio
 import sys
 
 from app.config import get_settings
-from app.contracts import DateRange, InternalAgentRunRequest, TraceContext
 from app.observability import init_tracing
-from app.orchestrator import execute
-from app.runtime.store import RunStore
+from app.orchestrator import process_turn
+from app.runtime.thread_store import ThreadStore
 
 
 async def main() -> int:
@@ -26,28 +25,27 @@ async def main() -> int:
 
     init_tracing()
 
-    req = InternalAgentRunRequest(
-        agent_run_id="run_smoke01",
-        workspace_id="demo_workspace",
-        campaign_id="camp_comeback_teaser",
-        question="What should we test next week?",
-        date_range=DateRange(start="2026-05-25", end="2026-05-31"),
-        trace_context=TraceContext(request_id="req_smoke", source="java-backend"),
-    )
-    record = RunStore().create(req)
-    await execute(record)
+    record = ThreadStore().get_or_create("thread_smoke01")
+    record.set_context("demo_workspace", "camp_comeback_teaser")
+    await process_turn(record, "What should we test next week?")
 
-    print(f"status={record.status.value} validator_passed={record.validator_passed} "
-          f"backtracks={record.backtrack_count}")
-    if record.error_message:
-        print(f"error={record.error_message}")
-    if record.payload:
-        print(f"signals={len(record.payload.signals)} "
-              f"hypotheses={len(record.payload.hypotheses)} "
-              f"experiments={len(record.payload.experiment_plan.items)}")
-        print("first experiment:", record.payload.experiment_plan.items[0].title)
+    all_blocks = [b for m in record.messages for b in m.blocks]
+    kinds = {b["kind"] for b in all_blocks}
+    print(f"messages={len(record.messages)} blocks={len(all_blocks)} kinds={sorted(kinds)}")
 
-    ok = record.status.value == "WAITING_FOR_APPROVAL"
+    approval = next((b for b in all_blocks if b["kind"] == "approval"), None)
+    if approval:
+        payload = approval["payload"]
+        print(f"signals={len(payload['signals'])} "
+              f"hypotheses={len(payload['hypotheses'])} "
+              f"experiments={len(payload['experiment_plan']['items'])}")
+        print("first experiment:", payload["experiment_plan"]["items"][0]["title"])
+
+    error = next((b for b in all_blocks if b["kind"] == "error"), None)
+    if error:
+        print(f"error={error['detail']}")
+
+    ok = approval is not None and error is None
     print("RESULT:", "OK" if ok else "FAIL")
     return 0 if ok else 1
 

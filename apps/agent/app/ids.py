@@ -31,6 +31,14 @@ def plan_id() -> str:
     return _new("plan")
 
 
+def message_id() -> str:
+    return _new("msg")
+
+
+def approval_id() -> str:
+    return _new("appr")
+
+
 def event_id() -> str:
     return _new("evt")
 
