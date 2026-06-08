@@ -26,7 +26,7 @@
       "properties": {
         "thread_id": {
           "type": "string",
-          "pattern": "^run_[A-Za-z0-9_]+$"
+          "pattern": "^thread_[A-Za-z0-9_]+$"
         },
         "workspace_id": {
           "type": "string"
@@ -195,7 +195,7 @@
         },
         "thread_id": {
           "type": "string",
-          "pattern": "^run_[A-Za-z0-9_]+$"
+          "pattern": "^thread_[A-Za-z0-9_]+$"
         },
         "session_id": {
           "type": "string"

@@ -1,6 +1,6 @@
 {
   "trace_id": "trc_20260601_001",
-  "thread_id": "run_20260601_001",
+  "thread_id": "thread_20260601_001",
   "session_id": "demo_workspace:camp_comeback_teaser",
   "spans": [
     {
@@ -15,7 +15,7 @@
         "output.mime_type": "application/json",
         "output.value": "{\"status\":\"WAITING_FOR_APPROVAL\"}",
         "metadata": {
-          "thread_id": "run_20260601_001",
+          "thread_id": "thread_20260601_001",
           "workspace_id": "demo_workspace",
           "campaign_id": "camp_comeback_teaser",
           "worker": "Central Orchestrator",
@@ -41,7 +41,7 @@
         "output.mime_type": "application/json",
         "output.value": "{\"stage\":\"validation_complete\"}",
         "metadata": {
-          "thread_id": "run_20260601_001",
+          "thread_id": "thread_20260601_001",
           "workspace_id": "demo_workspace",
           "campaign_id": "camp_comeback_teaser",
           "worker": "Central Orchestrator",
@@ -67,7 +67,7 @@
         "output.mime_type": "application/json",
         "output.value": "{\"evidence_refs\":[\"post_014\",\"post_017\"]}",
         "metadata": {
-          "thread_id": "run_20260601_001",
+          "thread_id": "thread_20260601_001",
           "workspace_id": "demo_workspace",
           "campaign_id": "camp_comeback_teaser",
           "worker": "Data Analyst Worker",
@@ -110,7 +110,7 @@
         "output.mime_type": "application/json",
         "output.value": "{\"evidence_refs\":[\"post_014\",\"post_017\"]}",
         "metadata": {
-          "thread_id": "run_20260601_001",
+          "thread_id": "thread_20260601_001",
           "workspace_id": "demo_workspace",
           "campaign_id": "camp_comeback_teaser",
           "worker": "Data Analyst Worker",
@@ -137,7 +137,7 @@
         "output.mime_type": "application/json",
         "output.value": "{\"signals\":[{\"id\":\"sig_001\"}]}",
         "metadata": {
-          "thread_id": "run_20260601_001",
+          "thread_id": "thread_20260601_001",
           "workspace_id": "demo_workspace",
           "campaign_id": "camp_comeback_teaser",
           "worker": "Data Analyst Worker",
@@ -167,7 +167,7 @@
         "output.mime_type": "application/json",
         "output.value": "{\"passed\":true,\"severity\":\"none\",\"issues\":[]}",
         "metadata": {
-          "thread_id": "run_20260601_001",
+          "thread_id": "thread_20260601_001",
           "workspace_id": "demo_workspace",
           "campaign_id": "camp_comeback_teaser",
           "worker": "Reviewer Gate Component",
@@ -193,7 +193,7 @@
         "output.mime_type": "application/json",
         "output.value": "{\"passed\":true,\"checks\":[\"schema\",\"evidence_refs\",\"id_links\"]}",
         "metadata": {
-          "thread_id": "run_20260601_001",
+          "thread_id": "thread_20260601_001",
           "workspace_id": "demo_workspace",
           "campaign_id": "camp_comeback_teaser",
           "worker": "Reviewer Gate Component",
