@@ -16,6 +16,7 @@ from app.agents import instructions
 from app.agents.output_schemas import (
     ExperimentPlanDraftOut,
     HypothesisDraftOut,
+    RouterOut,
     SignalDraftOut,
 )
 from app.config import get_settings
@@ -61,7 +62,25 @@ def _build_agents():
         output_schema=ExperimentPlanDraftOut,
         output_key="experiment_plan",
     )
-    return {"analyst": analyst, "strategist": strategist, "writer": writer}
+    # Chat: free conversation. No tools, no output_schema -> plain text reply.
+    chat = LlmAgent(
+        name="chat",
+        model=model,
+        description="Conversational replies about campaign growth work.",
+        instruction=instructions.CHAT,
+    )
+    # Router: one fast call -> {intent, reply}. Classifies the turn and, for
+    # non-analysis turns, writes the steering reply in the same pass.
+    router = LlmAgent(
+        name="router",
+        model=model,
+        description="Classifies a turn's intent and drafts a chat reply.",
+        instruction=instructions.ROUTER,
+        output_schema=RouterOut,
+        output_key="route",
+    )
+    return {"analyst": analyst, "strategist": strategist, "writer": writer,
+            "chat": chat, "router": router}
 
 
 async def run_structured(kind: str, user_text: str) -> dict:
@@ -91,3 +110,28 @@ async def run_structured(kind: str, user_text: str) -> dict:
         raise RuntimeError(f"{kind}: empty agent response")
     # output_schema guarantees the final text is schema-conforming JSON.
     return json.loads(final_text)
+
+
+async def run_text(kind: str, user_text: str) -> str:
+    """Run one agent and return its plain-text reply (no output_schema)."""
+    from google.adk.runners import Runner
+    from google.adk.sessions import InMemorySessionService
+    from google.genai import types
+
+    agent = _build_agents()[kind]
+    session_service = InMemorySessionService()
+    runner = Runner(agent=agent, app_name=_APP, session_service=session_service)
+    sid = f"sess_{uuid.uuid4().hex[:8]}"
+    await session_service.create_session(app_name=_APP, user_id="orchestrator", session_id=sid)
+
+    content = types.Content(role="user", parts=[types.Part(text=user_text)])
+    final_text: str | None = None
+    async for event in runner.run_async(
+        user_id="orchestrator", session_id=sid, new_message=content
+    ):
+        if event.is_final_response() and event.content and event.content.parts:
+            final_text = event.content.parts[0].text
+
+    if not final_text:
+        raise RuntimeError(f"{kind}: empty agent response")
+    return final_text

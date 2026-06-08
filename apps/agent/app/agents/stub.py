@@ -27,7 +27,20 @@ from app.tools import evidence
 
 # Demo probe order (agent-tool-spec §6: save_rate first). Each entry is the
 # (metric, channel) pair the analyst checks for a baseline lift.
-_PROBE = [("save_rate", "tiktok"), ("save_rate", "youtube"), ("shares", "tiktok")]
+_PROBE = [
+    ("save_rate", "tiktok"),
+    ("save_rate", "youtube"),
+    ("save_rate", "instagram"),
+    ("shares", "tiktok"),
+    ("shares", "x"),
+    ("shares", "instagram"),
+    ("comments", "x"),
+    ("comments", "tiktok"),
+    ("views", "tiktok"),
+    ("views", "x"),
+    ("views", "youtube"),
+    ("watch_time", "youtube"),
+]
 
 
 def _confidence(lift: float) -> Confidence:
@@ -163,3 +176,24 @@ def writer(hypotheses: list[Hypothesis], date_range: DateRange) -> ExperimentPla
         items=items,
     )
     return ExperimentPlanDraftOutput(experiment_plan=plan)
+
+
+def chat(content: str, context: str = "") -> str:
+    # Deterministic, context-aware steering reply (no LLM). Mirrors what the
+    # Gemini chat agent does in real mode: answer briefly, then point at the
+    # next concrete step based on thread state.
+    if context == "need_csv":
+        return ("Happy to help. Just say \"analyze\" and I'll work through the existing "
+                "baseline data, or attach a fresh campaign metrics CSV first for the "
+                "latest read - either way I'll surface signals and draft experiments.")
+    if context == "need_csv_quiet":
+        return ("Happy to help. Say \"analyze\" whenever you want me to work through the "
+                "baseline data and draft experiments.")
+    if context == "ready_to_analyze":
+        return ("Your campaign metrics are ready. Say \"analyze\" and I'll work "
+                "through signals -> hypotheses -> experiment plan.")
+    if context == "analysis_done":
+        return ("Please review the analysis and experiment plan above. Let me know "
+                "if you'd like to edit anything or look at it from another angle.")
+    return ("Got it. I understand this is about campaign experiment design. "
+            "If you'd like an analysis, attach your campaign metrics CSV.")

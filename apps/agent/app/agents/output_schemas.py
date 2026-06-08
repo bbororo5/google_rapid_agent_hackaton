@@ -65,6 +65,11 @@ class ExperimentPlanOut(BaseModel):
     items: list[ExperimentItemOut]
 
 
+class RouterOut(BaseModel):
+    intent: str  # "analyze" | "chat"
+    reply: str   # conversational reply, used when intent != "analyze"
+
+
 class SignalDraftOut(BaseModel):
     signals: list[SignalOut]
 
