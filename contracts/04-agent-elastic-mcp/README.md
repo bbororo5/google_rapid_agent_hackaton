@@ -98,7 +98,7 @@ Request:
 
 ```json
 {
-  "thread_id": "run_20260601_001",
+  "thread_id": "thread_20260601_001",
   "workspace_id": "demo_workspace",
   "campaign_id": "camp_comeback_teaser",
   "date_range": {
@@ -142,7 +142,7 @@ Request:
 
 ```json
 {
-  "thread_id": "run_20260601_001",
+  "thread_id": "thread_20260601_001",
   "workspace_id": "demo_workspace",
   "campaign_id": "camp_comeback_teaser",
   "metric_name": "save_rate",
