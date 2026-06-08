@@ -50,6 +50,14 @@ public class AgentStreamSessionRegistry {
         }
     }
 
+    /** Send one message to a single session (used to replay history on connect). */
+    public void sendOne(WebSocketSession session, StreamMessage message) {
+        String json = serialize(message);
+        if (json != null) {
+            send(session, json);
+        }
+    }
+
     private String serialize(StreamMessage event) {
         try {
             return mapper.writeValueAsString(event);

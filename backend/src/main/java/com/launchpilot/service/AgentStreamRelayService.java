@@ -1,5 +1,6 @@
 package com.launchpilot.service;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.launchpilot.client.AgentServiceClient;
 import com.launchpilot.client.AgentWorkflowStreamClient;
@@ -7,6 +8,7 @@ import com.launchpilot.dto.common.AgentResultPayload;
 import com.launchpilot.dto.common.AgentStreamClientCommand;
 import com.launchpilot.dto.common.ApprovalCommitResult;
 import com.launchpilot.dto.common.ApprovalGateRequest;
+import com.launchpilot.dto.common.ExperimentItem;
 import com.launchpilot.dto.common.MessageSendAction;
 import com.launchpilot.dto.common.StreamMessage;
 import com.launchpilot.dto.internal.InternalAgentTurnRequest;
@@ -20,6 +22,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.socket.WebSocketSession;
 
@@ -34,8 +37,11 @@ public class AgentStreamRelayService {
     private final AgentWorkflowStreamClient pythonStream;
     private final AgentServiceClient agent;
     private final BusinessDataService business;
+    private final AgentThreadRegistry threads;
     private final IdGenerator ids;
     private final ObjectMapper mapper;
+    private final String demoWorkspaceId;
+    private final String demoCampaignId;
 
     private final Map<String, ApprovalGateRequest> gates = new ConcurrentHashMap<>();
     private final Set<String> processedCommands = ConcurrentHashMap.newKeySet();
@@ -47,20 +53,46 @@ public class AgentStreamRelayService {
             AgentWorkflowStreamClient pythonStream,
             AgentServiceClient agent,
             BusinessDataService business,
+            AgentThreadRegistry threads,
             IdGenerator ids,
-            ObjectMapper mapper) {
+            ObjectMapper mapper,
+            @Value("${launchpilot.demo.workspace-id:demo_workspace}") String demoWorkspaceId,
+            @Value("${launchpilot.demo.campaign-id:camp_comeback_teaser}") String demoCampaignId) {
         this.timeline = timeline;
         this.sessions = sessions;
         this.pythonStream = pythonStream;
         this.agent = agent;
         this.business = business;
+        this.threads = threads;
         this.ids = ids;
         this.mapper = mapper;
+        this.demoWorkspaceId = demoWorkspaceId;
+        this.demoCampaignId = demoCampaignId;
     }
 
     public void ensureStarted(String threadId) {
         if (startedThreads.add(threadId)) {
             pythonStream.connect(threadId, this::onWorkflowEvent);
+        }
+    }
+
+    /** Replay a thread's committed timeline to a freshly connected session (survives FE refresh). */
+    public void replayHistory(String threadId, WebSocketSession session) {
+        List<StreamMessage> history = timeline.events(threadId);
+        if (history.isEmpty()) {
+            return;
+        }
+        log.info("replay thread={} messages={} -> session {}", threadId, history.size(), session.getId());
+        for (StreamMessage message : history) {
+            sessions.sendOne(session, message);
+        }
+        // Re-arm the approval gate so Approve still works after a reconnect.
+        if (!gates.containsKey(threadId)) {
+            for (StreamMessage message : history) {
+                if (message.blocks() != null) {
+                    captureApprovalGate(threadId, message.blocks());
+                }
+            }
         }
     }
 
@@ -72,32 +104,74 @@ public class AgentStreamRelayService {
             return;
         }
 
-        commitAndBroadcast(threadId, "user", List.of(textBlock(cmd.content().trim())));
-        sendTurnToAgentCore(threadId, cmd);
-
         MessageSendAction action = cmd.action();
-        if (action != null && "approve".equals(action.name())) {
-            approve(threadId, action);
-        } else if (action != null && ("reject".equals(action.name()) || "cancel".equals(action.name()))) {
-            commitAndBroadcast(threadId, "system", List.of(resultBlock(
-                    "cancel".equals(action.name()) ? "Run cancelled" : "Approval rejected",
-                    cmd.content().trim())));
+        log.info("command thread={} action={} content=\"{}\"", threadId,
+                action != null ? action.name() : "none", abbreviate(cmd.content().trim()));
+
+        // Always echo the user's message into the public timeline.
+        commitAndBroadcast(threadId, "user", List.of(textBlock(cmd.content().trim())));
+
+        // Structured actions are deterministic: Java executes them and they never
+        // reach the probabilistic agent. Free-form content goes to the agent core.
+        if (action != null && action.name() != null) {
+            handleAction(threadId, action, cmd.content().trim());
+            return;
+        }
+        sendTurnToAgentCore(threadId, cmd);
+    }
+
+    private static String abbreviate(String s) {
+        return s.length() <= 80 ? s : s.substring(0, 80) + "...";
+    }
+
+    private void handleAction(String threadId, MessageSendAction action, String content) {
+        switch (action.name()) {
+            case "approve" -> approve(threadId, action);
+            case "reject" -> commitAndBroadcast(threadId, "system",
+                    List.of(resultBlock("Approval rejected", content)));
+            case "cancel" -> commitAndBroadcast(threadId, "system",
+                    List.of(resultBlock("Run cancelled", content)));
+            case "revise_artifact" -> {
+                // MVP: visual-only edit; the final edited list arrives with approve.final_experiments.
+            }
+            default -> log.debug("ignoring unknown action {} (thread {})", action.name(), threadId);
         }
     }
 
     private void sendTurnToAgentCore(String threadId, AgentStreamClientCommand cmd) {
+        AgentThreadRegistry.RunContext ctx = resolveContext(threadId);
+        log.info("-> POST /turns thread={} ws={} camp={}", threadId,
+                ctx.workspaceId(), ctx.campaignId());
         try {
             agent.sendTurn(new InternalAgentTurnRequest(
                     threadId,
-                    null,
-                    null,
+                    ctx.workspaceId(),
+                    ctx.campaignId(),
                     cmd.content().trim(),
                     List.of(),
                     cmd.clientCreatedAt(),
                     null));
+            log.info("<- /turns accepted thread={}", threadId);
         } catch (Exception e) {
             log.warn("agent turn submit failed (thread {}): {}", threadId, e.getMessage());
         }
+    }
+
+    /**
+     * Resolve the workspace/campaign context for a thread, registering a live
+     * chat thread that import never registered. Falls back to the most recent
+     * import's context, then to the configured demo defaults, so the agent
+     * always receives a workspace/campaign to scope its evidence queries.
+     */
+    private AgentThreadRegistry.RunContext resolveContext(String threadId) {
+        var existing = threads.get(threadId);
+        if (existing.isPresent()) {
+            return existing.get();
+        }
+        AgentThreadRegistry.RunContext ctx = threads.last().orElseGet(
+                () -> new AgentThreadRegistry.RunContext(demoWorkspaceId, demoCampaignId));
+        threads.put(threadId, ctx);
+        return ctx;
     }
 
     private void onWorkflowEvent(String threadId, StreamMessage message) {
@@ -105,6 +179,8 @@ public class AgentStreamRelayService {
         if (blocks.isEmpty()) {
             return;
         }
+        log.info("<- python block thread={} seq={} kinds={}", threadId, message.sequence(),
+                blocks.stream().map(b -> String.valueOf(b.get("kind"))).toList());
         captureApprovalGate(threadId, blocks);
         commitAndBroadcast(threadId, message.role() == null ? "assistant" : message.role(), blocks);
     }
@@ -138,16 +214,39 @@ public class AgentStreamRelayService {
             return;
         }
 
-        ApproveExperimentPlanResponse resp = business.approvePayload(threadId, gate.payload(),
-                new ApproveExperimentPlanRequest(
-                        gate.payload().experimentPlan().id(),
-                        "message.send",
-                        gate.payload().experimentPlan().items()));
+        // Chat threads that reached approval without a prior free-form turn (or
+        // after a backend restart that dropped the in-memory registry) won't have
+        // a registered context. Lazy-register with the same fallback the turn path
+        // uses so approvePayload never throws "missing thread context".
+        resolveContext(threadId);
+
+        ApproveExperimentPlanResponse resp;
+        try {
+            resp = business.approvePayload(threadId, gate.payload(),
+                    new ApproveExperimentPlanRequest(
+                            gate.payload().experimentPlan().id(),
+                            "message.send",
+                            resolveFinalExperiments(action, gate)));
+        } catch (Exception e) {
+            log.error("approve failed (thread {}): {}", threadId, e.getMessage(), e);
+            commitAndBroadcast(threadId, "system", List.of(errorBlock(
+                    "Approval failed", "Could not persist the experiment plan: " + e.getMessage())));
+            return;
+        }
 
         ApprovalCommitResult result = new ApprovalCommitResult(
                 gate.approvalId(), resp.growthBriefId(), resp.createdCalendarEvents(), resp.persistedAt());
         commitAndBroadcast(threadId, "assistant", List.of(resultBlock(result)));
         gates.remove(threadId);
+    }
+
+    /** Prefer the user's edited final list (revise/select), else the drafted plan items. */
+    private List<ExperimentItem> resolveFinalExperiments(MessageSendAction action, ApprovalGateRequest gate) {
+        Object edited = action.payload() == null ? null : action.payload().get("final_experiments");
+        if (edited != null) {
+            return mapper.convertValue(edited, new TypeReference<List<ExperimentItem>>() {});
+        }
+        return gate.payload().experimentPlan().items();
     }
 
     private void commitAndBroadcast(String threadId, String role, List<Map<String, Object>> blocks) {

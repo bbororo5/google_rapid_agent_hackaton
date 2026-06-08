@@ -32,6 +32,12 @@ public class AgentThreadTimeline {
         return message;
     }
 
+    /** Past messages for a thread, in commit order. Used to replay on (re)connect. */
+    public synchronized List<StreamMessage> events(String threadId) {
+        List<StreamMessage> list = events.get(threadId);
+        return list == null ? List.of() : new ArrayList<>(list);
+    }
+
     private String stripThread(String threadId) {
         return threadId.startsWith("thread_") ? threadId.substring("thread_".length()) : threadId;
     }

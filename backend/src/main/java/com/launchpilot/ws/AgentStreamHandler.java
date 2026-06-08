@@ -45,6 +45,8 @@ public class AgentStreamHandler extends TextWebSocketHandler {
         session.getAttributes().put(THREAD_ID_ATTR, threadId);
         sessions.register(threadId, session);
         relay.ensureStarted(threadId);
+        // Replay any committed history so a refreshed/reconnected client rebuilds its thread.
+        relay.replayHistory(threadId, session);
     }
 
     @Override

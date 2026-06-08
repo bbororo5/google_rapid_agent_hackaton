@@ -17,17 +17,30 @@ public class AgentThreadRegistry {
     public record RunContext(String workspaceId, String campaignId) {}
 
     private final Map<String, RunContext> store = new ConcurrentHashMap<>();
+    private volatile RunContext last;
 
     /**
      * Store or replace the routing context for the given thread ID in the registry.
      *
      * If an entry already exists for the provided `threadId`, it is replaced with `ctx`.
+     * Also records `ctx` as the most-recent context (see {@link #last()}).
      *
      * @param threadId the identifier of the thread used as the registry key
      * @param ctx the routing context containing `workspaceId` and `campaignId`
      */
     public void put(String threadId, RunContext ctx) {
         store.put(threadId, ctx);
+        last = ctx;
+    }
+
+    /**
+     * The most recently registered context (e.g. the latest CSV import), used to
+     * bind a live chat thread that was never explicitly registered.
+     *
+     * @return the last RunContext put into the registry, or empty if none yet
+     */
+    public Optional<RunContext> last() {
+        return Optional.ofNullable(last);
     }
 
     /**

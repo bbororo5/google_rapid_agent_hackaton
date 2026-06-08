@@ -2,6 +2,8 @@ package com.launchpilot.client;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.launchpilot.dto.common.StreamMessage;
+import jakarta.websocket.ContainerProvider;
+import jakarta.websocket.WebSocketContainer;
 import java.util.function.BiConsumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,15 +24,29 @@ public class AgentWorkflowStreamClient {
 
     private static final Logger log = LoggerFactory.getLogger(AgentWorkflowStreamClient.class);
 
+    // The approval message bundles the whole AgentResultPayload (signals +
+    // hypotheses + experiment plan) and runs ~20-40KB. The JSR-356 default text
+    // buffer is 8KB, so an oversized frame silently closes the session (1009) and
+    // the relay never sees the approval gate. Give the receive buffer generous
+    // headroom (4MB) so no single block frame can drop the stream.
+    private static final int MAX_TEXT_BUFFER_BYTES = 4 * 1024 * 1024;
+
     private final ObjectMapper mapper;
     private final String wsBaseUrl;
-    private final StandardWebSocketClient client = new StandardWebSocketClient();
+    private final StandardWebSocketClient client = largeBufferClient();
 
     public AgentWorkflowStreamClient(
             ObjectMapper mapper,
             @Value("${agent.service.url}") String agentServiceUrl) {
         this.mapper = mapper;
         this.wsBaseUrl = toWs(agentServiceUrl);
+    }
+
+    private static StandardWebSocketClient largeBufferClient() {
+        WebSocketContainer container = ContainerProvider.getWebSocketContainer();
+        container.setDefaultMaxTextMessageBufferSize(MAX_TEXT_BUFFER_BYTES);
+        container.setDefaultMaxBinaryMessageBufferSize(MAX_TEXT_BUFFER_BYTES);
+        return new StandardWebSocketClient(container);
     }
 
     /**
