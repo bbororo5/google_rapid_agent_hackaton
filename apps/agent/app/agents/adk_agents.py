@@ -9,7 +9,11 @@ interleaves deterministic review + WS events + backtracking between workers.
 """
 from __future__ import annotations
 
+import asyncio
 import json
+import logging
+import os
+import time
 import uuid
 
 from app.agents import instructions
@@ -23,6 +27,13 @@ from app.config import get_settings
 from app.tools import evidence
 
 _APP = "launchpilot"
+
+_log = logging.getLogger("launchpilot.adk")
+# Hard ceiling per worker LLM call. Without this a hung Gemini/Vertex connection
+# (intermittent ConnectError that the SDK keeps retrying) stalls the whole
+# pipeline forever and the turn looks "stuck". On timeout we raise, which the
+# orchestrator turns into a visible retryable error block.
+_LLM_TIMEOUT_S = float(os.environ.get("LLM_CALL_TIMEOUT_S", "90"))
 
 
 def _build_agents():
@@ -83,6 +94,26 @@ def _build_agents():
             "chat": chat, "router": router}
 
 
+async def _run_with_timeout(kind: str, shape: str, collect):
+    """Await `collect()` under a hard timeout, logging start/elapsed/timeout.
+
+    Makes each worker's Gemini call visible in the logs and prevents a hung
+    connection from stalling the pipeline indefinitely.
+    """
+    model = get_settings().gemini_model
+    t0 = time.monotonic()
+    _log.info("worker %s: gemini call start (model=%s shape=%s timeout=%.0fs)",
+              kind, model, shape, _LLM_TIMEOUT_S)
+    try:
+        result = await asyncio.wait_for(collect(), timeout=_LLM_TIMEOUT_S)
+    except asyncio.TimeoutError:
+        _log.error("worker %s: gemini call TIMED OUT after %.0fs (model=%s)",
+                   kind, _LLM_TIMEOUT_S, model)
+        raise RuntimeError(f"{kind}: gemini call timed out after {_LLM_TIMEOUT_S:.0f}s")
+    _log.info("worker %s: gemini call done in %dms", kind, int((time.monotonic() - t0) * 1000))
+    return result
+
+
 async def run_structured(kind: str, user_text: str) -> dict:
     """Run one worker agent and return its parsed JSON output (a dict)."""
     from google.adk.runners import Runner
@@ -98,14 +129,18 @@ async def run_structured(kind: str, user_text: str) -> dict:
     await session_service.create_session(app_name=_APP, user_id="orchestrator", session_id=sid)
 
     content = types.Content(role="user", parts=[types.Part(text=user_text)])
-    final_text: str | None = None
-    # run_async yields a stream of events; the structured JSON is on the final one.
-    async for event in runner.run_async(
-        user_id="orchestrator", session_id=sid, new_message=content
-    ):
-        if event.is_final_response() and event.content and event.content.parts:
-            final_text = event.content.parts[0].text
 
+    async def _collect() -> str | None:
+        final_text: str | None = None
+        # run_async yields a stream of events; the structured JSON is on the final one.
+        async for event in runner.run_async(
+            user_id="orchestrator", session_id=sid, new_message=content
+        ):
+            if event.is_final_response() and event.content and event.content.parts:
+                final_text = event.content.parts[0].text
+        return final_text
+
+    final_text = await _run_with_timeout(kind, "structured", _collect)
     if not final_text:
         raise RuntimeError(f"{kind}: empty agent response")
     # output_schema guarantees the final text is schema-conforming JSON.
@@ -125,13 +160,17 @@ async def run_text(kind: str, user_text: str) -> str:
     await session_service.create_session(app_name=_APP, user_id="orchestrator", session_id=sid)
 
     content = types.Content(role="user", parts=[types.Part(text=user_text)])
-    final_text: str | None = None
-    async for event in runner.run_async(
-        user_id="orchestrator", session_id=sid, new_message=content
-    ):
-        if event.is_final_response() and event.content and event.content.parts:
-            final_text = event.content.parts[0].text
 
+    async def _collect() -> str | None:
+        final_text: str | None = None
+        async for event in runner.run_async(
+            user_id="orchestrator", session_id=sid, new_message=content
+        ):
+            if event.is_final_response() and event.content and event.content.parts:
+                final_text = event.content.parts[0].text
+        return final_text
+
+    final_text = await _run_with_timeout(kind, "text", _collect)
     if not final_text:
         raise RuntimeError(f"{kind}: empty agent response")
     return final_text

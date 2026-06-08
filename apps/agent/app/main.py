@@ -7,6 +7,7 @@ LaunchPilot contract, not ADK's default routes.
 from __future__ import annotations
 
 import logging
+import os
 import sys
 from contextlib import asynccontextmanager
 
@@ -18,14 +19,29 @@ from app.observability import init_tracing
 
 # Dedicated app logger to stdout so per-stage pipeline logs show in `docker logs`
 # regardless of uvicorn's own logging config. Children: launchpilot.orchestrator,
-# launchpilot.turns, etc. Filter live with: docker compose logs -f agent | grep launchpilot
+# launchpilot.turns, launchpilot.adk, etc. Filter live with:
+#   docker compose logs -f agent | grep launchpilot
+# Levels are env-tunable: AGENT_LOG_LEVEL (our logs, default INFO) and
+# AGENT_LOG_LIBS (the underlying Gemini/HTTP libs, default WARNING). Set
+# AGENT_LOG_LIBS=INFO (or DEBUG) to watch every LLM request + retry/ConnectError.
+_LEVEL = os.environ.get("AGENT_LOG_LEVEL", "INFO").upper()
+_LIB_LEVEL = os.environ.get("AGENT_LOG_LIBS", "WARNING").upper()
+_handler = logging.StreamHandler(sys.stdout)
+_handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s"))
+
 _app_log = logging.getLogger("launchpilot")
 if not _app_log.handlers:
-    _handler = logging.StreamHandler(sys.stdout)
-    _handler.setFormatter(logging.Formatter("%(levelname)s %(name)s: %(message)s"))
     _app_log.addHandler(_handler)
-    _app_log.setLevel(logging.INFO)
+    _app_log.setLevel(_LEVEL)
     _app_log.propagate = False
+
+# Surface the underlying LLM/HTTP stack on the same stream so a hung or retrying
+# Gemini/Vertex call is visible instead of looking like a silent stall.
+for _name in ("google_genai", "google.adk", "google.genai", "httpx", "httpcore"):
+    _lib = logging.getLogger(_name)
+    if _handler not in _lib.handlers:
+        _lib.addHandler(_handler)
+    _lib.setLevel(_LIB_LEVEL)
 
 
 @asynccontextmanager
