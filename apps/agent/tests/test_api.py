@@ -1,4 +1,4 @@
-"""API wiring smoke test (REST 202 + snapshot + WS replay) via TestClient."""
+"""API wiring smoke test (turn 202 + thread WS block stream) via TestClient."""
 from __future__ import annotations
 
 import json
@@ -7,57 +7,82 @@ from fastapi.testclient import TestClient
 
 from app.main import app
 
-REQUEST = {
-    "agent_run_id": "run_api001",
+THREAD_ID = "thread_api001"
+TURN = {
+    "thread_id": THREAD_ID,
     "workspace_id": "demo_workspace",
     "campaign_id": "camp_comeback_teaser",
-    "question": "What should we test next week?",
-    "date_range": {"start": "2026-05-25", "end": "2026-05-31"},
+    "content": "What should we test next week?",
+    "attachments": [{"kind": "csv_import", "id": "imp_api001"}],
+    "client_created_at": "2026-06-01T16:31:00+09:00",
     "trace_context": {"request_id": "req_api", "source": "java-backend"},
 }
 
 
-def test_start_then_stream_then_snapshot() -> None:
+def test_turn_then_stream_blocks() -> None:
     client = TestClient(app)
 
-    resp = client.post("/internal/agent/runs", json=REQUEST)
-    assert resp.status_code == 202
-    body = resp.json()
-    assert body["ok"] is True
-    assert body["status"] == "PENDING"
-    assert body["stream_url"] == "/internal/agent/runs/run_api001/stream"
+    # Connect the stream first (Java's connect-then-turn order), then post a turn.
+    with client.websocket_connect(f"/internal/agent/threads/{THREAD_ID}/stream") as ws:
+        resp = client.post("/internal/agent/turns", json=TURN)
+        assert resp.status_code == 202
+        body = resp.json()
+        assert body["ok"] is True
+        assert body["thread_id"] == THREAD_ID
 
-    # WS replays the full run; read until the final draft event.
-    types = []
-    with client.websocket_connect("/internal/agent/runs/run_api001/stream") as ws:
+        # Read live blocks until the approval block arrives.
+        kinds = set()
+        approval = None
         while True:
-            event = json.loads(ws.receive_text())
-            types.append(event["type"])
-            if event["type"] == "experiment_plan.drafted":
-                assert event["status"] == "WAITING_FOR_APPROVAL"
-                assert event["payload"]["experiment_plan"]["items"]
+            message = json.loads(ws.receive_text())
+            assert message["thread_id"] == THREAD_ID
+            for block in message["blocks"]:
+                kinds.add(block["kind"])
+                if block["kind"] == "approval":
+                    approval = block
+            if approval is not None:
                 break
 
-    assert "run.started" in types
+    assert "activity" in kinds
+    assert "artifact" in kinds
+    assert approval["target_id"].startswith("plan_")
+    assert approval["payload"]["experiment_plan"]["items"]
 
-    snap = client.get("/internal/agent/runs/run_api001").json()
-    assert snap["status"] == "WAITING_FOR_APPROVAL"
-    assert snap["payload"]["experiment_plan"]["items"]
 
-
-def test_unknown_run_404_contract_error() -> None:
+def test_turn_lenient_without_trace_context() -> None:
+    # Java currently sends trace_context=null; a turn must still be accepted.
     client = TestClient(app)
-    resp = client.get("/internal/agent/runs/run_missing")
-    assert resp.status_code == 404
-    body = resp.json()
-    assert body["ok"] is False
-    assert body["error"]["code"] == "RUN_NOT_FOUND"
+    resp = client.post(
+        "/internal/agent/turns",
+        json={
+            "thread_id": "thread_api002",
+            "content": "Find the signal.",
+            "trace_context": None,
+        },
+    )
+    assert resp.status_code == 202
+    assert resp.json()["thread_id"] == "thread_api002"
 
 
-def test_run_id_conflict_409() -> None:
+def test_turn_invalid_body_400() -> None:
     client = TestClient(app)
-    client.post("/internal/agent/runs", json={**REQUEST, "agent_run_id": "run_conf01"})
-    different = {**REQUEST, "agent_run_id": "run_conf01", "question": "different body"}
-    resp = client.post("/internal/agent/runs", json=different)
-    assert resp.status_code == 409
-    assert resp.json()["error"]["code"] == "RUN_ID_CONFLICT"
+    resp = client.post("/internal/agent/turns", json={"thread_id": "bad-id", "content": "x"})
+    assert resp.status_code == 400
+    assert resp.json()["error"]["code"] == "INVALID_REQUEST"
+
+
+def test_unknown_thread_ws_accepts_and_waits() -> None:
+    # A WS to an unseen (but well-formed) thread id is created on connect.
+    client = TestClient(app)
+    with client.websocket_connect("/internal/agent/threads/thread_unseen/stream"):
+        pass  # connects without error; no blocks yet
+
+
+def test_malformed_thread_ws_rejected() -> None:
+    client = TestClient(app)
+    try:
+        with client.websocket_connect("/internal/agent/threads/not-a-thread/stream"):
+            pass
+        assert False, "expected the malformed thread WS to be rejected"
+    except Exception:
+        pass

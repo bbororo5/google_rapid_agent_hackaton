@@ -1,71 +1,109 @@
 """Golden path end-to-end in STUB mode (no LLM, no Elastic).
 
-Drives the orchestrator like the API would and asserts the run reaches
-WAITING_FOR_APPROVAL with a contract-valid payload and contract-valid events.
+Drives the orchestrator like the turn API would and asserts the thread reaches
+an approval block carrying a contract-valid payload, with contract-valid blocks.
 """
 from __future__ import annotations
 
 import pytest
 
 from app import orchestrator
-from app.contracts import (
-    AgentRunStatus,
-    AgentWorkflowEvent,
-    AgentWorkflowEventType,
-    DateRange,
-    InternalAgentRunRequest,
-    TraceContext,
-)
-from app.runtime.store import RunStore
+from app.contracts import AgentResultPayload, InternalStreamMessage, StreamRole
+from app.runtime.thread_store import ThreadStore
 
 
-def _request() -> InternalAgentRunRequest:
-    return InternalAgentRunRequest(
-        agent_run_id="run_test123",
-        workspace_id="demo_workspace",
-        campaign_id="camp_comeback_teaser",
-        question="What should we test next week?",
-        date_range=DateRange(start="2026-05-25", end="2026-05-31"),
-        trace_context=TraceContext(request_id="req_abc", source="java-backend"),
+def _blocks(record):
+    return [b for m in record.messages for b in m.blocks]
+
+
+@pytest.mark.asyncio
+async def test_first_turn_reaches_approval() -> None:
+    store = ThreadStore()
+    record = store.get_or_create("thread_test123")
+    record.set_context("demo_workspace", "camp_comeback_teaser")
+
+    await orchestrator.process_turn(record, "What should we test next week?")
+
+    # Sequence is monotonic from 1.
+    seqs = [m.sequence for m in record.messages]
+    assert seqs == list(range(1, len(seqs) + 1))
+
+    # Every message is contract-valid.
+    for m in record.messages:
+        InternalStreamMessage.model_validate(m.model_dump(mode="json"))
+
+    kinds = {b["kind"] for b in _blocks(record)}
+    assert "activity" in kinds
+    assert "artifact" in kinds
+    assert "approval" in kinds
+
+    # The approval block carries a contract-valid payload and a plan target.
+    approval = next(b for b in _blocks(record) if b["kind"] == "approval")
+    assert approval["target_id"].startswith("plan_")
+    payload = AgentResultPayload.model_validate(approval["payload"])
+    assert payload.signals
+    assert payload.hypotheses
+    assert payload.experiment_plan.items
+
+
+@pytest.mark.asyncio
+async def test_second_turn_is_free_chat() -> None:
+    store = ThreadStore()
+    record = store.get_or_create("thread_test456")
+    record.set_context("demo_workspace", "camp_comeback_teaser")  # data present -> analyze
+
+    await orchestrator.process_turn(record, "Find the signal.")
+    first_count = len(record.messages)
+    await orchestrator.process_turn(record, "고마워, 다른 건 없어?")
+
+    # The follow-up turn adds a single assistant text reply (no new pipeline).
+    extra = record.messages[first_count:]
+    assert len(extra) == 1
+    assert extra[0].role == StreamRole.assistant
+    assert extra[0].blocks[0]["kind"] == "text"
+    assert not any(b["kind"] == "approval" for b in extra[0].blocks)
+
+
+@pytest.mark.asyncio
+async def test_chat_without_data_steers_to_csv() -> None:
+    store = ThreadStore()
+    record = store.get_or_create("thread_chat1")
+
+    # No data, no analysis keyword -> chat reply that steers to uploading a CSV.
+    await orchestrator.process_turn(record, "안녕하세요")
+
+    assert len(record.messages) == 1
+    block = record.messages[0].blocks[0]
+    assert block["kind"] == "text"
+    assert "CSV" in block["text"]
+    assert not record.pipeline_started  # chat must not start the pipeline
+
+
+@pytest.mark.asyncio
+async def test_analyze_without_csv_runs_pipeline_on_baseline() -> None:
+    store = ThreadStore()
+    record = store.get_or_create("thread_chat2")
+
+    # CSV is new data; with no fresh upload, analysis still runs on the existing
+    # baseline data already in Elastic.
+    await orchestrator.process_turn(record, "분석해줘")
+
+    assert record.pipeline_started
+    assert any(
+        b["kind"] == "approval" for m in record.messages for b in m.blocks
     )
 
 
 @pytest.mark.asyncio
-async def test_golden_path_reaches_approval() -> None:
-    store = RunStore()
-    record = store.create(_request())
+async def test_cancel_between_stages() -> None:
+    store = ThreadStore()
+    record = store.get_or_create("thread_cancel")
+    record.set_context("demo_workspace", "camp_comeback_teaser")  # data present -> analyze
+    record.cancelled = True
 
-    await orchestrator.execute(record)
+    await orchestrator.process_turn(record, "Analyze this.")
 
-    assert record.status == AgentRunStatus.WAITING_FOR_APPROVAL
-    assert record.validator_passed is True
-    assert record.payload is not None
-    assert record.payload.signals
-    assert record.payload.hypotheses
-    assert record.payload.experiment_plan.items
-
-    # Every emitted event is contract-valid and sequence is monotonic.
-    seqs = [e.sequence for e in record.events]
-    assert seqs == list(range(1, len(seqs) + 1))
-    for e in record.events:
-        AgentWorkflowEvent.model_validate(e.model_dump(mode="json"))
-
-    types = {e.type for e in record.events}
-    assert AgentWorkflowEventType.run_started in types
-    assert AgentWorkflowEventType.experiment_plan_drafted in types
-
-    # The final event carries the full payload and the approval status.
-    final = record.events[-1]
-    assert final.type == AgentWorkflowEventType.experiment_plan_drafted
-    assert final.status == AgentRunStatus.WAITING_FOR_APPROVAL
-    assert final.payload is not None
-
-
-@pytest.mark.asyncio
-async def test_snapshot_is_contract_valid() -> None:
-    store = RunStore()
-    record = store.create(_request())
-    await orchestrator.execute(record)
-    snap = record.snapshot()
-    assert snap.status == AgentRunStatus.WAITING_FOR_APPROVAL
-    assert snap.agent_diagnostics.validator_passed is True
+    # A cancel before the first stage yields a single system result block.
+    assert len(record.messages) == 1
+    assert record.messages[0].role == StreamRole.system
+    assert record.messages[0].blocks[0]["kind"] == "result"

@@ -12,11 +12,10 @@ import pytest
 
 from app.contracts import (
     AgentResultPayload,
-    AgentWorkflowEvent,
     ExperimentPlanDraftOutput,
-    InternalAgentCommand,
-    InternalAgentRunRequest,
-    InternalAgentRunStatusResponse,
+    HypothesisDraftOutput,
+    InternalAgentTurn,
+    InternalStreamMessage,
     SignalDraftOutput,
     ValidationReport,
 )
@@ -30,15 +29,13 @@ def _load(rel: str) -> dict:
 
 CASES = [
     ("05-agent-output/examples/signal-draft-output.json", SignalDraftOutput),
+    ("05-agent-output/examples/hypothesis-draft-output.json", HypothesisDraftOutput),
     ("05-agent-output/examples/experiment-plan-draft-output.json", ExperimentPlanDraftOutput),
     ("05-agent-output/examples/validation-report-fail.json", ValidationReport),
+    ("05-agent-output/examples/validation-report-pass.json", ValidationReport),
     ("05-agent-output/examples/final-agent-payload.json", AgentResultPayload),
-    ("02-java-python-agent/examples/start-agent-run-request.json", InternalAgentRunRequest),
-    ("02-java-python-agent/examples/get-agent-run-running-response.json", InternalAgentRunStatusResponse),
-    ("02-java-python-agent/examples/get-agent-run-ready-response.json", InternalAgentRunStatusResponse),
-    ("02-java-python-agent/examples/agent-workflow-observation-created-event.json", AgentWorkflowEvent),
-    ("02-java-python-agent/examples/agent-workflow-experiment-plan-drafted-event.json", AgentWorkflowEvent),
-    ("02-java-python-agent/examples/internal-agent-cancel-command.json", InternalAgentCommand),
+    ("02-java-python-agent/examples/internal-agent-turn.json", InternalAgentTurn),
+    ("02-java-python-agent/examples/internal-stream-message.json", InternalStreamMessage),
 ]
 
 
