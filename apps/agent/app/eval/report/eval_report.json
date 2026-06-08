@@ -1,0 +1,93 @@
+[
+  {
+    "id": "eval_weekly_plan",
+    "question": "다음 주에 뭘 테스트하면 좋을까? 이번 캠페인 데이터로 분석해줘.",
+    "mode": "M3",
+    "metrics": {
+      "reviewer_passed": true,
+      "issue_codes": [],
+      "n_signals": 12,
+      "n_hypotheses": 12,
+      "n_experiments": 12,
+      "signal_strength": {
+        "strong": 11,
+        "weak": 1,
+        "noise": 0
+      }
+    }
+  },
+  {
+    "id": "eval_find_signal",
+    "question": "최근 성과에서 눈에 띄는 신호 있어? 지표 비교해서 찾아줘.",
+    "mode": "M1",
+    "metrics": {
+      "reviewer_passed": true,
+      "issue_codes": [],
+      "n_signals": 12,
+      "n_hypotheses": 12,
+      "n_experiments": 12,
+      "signal_strength": {
+        "strong": 11,
+        "weak": 1,
+        "noise": 0
+      }
+    }
+  },
+  {
+    "id": "eval_why_cause",
+    "question": "save rate가 왜 올랐는지 원인 가설을 세워줘.",
+    "mode": "M2",
+    "error": "no approval payload (router chose chat or validation failed)"
+  },
+  {
+    "id": "eval_channel_tiktok",
+    "question": "틱톡 채널 위주로 다음 실험 계획 잡아줘.",
+    "mode": "M3",
+    "metrics": {
+      "reviewer_passed": true,
+      "issue_codes": [],
+      "n_signals": 12,
+      "n_hypotheses": 12,
+      "n_experiments": 12,
+      "signal_strength": {
+        "strong": 11,
+        "weak": 1,
+        "noise": 0
+      }
+    }
+  },
+  {
+    "id": "eval_retention",
+    "question": "리텐션 지표 기준으로 성과 분석하고 개선 실험 제안해줘.",
+    "mode": "M3",
+    "metrics": {
+      "reviewer_passed": true,
+      "issue_codes": [],
+      "n_signals": 12,
+      "n_hypotheses": 12,
+      "n_experiments": 12,
+      "signal_strength": {
+        "strong": 11,
+        "weak": 1,
+        "noise": 0
+      }
+    }
+  },
+  {
+    "id": "eval_actionable_plan",
+    "question": "바로 실행 가능한 주간 실험 3개를 측정 기준까지 포함해서 만들어줘.",
+    "mode": "M3",
+    "metrics": {
+      "reviewer_passed": true,
+      "issue_codes": [],
+      "n_signals": 12,
+      "n_hypotheses": 12,
+      "n_experiments": 12,
+      "signal_strength": {
+        "strong": 11,
+        "weak": 1,
+        "noise": 0
+      }
+    }
+  }
+]
