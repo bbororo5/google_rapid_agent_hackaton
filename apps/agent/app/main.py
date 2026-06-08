@@ -6,13 +6,26 @@ LaunchPilot contract, not ADK's default routes.
 """
 from __future__ import annotations
 
+import logging
+import sys
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from app.api import runs, stream
+from app.api import thread_stream, turns
 from app.config import get_settings
 from app.observability import init_tracing
+
+# Dedicated app logger to stdout so per-stage pipeline logs show in `docker logs`
+# regardless of uvicorn's own logging config. Children: launchpilot.orchestrator,
+# launchpilot.turns, etc. Filter live with: docker compose logs -f agent | grep launchpilot
+_app_log = logging.getLogger("launchpilot")
+if not _app_log.handlers:
+    _handler = logging.StreamHandler(sys.stdout)
+    _handler.setFormatter(logging.Formatter("%(levelname)s %(name)s: %(message)s"))
+    _app_log.addHandler(_handler)
+    _app_log.setLevel(logging.INFO)
+    _app_log.propagate = False
 
 
 @asynccontextmanager
@@ -23,8 +36,8 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="LaunchPilot Agent Service", version="0.1.0", lifespan=lifespan)
-app.include_router(runs.router)    # REST: start / snapshot / cancel
-app.include_router(stream.router)  # WS: workflow event stream
+app.include_router(turns.router)         # REST: POST /internal/agent/turns
+app.include_router(thread_stream.router)  # WS: per-thread block stream
 
 
 @app.get("/health")
@@ -34,7 +47,7 @@ async def health() -> dict:
     return {
         "ok": True,
         "llm": "gemini" if s.use_real_llm else "stub",
-        "evidence": "elastic-mcp" if s.use_real_elastic else "stub",
+        "evidence": "elastic" if s.use_real_elastic else "stub",
     }
 
 
