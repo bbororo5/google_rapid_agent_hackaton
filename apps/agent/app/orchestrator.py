@@ -128,8 +128,12 @@ async def process_turn(
                 metadata={**meta, "stage": "PIPELINE"},
                 workspace_id=record.workspace_id,
                 campaign_id=record.campaign_id,
-            ):
-                await _run_pipeline(record, content)
+            ) as pipeline_span:
+                summary = await _run_pipeline(record, content)
+                if summary:
+                    tracing.set_output(pipeline_span, summary)
+            # Stamp the root AGENT span output too (Phoenix showed input only).
+            tracing.set_output(turn_span, summary or {"intent": "analyze", "status": "incomplete"})
         else:
             # chat, or analysis already done -> emit the router's reply. The CSV
             # nudge lives in the router context (need_csv -> need_csv_quiet after
@@ -139,6 +143,7 @@ async def process_turn(
             reply = route.get("reply") or "How can I help with your campaign analysis?"
             log.info("chat reply thread=%s context=%s hint=%d", record.thread_id, context, record.csv_hint_count)
             await blocks.assistant(record, [blocks.text_block(reply)])
+            tracing.set_output(turn_span, {"intent": "chat", "reply": reply[:500]})
       except _Cancelled:
         log.info("turn cancelled thread=%s", record.thread_id)
         await blocks.system(record, [blocks.result_block("Run cancelled", "The analysis was cancelled.")])
@@ -150,7 +155,7 @@ async def process_turn(
         )
 
 
-async def _run_pipeline(record: ThreadRecord, content: str) -> None:
+async def _run_pipeline(record: ThreadRecord, content: str) -> dict | None:
     settings = get_settings()
     date_range = _analysis_window()
 
@@ -303,3 +308,13 @@ async def _run_pipeline(record: ThreadRecord, content: str) -> None:
         )],
     )
     log.info("pipeline done thread=%s approval emitted plan=%s", record.thread_id, plan.id)
+    # Summary used as the CHAIN/AGENT span output.value (Phoenix shows it on the
+    # root spans, which otherwise had input only).
+    return {
+        "plan_id": plan.id,
+        "signals": len(signals),
+        "hypotheses": len(hypotheses),
+        "experiments": len(plan.items),
+        "validator_passed": True,
+        "backtracks": backtrack_count,
+    }
