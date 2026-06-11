@@ -58,6 +58,21 @@ def _check_cancel(record: ThreadRecord) -> None:
         raise _Cancelled
 
 
+async def _progress(
+    record: ThreadRecord,
+    activity_id: str,
+    title: str,
+    status: str,
+    detail: str | None = None,
+) -> None:
+    """Emit user-safe work progress over the thread stream.
+
+    These are lifecycle/status events, not chain-of-thought. They let the user
+    see where the turn is spending time and decide whether to stop/re-steer.
+    """
+    await blocks.assistant(record, [blocks.activity_block(activity_id, title, status, detail)])
+
+
 def _analysis_window() -> DateRange:
     # Synthesize a 7-day analysis window ending today (the turn carries no
     # explicit date range in the conversation-first contract).
@@ -112,11 +127,15 @@ async def _process_turn_locked(
 ) -> None:
     """Handle a turn while holding the per-thread state lock."""
     repository = get_runtime_repository()
+    await _progress(record, "turn.load_state", "Loading thread state", "running")
     persisted_state = await repository.load_state(record.thread_id)
     if persisted_state:
         record.state = persisted_state
         if persisted_state.scope:
             record.set_context(persisted_state.scope.workspace_id, persisted_state.scope.campaign_id)
+    await _progress(record, "turn.load_state", "Loaded thread state", "done")
+
+    await _progress(record, "turn.resolve_scope", "Resolving campaign context", "running")
     scope = resolve_scope(record.thread_id, record.workspace_id, record.campaign_id, record.state)
     if scope:
         record.set_context(scope.workspace_id, scope.campaign_id)
@@ -124,9 +143,24 @@ async def _process_turn_locked(
         record.state.scope = scope
         campaign_context = await repository.load_campaign_context(scope)
         recent_messages = await repository.load_recent_messages(scope, limit=12)
+        await _progress(
+            record,
+            "turn.resolve_scope",
+            "Resolved campaign context",
+            "done",
+            f"{scope.workspace_id}/{scope.campaign_id}",
+        )
+        await _progress(
+            record,
+            "turn.load_memory",
+            "Loaded recent conversation memory",
+            "done",
+            f"{len(recent_messages)} message(s)",
+        )
     else:
         campaign_context = None
         recent_messages = []
+        await _progress(record, "turn.resolve_scope", "Campaign context missing", "failed")
     expected_revision = record.state.revision
     has_scope = scope is not None
     context = _thread_context(record, has_scope)
@@ -150,11 +184,27 @@ async def _process_turn_locked(
             state_summary += f"; campaign={campaign_context.name or campaign_context.campaign_id}"
         if recent_messages:
             state_summary += f"; recent_messages={len(recent_messages)}"
+        await _progress(record, "turn.interpret", "Interpreting user request", "running")
         delta = await workers.run_turn_interpreter(
             content, f"{context}; {state_summary}", record.state.current_phase
         )
+        await _progress(
+            record,
+            "turn.interpret",
+            "Interpreted user request",
+            "done",
+            f"{delta.intent.value} / {delta.response_mode.value}",
+        )
+        await _progress(record, "state.reduce", "Applying workflow guardrails", "running")
         reducer_decision = reduce_state(record.state, delta, content)
         delegation = decide_delegation(reducer_decision)
+        await _progress(
+            record,
+            "state.reduce",
+            "Applied workflow guardrails",
+            "done",
+            f"{reducer_decision.decision.value} -> {delegation.mode.value}",
+        )
         log.info(
             "turn thread=%s intent=%s phase=%s target=%s has_scope=%s content=%r",
             record.thread_id,
@@ -228,9 +278,21 @@ async def _process_turn_locked(
                     workspace_id=record.workspace_id,
                     campaign_id=record.campaign_id,
                 ) as pipeline_span:
+                    await _progress(
+                        record,
+                        "round.dispatch",
+                        f"Starting {record.state.current_phase.value} round",
+                        "running",
+                    )
                     summary = await _run_pipeline(record, content, record.state.current_phase, repository)
                     if summary:
                         tracing.set_output(pipeline_span, summary)
+                    await _progress(
+                        record,
+                        "round.dispatch",
+                        f"Finished {record.state.current_phase.value} round",
+                        "done",
+                    )
                 tracing.set_output(turn_span, summary or {"mode": "rerun", "status": "incomplete"})
         elif delegation.mode == DelegationMode.DELEGATE:
             reply = (
@@ -252,6 +314,7 @@ async def _process_turn_locked(
             await blocks.assistant(record, [blocks.text_block(reply)])
             tracing.set_output(turn_span, {"mode": "direct", "reply": reply[:500]})
         if scope:
+            await _progress(record, "state.commit", "Saving thread state", "running")
             event = DeltaEvent(
                 scope=scope,
                 proposal=delta,
@@ -266,8 +329,10 @@ async def _process_turn_locked(
             try:
                 await repository.commit_state(expected_revision, record.state, event)
                 tracing.set_metadata(turn_span, {"agent.state_delta.delta_id": event.delta_id})
+                await _progress(record, "state.commit", "Saved thread state", "done", event.delta_id)
             except RepositoryConflict:
                 tracing.set_metadata(turn_span, {"agent.repository.conflict": True})
+                await _progress(record, "state.commit", "Thread state changed elsewhere", "failed")
                 await blocks.system(
                     record,
                     [blocks.error_block(
@@ -318,13 +383,18 @@ async def _run_analysis_round(record: ThreadRecord, content: str, date_range: Da
     record.state.current_phase = PhaseType.DATA_ANALYSIS
     await blocks.assistant(record, [blocks.text_block("Comparing the campaign metrics against the recent baseline to find signals.")])
     log.info("[analysis] analyst start (llm=gemini)")
-    await blocks.assistant(record, [blocks.activity_block("query_metric_baseline", "Checking metric baseline", "running")])
+    await _progress(record, "analysis.prepare", "Preparing analysis window", "done", f"{date_range.start}..{date_range.end}")
+    await _progress(record, "analysis.evidence", "Checking metric baseline and campaign evidence", "running")
+    await _progress(record, "analysis.draft", "Drafting signal analysis with Gemini", "running")
     signal_out = await workers.run_analyst(content, date_range)
+    await _progress(record, "analysis.draft", "Drafted signal analysis", "done")
     signals: list[Signal] = signal_out.signals
     record.state.phase_artifacts[PhaseType.DATA_ANALYSIS.value]["signals"] = [sig.model_dump(mode="json") for sig in signals]
+    await _progress(record, "artifact.save.analysis", "Saving analysis artifacts", "running", f"{len(signals)} signal(s)")
     await _save_phase_artifact_ref(record, repository, PhaseType.DATA_ANALYSIS, "signals", {"signals": [sig.model_dump(mode="json") for sig in signals]})
+    await _progress(record, "artifact.save.analysis", "Saved analysis artifacts", "done", f"{len(signals)} signal(s)")
     log.info("[analysis] analyst done: %d signal(s)", len(signals))
-    await blocks.assistant(record, [blocks.activity_block("query_metric_baseline", "Checked metric baseline", "done")])
+    await _progress(record, "analysis.evidence", "Checked metric baseline and campaign evidence", "done")
     for sig in signals:
         await blocks.assistant(record, [blocks.text_block(sig.description), blocks.artifact_block(sig.id, "signal", sig.title, sig.model_dump(mode="json"))])
     await blocks.assistant(record, [blocks.text_block("분석 결과를 확인했습니다. 원하면 이 신호를 바탕으로 가설을 세울 수 있습니다.")])
@@ -340,13 +410,18 @@ async def _run_hypothesis_round(record: ThreadRecord, content: str, repository) 
         return {"phase": PhaseType.HYPOTHESIS_GEN.value, "status": "missing_analysis"}
 
     log.info("[hypothesis] strategist start")
-    await blocks.assistant(record, [blocks.activity_block("search_team_notes", "Searching team notes", "running")])
+    await _progress(record, "hypothesis.load_signals", "Loaded prior signal artifacts", "done", f"{len(signals)} signal(s)")
+    await _progress(record, "hypothesis.evidence", "Checking team context", "running")
+    await _progress(record, "hypothesis.draft", "Drafting hypotheses with Gemini", "running")
     hyp_out = await workers.run_strategist(content, signals)
+    await _progress(record, "hypothesis.draft", "Drafted hypotheses", "done")
     hypotheses: list[Hypothesis] = hyp_out.hypotheses
     record.state.phase_artifacts[PhaseType.HYPOTHESIS_GEN.value]["hypotheses"] = [hyp.model_dump(mode="json") for hyp in hypotheses]
+    await _progress(record, "artifact.save.hypothesis", "Saving hypothesis artifacts", "running", f"{len(hypotheses)} hypothesis(es)")
     await _save_phase_artifact_ref(record, repository, PhaseType.HYPOTHESIS_GEN, "hypotheses", {"hypotheses": [hyp.model_dump(mode="json") for hyp in hypotheses]})
+    await _progress(record, "artifact.save.hypothesis", "Saved hypothesis artifacts", "done", f"{len(hypotheses)} hypothesis(es)")
     log.info("[hypothesis] strategist done: %d hypothesis(es)", len(hypotheses))
-    await blocks.assistant(record, [blocks.activity_block("search_team_notes", "Checked team context", "done")])
+    await _progress(record, "hypothesis.evidence", "Checked team context", "done")
     for hyp in hypotheses:
         await blocks.assistant(record, [blocks.text_block(hyp.rationale), blocks.artifact_block(hyp.id, "hypothesis", hyp.statement, hyp.model_dump(mode="json"))])
     await blocks.assistant(record, [blocks.text_block("가설을 정리했습니다. 특정 가설을 선택하면 그때 실험 계획을 세울 수 있습니다.")])
@@ -363,13 +438,25 @@ async def _run_plan_round(record: ThreadRecord, content: str, date_range: DateRa
         return {"phase": PhaseType.EXPERIMENT_PLAN.value, "status": "missing_hypotheses"}
 
     log.info("[plan] writer start")
+    await _progress(
+        record,
+        "plan.load_context",
+        "Loaded signals and hypotheses for planning",
+        "done",
+        f"{len(signals)} signal(s), {len(hypotheses)} hypothesis(es)",
+    )
+    await _progress(record, "plan.draft", "Drafting experiment plan with Gemini", "running")
     plan = (await workers.run_writer(content, date_range, hypotheses)).experiment_plan
+    await _progress(record, "plan.draft", "Drafted experiment plan", "done", f"{len(plan.items)} experiment(s)")
     record.state.phase_artifacts[PhaseType.EXPERIMENT_PLAN.value]["experiment_plan"] = plan.model_dump(mode="json")
     record.state.active_artifact_id = plan.id
+    await _progress(record, "artifact.save.plan", "Saving experiment plan artifact", "running", plan.id)
     await _save_phase_artifact_ref(record, repository, PhaseType.EXPERIMENT_PLAN, "experiment_plan", {"experiment_plan": plan.model_dump(mode="json")})
+    await _progress(record, "artifact.save.plan", "Saved experiment plan artifact", "done", plan.id)
     log.info("[plan] writer done: %d item(s)", len(plan.items))
 
     payload = formatter.assemble(signals, hypotheses, plan)
+    await _progress(record, "plan.review", "Checking approval guardrails", "running")
     _gmeta = {"thread_id": record.thread_id, "workspace_id": record.workspace_id, "campaign_id": record.campaign_id}
     with tracing.guardrail_span(
         "launchpilot.reviewer_gate",
@@ -383,8 +470,10 @@ async def _run_plan_round(record: ThreadRecord, content: str, date_range: DateRa
         tracing.set_metadata(g_span, {**_gmeta, "validator_passed": report.passed, "backtrack_count": 0})
     log.info("[plan] reviewer passed=%s issues=%d", report.passed, len(report.issues))
     if not report.passed:
+        await _progress(record, "plan.review", "Approval guardrails failed", "failed", f"{len(report.issues)} issue(s)")
         await blocks.system(record, [blocks.error_block("Validation failed", "; ".join(issue.message for issue in report.issues), retryable=True)])
         return {"phase": PhaseType.EXPERIMENT_PLAN.value, "validator_passed": False}
+    await _progress(record, "plan.review", "Approval guardrails passed", "done")
 
     pending_approval_id = approval_id()
     record.state.pending_approval_id = pending_approval_id

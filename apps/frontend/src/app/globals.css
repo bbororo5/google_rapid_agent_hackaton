@@ -1104,6 +1104,21 @@ a {
   font-size: 12px;
 }
 
+.tool-summary-list span b {
+  display: block;
+  color: inherit;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.tool-summary-list span small {
+  display: block;
+  margin-top: 2px;
+  color: color-mix(in srgb, var(--ink-muted) 76%, white);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
 .tool-summary-list span.running {
   color: var(--blue);
 }

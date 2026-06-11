@@ -72,6 +72,14 @@ async function expectIntermediateDecisionOnly(page: Page): Promise<void> {
   await expectNoApprovalGate(page);
 }
 
+async function expectLiveProgress(page: Page): Promise<void> {
+  const thread = page.getByRole("region", { name: /campaign agent thread/i });
+  await expect(thread.getByText(/tool check/i).first()).toBeVisible({ timeout: 45_000 });
+  await expect(
+    thread.getByText(/Interpreting user request|Applying workflow guardrails|Drafting signal analysis with Gemini|Checking metric baseline/i).first(),
+  ).toBeVisible({ timeout: 45_000 });
+}
+
 async function expectAssistantTurnAfter(page: Page, previousArticleCount: number): Promise<void> {
   await expect.poll(async () => await threadArticles(page).count(), { timeout: ROUND_TIMEOUT }).toBeGreaterThan(previousArticleCount + 1);
 }
@@ -93,6 +101,7 @@ test.describe("real round-based workflow", () => {
 
     // Round 2. CSV + analysis request should stop at data-analysis output.
     await attachCsvAndAsk(page, "이 CSV로 저장률과 리텐션 관점에서 분석해줘.");
+    await expectLiveProgress(page);
     await expectIntermediateDecisionOnly(page);
 
     // Round 3. User can discuss the analysis without forcing hypothesis/plan

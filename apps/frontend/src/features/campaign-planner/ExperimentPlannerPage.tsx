@@ -74,12 +74,12 @@ function activityTarget(title: string) {
 }
 
 function compactActivityBlocks(blocks: Extract<StreamMessageBlock, { kind: "activity" }>[]) {
-  return [...blocks.reduce((latest, block) => latest.set(activityTarget(block.title), block), new Map<string, Extract<StreamMessageBlock, { kind: "activity" }> >()).values()];
+  return [...blocks.reduce((latest, block) => latest.set(block.id || activityTarget(block.title), block), new Map<string, Extract<StreamMessageBlock, { kind: "activity" }> >()).values()];
 }
 
 function toolSummary(blocks: Extract<StreamMessageBlock, { kind: "activity" }>[]) {
   const failed = blocks.filter((block) => block.status === "failed").length;
-  const running = blocks.filter((block) => block.status === "running").length;
+  const running = blocks.filter((block) => block.status === "running" || block.status === "queued").length;
   const done = blocks.filter((block) => block.status === "done").length;
 
   if (failed > 0) return `${failed} tool check${failed === 1 ? "" : "s"} need attention`;
@@ -104,7 +104,8 @@ function ActivitySummary({ blocks }: { blocks: Extract<StreamMessageBlock, { kin
       <div className="tool-summary-list">
         {compactedBlocks.map((block) => (
           <span className={block.status} key={block.id}>
-            {block.title}
+            <b>{block.title}</b>
+            {block.detail ? <small>{block.detail}</small> : null}
           </span>
         ))}
       </div>
