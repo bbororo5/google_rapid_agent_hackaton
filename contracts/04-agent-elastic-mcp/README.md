@@ -37,7 +37,7 @@ Official reference checked during contract design:
 
 Raw MCP tools that inspect cluster metadata, such as `list_indices` and `get_mappings`, are allowed only during startup validation or diagnostics. They should not be used as part of normal reasoning unless the wrapper needs to verify index shape.
 
-> Caller ownership: `search_content_posts` / `query_metric_baseline` are called by the Data Analyst worker, `search_team_notes` by the Data Strategist worker, and `load_growth_brief_context` by the **Central Orchestrator** once at session start when `parent_brief_id` is present (it pre-injects the prior context into Shared Context; workers then read from memory, not the tool). See `docs/agent-tool-spec.md`.
+> Caller ownership: `search_content_posts` / `query_metric_baseline` are called by the Data Analyst worker, `search_team_notes` by the Data Strategist worker, and `load_growth_brief_context` is orchestrator-owned context loading. Orchestrator v2 state and memory setup are defined in `docs/architecture/agent-core-v2-design.md`.
 
 ## Common Request Fields
 

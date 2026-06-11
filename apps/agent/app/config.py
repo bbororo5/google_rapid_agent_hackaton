@@ -1,12 +1,8 @@
 """Runtime settings loaded from environment.
 
-Two modes are derived, not configured directly:
-- LLM:      real ADK when EITHER Vertex AI is configured (GOOGLE_GENAI_USE_VERTEXAI
-            + GOOGLE_CLOUD_PROJECT, auth via ADC) OR an AI Studio GEMINI_API_KEY
-            is set. Otherwise deterministic stub.
-- Evidence: real Elastic MCP when ELASTIC_MCP_URL is set, else seeded stub.
-
-This lets the contract-enforced golden path run end-to-end offline.
+Python Agent Core requires real Gemini/ADK and real Elastic-backed evidence for
+runtime behavior. Missing external configuration is reported explicitly instead
+of silently producing local demo output.
 """
 from __future__ import annotations
 
@@ -49,8 +45,7 @@ class Settings(BaseModel):
     google_cloud_location: str = "us-central1"
 
     # --- Evidence (Elastic) ---
-    # Direct ES read of the same cluster Java writes (contract 03). When both URL
-    # and API key are set, the agent reads real campaign data; otherwise seed stub.
+    # Direct ES read of the same cluster Java writes (contract 03).
     elastic_url: str | None = None
     elastic_api_key: str | None = None
     elastic_mcp_url: str | None = None
@@ -73,23 +68,20 @@ class Settings(BaseModel):
     # --- Server ---
     port: int = 8000
 
-    # --- Signal thresholds (UNVERIFIED placeholders, agent-tool-spec §6) ---
+    # --- Signal thresholds (UNVERIFIED placeholders) ---
     signal_threshold_high: float = 2.0  # >= this lift => strong signal
     signal_threshold_low: float = 1.3   # >= this => weak signal; below => noise
 
-    # --- Failure policy (agent-tool-spec §4) ---
+    # --- Failure policy ---
     tool_max_retries: int = 2   # Class 1: cheap retries, no LLM
     backtrack_limit: int = 3    # Class 2: max review-fail re-runs before FAILED
 
     @property
     def use_real_llm(self) -> bool:
-        # Real ADK workers run when EITHER an AI Studio key is set OR Vertex is
-        # configured (ADC handles Vertex auth, so a project id is the signal).
         return bool(self.gemini_api_key) or (self.use_vertexai and bool(self.google_cloud_project))
 
     @property
     def use_real_elastic(self) -> bool:
-        # Real evidence when we can reach the cluster directly (URL + API key).
         return bool(self.elastic_url and self.elastic_api_key)
 
     @property

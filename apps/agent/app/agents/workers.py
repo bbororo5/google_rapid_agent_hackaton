@@ -1,8 +1,8 @@
-"""Worker facade: dispatch to stub or ADK, return validated contract models.
+"""Worker facade: dispatch to ADK/Gemini, return validated contract models.
 
 The orchestrator only talks to this module, so the rest of the pipeline is
-identical in stub and real modes. Each function returns the same Pydantic output
-type regardless of which backend produced it.
+isolated from ADK details. Each function returns a strict Pydantic contract
+model.
 
 Conversation-first: workers take the user's turn `content` (free text) plus a
 synthesized analysis `date_range` instead of the old structured run request.
@@ -11,8 +11,6 @@ from __future__ import annotations
 
 import json
 
-from app.agents import stub
-from app.config import get_settings
 from app.contracts import (
     DateRange,
     ExperimentPlanDraftOutput,
@@ -21,6 +19,7 @@ from app.contracts import (
     Signal,
     SignalDraftOutput,
 )
+from app.runtime.state import DeltaIntent, PhaseType, StateDeltaProposal
 
 
 def _dump(models) -> str:
@@ -30,107 +29,91 @@ def _dump(models) -> str:
 
 
 async def run_analyst(content: str, date_range: DateRange) -> SignalDraftOutput:
-    if get_settings().use_real_llm:
-        # Real path: build a prompt and let the ADK analyst agent (with its
-        # evidence tools + output_schema) return structured signals.
-        from app.agents import adk_agents
+    from app.agents import adk_agents
 
-        prompt = (
-            f"User request: {content}\n"
-            f"Date range: {date_range.start}..{date_range.end}\n"
-            "Detect performance signals and return the signal schema."
-        )
-        data = await adk_agents.run_structured("analyst", prompt)
-        return SignalDraftOutput(**data)  # re-validate against the contract model
-    # Stub path: deterministic analyst over seed data.
-    return stub.analyst(content, date_range)
+    prompt = (
+        f"User request: {content}\n"
+        f"Date range: {date_range.start}..{date_range.end}\n"
+        "Detect performance signals and return the signal schema."
+    )
+    data = await adk_agents.run_structured("analyst", prompt)
+    return SignalDraftOutput(**data)  # re-validate against the contract model
 
 
 async def run_strategist(content: str, signals: list[Signal]) -> HypothesisDraftOutput:
-    if get_settings().use_real_llm:
-        from app.agents import adk_agents
+    from app.agents import adk_agents
 
-        # Pass the upstream signals in the prompt so the strategist can ground on
-        # them (and reference their ids).
-        prompt = (
-            f"User request: {content}\n"
-            f"Signals (JSON): {_dump(signals)}\n"
-            "Generate hypotheses for these signals and return the hypothesis schema."
-        )
-        data = await adk_agents.run_structured("strategist", prompt)
-        return HypothesisDraftOutput(**data)
-    return stub.strategist(signals)
+    # Pass the upstream signals in the prompt so the strategist can ground on
+    # them (and reference their ids).
+    prompt = (
+        f"User request: {content}\n"
+        f"Signals (JSON): {_dump(signals)}\n"
+        "Generate hypotheses for these signals and return the hypothesis schema."
+    )
+    data = await adk_agents.run_structured("strategist", prompt)
+    return HypothesisDraftOutput(**data)
 
 
 _CHAT_CONTEXT_HINT = {
-    # No fresh CSV, but we CAN analyze the existing baseline. Suggest both options.
-    "need_csv": ("State: no fresh CSV uploaded. You can analyze the existing baseline data "
-                 "right away if the user asks to analyze; you may also invite them to attach "
-                 "a campaign metrics CSV for the latest read. Do not imply a CSV is required."),
-    # Same state, but we've already nudged about the CSV - don't repeat that suggestion.
-    "need_csv_quiet": ("State: no fresh CSV uploaded; you can analyze the existing baseline on "
-                       "request. Do NOT suggest uploading a CSV again - just answer helpfully."),
-    "ready_to_analyze": "State: campaign data uploaded, not analyzed yet. Offer to start the analysis.",
-    "analysis_done": "State: analysis and experiment plan complete, awaiting approval. Guide the user to review.",
+    "need_campaign": "State: campaign context is missing. Ask for a campaign context before analysis.",
+    "ready_to_analyze": "State: campaign context is ready, not analyzed yet. Offer to start the analysis.",
+    "analysis_done": "State: analysis signals exist. Help discuss the signals or move to hypotheses if asked.",
+    "plan_ready": "State: an experiment plan exists. Answer questions about the generated or approved plan.",
     "": "State: general conversation.",
 }
 
 
-async def run_router(content: str, context: str = "") -> dict:
-    """One fast pass: classify intent + draft a chat reply.
+async def run_turn_interpreter(
+    content: str,
+    context: str = "",
+    current_phase: PhaseType = PhaseType.DATA_ANALYSIS,
+) -> StateDeltaProposal:
+    """Extract a state transition proposal from free-form user text.
 
-    Returns {"intent": "analyze"|"chat", "reply": str}. Real mode = one Gemini
-    call; stub mode = keyword classify + canned reply (offline/tests).
+    This intentionally does not trust the UI to send state commands. In real LLM
+    mode, a dedicated structured interpreter proposes the delta; the reducer
+    remains the authority that accepts or rejects state changes.
     """
-    if get_settings().use_real_llm:
-        from app.agents import adk_agents
+    from app.agents import adk_agents
 
-        prompt = f"[Thread state] {_CHAT_CONTEXT_HINT.get(context, '')}\n[User] {content}"
-        data = await adk_agents.run_structured("router", prompt)
-        intent = "analyze" if data.get("intent") == "analyze" else "chat"
-        return {"intent": intent, "reply": data.get("reply", "")}
-    # Stub: deterministic keyword classify + canned steering reply.
-    intent = "analyze" if _stub_is_analyze(content) else "chat"
-    return {"intent": intent, "reply": stub.chat(content, context)}
-
-
-_ANALYZE_KEYWORDS = (
-    "분석", "신호", "지표", "실험", "찾아", "비교", "성과", "리텐션",
-    "analyze", "analysis", "signal", "metric", "experiment", "test", "next week",
-)
-
-
-def _stub_is_analyze(content: str) -> bool:
-    text = content.lower()
-    return any(k in content or k in text for k in _ANALYZE_KEYWORDS)
+    prompt = (
+        f"[Thread state]\n{context}\n"
+        f"[Current phase]\n{current_phase.value}\n"
+        f"[User]\n{content}"
+    )
+    data = await adk_agents.run_structured("interpreter", prompt)
+    data = {key: (None if value == "" else value) for key, value in data.items()}
+    mutation_summary = data.pop("mutation_summary", None)
+    if mutation_summary:
+        data["mutation"] = {"summary": mutation_summary}
+    proposal = StateDeltaProposal(**data)
+    if proposal.intent == DeltaIntent.CHAT and not proposal.reply:
+        proposal.reply = await run_chat(content, context.split(";", 1)[0].strip())
+    return proposal
 
 
 async def run_chat(content: str, context: str = "") -> str:
-    """Free conversation reply. Real Gemini chat agent, or a canned stub reply.
+    """Free conversation reply from the Gemini chat agent.
 
     `context` is a thread-state hint so the reply steers toward the next concrete
     step (upload CSV, run analysis, review plan) instead of a context-free chat.
     """
-    if get_settings().use_real_llm:
-        from app.agents import adk_agents
+    from app.agents import adk_agents
 
-        prompt = f"[Thread state] {_CHAT_CONTEXT_HINT.get(context, '')}\n[User] {content}"
-        return await adk_agents.run_text("chat", prompt)
-    return stub.chat(content, context)
+    prompt = f"[Thread state] {_CHAT_CONTEXT_HINT.get(context, '')}\n[User] {content}"
+    return await adk_agents.run_text("chat", prompt)
 
 
 async def run_writer(
     content: str, date_range: DateRange, hypotheses: list[Hypothesis]
 ) -> ExperimentPlanDraftOutput:
-    if get_settings().use_real_llm:
-        from app.agents import adk_agents
+    from app.agents import adk_agents
 
-        prompt = (
-            f"User request: {content}\n"
-            f"Date range: {date_range.start}..{date_range.end}\n"
-            f"Hypotheses (JSON): {_dump(hypotheses)}\n"
-            "Draft next-week experiments and return the experiment plan schema."
-        )
-        data = await adk_agents.run_structured("writer", prompt)
-        return ExperimentPlanDraftOutput(**data)
-    return stub.writer(hypotheses, date_range)
+    prompt = (
+        f"User request: {content}\n"
+        f"Date range: {date_range.start}..{date_range.end}\n"
+        f"Hypotheses (JSON): {_dump(hypotheses)}\n"
+        "Draft next-week experiments and return the experiment plan schema."
+    )
+    data = await adk_agents.run_structured("writer", prompt)
+    return ExperimentPlanDraftOutput(**data)

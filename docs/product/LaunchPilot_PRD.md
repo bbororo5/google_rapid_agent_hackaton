@@ -253,7 +253,7 @@ BE   ⇒ FE : result block (growth_brief_id + 캘린더 + persisted_at)
 
 LaunchPilot의 에이전트성은 **단일 LLM이 아니라 역할이 분리된 4개 ADK 워커 + 1개 오케스트레이터**의 협업에서 나온다. 각 워커는 좁은 책임만 갖고, 자신의 단계 산출물(draft schema)만 만든다. 최종 canonical payload는 별도 Assembler가 조립한다. (`contracts/05-agent-output` 참조)
 
-> 워커별 "언제 어떤 도구를 호출하고 실패 시 어떻게 분기하는지"의 상세 결정 로직은 `docs/agent-tool-spec.md` 참조. 요약: 분석가 2도구 / 전략가 1도구(team_notes) / 작가·검수자 0도구 / `load_growth_brief_context`는 Orchestrator 선주입.
+> 워커별 도구 호출의 최신 계약은 `contracts/04-agent-elastic-mcp`와 `contracts/05-agent-output`을 따른다. 오케스트레이터의 상태 반응 흐름은 `docs/architecture/adr/05-state-reactive-workflow.md`와 `docs/architecture/agent-core-v2-design.md`를 기준으로 한다.
 
 ### 6.1 역할 분담 한눈에
 

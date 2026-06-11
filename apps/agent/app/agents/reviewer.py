@@ -1,11 +1,8 @@
 """Reviewer gate — deterministic set-based validation (no LLM).
 
-Checks the assembled payload against the contract issue codes (05). Mechanical
-cross-id integrity + required fields. Phoenix reflection is a stub for the
-golden path (it only adjusts thresholds, never overturns a deterministic fail).
-
-A failing report routes back to a worker via failure.py; it cannot be overturned
-by any LLM critique.
+Checks the assembled payload against the contract issue codes (05): mechanical
+cross-id integrity, required fields, and operational schedulability. A failing
+report blocks the planning round; it cannot be overturned by any LLM critique.
 """
 from __future__ import annotations
 
@@ -109,7 +106,7 @@ def review(payload: AgentResultPayload) -> ValidationReport:
                 )
             )
 
-    # Any issue is treated as blocking for the golden path; pass only when clean.
+    # Any issue is treated as blocking for the planning approval gate.
     passed = not issues
     severity = ValidationSeverity.none if passed else ValidationSeverity.blocking
     retry = None if passed else "; ".join(i.message for i in issues)

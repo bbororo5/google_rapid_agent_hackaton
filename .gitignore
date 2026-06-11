@@ -13,6 +13,7 @@ mock/**/bin/
 # Secrets: shared env at repo root (never commit)
 .env
 .env.local
+s.env
 
 # Service-account keys / ADC credentials (never commit)
 secrets/

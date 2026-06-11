@@ -1,8 +1,8 @@
 """Real Elastic evidence via direct ES queries (httpx).
 
 Reads the same data Java writes (contract 03): the `content_posts` index in
-Elastic Cloud, authenticated with ELASTIC_API_KEY. Returns the same normalized
-evidence dicts the seed stub returns, so the analyst/strategist work unchanged.
+Elastic Cloud, authenticated with ELASTIC_API_KEY. Returns normalized evidence
+dicts consumed by the analyst/strategist tools.
 
 Only ~tens of campaign posts per thread, so each call fetches the campaign's
 posts once (size 500) and computes in Python — no reliance on field mappings or

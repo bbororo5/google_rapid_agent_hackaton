@@ -14,6 +14,7 @@ Read in order:
 | 4 | Python Agent <-> Elasticsearch MCP | `04-agent-elastic-mcp` | `evidence-tools.schema.json` |
 | 5 | ADK Workers <-> Structured Outputs | `05-agent-output` | `agent-output.schema.json` |
 | 6 | Python Agent <-> Phoenix/Arize | `06-observability` | `openinference-traces.schema.json` |
+| 7 | Python Agent <-> Elastic runtime repository | `07-agent-runtime-elastic` | `README.md` |
 
 ## Directory Map
 
@@ -50,13 +51,16 @@ contracts/
     README.md
     openinference-traces.schema.json
     examples/
+
+  07-agent-runtime-elastic/
+    README.md
 ```
 
 ## Implementation Notes
 
 - The frontend should start with `01-frontend-java/openapi.yaml` and `01-frontend-java/frontend-types.ts`.
 - Java should implement public controllers from `01-frontend-java`, internal agent calls from `02-java-python-agent`, and Elastic writes from `03-java-elastic`.
-- Python should implement internal agent API from `02-java-python-agent`, evidence wrappers from `04-agent-elastic-mcp`, structured worker output from `05-agent-output`, and OpenInference tracing from `06-observability`.
+- Python should implement internal agent API from `02-java-python-agent`, evidence wrappers from `04-agent-elastic-mcp`, structured worker output from `05-agent-output`, OpenInference tracing from `06-observability`, and runtime state coordination from `07-agent-runtime-elastic`.
 - The canonical final agent payload is `AgentResultPayload` from `01-frontend-java/openapi.yaml`.
 - `tool_call_logs` are UI summaries. OpenInference spans in `06-observability` are the source of truth for trace-level observability.
 

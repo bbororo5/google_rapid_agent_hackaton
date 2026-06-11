@@ -2,8 +2,7 @@
 
 Thin context managers over the OpenTelemetry tracer that stamp the
 `openinference.span.kind` + common attributes the contract requires. When no
-tracer provider is registered (Phoenix key absent) OTel returns a no-op tracer,
-so every helper here is a cheap no-op offline -- the golden path never changes.
+tracer provider is registered (Phoenix key absent) OTel returns a no-op tracer.
 
 Attribute keys follow OpenInference semantic conventions so Phoenix/Arize render
 them natively (span kind, input/output value, retrieval documents, metadata).

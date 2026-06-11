@@ -1,6 +1,6 @@
 # Architecture Decision Records
 
-각 ADR은 하나의 결정을 고정 형식(상태 · 맥락 · 결정 · 결과 · 대안)으로 기록한다. 결정을 강제한 사실과 포기한 것을 함께 적는다. 카테고리별로 묶어 4개 문서에 담았다.
+각 ADR은 하나의 결정을 고정 형식(상태 · 맥락 · 결정 · 결과 · 대안)으로 기록한다. 결정을 강제한 사실과 포기한 것을 함께 적는다. 카테고리별 문서와 상태 반응형 워크플로우 ADR로 나누어 담았다.
 
 | ADR | 결정 | 문서 |
 |---|---|---|
@@ -16,5 +16,6 @@
 | 0010 | Phoenix/Arize L4 자가 성찰 | [투명성 · 관측성](03-transparency.md) |
 | 0011 | Contract-first (extra=forbid) | [엔지니어링 규율](04-discipline.md) |
 | 0012 | CSV import + 결정적 fallback | [엔지니어링 규율](04-discipline.md) |
+| 0013 | [ADR-004] 자유 대화 기반 StateDelta + 결정적 reducer | [상태 반응형 워크플로우](05-state-reactive-workflow.md) |
 
 상위 요약: [아키텍처 개요](../overview.md) · 구조 그림: [C4](../launchpilot-c4.md) · 제품 맥락: [PRD](../../product/LaunchPilot_PRD.md)

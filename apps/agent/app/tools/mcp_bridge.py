@@ -6,11 +6,10 @@ call (npx cold start ~seconds) is wasteful. So this bridge runs ONE daemon threa
 with its own asyncio loop, opens the MCP stdio session there once, and lets sync
 callers submit coroutines via run_coroutine_threadsafe.
 
-- Lazy: the server process is spawned on first use, never at import (offline/stub
-  paths must not require node/npx).
+- Lazy: the server process is spawned on first use, never at import.
 - Reused: one server process per bridge for the process lifetime.
-- Safe: failures raise; callers decide to fall back (es_client/seed) or surface
-  an evidence error envelope.
+- Safe: failures raise; callers decide to fall back to direct ES or surface an
+  evidence error envelope.
 """
 from __future__ import annotations
 

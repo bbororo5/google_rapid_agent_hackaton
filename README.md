@@ -40,12 +40,20 @@ List Playwright E2E acceptance tests:
 npm run test:e2e:list
 ```
 
-Run Playwright E2E tests:
+Run real-stack Playwright E2E tests (starts frontend, backend, and agent
+containers; requires real Gemini/Vertex and Elastic credentials):
+
+```sh
+E2E_ENV_FILE=s.env npm run test:e2e:real
+```
+
+Run generic Playwright tests against the configured stack:
 
 ```sh
 npm run test:e2e
 ```
 
-The scenario verifier now treats the Playwright E2E specs as the executable source of truth for conversation-first user flows.
+The real-stack Playwright spec is the executable source of truth for the
+conversation-first full system flow.
 
 The verifier checks JSON/YAML/NDJSON parsing, JSON Schema example conformance, cross-contract enum consistency, evidence reference grounding, Elastic document links, OpenInference trace links, and conversation-first E2E scenario coverage.

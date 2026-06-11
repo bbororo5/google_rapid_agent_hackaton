@@ -27,6 +27,8 @@
 
 **상태:** 채택
 
+**후속 정교화:** ADR-004는 Python Agent Core의 런 메모리를 process-only Pydantic 객체에서 Elastic-backed runtime state로 확장한다. 단, 이는 business document 쓰기 권한을 Python에 주는 것이 아니라 `agent_*` runtime-only index에 TTL/OCC가 있는 coordination document를 저장하는 것이다.
+
 **맥락:**
 워커가 한 실행 안에서 주고받는 임시 상태, 사용자 대화 타임라인, 영구 지식, 과거 실행 트레이스는 수명·소유자·접근 권한이 모두 다르다. 이를 단일한 "단기 기억"으로 다루면 쓰기/읽기 주체와 소멸 시점이 모호해진다.
 
@@ -40,7 +42,7 @@
 | 지식 (L3) | Elastic | Java 쓰기 / Python 읽기전용(MCP) | 영구 |
 | 성찰 (L4) | Arize/Phoenix | Python 트레이스 쓰기 | 실행 누적 |
 
-불변 규칙: Elastic 쓰기는 Java만, 실행당 두 번(데이터 import, 사용자 승인)으로 제한한다. 워커 중 분석가·전략가만 Elastic을 읽고, 작가·검수자는 읽지 않는다. 런 메모리는 영구 저장이 아니다.
+불변 규칙: 승인된 business document의 Elastic 쓰기는 Java만, 실행당 두 번(데이터 import, 사용자 승인)으로 제한한다. 워커 중 분석가·전략가만 business evidence를 읽고, 작가·검수자는 읽지 않는다. 런 메모리는 business data가 아니다. ADR-004 이후 Python은 scale-out과 장애 복구를 위해 runtime-only Elastic index에 state/delta/artifact ref를 쓸 수 있다.
 
 **결과:**
 각 계층의 쓰기/읽기 주체와 소멸 시점이 명확해진다. 성찰 계층(L4)이 근거 데이터와 분리된다(ADR-0010). 런 메모리의 프리픽스 재사용으로 백트래킹이 효율적이다(ADR-0007). 계층 경계를 코드와 계약으로 강제하는 비용이 발생한다. 런 메모리는 프로세스 종료 시 소실되며, 이 경우 실행은 실패로 처리되고 재시작한다.
@@ -55,19 +57,22 @@
 
 **상태:** 채택
 
+**후속 정교화:** ADR-004는 "승인 전 비저장"을 "승인 전 후보는 business document로 저장하지 않는다"로 정교화한다. runtime-only TTL snapshot/ref는 허용되지만, `growth_briefs`나 `calendar_events`가 아니며 evidence/continuity query 대상도 아니다.
+
 **맥락:**
 에이전트가 만든 실험안은 사람의 검토·승인을 거쳐야 캘린더와 브리프에 반영된다. Python이 결과를 직접 저장하면 검토 전에 데이터가 확정되어 자율 실행이 된다. 승인 전 후보를 영구 저장하면 미채택 초안이 저장소에 쌓여 append-only 원칙(ADR-0001)과 충돌한다.
 
 **결정:**
-프론트엔드는 상태를 영속화하지 않는다(stateless). 승인 전 후보 실험안은 화면 메모리(React State)에만 존재한다. 사용자 편집은 초안 사본에만 적용하고 원본은 불변으로 둔다. 승인 게이트는 Java가 소유한다. Python은 `WAITING_FOR_APPROVAL` 상태 신호까지만 담당하고 승인을 처리하지 않는다. 승인 시에만 Java가 `growth_briefs` 1건과 `calendar_events` N건을 불변으로 적재한다.
+프론트엔드는 상태를 영속화하지 않는다(stateless). 승인 전 후보 실험안은 business document로 저장하지 않는다. 사용자 편집은 초안 사본에만 적용하고 원본은 불변으로 둔다. 승인 게이트는 Java가 소유한다. Python은 승인 의도를 감지할 수 있지만 business persistence를 수행하지 않는다. 승인 시에만 Java가 `growth_briefs` 1건과 `calendar_events` N건을 불변으로 적재한다.
 
 **결과:**
-사람이 항상 마지막 결정권을 가진다. 저장소에는 승인된 데이터만 남는다. 책임이 분리된다(Python은 추론, Java는 승인 라이프사이클). 에이전트의 자율 실행을 포기한다. 승인 전 후보는 휘발성이며 브라우저 새로고침 시 소실된다. `SUCCESS`는 Java 승인 라이프사이클 전용이고 Python은 방출하지 않는다.
+사람이 항상 마지막 결정권을 가진다. business 저장소에는 승인된 데이터만 남는다. 책임이 분리된다(Python은 추론과 runtime coordination, Java는 승인 라이프사이클). 에이전트의 자율 실행을 포기한다. 승인 전 후보는 business record가 아니며, 필요한 경우 runtime-only TTL 문서로만 복구 가능하다. `SUCCESS`는 Java 승인 라이프사이클 전용이고 Python은 방출하지 않는다.
 
 **대안:**
 - Python이 결과를 직접 저장: human-in-the-loop가 깨지고 미승인 데이터가 적재된다.
-- 후보를 서버 임시 저장소에 보관: 별도 저장소와 정리 로직이 필요하고 단일 저장소 원칙에 위배된다.
+- 후보를 business 저장소에 보관: 미승인 데이터가 승인된 기록과 섞인다.
+- 후보를 runtime-only TTL 저장소에 보관: scale-out과 복구에는 유리하나 business/evidence query에서 엄격히 제외해야 한다. ADR-004에서 이 방식을 제한적으로 채택했다.
 
 ---
 
-관련 계약: `contracts/03-java-elastic`(문서 스키마), `contracts/01-frontend-java`(승인 흐름). 데이터 흐름 상세: `docs/memory-and-db-flow.md`.
+관련 계약: `contracts/03-java-elastic`(business 문서 스키마), `contracts/07-agent-runtime-elastic`(Agent Core runtime repository), `contracts/01-frontend-java`(승인 흐름). 데이터 흐름 상세: `docs/architecture/data-flow.md`.

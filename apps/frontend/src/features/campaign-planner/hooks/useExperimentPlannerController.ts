@@ -541,6 +541,25 @@ function gateAnchorPhase(gate: GateReview) {
   return gate.id === "signal" ? "signal_review" : "awaiting_approval";
 }
 
+function gateSequence(gate: GateReview, groups: ThreadMessageGroup[], fallback: number) {
+  if (gate.id === "signal") {
+    const signalId = gate.signal?.id;
+    const signalGroup = groups.find((group) =>
+      group.blocks.some((block) => block.kind === "artifact" && block.artifactKind === "signal" && (!signalId || block.id === signalId)),
+    );
+    if (signalGroup) return signalGroup.sequence + 0.001;
+  }
+
+  if (gate.id === "approval") {
+    const approvalGroup = groups.find((group) => group.blocks.some((block) => block.kind === "approval"));
+    if (approvalGroup) return approvalGroup.sequence + 0.001;
+    const resultGroup = groups.find((group) => group.blocks.some((block) => block.kind === "result"));
+    if (resultGroup) return resultGroup.sequence - 0.001;
+  }
+
+  return fallback;
+}
+
 function threadDisplayItemsFromProjection(input: { groups: ThreadMessageGroup[]; gates: GateReview[]; currentGate: GateReview | null }): ThreadDisplayItem[] {
   const items: ThreadDisplayItem[] = input.groups.map((group) => ({
     kind: "message_group",
@@ -553,10 +572,11 @@ function threadDisplayItemsFromProjection(input: { groups: ThreadMessageGroup[];
     const anchorPhase = gateAnchorPhase(gate);
     const anchorGroup = input.groups.find((group) => group.role === "user" && group.messages.some((message) => message.clientPhase === anchorPhase));
     const lastSequence = input.groups.at(-1)?.sequence ?? 0;
+    const fallbackSequence = anchorGroup ? anchorGroup.sequence - 0.001 : lastSequence + 0.001 + index * 0.001;
     items.push({
       kind: "decision_gate",
       id: `decision:${gate.id}:${gate.status}`,
-      sequence: anchorGroup ? anchorGroup.sequence - 0.001 : lastSequence + 0.001 + index * 0.001,
+      sequence: gateSequence(gate, input.groups, fallbackSequence),
       gate,
     });
   });
@@ -697,8 +717,6 @@ function buildChecklist(state: ExperimentPlannerState): ChecklistStep[] {
   const complete = "complete" as const;
   const active = "active" as const;
   const pending = "pending" as const;
-  // A CSV run shows the import step; a baseline (chat-started) run skips it so
-  // the bar doesn't appear to "start" several steps in.
   const csvRun = Boolean(state.importResult) || state.phase === "importing";
   const started = Boolean(state.thread.threadId) || ["starting", "connecting", "live", "signal_review", "awaiting_approval", "approved"].includes(state.phase);
   const connected = state.thread.connection === "open" || ["live", "signal_review", "awaiting_approval", "approved"].includes(state.phase);
@@ -707,16 +725,24 @@ function buildChecklist(state: ExperimentPlannerState): ChecklistStep[] {
   const needsApproval = state.phase === "awaiting_approval" || state.review.approving;
   const approved = state.phase === "approved";
 
-  return [
-    // Baseline runs have no CSV: mark import complete (skipped) once the session
-    // started, so the 6 steps still fill in order 1->6 instead of leaving step 1
-    // pending while later steps complete.
-    { label: "Import metrics", status: state.phase === "importing" ? active : csvRun || started ? complete : pending },
+  const setupSteps: ChecklistStep[] = [
+    ...(csvRun ? [{ label: "Import metrics", status: state.phase === "importing" ? active : complete } satisfies ChecklistStep] : []),
     { label: "Start agent session", status: state.phase === "starting" ? active : started ? complete : pending },
     { label: "Connect stream", status: state.phase === "connecting" ? active : connected ? complete : started ? active : pending },
+  ];
+
+  if (approved || needsApproval || hasPlan) {
+    return [
+      ...setupSteps,
+      { label: "Draft experiment plan", status: hasPlan ? complete : connected ? active : pending },
+      { label: "Review approval", status: approved ? complete : needsApproval ? active : pending },
+    ];
+  }
+
+  return [
+    ...setupSteps,
     { label: "Analyze signals", status: hasSignal ? complete : connected ? active : pending },
-    { label: "Draft experiment plan", status: hasPlan ? complete : hasSignal ? active : pending },
-    { label: "Review experiment plan", status: approved ? complete : needsApproval ? active : pending },
+    { label: "Discuss next step", status: hasSignal ? active : pending },
   ];
 }
 
@@ -743,7 +769,7 @@ function readableWorkflowState(state: ExperimentPlannerState, displayState: Agen
     case "connecting":
       return "Connecting stream";
     case "live":
-      return "Analyzing signal";
+      return "Agent responding";
     case "signal_review":
     case "awaiting_approval":
       return "Review needed";
@@ -1091,6 +1117,28 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
       persistThread(threadId, streamUrl);
       bindThreadToCampaign(threadId);
       await connectStream(threadId, streamUrl);
+
+      const content = composerQuestionRef.current.trim() || `Analyze the campaign metrics I just uploaded (${importingState.composer.file.name}).`;
+      streamRef.current?.send({
+        command_id: commandId("cmd_initial_analysis"),
+        type: "message.send",
+        thread_id: threadId,
+        content,
+        client_created_at: new Date().toISOString(),
+      });
+      setLocalUserMessages((messages) => [
+        ...messages,
+        {
+          message_id: `msg_local_${Date.now()}`,
+          role: "user",
+          content,
+          clientSequence: nextLocalSequence(),
+          phaseAtSend: "live",
+        },
+      ]);
+      composerQuestionRef.current = "";
+      setComposerQuestion("");
+      dispatch({ type: "UPDATE_QUESTION", question: "" });
     } catch (error) {
       dispatch({
         type: requestPhase === "import" ? "IMPORT_FAILED" : "AGENT_SESSION_FAILED",

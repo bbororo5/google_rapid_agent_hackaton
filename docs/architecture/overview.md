@@ -41,10 +41,11 @@ graph LR
 
 | 영역 | 결정 |
 |---|---|
-| [데이터 · 기억](adr/01-data-and-memory.md) | Elastic 단일 저장소(0001), 기억 4계층 분리(0002), 승인 전 비저장(0003) |
+| [데이터 · 기억](adr/01-data-and-memory.md) | Elastic 단일 저장소(0001), 기억 4계층 분리(0002), 승인 전 business 비저장(0003, ADR-004에서 runtime-only TTL 저장으로 정교화) |
 | [에이전트](adr/02-the-agents.md) | 4워커 멀티 에이전트(0004), ADK 직접 제어(0005), 결정적 검수(0006), 형식·의미 오류 분리(0007) |
 | [투명성 · 관측성](adr/03-transparency.md) | 영속 WS 타임라인(0008), glass-box 정규화(0009), L4 자가 성찰(0010) |
 | [엔지니어링 규율](adr/04-discipline.md) | 계약 우선(0011), 안정적 데모(0012) |
+| [오케스트레이터 v2](adr/05-state-reactive-workflow.md) | 자유 대화 기반 `StateDelta`, deterministic reducer, Elastic runtime repository(0013) |
 
 ## 범위 외 (Non-goals)
 
@@ -53,7 +54,7 @@ graph LR
 ## 알려진 한계
 
 - 데이터는 append-only다. 승인된 브리프·캘린더는 수정·삭제하지 않는다(ADR-0001, 0003).
-- 승인 전 후보 실험안은 저장되지 않으며 브라우저 새로고침 시 소실된다(ADR-0003).
+- 승인 전 후보 실험안은 business document로 저장되지 않는다. 다만 Agent Core scale-out과 장애 복구를 위해 runtime-only TTL snapshot/ref는 Elastic에 저장될 수 있다(ADR-004).
 - 검수자는 스키마·근거 무결성을 결정적으로 보장하지만, 규칙으로 표현되지 않은 의미적 약점은 차단하지 못한다(ADR-0006).
 - 모든 추천은 상관관계 기반이며, 가설은 인과 단정 없이 caveat을 강제한다.
 
@@ -65,3 +66,4 @@ graph LR
 | 제품 포지셔닝·사용자·시나리오 | [PRD](../product/LaunchPilot_PRD.md) |
 | 결정의 맥락과 대안 | [ADR](adr/) |
 | 경계별 계약 | [`contracts/`](../../contracts/) |
+| 과거 v1 설계 문서 | [archive](../archive/) |

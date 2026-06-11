@@ -2,10 +2,10 @@
 
 Each worker is an LlmAgent with output_schema set to the contract 05 model, so
 Gemini's final reply is structured and validated. `google.adk` is imported
-lazily so the stub path works without the package installed.
+lazily so module import stays cheap; real worker execution requires ADK.
 
-The orchestrator invokes one agent at a time (not SequentialAgent) because it
-interleaves deterministic review + WS events + backtracking between workers.
+The orchestrator invokes one phase agent per user-requested round. It does not
+use SequentialAgent because the product workflow is HITL and non-linear.
 """
 from __future__ import annotations
 
@@ -20,8 +20,8 @@ from app.agents import instructions
 from app.agents.output_schemas import (
     ExperimentPlanDraftOut,
     HypothesisDraftOut,
-    RouterOut,
     SignalDraftOut,
+    TurnInterpreterOut,
 )
 from app.config import get_settings
 from app.tools import evidence
@@ -33,7 +33,7 @@ _log = logging.getLogger("launchpilot.adk")
 # (intermittent ConnectError that the SDK keeps retrying) stalls the whole
 # pipeline forever and the turn looks "stuck". On timeout we raise, which the
 # orchestrator turns into a visible retryable error block.
-_LLM_TIMEOUT_S = float(os.environ.get("LLM_CALL_TIMEOUT_S", "90"))
+_LLM_TIMEOUT_S = float(os.environ.get("LLM_CALL_TIMEOUT_S", "180"))
 
 
 def _build_agents():
@@ -80,18 +80,16 @@ def _build_agents():
         description="Conversational replies about campaign growth work.",
         instruction=instructions.CHAT,
     )
-    # Router: one fast call -> {intent, reply}. Classifies the turn and, for
-    # non-analysis turns, writes the steering reply in the same pass.
-    router = LlmAgent(
-        name="router",
+    interpreter = LlmAgent(
+        name="interpreter",
         model=model,
-        description="Classifies a turn's intent and drafts a chat reply.",
-        instruction=instructions.ROUTER,
-        output_schema=RouterOut,
-        output_key="route",
+        description="Interprets free-form turns into state delta proposals.",
+        instruction=instructions.INTERPRETER,
+        output_schema=TurnInterpreterOut,
+        output_key="state_delta",
     )
     return {"analyst": analyst, "strategist": strategist, "writer": writer,
-            "chat": chat, "router": router}
+            "chat": chat, "interpreter": interpreter}
 
 
 async def _run_with_timeout(kind: str, shape: str, collect):

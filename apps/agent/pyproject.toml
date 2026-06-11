@@ -1,7 +1,7 @@
 [project]
 name = "launchpilot-agent"
 version = "0.1.0"
-description = "LaunchPilot Python Agent Service (FastAPI + Google ADK). Contract-enforced golden path."
+description = "LaunchPilot Python Agent Service (FastAPI + Google ADK). Round-based HITL orchestration."
 requires-python = ">=3.10"
 dependencies = [
     "google-adk>=2.1.0,<3",

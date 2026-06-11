@@ -215,27 +215,23 @@ function assertFileContains(relativePath, snippets) {
   }
 }
 
-function validateConversationFirstE2EScenarios() {
-  assertFileContains("e2e/conversation-first.mock.spec.ts", [
-    "supports free chat and composer shortcuts",
-    "opens saved outputs from the right drawer",
-    "keeps agent outputs inline while archiving them",
-  ]);
-  assertFileContains("e2e/main-analysis-approval.mock.spec.ts", [
-    "uploads CSV, reviews generated experiments, and approves them",
+function validateFullE2EScenarios() {
+  assertFileContains("e2e/real-round-based-workflow.spec.ts", [
+    "advances by user rounds without cascading phases",
+    "can backtrack from planning to analysis without being procedure-bound",
   ]);
   assertFileContains("contracts/01-frontend-java/README.md", [
     "message.send",
     "StreamMessage",
     "blocks[]",
   ]);
-  return ["conversation-first-e2e"];
+  return ["full-round-based-e2e"];
 }
 
 function main() {
   const scenarioFiles = walk(path.join(root, "scenarios")).filter((file) => file.endsWith(".scenario.json"));
   if (scenarioFiles.length === 0) {
-    const scenarioIds = validateConversationFirstE2EScenarios();
+    const scenarioIds = validateFullE2EScenarios();
     console.log(`Scenario verification passed (${scenarioIds.join(", ")}).`);
     return;
   }

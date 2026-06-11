@@ -16,7 +16,7 @@ RUN apt-get update \
  && apt-get purge -y gnupg && apt-get autoremove -y \
  && rm -rf /var/lib/apt/lists/* /root/.npm
 
-# Install deps first against a stub package so this heavy layer (google-adk,
+# Install deps first against minimal package metadata so this heavy layer (google-adk,
 # phoenix, ...) is cached and only re-runs when pyproject.toml changes — not on
 # every app code edit. The real source is overlaid afterwards and takes
 # precedence on sys.path (uvicorn runs from /app).
