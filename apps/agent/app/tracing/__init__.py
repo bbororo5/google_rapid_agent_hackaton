@@ -4,8 +4,7 @@
 (LLM/TOOL spans). This package adds the LaunchPilot *domain* spans the contract
 requires on top of that: AGENT / CHAIN / RETRIEVER / GUARDRAIL / EVALUATOR.
 
-All helpers are no-ops when tracing is off (no provider registered), so the
-golden path and offline/stub runs are unaffected.
+All helpers are no-ops when tracing is off (no provider registered).
 """
 from app.tracing.spans import (  # noqa: F401
     agent_span,

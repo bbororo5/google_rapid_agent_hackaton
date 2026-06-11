@@ -9,11 +9,11 @@ Caller ownership:
 - search_team_notes                            -> Strategist
 - load_growth_brief_context                    -> Orchestrator (pre-injection)
 
-Backend is chosen per call with a 3-tier fallback (contract 04):
+Backend is chosen per call with a 2-tier real-data path:
   1. Elastic MCP (mcp_client) when ELASTIC_USE_MCP is set  -> contract 04 method B
   2. direct ES (es_client) when ELASTIC_URL/API_KEY are set
-  3. seeded stub otherwise (offline/tests)
-A transport failure in tier 1 falls through to tier 2/3 rather than failing the run.
+A transport failure in tier 1 falls through to tier 2. Missing Elastic
+configuration is a visible tool error; evidence is never fabricated locally.
 """
 from __future__ import annotations
 
@@ -23,7 +23,6 @@ import logging
 from typing import NamedTuple, Optional
 
 from app.config import get_settings
-from app.tools import seed
 from app import tracing
 
 log = logging.getLogger("launchpilot.evidence")
@@ -72,17 +71,8 @@ def _current_scope() -> EvidenceScope:
     return _SCOPE.get() or _EMPTY_SCOPE
 
 
-def _in_scope(item: dict, sc: EvidenceScope) -> bool:
-    """None-means-unfiltered tenancy match for in-memory seed rows."""
-    if sc.workspace_id is not None and item.get("workspace_id") != sc.workspace_id:
-        return False
-    if sc.campaign_id is not None and item.get("campaign_id") != sc.campaign_id:
-        return False
-    return True
-
-
-def _resolve(tool_name: str, mcp_fn, es_fn, seed_fn) -> dict:
-    """Pick the evidence backend: MCP -> direct ES -> seed, with MCP fallback."""
+def _resolve(tool_name: str, mcp_fn, es_fn) -> dict:
+    """Pick the evidence backend: MCP -> direct ES, with MCP fallback."""
     s = get_settings()
     if s.elastic_mcp_enabled:
         try:
@@ -91,7 +81,12 @@ def _resolve(tool_name: str, mcp_fn, es_fn, seed_fn) -> dict:
             log.warning("%s: MCP path failed, falling back: %s", tool_name, exc)
     if s.use_real_elastic:
         return es_fn()
-    return seed_fn()
+    return _err(
+        tool_name,
+        "ELASTIC_UNCONFIGURED",
+        "Elastic evidence is not configured.",
+        retryable=False,
+    )
 
 
 def _stamp(span, result: dict) -> None:
@@ -133,24 +128,6 @@ def query_metric_baseline(metric_name: str, channel: str) -> dict:
     """
     sc = _current_scope()
 
-    def _seed() -> dict:
-        # Stub is single-tenant demo data: a turn scoped to a different campaign
-        # must see nothing (tenancy gate), else look up the curated baseline pair.
-        if not _in_scope({"workspace_id": seed.WORKSPACE_ID, "campaign_id": seed.CAMPAIGN_ID}, sc):
-            return _err("query_metric_baseline", "NO_EVIDENCE_FOUND",
-                        f"no {metric_name}/{channel} for this campaign")
-        base = seed.METRIC_BASELINES.get((metric_name, channel))
-        if base is None:
-            return _err("query_metric_baseline", "NO_EVIDENCE_FOUND",
-                        f"no baseline for {metric_name}/{channel}")
-        current, baseline = base["current_value"], base["baseline_value"]
-        # lift_ratio is just current / baseline (e.g. 0.074 / 0.026 = 2.8x).
-        lift = round(current / baseline, 3) if baseline else 0.0
-        ref = f"metric_{metric_name}_{channel}"
-        return _ok("query_metric_baseline", "esql", metric_name=metric_name,
-                   channel=channel, current_value=current, baseline_value=baseline,
-                   lift_ratio=lift, evidence_refs=[ref])
-
     with tracing.retriever_span(
         "launchpilot.evidence.query_metric_baseline",
         tool_name="query_metric_baseline",
@@ -162,7 +139,6 @@ def query_metric_baseline(metric_name: str, channel: str) -> dict:
             "query_metric_baseline",
             lambda: mcp_client.query_metric_baseline(metric_name, channel, sc),
             lambda: es_client.query_metric_baseline(metric_name, channel, sc),
-            _seed,
         )
         _stamp(span, result)
         return result
@@ -179,22 +155,6 @@ def search_content_posts(channels: list[str], metric_name: str) -> dict:
     """
     sc = _current_scope()
 
-    def _seed() -> dict:
-        # Keep posts on a requested channel that actually have the metric, scoped
-        # to the turn's campaign/workspace.
-        wanted = set(channels) if channels else None
-        refs = [
-            p["post_id"]
-            for p in seed.CONTENT_POSTS
-            if _in_scope(p, sc)
-            and (wanted is None or p["channel"] in wanted)
-            and metric_name in p["metrics"]
-        ]
-        if not refs:
-            return _err("search_content_posts", "NO_EVIDENCE_FOUND",
-                        f"no {metric_name} posts on {channels}")
-        return _ok("search_content_posts", "search", evidence_refs=refs)
-
     with tracing.retriever_span(
         "launchpilot.evidence.search_content_posts",
         tool_name="search_content_posts",
@@ -206,7 +166,6 @@ def search_content_posts(channels: list[str], metric_name: str) -> dict:
             "search_content_posts",
             lambda: mcp_client.search_content_posts(channels, metric_name, sc),
             lambda: es_client.search_content_posts(channels, metric_name, sc),
-            _seed,
         )
         _stamp(span, result)
         return result
@@ -219,26 +178,10 @@ def search_team_notes(query: str) -> dict:
         query: free-text, e.g. "save rate spike" or "BTS".
 
     Returns team_note evidence_refs, or ok:false NO_EVIDENCE_FOUND when nothing
-    matches. Used by the Strategist. If no notes are seeded at all the wrapper
-    must not hallucinate (contract 04).
+    matches. Used by the Strategist. Missing notes must surface as a tool error,
+    never as invented qualitative evidence.
     """
     sc = _current_scope()
-
-    def _seed() -> dict:
-        if not seed.TEAM_NOTES:
-            # No index at all -> INDEX_UNAVAILABLE (strategist proceeds quant-only).
-            return _err("search_team_notes", "INDEX_UNAVAILABLE", "team_notes not seeded")
-        # Naive keyword match over note text (stub stand-in for a real query),
-        # scoped to the turn's campaign/workspace.
-        terms = [t for t in query.lower().split() if t]
-        refs = [
-            n["note_id"]
-            for n in seed.TEAM_NOTES
-            if _in_scope(n, sc) and (not terms or any(t in n["text"].lower() for t in terms))
-        ]
-        if not refs:
-            return _err("search_team_notes", "NO_EVIDENCE_FOUND", "no matching team notes")
-        return _ok("search_team_notes", "search", evidence_refs=refs)
 
     with tracing.retriever_span(
         "launchpilot.evidence.search_team_notes",
@@ -251,7 +194,6 @@ def search_team_notes(query: str) -> dict:
             "search_team_notes",
             lambda: mcp_client.search_team_notes(query, sc),
             lambda: es_client.search_team_notes(query, sc),
-            _seed,
         )
         _stamp(span, result)
         return result
@@ -269,5 +211,4 @@ def load_growth_brief_context(parent_brief_id: str) -> dict:
         "load_growth_brief_context",
         lambda: mcp_client.load_growth_brief_context(parent_brief_id),
         lambda: es_client.load_growth_brief_context(parent_brief_id),
-        lambda: _ok("load_growth_brief_context", "search", evidence_refs=[], brief=None),
     )

@@ -58,12 +58,11 @@ app.include_router(thread_stream.router)  # WS: per-thread block stream
 
 @app.get("/health")
 async def health() -> dict:
-    # Quick check of which mode each side resolved to (stub vs real).
     s = get_settings()
     return {
         "ok": True,
-        "llm": "gemini" if s.use_real_llm else "stub",
-        "evidence": "elastic" if s.use_real_elastic else "stub",
+        "llm": "gemini" if s.use_real_llm else "missing",
+        "evidence": "elastic" if s.use_real_elastic else "missing",
     }
 
 

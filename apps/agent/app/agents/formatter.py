@@ -1,8 +1,8 @@
 """Formatter — Python deterministic normalization (decision: not an LLM).
 
-Assembles the three worker outputs into the final AgentResultPayload. Its job is
+Assembles the three phase outputs into the final AgentResultPayload. Its job is
 *structural* only (contract 05). Semantic errors (hallucinated refs, missing
-caveat) are NOT fixed here — those route back to a worker via failure.py.
+caveat) are NOT fixed here; reviewer.py blocks the planning approval gate.
 
 Decision rationale: a SCHEMA_INVALID is a shape slip, not a reasoning error, so
 deterministic assembly is correct and cheaper than another LLM hop. With

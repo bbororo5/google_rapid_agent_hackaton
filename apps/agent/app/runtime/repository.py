@@ -141,7 +141,7 @@ class InMemoryAgentRuntimeRepository:
     async def load_runtime_artifacts(self, refs: list[str]) -> list[RuntimeArtifact]:
         return [self._artifacts[ref] for ref in refs if ref in self._artifacts]
 
-    def seed_messages(self, scope: ScopeContext, messages: list[ThreadMessage]) -> None:
+    def set_messages_for_local_test(self, scope: ScopeContext, messages: list[ThreadMessage]) -> None:
         self._messages[(scope.workspace_id, scope.campaign_id, scope.thread_id)] = messages
 
 

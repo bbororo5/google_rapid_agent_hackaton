@@ -1,10 +1,10 @@
 """Quality evaluation runner (Part B2/B4).
 
 For each scenario: drive the orchestrator like the turn API would (reuse the
-test_golden_path pattern), pull the final AgentResultPayload off the approval
-block, compute free deterministic metrics, score quality with the LLM judge
-(real-LLM mode only), attach an EVALUATOR span to the same Phoenix trace, and
-write a JSON + Markdown report.
+round-based product flow), inspect emitted blocks, and when a planning round
+produces an approval contract payload, compute deterministic metrics and optional LLM
+quality scores. Analysis/chat/hypothesis scenarios are still reported, but do
+not pretend to be full approval-producing pipelines.
 
 Run:
     cd apps/agent
@@ -29,7 +29,7 @@ _REPORT_DIR = _HERE / "report"
 
 
 def _extract_payload(record) -> AgentResultPayload | None:
-    # The pipeline ends with an approval block carrying the full payload.
+    # Only the planning round emits an approval block carrying the full payload.
     for m in record.messages:
         for b in m.blocks:
             if b.get("kind") == "approval" and "payload" in b:
@@ -133,7 +133,7 @@ def _write_report(results: list[dict]) -> None:
         json.dumps(results, ensure_ascii=False, indent=2), encoding="utf-8"
     )
 
-    lines = ["# LaunchPilot 분석 퀄리티 리포트", ""]
+    lines = ["# LaunchPilot Round-Based Evaluation Report", ""]
     lines.append("| scenario | kind | final | reviewer | sig(S/W/N) | H | E | signal | hyp | plan | overall |")
     lines.append("|---|---|---|---|---|---|---|---|---|---|---|")
     for r in results:
@@ -178,8 +178,8 @@ async def main() -> None:
     s = get_settings()
     use_judge = s.use_real_llm
     scenarios = json.loads(_DATASET.read_text(encoding="utf-8"))
-    print(f"eval: {len(scenarios)} scenarios | llm={'gemini' if s.use_real_llm else 'stub'} "
-          f"| judge={'on' if use_judge else 'off (stub mode)'}")
+    print(f"eval: {len(scenarios)} scenarios | llm={'gemini' if s.use_real_llm else 'missing'} "
+          f"| judge={'on' if use_judge else 'off (missing llm config)'}")
 
     results = []
     for sc in scenarios:

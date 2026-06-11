@@ -1,18 +1,18 @@
 [
   {
-    "id": "golden_initial_analysis",
-    "kind": "full_pipeline",
-    "turns": ["다음 주에 뭘 테스트하면 좋을까? 이번 캠페인 데이터로 분석해줘."],
+    "id": "round_analysis_only",
+    "kind": "analysis_round",
+    "turns": ["이번 캠페인 데이터에서 최근 성과 신호를 분석해줘."],
     "workspace_id": "demo_workspace",
     "campaign_id": "camp_comeback_teaser",
     "expected": {
-      "final_block": "approval",
-      "requires_artifact": true
+      "includes_artifact_kind": "signal",
+      "excludes_block": "approval"
     },
-    "notes": "Core business loop: signal -> hypothesis -> experiment plan -> approval gate."
+    "notes": "An analysis request must stop after signal artifacts."
   },
   {
-    "id": "golden_direct_chat_after_analysis",
+    "id": "round_direct_chat_after_analysis",
     "kind": "direct_reply",
     "turns": [
       "최근 성과에서 눈에 띄는 신호 있어? 지표 비교해서 찾아줘.",
@@ -24,40 +24,57 @@
       "second_turn_blocks": ["text"],
       "second_turn_excludes": ["approval"]
     },
-    "notes": "After a completed plan, ordinary follow-up conversation should not rerun the pipeline."
+    "notes": "A follow-up conversation after analysis should not invoke the next phase."
   },
   {
-    "id": "golden_phase_revision_delegate",
-    "kind": "phase_delegate",
+    "id": "round_hypothesis_after_analysis",
+    "kind": "hypothesis_round",
     "turns": [
-      "틱톡 채널 위주로 다음 실험 계획 잡아줘.",
-      "실험 제목을 더 짧게 바꿔줘."
+      "최근 성과에서 눈에 띄는 신호 있어? 지표 비교해서 찾아줘.",
+      "그 분석 결과를 바탕으로 가설을 세워줘."
     ],
     "workspace_id": "demo_workspace",
     "campaign_id": "camp_comeback_teaser",
     "expected": {
-      "second_turn_blocks": ["text"],
-      "reply_contains": "phase agent"
+      "second_turn_artifact_kind": "hypothesis",
+      "second_turn_excludes": ["approval"]
     },
-    "notes": "A phase-local artifact edit should delegate to the phase facade, not rerun analysis."
+    "notes": "A hypothesis request should use prior signals and stop before planning."
   },
   {
-    "id": "golden_backtrack_rerun",
-    "kind": "backtrack_rerun",
+    "id": "round_plan_after_hypothesis",
+    "kind": "planning_round",
     "turns": [
-      "분석해서 다음주 실험 계획까지 만들어줘.",
+      "최근 성과에서 눈에 띄는 신호 있어? 지표 비교해서 찾아줘.",
+      "그 분석 결과를 바탕으로 가설을 세워줘.",
+      "첫 번째 가설을 확정하고 실험 계획을 세워줘."
+    ],
+    "workspace_id": "demo_workspace",
+    "campaign_id": "camp_comeback_teaser",
+    "expected": {
+      "final_block": "approval",
+      "requires_artifact_kind": "experiment_plan"
+    },
+    "notes": "Only the explicit planning round should open the approval gate."
+  },
+  {
+    "id": "round_backtrack_to_analysis",
+    "kind": "backtrack_round",
+    "turns": [
+      "최근 성과에서 눈에 띄는 신호 있어? 지표 비교해서 찾아줘.",
+      "그 분석 결과를 바탕으로 가설을 세워줘.",
       "저장률 말고 공유 수 기준으로 처음 분석부터 다시 봐줘."
     ],
     "workspace_id": "demo_workspace",
     "campaign_id": "camp_comeback_teaser",
     "expected": {
-      "second_turn_includes": ["approval"],
-      "requires_new_plan": true
+      "final_artifact_kind": "signal",
+      "excludes_block": "approval"
     },
-    "notes": "A user can backtrack from a later phase to upstream analysis in free conversation."
+    "notes": "Backtracking to analysis invalidates downstream artifacts and reruns only the target round."
   },
   {
-    "id": "golden_missing_campaign",
+    "id": "round_missing_campaign",
     "kind": "recoverable_error",
     "turns": ["분석해줘"],
     "workspace_id": null,

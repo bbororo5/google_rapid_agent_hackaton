@@ -7,8 +7,7 @@ quality axes 1-5 with rationale. It has NO blocking power (ADR-0006: determinist
 validation is authoritative); it only measures.
 
 Separate agent + separate call from the workers, so the model is not grading its
-own in-context generation. Lazy ADK import so importing this module never needs
-google-adk (the report path still works in stub mode without a judge).
+own in-context generation. Lazy ADK import keeps module import lightweight.
 """
 from __future__ import annotations
 
@@ -60,9 +59,9 @@ Be specific in each rationale (name ids, numbers). Return the QualityScore schem
 
 
 async def judge(payload: AgentResultPayload) -> QualityScore:
-    """Score one analysis payload. Requires real-LLM mode (raises otherwise)."""
+    """Score one analysis payload. Requires Gemini/ADK configuration."""
     if not get_settings().use_real_llm:
-        raise RuntimeError("judge requires real-LLM mode (set GEMINI_API_KEY or Vertex ADC)")
+        raise RuntimeError("judge requires Gemini configuration (set GEMINI_API_KEY or Vertex ADC)")
 
     from google.adk.agents import LlmAgent
     from google.adk.runners import Runner

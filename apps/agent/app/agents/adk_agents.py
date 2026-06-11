@@ -2,10 +2,10 @@
 
 Each worker is an LlmAgent with output_schema set to the contract 05 model, so
 Gemini's final reply is structured and validated. `google.adk` is imported
-lazily so the stub path works without the package installed.
+lazily so module import stays cheap; real worker execution requires ADK.
 
-The orchestrator invokes one agent at a time (not SequentialAgent) because it
-interleaves deterministic review + WS events + backtracking between workers.
+The orchestrator invokes one phase agent per user-requested round. It does not
+use SequentialAgent because the product workflow is HITL and non-linear.
 """
 from __future__ import annotations
 
@@ -21,6 +21,7 @@ from app.agents.output_schemas import (
     ExperimentPlanDraftOut,
     HypothesisDraftOut,
     SignalDraftOut,
+    TurnInterpreterOut,
 )
 from app.config import get_settings
 from app.tools import evidence
@@ -79,8 +80,16 @@ def _build_agents():
         description="Conversational replies about campaign growth work.",
         instruction=instructions.CHAT,
     )
+    interpreter = LlmAgent(
+        name="interpreter",
+        model=model,
+        description="Interprets free-form turns into state delta proposals.",
+        instruction=instructions.INTERPRETER,
+        output_schema=TurnInterpreterOut,
+        output_key="state_delta",
+    )
     return {"analyst": analyst, "strategist": strategist, "writer": writer,
-            "chat": chat}
+            "chat": chat, "interpreter": interpreter}
 
 
 async def _run_with_timeout(kind: str, shape: str, collect):

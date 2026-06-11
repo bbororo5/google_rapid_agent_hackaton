@@ -9,8 +9,9 @@ Approve/reject/cancel/revise are resolved in Java and never reach here
 (contract 02 README, Action Handling), so this module only ever sees free-form
 content turns.
 
-Deterministic review still uses prefix-reuse backtracking on reviewer failure.
-Cancellation is checked between stages (best-effort).
+Deterministic review validates plan drafts only when the user explicitly asks
+for the experiment planning round. Cancellation is checked between stages
+(best-effort).
 """
 from __future__ import annotations
 
@@ -18,11 +19,9 @@ import asyncio
 import logging
 from datetime import date, datetime, timedelta, timezone
 
-from app.agents import failure, formatter, reflection, reviewer, workers
+from app.agents import formatter, reflection, reviewer, workers
 from app.tools import evidence
-from app.config import get_settings
 from app.contracts import (
-    AgentResultPayload,
     DateRange,
     Hypothesis,
     Signal,
@@ -85,6 +84,9 @@ def _thread_context(record: ThreadRecord, has_scope: bool) -> str:
         or record.state.phase_artifacts[PhaseType.EXPERIMENT_PLAN.value].get("experiment_plan")
     )
     if has_plan:
+        return "plan_ready"
+    has_signals = bool(record.state.phase_artifacts[PhaseType.DATA_ANALYSIS.value].get("signals"))
+    if has_signals:
         return "analysis_done"
     if has_scope:
         return "ready_to_analyze"
@@ -209,11 +211,9 @@ async def _process_turn_locked(
                 )
                 tracing.set_output(turn_span, {"mode": "rerun", "status": "campaign_not_found"})
             else:
-                # Analysis no longer requires a fresh CSV: with no upload we analyze
-                # the existing baseline data; with an upload we factor it in too.
-                # Re-runnable: a later "analyze" starts a fresh pass over updated data.
-                # Scope every evidence query in this run to the turn's campaign +
-                # analysis window (read from the ContextVar by the evidence tools).
+                # Scope every evidence query in this round to the turn's campaign +
+                # analysis window. A single user round runs one requested phase;
+                # analysis never cascades into hypotheses, planning, or approval.
                 current = _analysis_window()
                 baseline = _baseline_window(current)
                 # CHAIN span: the orchestrator pipeline (analyst..reviewer). Parents
@@ -242,7 +242,7 @@ async def _process_turn_locked(
             tracing.set_output(turn_span, {"mode": "delegate", "target_phase": delegation.target_phase.value})
         else:
             # Chat or analysis already done: emit the interpreter's direct reply.
-            reply = delta.reply or "How can I help with your campaign analysis?"
+            reply = _artifact_lookup_reply(record, delta.intent) or delta.reply or "How can I help with your campaign analysis?"
             record.state.active_chat_history.append({"role": "assistant", "content": reply})
             log.info(
                 "chat reply thread=%s context=%s",
@@ -293,218 +293,105 @@ async def _run_pipeline(
     start_phase: PhaseType = PhaseType.DATA_ANALYSIS,
     repository=None,
 ) -> dict | None:
-    settings = get_settings()
+    """Run exactly one user-requested phase round.
+
+    ADR-004 models LaunchPilot as a round-based HITL workflow. A request for
+    analysis must not automatically generate hypotheses, draft a plan, and open
+    approval. Each phase advances only when the user asks for that phase.
+    """
     date_range = _analysis_window()
-
-    _check_cancel(record)
-    await blocks.assistant(
-        record,
-        [blocks.text_block("Comparing the campaign metrics against the recent baseline to find signals.")],
-    )
-
-    mode = "gemini" if settings.use_real_llm else "stub"
-    log.info("pipeline start thread=%s llm=%s window=%s..%s",
-             record.thread_id, mode, date_range.start, date_range.end)
-
-    # Reflection (contract 06 §Reflection): advisory summary of past review
-    # failures from Phoenix MCP. Off unless PHOENIX_USE_MCP; never blocks the loop
-    # (offloaded) and never overrides the deterministic reviewer.
-    if settings.reflection_enabled:
-        try:
-            summary = await asyncio.to_thread(
-                reflection.summarize_failures, record.workspace_id, record.campaign_id
-            )
-            if summary:
-                log.info("reflection thread=%s: %s", record.thread_id, summary)
-        except Exception as exc:  # noqa: BLE001 - advisory only, never fatal
-            log.warning("reflection skipped: %s", exc)
+    log.info("round start thread=%s phase=%s window=%s..%s", record.thread_id, start_phase.value, date_range.start, date_range.end)
 
     if start_phase == PhaseType.DATA_ANALYSIS:
-        # --- Stage 1: Analyst (detect signals, then ground them) ---
-        record.state.current_phase = PhaseType.DATA_ANALYSIS
-        _check_cancel(record)
-        log.info("[1/4] analyst start (llm=%s)", mode)
-        await blocks.assistant(record, [blocks.activity_block("query_metric_baseline", "Checking metric baseline", "running")])
-        signal_out = await workers.run_analyst(content, date_range)
-        signals: list[Signal] = signal_out.signals
-        record.state.phase_artifacts[PhaseType.DATA_ANALYSIS.value]["signals"] = [
-            sig.model_dump(mode="json") for sig in signals
-        ]
-        await _save_phase_artifact_ref(
-            record,
-            repository,
-            PhaseType.DATA_ANALYSIS,
-            "signals",
-            {"signals": [sig.model_dump(mode="json") for sig in signals]},
-        )
-        log.info("[1/4] analyst done: %d signal(s)", len(signals))
-        await blocks.assistant(
-            record,
-            [blocks.activity_block("query_metric_baseline", "Checked metric baseline", "done")],
-        )
-        for sig in signals:
-            await blocks.assistant(
-                record,
-                [
-                    blocks.text_block(sig.description),
-                    blocks.artifact_block(sig.id, "signal", sig.title, sig.model_dump(mode="json")),
-                ],
-            )
-    else:
-        signals = [
-            Signal(**raw)
-            for raw in record.state.phase_artifacts[PhaseType.DATA_ANALYSIS.value].get("signals", [])
-        ]
-        if not signals:
-            signals = (await workers.run_analyst(content, date_range)).signals
+        return await _run_analysis_round(record, content, date_range, repository)
+    if start_phase == PhaseType.HYPOTHESIS_GEN:
+        return await _run_hypothesis_round(record, content, repository)
+    if start_phase == PhaseType.EXPERIMENT_PLAN:
+        return await _run_plan_round(record, content, date_range, repository)
 
-    # --- Stage 2: Strategist (why hypotheses) ---
-    if start_phase in (PhaseType.DATA_ANALYSIS, PhaseType.HYPOTHESIS_GEN):
-        record.state.current_phase = PhaseType.HYPOTHESIS_GEN
-        _check_cancel(record)
-        log.info("[2/4] strategist start")
-        await blocks.assistant(record, [blocks.activity_block("search_team_notes", "Searching team notes", "running")])
-        hyp_out = await workers.run_strategist(content, signals)
-        hypotheses: list[Hypothesis] = hyp_out.hypotheses
-        record.state.phase_artifacts[PhaseType.HYPOTHESIS_GEN.value]["hypotheses"] = [
-            hyp.model_dump(mode="json") for hyp in hypotheses
-        ]
-        await _save_phase_artifact_ref(
-            record,
-            repository,
-            PhaseType.HYPOTHESIS_GEN,
-            "hypotheses",
-            {"hypotheses": [hyp.model_dump(mode="json") for hyp in hypotheses]},
-        )
-        log.info("[2/4] strategist done: %d hypothesis(es)", len(hypotheses))
-        await blocks.assistant(record, [blocks.activity_block("search_team_notes", "Checked team notes", "done")])
-        for hyp in hypotheses:
-            await blocks.assistant(
-                record,
-                [
-                    blocks.text_block(hyp.rationale),
-                    blocks.artifact_block(hyp.id, "hypothesis", hyp.statement, hyp.model_dump(mode="json")),
-                ],
-            )
-    else:
-        hypotheses = [
-            Hypothesis(**raw)
-            for raw in record.state.phase_artifacts[PhaseType.HYPOTHESIS_GEN.value].get("hypotheses", [])
-        ]
-        if not hypotheses:
-            hypotheses = (await workers.run_strategist(content, signals)).hypotheses
+    await blocks.assistant(record, [blocks.text_block("실험 평가 단계는 아직 실행 결과 입력 후 분석 라운드에서 다룹니다.")])
+    return {"mode": "phase_not_implemented", "phase": start_phase.value}
 
-    # --- Stage 3 + 4: Writer + Reviewer gate with prefix-reuse backtracking ---
+
+async def _run_analysis_round(record: ThreadRecord, content: str, date_range: DateRange, repository) -> dict:
+    _check_cancel(record)
+    record.state.current_phase = PhaseType.DATA_ANALYSIS
+    await blocks.assistant(record, [blocks.text_block("Comparing the campaign metrics against the recent baseline to find signals.")])
+    log.info("[analysis] analyst start (llm=gemini)")
+    await blocks.assistant(record, [blocks.activity_block("query_metric_baseline", "Checking metric baseline", "running")])
+    signal_out = await workers.run_analyst(content, date_range)
+    signals: list[Signal] = signal_out.signals
+    record.state.phase_artifacts[PhaseType.DATA_ANALYSIS.value]["signals"] = [sig.model_dump(mode="json") for sig in signals]
+    await _save_phase_artifact_ref(record, repository, PhaseType.DATA_ANALYSIS, "signals", {"signals": [sig.model_dump(mode="json") for sig in signals]})
+    log.info("[analysis] analyst done: %d signal(s)", len(signals))
+    await blocks.assistant(record, [blocks.activity_block("query_metric_baseline", "Checked metric baseline", "done")])
+    for sig in signals:
+        await blocks.assistant(record, [blocks.text_block(sig.description), blocks.artifact_block(sig.id, "signal", sig.title, sig.model_dump(mode="json"))])
+    await blocks.assistant(record, [blocks.text_block("분석 결과를 확인했습니다. 원하면 이 신호를 바탕으로 가설을 세울 수 있습니다.")])
+    return {"phase": PhaseType.DATA_ANALYSIS.value, "signals": len(signals)}
+
+
+async def _run_hypothesis_round(record: ThreadRecord, content: str, repository) -> dict | None:
+    _check_cancel(record)
+    record.state.current_phase = PhaseType.HYPOTHESIS_GEN
+    signals = [Signal(**raw) for raw in record.state.phase_artifacts[PhaseType.DATA_ANALYSIS.value].get("signals", [])]
+    if not signals:
+        await blocks.system(record, [blocks.error_block("Analysis required", "가설을 세우기 전에 먼저 데이터 분석 라운드를 실행해 주세요.", retryable=True)])
+        return {"phase": PhaseType.HYPOTHESIS_GEN.value, "status": "missing_analysis"}
+
+    log.info("[hypothesis] strategist start")
+    await blocks.assistant(record, [blocks.activity_block("search_team_notes", "Searching team notes", "running")])
+    hyp_out = await workers.run_strategist(content, signals)
+    hypotheses: list[Hypothesis] = hyp_out.hypotheses
+    record.state.phase_artifacts[PhaseType.HYPOTHESIS_GEN.value]["hypotheses"] = [hyp.model_dump(mode="json") for hyp in hypotheses]
+    await _save_phase_artifact_ref(record, repository, PhaseType.HYPOTHESIS_GEN, "hypotheses", {"hypotheses": [hyp.model_dump(mode="json") for hyp in hypotheses]})
+    log.info("[hypothesis] strategist done: %d hypothesis(es)", len(hypotheses))
+    await blocks.assistant(record, [blocks.activity_block("search_team_notes", "Checked team context", "done")])
+    for hyp in hypotheses:
+        await blocks.assistant(record, [blocks.text_block(hyp.rationale), blocks.artifact_block(hyp.id, "hypothesis", hyp.statement, hyp.model_dump(mode="json"))])
+    await blocks.assistant(record, [blocks.text_block("가설을 정리했습니다. 특정 가설을 선택하면 그때 실험 계획을 세울 수 있습니다.")])
+    return {"phase": PhaseType.HYPOTHESIS_GEN.value, "hypotheses": len(hypotheses)}
+
+
+async def _run_plan_round(record: ThreadRecord, content: str, date_range: DateRange, repository) -> dict | None:
+    _check_cancel(record)
     record.state.current_phase = PhaseType.EXPERIMENT_PLAN
-    log.info("[3/4] writer start")
+    signals = [Signal(**raw) for raw in record.state.phase_artifacts[PhaseType.DATA_ANALYSIS.value].get("signals", [])]
+    hypotheses = [Hypothesis(**raw) for raw in record.state.phase_artifacts[PhaseType.HYPOTHESIS_GEN.value].get("hypotheses", [])]
+    if not signals or not hypotheses:
+        await blocks.system(record, [blocks.error_block("Hypotheses required", "실험 계획을 세우기 전에 분석과 가설 라운드를 먼저 완료해 주세요.", retryable=True)])
+        return {"phase": PhaseType.EXPERIMENT_PLAN.value, "status": "missing_hypotheses"}
+
+    log.info("[plan] writer start")
     plan = (await workers.run_writer(content, date_range, hypotheses)).experiment_plan
     record.state.phase_artifacts[PhaseType.EXPERIMENT_PLAN.value]["experiment_plan"] = plan.model_dump(mode="json")
     record.state.active_artifact_id = plan.id
-    await _save_phase_artifact_ref(
-        record,
-        repository,
-        PhaseType.EXPERIMENT_PLAN,
-        "experiment_plan",
-        {"experiment_plan": plan.model_dump(mode="json")},
-    )
-    log.info("[3/4] writer done: %d item(s)", len(plan.items))
-    backtrack_count = 0
-    payload: AgentResultPayload
-    _gmeta = {
-        "thread_id": record.thread_id,
-        "workspace_id": record.workspace_id,
-        "campaign_id": record.campaign_id,
-    }
-    while True:
-        _check_cancel(record)
-        log.info("[4/4] reviewer start")
-        payload = formatter.assemble(signals, hypotheses, plan)
-        # GUARDRAIL span: deterministic reviewer gate (contract 06 §Reviewer Gate).
-        with tracing.guardrail_span(
-            "launchpilot.reviewer_gate",
-            input_value={"signals": len(signals), "hypotheses": len(hypotheses),
-                         "items": len(plan.items)},
-            metadata={**_gmeta, "validator_passed": None, "backtrack_count": backtrack_count},
-            workspace_id=record.workspace_id,
-            campaign_id=record.campaign_id,
-        ) as g_span:
-            report = reviewer.review(payload)
-            tracing.set_output(g_span, report.model_dump(mode="json"))
-            tracing.set_metadata(g_span, {**_gmeta, "validator_passed": report.passed,
-                                          "backtrack_count": backtrack_count})
-            # EVALUATOR span: the deterministic validation summary (pass + codes).
-            with tracing.evaluator_span(
-                "launchpilot.validation",
-                input_value={"signals": len(signals), "hypotheses": len(hypotheses),
-                             "items": len(plan.items)},
-                metadata={**_gmeta, "backtrack_count": backtrack_count},
-                workspace_id=record.workspace_id,
-                campaign_id=record.campaign_id,
-            ) as e_span:
-                tracing.set_output(e_span, {"passed": report.passed,
-                                            "issue_codes": [i.code.value for i in report.issues]})
-        log.info("[4/4] reviewer passed=%s issues=%d", report.passed, len(report.issues))
-        if report.passed:
-            break
-        if backtrack_count >= settings.backtrack_limit:
-            await blocks.system(
-                record,
-                [blocks.error_block(
-                    "Validation failed",
-                    f"validation failed after {backtrack_count} backtracks",
-                    retryable=True,
-                )],
-            )
-            return
-        backtrack_count += 1
-        target = failure.route([i.code for i in report.issues])
-        log.warning("backtrack #%d -> %s (%s)", backtrack_count, target,
-                    "; ".join(i.code.value for i in report.issues))
-        await blocks.assistant(
-            record,
-            [blocks.text_block(f"Found something to improve in review; re-running the {target} step.")],
-        )
-        # Regenerate from the root cause downstream; earlier good artifacts stay.
-        if target in ("analyst", "generator"):
-            signals = (await workers.run_analyst(content, date_range)).signals
-            hypotheses = (await workers.run_strategist(content, signals)).hypotheses
-            plan = (await workers.run_writer(content, date_range, hypotheses)).experiment_plan
-        elif target == "strategist":
-            hypotheses = (await workers.run_strategist(content, signals)).hypotheses
-            plan = (await workers.run_writer(content, date_range, hypotheses)).experiment_plan
-        else:  # writer / formatter
-            plan = (await workers.run_writer(content, date_range, hypotheses)).experiment_plan
+    await _save_phase_artifact_ref(record, repository, PhaseType.EXPERIMENT_PLAN, "experiment_plan", {"experiment_plan": plan.model_dump(mode="json")})
+    log.info("[plan] writer done: %d item(s)", len(plan.items))
 
-    # --- Done: emit the plan artifact + open the approval gate (Java takes over) ---
+    payload = formatter.assemble(signals, hypotheses, plan)
+    _gmeta = {"thread_id": record.thread_id, "workspace_id": record.workspace_id, "campaign_id": record.campaign_id}
+    with tracing.guardrail_span(
+        "launchpilot.reviewer_gate",
+        input_value={"signals": len(signals), "hypotheses": len(hypotheses), "items": len(plan.items)},
+        metadata={**_gmeta, "validator_passed": None, "backtrack_count": 0},
+        workspace_id=record.workspace_id,
+        campaign_id=record.campaign_id,
+    ) as g_span:
+        report = reviewer.review(payload)
+        tracing.set_output(g_span, report.model_dump(mode="json"))
+        tracing.set_metadata(g_span, {**_gmeta, "validator_passed": report.passed, "backtrack_count": 0})
+    log.info("[plan] reviewer passed=%s issues=%d", report.passed, len(report.issues))
+    if not report.passed:
+        await blocks.system(record, [blocks.error_block("Validation failed", "; ".join(issue.message for issue in report.issues), retryable=True)])
+        return {"phase": PhaseType.EXPERIMENT_PLAN.value, "validator_passed": False}
+
     pending_approval_id = approval_id()
     record.state.pending_approval_id = pending_approval_id
-    await blocks.assistant(
-        record,
-        [
-            blocks.text_block("The experiment plan draft is ready. Please review and approve."),
-            blocks.artifact_block(plan.id, "experiment_plan", plan.summary, plan.model_dump(mode="json")),
-        ],
-    )
-    await blocks.assistant(
-        record,
-        [blocks.approval_block(
-            pending_approval_id,
-            "Approve experiment plan",
-            plan.id,
-            payload.model_dump(mode="json"),
-        )],
-    )
-    log.info("pipeline done thread=%s approval emitted plan=%s", record.thread_id, plan.id)
-    # Summary used as the CHAIN/AGENT span output.value (Phoenix shows it on the
-    # root spans, which otherwise had input only).
-    return {
-        "plan_id": plan.id,
-        "signals": len(signals),
-        "hypotheses": len(hypotheses),
-        "experiments": len(plan.items),
-        "validator_passed": True,
-        "backtracks": backtrack_count,
-    }
+    await blocks.assistant(record, [blocks.text_block("The experiment plan draft is ready. Please review and approve."), blocks.artifact_block(plan.id, "experiment_plan", plan.summary, plan.model_dump(mode="json"))])
+    await blocks.assistant(record, [blocks.approval_block(pending_approval_id, "Approve experiment plan", plan.id, payload.model_dump(mode="json"))])
+    log.info("plan round done thread=%s approval emitted plan=%s", record.thread_id, plan.id)
+    return {"phase": PhaseType.EXPERIMENT_PLAN.value, "plan_id": plan.id, "experiments": len(plan.items), "validator_passed": True}
 
 
 async def _save_phase_artifact_ref(
@@ -525,3 +412,35 @@ async def _save_phase_artifact_ref(
     refs = record.state.phase_artifact_refs.setdefault(phase.value, [])
     refs.append(ref)
     refs[:] = refs[-6:]
+
+
+def _artifact_lookup_reply(record: ThreadRecord, intent) -> str | None:
+    if intent.value != "ARTIFACT_QUERY":
+        return None
+
+    raw_plan = record.state.phase_artifacts.get(PhaseType.EXPERIMENT_PLAN.value, {}).get("experiment_plan")
+    if not isinstance(raw_plan, dict):
+        return "아직 이 thread에서 확인할 수 있는 승인된 실험 계획이 없습니다."
+
+    title = raw_plan.get("summary") or raw_plan.get("id") or "승인된 실험 계획"
+    items = raw_plan.get("items") if isinstance(raw_plan.get("items"), list) else []
+    if not items:
+        return f"승인된 내용은 `{title}` 실험 계획입니다. 세부 실험 항목은 현재 runtime artifact에서 확인되지 않습니다."
+
+    lines = [f"승인한 내용은 `{title}` 기준의 실험 계획입니다."]
+    for index, item in enumerate(items[:3], start=1):
+        if not isinstance(item, dict):
+            continue
+        item_title = item.get("title") or item.get("id") or f"실험 {index}"
+        channel = item.get("channel")
+        scheduled_at = item.get("scheduled_at")
+        success = item.get("success_criteria")
+        detail = f"{index}. {item_title}"
+        if channel:
+            detail += f" ({channel})"
+        if scheduled_at:
+            detail += f", scheduled_at={scheduled_at}"
+        if success:
+            detail += f", success={success}"
+        lines.append(detail)
+    return "\n".join(lines)

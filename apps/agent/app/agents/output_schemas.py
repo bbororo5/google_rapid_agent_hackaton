@@ -10,7 +10,7 @@ So Gemini gets a clean schema; the boundary stays strict.
 """
 from __future__ import annotations
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.contracts import Channel, Confidence
 
@@ -75,3 +75,17 @@ class HypothesisDraftOut(BaseModel):
 
 class ExperimentPlanDraftOut(BaseModel):
     experiment_plan: ExperimentPlanOut
+
+
+class TurnInterpreterOut(BaseModel):
+    intent: str
+    response_mode: str
+    target_phase: str | None = None
+    restart_from_phase: str | None = None
+    mutation_summary: str | None = None
+    referenced_artifact_ids: list[str] = Field(default_factory=list)
+    confidence: float = 1.0
+    requires_confirmation: bool = False
+    clarification_question: str | None = None
+    rationale: str | None = None
+    reply: str | None = None

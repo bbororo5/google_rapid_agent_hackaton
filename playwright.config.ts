@@ -7,10 +7,6 @@ const reuseExistingServer = process.env.PLAYWRIGHT_REUSE_SERVER === "true";
 
 export default defineConfig({
   testDir: "./e2e",
-  // Mock specs (*.mock.spec.ts) target the retired :8090 mock server; the real
-  // stack is brought up via docker compose. Keep the files for scenario markers
-  // but never run them here.
-  testIgnore: "**/*.mock.spec.ts",
   fullyParallel: true,
   reporter: [["list"]],
   timeout: 420_000,

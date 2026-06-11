@@ -23,9 +23,12 @@ class PhaseType(str, Enum):
 
 class IntentType(str, Enum):
     INITIAL_RUN = "INITIAL_RUN"
+    HYPOTHESIS_REQUEST = "HYPOTHESIS_REQUEST"
+    PLAN_REQUEST = "PLAN_REQUEST"
     FREE_CHAT = "FREE_CHAT"
     BACKTRACK = "BACKTRACK"
     ARTIFACT_REVISION = "ARTIFACT_REVISION"
+    ARTIFACT_QUERY = "ARTIFACT_QUERY"
     APPROVE = "APPROVE"
 
 
@@ -84,8 +87,11 @@ class SharedStateVector(BaseModel):
 class DeltaIntent(str, Enum):
     CHAT = "CHAT"
     START_ANALYSIS = "START_ANALYSIS"
+    START_HYPOTHESIS = "START_HYPOTHESIS"
+    START_PLAN = "START_PLAN"
     BACKTRACK = "BACKTRACK"
     ARTIFACT_REVISION = "ARTIFACT_REVISION"
+    ARTIFACT_QUERY = "ARTIFACT_QUERY"
     APPROVE = "APPROVE"
     REJECT = "REJECT"
     CANCEL = "CANCEL"
@@ -205,7 +211,7 @@ def reduce_state(
         state.target_phase = target
         state.current_phase = target
         state.user_intent = IntentType.BACKTRACK
-        state.execution_plan = _plan_from(target)
+        state.execution_plan = [target.value]
         _record_lesson(state, target, delta)
         _invalidate_downstream_artifacts(state, target)
         return ReducerDecision(
@@ -222,12 +228,42 @@ def reduce_state(
         state.target_phase = PhaseType.DATA_ANALYSIS
         state.current_phase = PhaseType.DATA_ANALYSIS
         state.user_intent = IntentType.INITIAL_RUN
-        state.execution_plan = _plan_from(PhaseType.DATA_ANALYSIS)
+        state.execution_plan = [PhaseType.DATA_ANALYSIS.value]
         return ReducerDecision(
             decision=ReducerDecisionType.ACCEPTED,
             delegation_mode=DelegationMode.RERUN,
             state=state,
             reason="analysis run requested",
+            delta=delta,
+            revision_before=before,
+            revision_after=state.revision,
+        )
+
+    if delta.intent == DeltaIntent.START_HYPOTHESIS:
+        state.target_phase = PhaseType.HYPOTHESIS_GEN
+        state.current_phase = PhaseType.HYPOTHESIS_GEN
+        state.user_intent = IntentType.HYPOTHESIS_REQUEST
+        state.execution_plan = [PhaseType.HYPOTHESIS_GEN.value]
+        return ReducerDecision(
+            decision=ReducerDecisionType.ACCEPTED,
+            delegation_mode=DelegationMode.RERUN,
+            state=state,
+            reason="hypothesis generation requested",
+            delta=delta,
+            revision_before=before,
+            revision_after=state.revision,
+        )
+
+    if delta.intent == DeltaIntent.START_PLAN:
+        state.target_phase = PhaseType.EXPERIMENT_PLAN
+        state.current_phase = PhaseType.EXPERIMENT_PLAN
+        state.user_intent = IntentType.PLAN_REQUEST
+        state.execution_plan = [PhaseType.EXPERIMENT_PLAN.value]
+        return ReducerDecision(
+            decision=ReducerDecisionType.ACCEPTED,
+            delegation_mode=DelegationMode.RERUN,
+            state=state,
+            reason="experiment planning requested",
             delta=delta,
             revision_before=before,
             revision_after=state.revision,
@@ -242,6 +278,20 @@ def reduce_state(
             delegation_mode=DelegationMode.DELEGATE,
             state=state,
             reason="phase-local artifact revision should be delegated",
+            delta=delta,
+            revision_before=before,
+            revision_after=state.revision,
+        )
+
+    if delta.intent == DeltaIntent.ARTIFACT_QUERY:
+        state.user_intent = IntentType.ARTIFACT_QUERY
+        state.target_phase = state.current_phase
+        state.execution_plan = [state.current_phase.value]
+        return ReducerDecision(
+            decision=ReducerDecisionType.ACCEPTED,
+            delegation_mode=DelegationMode.DIRECT,
+            state=state,
+            reason="artifact query answered from runtime state",
             delta=delta,
             revision_before=before,
             revision_after=state.revision,
