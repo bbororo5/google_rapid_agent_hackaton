@@ -1096,6 +1096,7 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
   const stateRef = useRef(state);
   const composerQuestionRef = useRef(composerQuestion);
   const streamRef = useRef<AgentStreamConnection | null>(null);
+  const signalContinueInFlightRef = useRef(false);
   const lastFileRef = useRef<File | null>(null);
   const lastImportRef = useRef<ImportCsvResponse | null>(null);
   const lastSignalRef = useRef<Signal | null>(null);
@@ -1407,12 +1408,14 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
   function continueSignalReview() {
     const current = stateRef.current;
     if (current.phase !== "signal_review" || !current.thread.threadId) return;
+    if (signalContinueInFlightRef.current) return;
+    signalContinueInFlightRef.current = true;
     dispatch({ type: "SIGNAL_CONFIRMED" });
     streamRef.current?.send({
       command_id: commandId("cmd_continue"),
       type: "message.send",
       thread_id: current.thread.threadId,
-      content: "Use this signal",
+      content: "Use this signal to generate hypotheses.",
       client_created_at: new Date().toISOString(),
     });
   }
@@ -1516,6 +1519,12 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
       setIsApproving(false);
     }
   }, [state.review.approving]);
+
+  useEffect(() => {
+    if (state.phase === "signal_review") {
+      signalContinueInFlightRef.current = false;
+    }
+  }, [state.phase, state.review.activeSignalId]);
 
   const allHypotheses = currentHypotheses.length > 0 ? currentHypotheses : lastHypothesesRef.current;
   const selectedHypothesisId = state.review.selectedHypothesisId;

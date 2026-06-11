@@ -358,7 +358,8 @@ export function experimentPlannerReducer(state: ExperimentPlannerState, event: E
       // Server-echoed user text now flows through timelineItems (kind user_message)
       // so it keeps its real stream sequence and interleaves with assistant blocks.
       const messages = state.thread.messages;
-      const payload = payloadFromStreamMessage(event, state.review.payload) ?? state.review.payload;
+      const incomingPayload = payloadFromStreamMessage(event, state.review.payload);
+      const payload = incomingPayload ?? state.review.payload;
       const approvalBlock = event.message.blocks.find((block) => block.kind === "approval");
       const resultBlock = event.message.blocks.find((block) => block.kind === "result");
       const errorBlock = event.message.blocks.find((block) => block.kind === "error");
@@ -427,15 +428,15 @@ export function experimentPlannerReducer(state: ExperimentPlannerState, event: E
         };
       }
 
-      if (payload && payload.signals[0] && state.phase !== "awaiting_approval" && state.phase !== "approved") {
+      if (incomingPayload && incomingPayload.signals[0] && state.phase !== "awaiting_approval" && state.phase !== "approved") {
         return {
           ...clearError(state),
           phase: "signal_review",
           thread,
           review: {
             ...state.review,
-            payload,
-            activeSignalId: payload.signals[0].id,
+            payload: incomingPayload,
+            activeSignalId: incomingPayload.signals[0].id,
           },
         };
       }
