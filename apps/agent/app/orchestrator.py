@@ -119,17 +119,20 @@ async def process_turn(
             baseline = _baseline_window(current)
             # CHAIN span: the orchestrator pipeline (analyst..reviewer). Parents
             # the worker LLM/tool spans and the reviewer gate inside.
+            # evidence.capture() records what the tools actually return during
+            # this run; the reviewer's grounding gate validates the LLM's cited
+            # refs/values against it (and the eval judge reads it as ground truth).
             with evidence.scope(
                 record.workspace_id, record.campaign_id,
                 current.start, current.end, baseline.start, baseline.end,
-            ), tracing.chain_span(
+            ), evidence.capture() as grounding, tracing.chain_span(
                 "launchpilot.orchestrator",
                 input_value=content[:2000],
                 metadata={**meta, "stage": "PIPELINE"},
                 workspace_id=record.workspace_id,
                 campaign_id=record.campaign_id,
             ) as pipeline_span:
-                summary = await _run_pipeline(record, content)
+                summary = await _run_pipeline(record, content, grounding)
                 if summary:
                     tracing.set_output(pipeline_span, summary)
             # Stamp the root AGENT span output too (Phoenix showed input only).
@@ -155,7 +158,9 @@ async def process_turn(
         )
 
 
-async def _run_pipeline(record: ThreadRecord, content: str) -> dict | None:
+async def _run_pipeline(
+    record: ThreadRecord, content: str, grounding: evidence.GroundingCapture | None = None
+) -> dict | None:
     settings = get_settings()
     date_range = _analysis_window()
 
@@ -243,7 +248,11 @@ async def _run_pipeline(record: ThreadRecord, content: str) -> dict | None:
             workspace_id=record.workspace_id,
             campaign_id=record.campaign_id,
         ) as g_span:
-            report = reviewer.review(payload)
+            # Grounding gate: validate cited refs/values against what the tools
+            # actually returned this run (None -> structural checks only).
+            report = reviewer.review(
+                payload, grounding.snapshot() if grounding is not None else None
+            )
             tracing.set_output(g_span, report.model_dump(mode="json"))
             tracing.set_metadata(g_span, {**_gmeta, "validator_passed": report.passed,
                                           "backtrack_count": backtrack_count})
@@ -280,15 +289,18 @@ async def _run_pipeline(record: ThreadRecord, content: str) -> dict | None:
             [blocks.text_block(f"Found something to improve in review; re-running the {target} step.")],
         )
         # Regenerate from the root cause downstream; earlier good artifacts stay.
+        # The root-cause worker gets the reviewer's retry_instruction so it knows
+        # WHY the last attempt failed; downstream re-runs see fresh inputs instead.
+        fb = report.retry_instruction
         if target in ("analyst", "generator"):
-            signals = (await workers.run_analyst(content, date_range)).signals
+            signals = (await workers.run_analyst(content, date_range, feedback=fb)).signals
             hypotheses = (await workers.run_strategist(content, signals)).hypotheses
             plan = (await workers.run_writer(content, date_range, hypotheses)).experiment_plan
         elif target == "strategist":
-            hypotheses = (await workers.run_strategist(content, signals)).hypotheses
+            hypotheses = (await workers.run_strategist(content, signals, feedback=fb)).hypotheses
             plan = (await workers.run_writer(content, date_range, hypotheses)).experiment_plan
         else:  # writer / formatter
-            plan = (await workers.run_writer(content, date_range, hypotheses)).experiment_plan
+            plan = (await workers.run_writer(content, date_range, hypotheses, feedback=fb)).experiment_plan
 
     # --- Done: emit the plan artifact + open the approval gate (Java takes over) ---
     await blocks.assistant(
