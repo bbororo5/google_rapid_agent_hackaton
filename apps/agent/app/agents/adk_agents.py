@@ -36,6 +36,8 @@ _log = logging.getLogger("launchpilot.adk")
 # pipeline forever and the turn looks "stuck". On timeout we raise, which the
 # orchestrator turns into a visible retryable error block.
 _LLM_TIMEOUT_S = float(os.environ.get("LLM_CALL_TIMEOUT_S", "180"))
+_TEXT_STREAM_FALLBACK_DELAY_S = float(os.environ.get("TEXT_STREAM_FALLBACK_DELAY_S", "0.035"))
+_TEXT_STREAM_FALLBACK_CHARS = int(os.environ.get("TEXT_STREAM_FALLBACK_CHARS", "90"))
 
 
 def _build_agents():
@@ -217,6 +219,13 @@ async def run_text(
 
     content = types.Content(role="user", parts=[types.Part(text=user_text)])
 
+    async def _emit_synthetic_stream(text: str) -> None:
+        if not on_delta:
+            return
+        for chunk in _text_stream_chunks(text, _TEXT_STREAM_FALLBACK_CHARS):
+            await on_delta(chunk)
+            await asyncio.sleep(_TEXT_STREAM_FALLBACK_DELAY_S)
+
     async def _collect() -> str | None:
         final_text: str | None = None
         streamed_text = ""
@@ -258,9 +267,33 @@ async def run_text(
                 pending_delta += delta
                 await _flush_delta()
         await _flush_delta(force=True)
+        if on_delta and final_text and not streamed_text:
+            await _emit_synthetic_stream(final_text)
         return final_text
 
     final_text = await _run_with_timeout(kind, "text", _collect)
     if not final_text:
         raise RuntimeError(f"{kind}: empty agent response")
     return final_text
+
+
+def _text_stream_chunks(text: str, target_chars: int) -> list[str]:
+    chunks: list[str] = []
+    start = 0
+    length = len(text)
+    while start < length:
+        end = min(length, start + target_chars)
+        if end < length:
+            candidates = [
+                text.rfind("\n\n", start, end),
+                text.rfind(". ", start, end),
+                text.rfind("? ", start, end),
+                text.rfind("! ", start, end),
+                text.rfind(" ", start, end),
+            ]
+            split_at = max(candidates)
+            if split_at > start + max(24, target_chars // 3):
+                end = split_at + (2 if text.startswith("\n\n", split_at) else 1)
+        chunks.append(text[start:end])
+        start = end
+    return chunks
