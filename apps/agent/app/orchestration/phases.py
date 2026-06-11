@@ -6,6 +6,8 @@ import logging
 from datetime import date, datetime, timedelta, timezone
 from typing import Protocol
 
+from pydantic import ValidationError
+
 from app import tracing
 from app.agents import formatter, reviewer, workers
 from app.contracts import DateRange, Hypothesis, Signal
@@ -13,6 +15,7 @@ from app.ids import approval_id
 from app.orchestration.emitter import StreamEmitter
 from app.orchestration.models import CancelledTurn, TurnContext, TurnOutcome
 from app.runtime import blocks
+from app.runtime.episode_query import recent_episode_context
 from app.runtime.repository import RuntimeArtifact
 from app.runtime.state import PhaseType
 
@@ -84,14 +87,29 @@ class AnalysisRoundRunner(BasePhaseRunner):
             "Checking metric baseline and campaign evidence",
             "running",
         )
-        async with self.emitter.activity(
-            turn.record,
-            "analysis.draft",
-            "Drafting signal analysis with Gemini",
-            "Drafted signal analysis",
-        ):
-            signal_out = await workers.run_analyst(turn.content, date_range)
-        signals: list[Signal] = signal_out.signals
+        memory_context = await recent_episode_context(
+            turn.repository, turn.record.state.scope, self.phase
+        )
+        # A backtrack to a weak metric can yield zero signals; the analyst output
+        # then fails the >=1 contract. Treat that as a graceful "no signals"
+        # round, not a thread crash, so backtracks stay coherent (ADR-005 R2/R3).
+        try:
+            async with self.emitter.activity(
+                turn.record,
+                "analysis.draft",
+                "Drafting signal analysis with Gemini",
+                "Drafted signal analysis",
+            ):
+                signal_out = await workers.run_analyst(turn.content, date_range, memory_context)
+            signals: list[Signal] = signal_out.signals
+        except ValidationError:
+            signals = []
+        if not signals:
+            await self.emitter.assistant_text(
+                turn.record,
+                "이 기준으로는 두드러진 신호를 찾지 못했어요. 다른 지표나 기간으로 다시 분석해볼까요?",
+            )
+            return TurnOutcome({"phase": self.phase.value, "signals": 0, "status": "no_signals"})
         signal_payload = [sig.model_dump(mode="json") for sig in signals]
         turn.record.state.phase_artifacts[self.phase.value]["signals"] = signal_payload
         await self.emitter.progress(
@@ -158,13 +176,16 @@ class HypothesisRoundRunner(BasePhaseRunner):
             f"{len(signals)} signal(s)",
         )
         await self.emitter.progress(turn.record, "hypothesis.evidence", "Checking team context", "running")
+        memory_context = await recent_episode_context(
+            turn.repository, turn.record.state.scope, self.phase
+        )
         async with self.emitter.activity(
             turn.record,
             "hypothesis.draft",
             "Drafting hypotheses with Gemini",
             "Drafted hypotheses",
         ):
-            hyp_out = await workers.run_strategist(turn.content, signals)
+            hyp_out = await workers.run_strategist(turn.content, signals, memory_context)
         hypotheses: list[Hypothesis] = hyp_out.hypotheses
         hypothesis_payload = [hyp.model_dump(mode="json") for hyp in hypotheses]
         turn.record.state.phase_artifacts[self.phase.value]["hypotheses"] = hypothesis_payload
@@ -231,13 +252,18 @@ class PlanRoundRunner(BasePhaseRunner):
             "done",
             f"{len(signals)} signal(s), {len(hypotheses)} hypothesis(es)",
         )
+        memory_context = await recent_episode_context(
+            turn.repository, turn.record.state.scope, self.phase
+        )
         async with self.emitter.activity(
             turn.record,
             "plan.draft",
             "Drafting experiment plan with Gemini",
             "Drafted experiment plan",
         ):
-            plan = (await workers.run_writer(turn.content, date_range, hypotheses)).experiment_plan
+            plan = (
+                await workers.run_writer(turn.content, date_range, hypotheses, memory_context)
+            ).experiment_plan
         plan_payload = plan.model_dump(mode="json")
         turn.record.state.phase_artifacts[self.phase.value]["experiment_plan"] = plan_payload
         turn.record.state.active_artifact_id = plan.id

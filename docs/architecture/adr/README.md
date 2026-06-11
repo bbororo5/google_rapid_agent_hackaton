@@ -17,5 +17,6 @@
 | 0011 | Contract-first (extra=forbid) | [엔지니어링 규율](04-discipline.md) |
 | 0012 | CSV import + 결정적 fallback | [엔지니어링 규율](04-discipline.md) |
 | 0013 | [ADR-004] 자유 대화 기반 StateDelta + 결정적 reducer | [상태 반응형 워크플로우](05-state-reactive-workflow.md) |
+| 0014 | [ADR-005] 런타임 메모리 적재·조회: Redis 핫 상태 + Elastic 에피소딕 영속 | [메모리 관리](06-memory-management.md) |
 
 상위 요약: [아키텍처 개요](../overview.md) · 구조 그림: [C4](../launchpilot-c4.md) · 제품 맥락: [PRD](../../product/LaunchPilot_PRD.md)

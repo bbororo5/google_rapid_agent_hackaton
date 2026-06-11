@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 
 from app import tracing
+from app.orchestration.checkpoint import Checkpointer
 from app.orchestration.committer import StateCommitter
 from app.orchestration.context import PromptContextBuilder, TurnContextLoader
 from app.orchestration.emitter import StreamEmitter
@@ -28,6 +29,7 @@ class TurnWorkflow:
         self.interpreter = TurnInterpreter(self.emitter, prompts)
         self.router = TurnRouter(self.emitter, phases)
         self.committer = StateCommitter(self.emitter)
+        self.checkpointer = Checkpointer(self.emitter)
 
     async def run(self, record: ThreadRecord, content: str, attachments: tuple = ()) -> None:
         turn = await self.loader.load(record, content, attachments)
@@ -63,6 +65,7 @@ class TurnWorkflow:
                 tracing.set_output(turn_span, outcome.trace_output)
                 if outcome.commit_state:
                     await self.committer.commit(turn, decision, turn_span)
+                    await self.checkpointer.maybe_checkpoint(turn, decision, outcome, turn_span)
             except CancelledTurn:
                 log.info("turn cancelled thread=%s", record.thread_id)
                 await self.emitter.system_result(record, "Run cancelled", "The analysis was cancelled.")

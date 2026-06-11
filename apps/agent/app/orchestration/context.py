@@ -13,6 +13,7 @@ from typing import Protocol
 
 from app.orchestration.emitter import StreamEmitter
 from app.orchestration.models import TurnContext
+from app.runtime.hot_store import HotStateStore, get_hot_store
 from app.runtime.repository import AgentRuntimeRepository, get_runtime_repository
 from app.runtime.state import PhaseType, compact_state_summary, resolve_scope
 from app.runtime.thread_store import ThreadRecord
@@ -53,13 +54,22 @@ class LoadPersistedState:
     async def apply(self, turn: TurnContext) -> None:
         record = turn.record
         await self.emitter.progress(record, "turn.load_state", "Loading thread state", "running")
-        persisted_state = await turn.repository.load_state(record.thread_id)
-        if persisted_state:
-            record.state = persisted_state
-            if persisted_state.scope:
-                record.set_context(persisted_state.scope.workspace_id, persisted_state.scope.campaign_id)
+        # Hot tier first (Redis): the live working copy avoids an Elastic read.
+        # On a miss, rehydrate from the authoritative runtime repository and
+        # repopulate the hot store (ADR-005: ES authoritative, Redis cache).
+        loaded_state = await turn.hot_store.get_state(record.thread_id)
+        source = "hot"
+        if loaded_state is None:
+            loaded_state = await turn.repository.load_state(record.thread_id)
+            source = "elastic"
+        if loaded_state:
+            record.state = loaded_state
+            if loaded_state.scope:
+                record.set_context(loaded_state.scope.workspace_id, loaded_state.scope.campaign_id)
+            if source == "elastic":
+                await turn.hot_store.put_state(record.thread_id, loaded_state)
         turn.expected_revision = record.state.revision
-        await self.emitter.progress(record, "turn.load_state", "Loaded thread state", "done")
+        await self.emitter.progress(record, "turn.load_state", "Loaded thread state", "done", source)
 
 
 @dataclass(slots=True)
@@ -86,7 +96,9 @@ class LoadScopedRuntimeContext:
             return
 
         record = turn.record
-        record.state = await turn.repository.create_or_load_state(turn.scope)
+        # State is already loaded hot-first by LoadPersistedState; a brand-new
+        # thread keeps its default vector. Just stamp the resolved scope (the
+        # first commit creates the ES doc with op_type=create).
         record.state.scope = turn.scope
         turn.campaign_context = await turn.repository.load_campaign_context(turn.scope)
         turn.recent_messages = await turn.repository.load_recent_messages(turn.scope, limit=self.memory_limit)
@@ -196,9 +208,11 @@ class TurnContextLoader:
         self,
         emitter: StreamEmitter,
         repository_provider: Callable[[], AgentRuntimeRepository] = get_runtime_repository,
+        hot_store_provider: Callable[[], HotStateStore] = get_hot_store,
         steps: tuple[ContextLoadStep, ...] | None = None,
     ) -> None:
         self._repository_provider = repository_provider
+        self._hot_store_provider = hot_store_provider
         self._steps = steps or (
             LoadPersistedState(emitter),
             ResolveTurnScope(emitter),
@@ -212,6 +226,7 @@ class TurnContextLoader:
             content=content,
             attachments=attachments,
             repository=self._repository_provider(),
+            hot_store=self._hot_store_provider(),
             expected_revision=record.state.revision,
         )
         for step in self._steps:
