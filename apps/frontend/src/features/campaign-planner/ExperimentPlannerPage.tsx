@@ -52,6 +52,17 @@ function StreamingText({ text }: { text: string }) {
 }
 
 function TimelineTextRow({ text, tone }: { text: string; tone: "text" | "active" | "done" | "failed" }) {
+  if (tone === "text") {
+    return (
+      <div className={`timeline-chain-row ${tone}`}>
+        <span className="timeline-glyph" aria-hidden="true" />
+        <div className="timeline-markdown">
+          <MarkdownContent markdown={normalizeAssistantMarkdown(text)} />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <p className={`timeline-chain-row ${tone}`}>
       <span className="timeline-glyph" aria-hidden="true" />
@@ -860,47 +871,112 @@ function InspectorPanel({
 }
 
 function MarkdownContent({ markdown }: { markdown: string }) {
-  const lines = markdown.split("\n");
+  const lines = normalizeAssistantMarkdown(markdown).split("\n");
   const elements: ReactNode[] = [];
-  let listItems: string[] = [];
+  let unorderedItems: ReactNode[] = [];
+  let orderedItems: ReactNode[] = [];
 
-  const flushList = () => {
-    if (listItems.length === 0) return;
+  const flushUnorderedList = () => {
+    if (unorderedItems.length === 0) return;
     elements.push(
       <ul key={`list-${elements.length}`}>
-        {listItems.map((item) => (
-          <li key={item}>{item}</li>
-        ))}
+        {unorderedItems}
       </ul>
     );
-    listItems = [];
+    unorderedItems = [];
+  };
+
+  const flushOrderedList = () => {
+    if (orderedItems.length === 0) return;
+    elements.push(
+      <ol key={`ordered-list-${elements.length}`}>
+        {orderedItems}
+      </ol>
+    );
+    orderedItems = [];
+  };
+
+  const flushLists = () => {
+    flushUnorderedList();
+    flushOrderedList();
   };
 
   lines.forEach((line, index) => {
+    if (line.startsWith("### ")) {
+      flushLists();
+      elements.push(<h3 key={index}>{parseInlineMarkdown(line.slice(4))}</h3>);
+      return;
+    }
     if (line.startsWith("## ")) {
-      flushList();
-      elements.push(<h2 key={index}>{line.slice(3)}</h2>);
+      flushLists();
+      elements.push(<h2 key={index}>{parseInlineMarkdown(line.slice(3))}</h2>);
       return;
     }
     if (line.startsWith("# ")) {
-      flushList();
-      elements.push(<h1 key={index}>{line.slice(2)}</h1>);
+      flushLists();
+      elements.push(<h1 key={index}>{parseInlineMarkdown(line.slice(2))}</h1>);
+      return;
+    }
+    if (line.trim() === "---") {
+      flushLists();
+      elements.push(<hr key={index} />);
       return;
     }
     if (line.startsWith("- ")) {
-      listItems.push(line.slice(2));
+      flushOrderedList();
+      unorderedItems.push(<li key={`u-${index}`}>{parseInlineMarkdown(line.slice(2))}</li>);
+      return;
+    }
+    const orderedMatch = line.match(/^\d+\.\s+(.+)$/);
+    if (orderedMatch) {
+      flushUnorderedList();
+      orderedItems.push(<li key={`o-${index}`}>{parseInlineMarkdown(orderedMatch[1])}</li>);
       return;
     }
     if (!line.trim()) {
-      flushList();
+      flushLists();
       return;
     }
-    flushList();
-    elements.push(<p key={index}>{line}</p>);
+    flushLists();
+    elements.push(<p key={index}>{parseInlineMarkdown(line)}</p>);
   });
-  flushList();
+  flushLists();
 
   return elements;
+}
+
+function normalizeAssistantMarkdown(markdown: string) {
+  return markdown
+    .replace(/\r\n/g, "\n")
+    .replace(/([^\n])\s+(---)(?=\s|$)/g, "$1\n\n$2")
+    .replace(/([^\n])\s+(#{1,3}\s+)/g, "$1\n\n$2")
+    .replace(/([^\n])\s+(\d+\.\s+\*\*)/g, "$1\n\n$2")
+    .replace(/([^\n])\s+(-\s+\*\*)/g, "$1\n\n$2");
+}
+
+function parseInlineMarkdown(text: string): ReactNode[] {
+  const nodes: ReactNode[] = [];
+  const pattern = /(\*\*[^*]+\*\*|`[^`]+`)/g;
+  let cursor = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = pattern.exec(text))) {
+    if (match.index > cursor) {
+      nodes.push(text.slice(cursor, match.index));
+    }
+    const token = match[0];
+    const key = `${token}-${match.index}`;
+    if (token.startsWith("**")) {
+      nodes.push(<strong key={key}>{token.slice(2, -2)}</strong>);
+    } else {
+      nodes.push(<code key={key}>{token.slice(1, -1)}</code>);
+    }
+    cursor = match.index + token.length;
+  }
+  if (cursor < text.length) {
+    nodes.push(text.slice(cursor));
+  }
+  return nodes;
 }
 
 function CampaignAgentWorkspace({
