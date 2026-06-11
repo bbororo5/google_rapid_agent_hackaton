@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>LaunchPilot Architecture Diagrams</title>
+<style>
+  :root{ --ink:#0f172a; --mut:#64748b; --line:#e2e8f0; --accent:#4f46e5; }
+  *{box-sizing:border-box}
+  body{margin:0;background:#fbfcfe;color:var(--ink);
+       font-family:'Segoe UI','Inter',system-ui,sans-serif;}
+  header{padding:52px 64px 24px;max-width:1200px}
+  h1{margin:0;font-size:34px;font-weight:800;letter-spacing:-.4px}
+  .sub{color:var(--mut);font-size:16px;margin-top:10px;line-height:1.6}
+  nav{display:flex;flex-wrap:wrap;gap:10px;padding:0 64px 28px}
+  nav a{color:#334155;text-decoration:none;font-size:14px;padding:8px 16px;border:1px solid var(--line);
+        border-radius:999px;background:#fff;transition:.15s}
+  nav a:hover{border-color:var(--accent);color:var(--accent)}
+  section{padding:14px 64px 48px}
+  .card{background:#fff;border:1px solid var(--line);border-radius:16px;overflow:hidden;
+        box-shadow:0 10px 30px rgba(36,59,107,.06)}
+  .card h2{margin:0;padding:18px 24px;font-size:18px;font-weight:700;border-bottom:1px solid var(--line)}
+  .card h2 span{color:var(--mut);font-weight:500;font-size:14px;margin-left:10px}
+  .card img{display:block;width:100%;height:auto}
+  footer{padding:0 64px 64px;color:var(--mut);font-size:13px;line-height:1.7}
+  code{background:#eef2ff;color:#3730a3;padding:2px 7px;border-radius:6px;font-size:12.5px}
+</style>
+</head>
+<body>
+<header>
+  <h1>LaunchPilot Architecture Diagrams</h1>
+  <div class="sub">Conversation-first, state-reactive multi-agent system. Diagrams reflect the actual Agent Core code: per-turn interpret &rarr; deterministic reduce &rarr; dispatch one phase worker. Vector SVG, drop straight into slides.</div>
+</header>
+<nav>
+  <a href="#d1">1 &middot; System Context</a>
+  <a href="#d2">2 &middot; Turn Lifecycle</a>
+  <a href="#d3">3 &middot; Nonlinear Phase Graph</a>
+  <a href="#d4">4 &middot; Phase Execution &amp; Gate</a>
+  <a href="#d5">5 &middot; Containers &amp; Contracts</a>
+</nav>
+
+<section id="d1"><div class="card"><h2>1 &middot; System Context <span>C4 L1</span></h2><img src="1-system-context.svg" alt="System Context"/></div></section>
+<section id="d2"><div class="card"><h2>2 &middot; Turn Lifecycle <span>orchestration/workflow.py</span></h2><img src="2-turn-lifecycle.svg" alt="Turn Lifecycle"/></div></section>
+<section id="d3"><div class="card"><h2>3 &middot; Nonlinear Phase Graph <span>runtime/transitions.py</span></h2><img src="3-nonlinear-phase-graph.svg" alt="Nonlinear Phase Graph"/></div></section>
+<section id="d4"><div class="card"><h2>4 &middot; Phase Execution &amp; Approval Gate <span>orchestration/phases.py</span></h2><img src="4-phase-execution-gate.svg" alt="Phase Execution and Gate"/></div></section>
+<section id="d5"><div class="card"><h2>5 &middot; Containers &amp; Contracts <span>C4 L2 &middot; contracts/</span></h2><img src="5-containers-contracts.svg" alt="Containers and Contracts"/></div></section>
+
+<footer>
+  Insert the <code>.svg</code> files directly into Keynote / PowerPoint / Google Slides (lossless vector).<br/>
+  Source: <code>apps/agent/app/orchestration/</code> &middot; <code>apps/agent/app/runtime/</code> &middot; <code>docs/architecture/adr/</code> &middot; <code>contracts/</code>
+</footer>
+</body>
+</html>

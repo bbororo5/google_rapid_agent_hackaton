@@ -1,0 +1,94 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" font-family="'Segoe UI','Inter',system-ui,sans-serif">
+  <defs>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse"><circle cx="1.5" cy="1.5" r="1.1" fill="#e6eaf2"/></pattern>
+    <filter id="card" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="4" stdDeviation="11" flood-color="#243b6b" flood-opacity="0.10"/></filter>
+    <marker id="a" markerWidth="11" markerHeight="11" refX="8" refY="5" orient="auto"><path d="M0,0 L9,5 L0,10 z" fill="#9aa6bd"/></marker>
+    <marker id="ai" markerWidth="11" markerHeight="11" refX="8" refY="5" orient="auto"><path d="M0,0 L9,5 L0,10 z" fill="#4f46e5"/></marker>
+  </defs>
+
+  <rect width="1600" height="900" fill="#fbfcfe"/>
+  <rect width="1600" height="900" fill="url(#grid)"/>
+
+  <text x="90" y="92" fill="#0f172a" font-size="40" font-weight="700">Nonlinear Phase Graph</text>
+  <text x="90" y="130" fill="#64748b" font-size="20">Each phase agent runs individually. Free-text intent reaches any phase whose inputs exist; order is a guard, not a rail.</text>
+  <rect x="90" y="148" width="96" height="4" rx="2" fill="#4f46e5"/>
+
+  <!-- intent rail -->
+  <g filter="url(#card)"><rect x="100" y="208" width="1350" height="58" rx="14" fill="#eef2ff" stroke="#4f46e5" stroke-width="1.6"/>
+    <text x="775" y="244" text-anchor="middle" fill="#3730a3" font-size="18" font-weight="700">User free-text intent &#8594; deterministic reducer resolves a target phase (any phase, any order)</text></g>
+
+  <!-- entry arrows + intent + guard -->
+  <g fill="none" stroke="#9aa6bd" stroke-width="2.2">
+    <path d="M250 266 V360" marker-end="url(#a)"/>
+    <path d="M600 266 V360" marker-end="url(#a)"/>
+    <path d="M950 266 V360" marker-end="url(#a)"/>
+    <path d="M1300 266 V360" marker-end="url(#a)"/>
+  </g>
+  <g font-size="13" text-anchor="middle">
+    <text x="304" y="294" fill="#475569" font-weight="600">START_ANALYSIS</text>
+    <text x="304" y="330" fill="#94a3b8">guard: CSV / prior signals</text>
+    <text x="654" y="294" fill="#475569" font-weight="600">START_HYPOTHESIS</text>
+    <text x="654" y="330" fill="#94a3b8">guard: signals exist</text>
+    <text x="1004" y="294" fill="#475569" font-weight="600">START_PLAN</text>
+    <text x="1004" y="330" fill="#94a3b8">guard: hypotheses exist</text>
+    <text x="1352" y="294" fill="#475569" font-weight="600">APPROVE &#8594; next</text>
+    <text x="1352" y="330" fill="#94a3b8">advance phase</text>
+  </g>
+
+  <!-- phase nodes -->
+  <g filter="url(#card)"><rect x="100" y="360" width="300" height="180" rx="16" fill="#fff" stroke="#e2e8f0" stroke-width="1.5"/>
+    <text x="126" y="406" fill="#1e293b" font-size="19" font-weight="800">DATA_ANALYSIS</text>
+    <text x="126" y="442" fill="#475569" font-size="15">run_analyst (Gemini)</text>
+    <text x="126" y="472" fill="#64748b" font-size="14.5">&#8594; signals[]</text>
+    <text x="126" y="514" fill="#94a3b8" font-size="13.5">zero signals = graceful no-run</text></g>
+
+  <g filter="url(#card)"><rect x="450" y="360" width="300" height="180" rx="16" fill="#fff" stroke="#e2e8f0" stroke-width="1.5"/>
+    <text x="476" y="406" fill="#1e293b" font-size="19" font-weight="800">HYPOTHESIS_GEN</text>
+    <text x="476" y="442" fill="#475569" font-size="15">run_strategist</text>
+    <text x="476" y="472" fill="#64748b" font-size="14.5">reads signals &#8594; hypotheses[]</text>
+    <text x="476" y="514" fill="#94a3b8" font-size="13.5">causal, caveat enforced</text></g>
+
+  <g filter="url(#card)"><rect x="800" y="360" width="300" height="180" rx="16" fill="#eef2ff" stroke="#4f46e5" stroke-width="1.8"/>
+    <text x="826" y="406" fill="#3730a3" font-size="19" font-weight="800">EXPERIMENT_PLAN</text>
+    <text x="826" y="442" fill="#4f46e5" font-size="15">run_writer &#8594; plan</text>
+    <text x="826" y="472" fill="#4f46e5" font-size="14.5">deterministic reviewer gate</text>
+    <text x="826" y="514" fill="#6366f1" font-size="13.5">pass &#8594; approval block</text></g>
+
+  <g filter="url(#card)"><rect x="1150" y="360" width="300" height="180" rx="16" fill="#fafbfd" stroke="#cbd5e1" stroke-width="1.5" stroke-dasharray="6 5"/>
+    <text x="1176" y="406" fill="#64748b" font-size="19" font-weight="800">EXPERIMENT_EVAL</text>
+    <text x="1176" y="442" fill="#94a3b8" font-size="15">placeholder runner</text>
+    <text x="1176" y="472" fill="#94a3b8" font-size="14.5">not yet implemented</text>
+    <text x="1176" y="514" fill="#b6c0d1" font-size="13.5">results feed next analysis</text></g>
+
+  <!-- default forward edges -->
+  <g fill="none" stroke="#cbd5e1" stroke-width="2.2" stroke-dasharray="6 5">
+    <path d="M400 450 H450" marker-end="url(#a)"/>
+    <path d="M750 450 H800" marker-end="url(#a)"/>
+    <path d="M1100 450 H1150" marker-end="url(#a)"/>
+  </g>
+  <text x="775" y="345" text-anchor="middle" fill="#b6c0d1" font-size="12.5">default next phase (when inputs ready)</text>
+
+  <!-- backtrack arc -->
+  <path d="M1300 540 C1300 636, 700 636, 250 636 C190 636, 170 604, 170 544" fill="none" stroke="#4f46e5" stroke-width="2.4" marker-end="url(#ai)" stroke-dasharray="8 5"/>
+  <rect x="442" y="612" width="666" height="26" rx="6" fill="#fbfcfe"/>
+  <text x="775" y="631" text-anchor="middle" fill="#4f46e5" font-size="15" font-weight="600">BACKTRACK &#8594; jump to target phase, invalidate downstream artifacts, append compact lesson</text>
+
+  <!-- bottom notes -->
+  <g filter="url(#card)"><rect x="100" y="700" width="430" height="130" rx="14" fill="#fff" stroke="#c7cef5" stroke-width="1.5"/>
+    <text x="124" y="736" fill="#3730a3" font-size="16.5" font-weight="700">Restore from checkpoint</text>
+    <text x="124" y="766" fill="#64748b" font-size="14">BACKTRACK + restore_episode_id rebuilds</text>
+    <text x="124" y="788" fill="#64748b" font-size="14">live state from an Elastic episode</text>
+    <text x="124" y="812" fill="#94a3b8" font-size="13">instead of re-running forward</text></g>
+
+  <g filter="url(#card)"><rect x="560" y="700" width="430" height="130" rx="14" fill="#fff" stroke="#e2e8f0" stroke-width="1.5"/>
+    <text x="584" y="736" fill="#1e293b" font-size="16.5" font-weight="700">Guards = data dependency</text>
+    <text x="584" y="766" fill="#64748b" font-size="14">A phase is reachable whenever its inputs</text>
+    <text x="584" y="788" fill="#64748b" font-size="14">exist, not because a previous step "ran".</text>
+    <text x="584" y="812" fill="#94a3b8" font-size="13">Missing input &#8594; reducer replies, no crash</text></g>
+
+  <g filter="url(#card)"><rect x="1020" y="700" width="430" height="130" rx="14" fill="#fff" stroke="#e2e8f0" stroke-width="1.5"/>
+    <text x="1044" y="736" fill="#1e293b" font-size="16.5" font-weight="700">Artifact isolation</text>
+    <text x="1044" y="766" fill="#64748b" font-size="14">phase_artifacts store outputs per phase;</text>
+    <text x="1044" y="788" fill="#64748b" font-size="14">prompts carry compact lessons only.</text>
+    <text x="1044" y="812" fill="#94a3b8" font-size="13">heavy data stays out of the context window</text></g>
+</svg>

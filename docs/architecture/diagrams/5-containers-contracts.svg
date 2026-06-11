@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" font-family="'Segoe UI','Inter',system-ui,sans-serif">
+  <defs>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse"><circle cx="1.5" cy="1.5" r="1.1" fill="#e6eaf2"/></pattern>
+    <filter id="card" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="4" stdDeviation="11" flood-color="#243b6b" flood-opacity="0.10"/></filter>
+    <marker id="a" markerWidth="11" markerHeight="11" refX="8" refY="5" orient="auto"><path d="M0,0 L9,5 L0,10 z" fill="#9aa6bd"/></marker>
+    <marker id="ai" markerWidth="11" markerHeight="11" refX="8" refY="5" orient="auto"><path d="M0,0 L9,5 L0,10 z" fill="#4f46e5"/></marker>
+  </defs>
+
+  <rect width="1600" height="900" fill="#fbfcfe"/>
+  <rect width="1600" height="900" fill="url(#grid)"/>
+
+  <text x="90" y="92" fill="#0f172a" font-size="40" font-weight="700">Containers &amp; Contracts</text>
+  <text x="90" y="130" fill="#64748b" font-size="20">Three deployable containers, three external systems, one fixed contract per boundary (contract-first, extra=forbid).</text>
+  <rect x="90" y="148" width="96" height="4" rx="2" fill="#4f46e5"/>
+
+  <!-- nodes -->
+  <g filter="url(#card)"><rect x="90" y="392" width="150" height="96" rx="16" fill="#f4f6fb" stroke="#d7deea" stroke-width="1.5"/>
+    <text x="165" y="436" text-anchor="middle" fill="#1e293b" font-size="18" font-weight="700">User</text>
+    <text x="165" y="460" text-anchor="middle" fill="#94a3b8" font-size="13">Manager</text></g>
+
+  <g filter="url(#card)"><rect x="300" y="350" width="230" height="160" rx="18" fill="#fff" stroke="#e2e8f0" stroke-width="1.5"/>
+    <text x="324" y="394" fill="#1e293b" font-size="21" font-weight="700">Frontend</text>
+    <text x="324" y="424" fill="#64748b" font-size="15">Next.js</text>
+    <text x="324" y="468" fill="#94a3b8" font-size="13.5">blocks[] reactive UI</text>
+    <text x="324" y="490" fill="#94a3b8" font-size="13.5">stateless</text></g>
+
+  <g filter="url(#card)"><rect x="610" y="350" width="230" height="160" rx="18" fill="#eef2ff" stroke="#4f46e5" stroke-width="1.8"/>
+    <text x="634" y="394" fill="#3730a3" font-size="21" font-weight="800">Java Backend</text>
+    <text x="634" y="424" fill="#4f46e5" font-size="15">Spring Boot · gateway</text>
+    <text x="634" y="468" fill="#6366f1" font-size="13.5">approval gate · Elastic writes</text>
+    <text x="634" y="490" fill="#6366f1" font-size="13.5">owns WS timeline</text></g>
+
+  <g filter="url(#card)"><rect x="920" y="350" width="230" height="160" rx="18" fill="#fff" stroke="#e2e8f0" stroke-width="1.5"/>
+    <text x="944" y="394" fill="#1e293b" font-size="21" font-weight="700">Python Agent</text>
+    <text x="944" y="424" fill="#64748b" font-size="15">Core · Google ADK</text>
+    <text x="944" y="468" fill="#94a3b8" font-size="13.5">reducer + phase workers</text>
+    <text x="944" y="490" fill="#94a3b8" font-size="13.5">read evidence · trace</text></g>
+
+  <g filter="url(#card)"><rect x="1300" y="250" width="210" height="92" rx="16" fill="#fff" stroke="#e2e8f0" stroke-width="1.5"/>
+    <text x="1324" y="294" fill="#1e293b" font-size="19" font-weight="700">Gemini</text>
+    <text x="1324" y="320" fill="#94a3b8" font-size="13.5">LLM</text></g>
+  <g filter="url(#card)"><rect x="1300" y="392" width="210" height="92" rx="16" fill="#fff" stroke="#e2e8f0" stroke-width="1.5"/>
+    <text x="1324" y="430" fill="#1e293b" font-size="19" font-weight="700">Elastic</text>
+    <text x="1324" y="456" fill="#94a3b8" font-size="13">Cloud Serverless</text></g>
+  <g filter="url(#card)"><rect x="1300" y="534" width="210" height="92" rx="16" fill="#fff" stroke="#e2e8f0" stroke-width="1.5"/>
+    <text x="1324" y="578" fill="#1e293b" font-size="19" font-weight="700">Phoenix / Arize</text>
+    <text x="1324" y="604" fill="#94a3b8" font-size="13.5">OpenInference</text></g>
+
+  <!-- edges -->
+  <path d="M240 440 H300" fill="none" stroke="#9aa6bd" stroke-width="2.2" marker-end="url(#a)"/>
+
+  <path d="M530 404 H610" fill="none" stroke="#9aa6bd" stroke-width="2.2" marker-end="url(#a)"/>
+  <text x="570" y="392" text-anchor="middle" fill="#94a3b8" font-size="12.5">[01]</text>
+  <path d="M530 466 H610" fill="none" stroke="#9aa6bd" stroke-width="2.2" marker-end="url(#a)"/>
+  <path d="M610 488 H530" fill="none" stroke="#9aa6bd" stroke-width="2.2" marker-end="url(#a)"/>
+
+  <path d="M840 404 H920" fill="none" stroke="#9aa6bd" stroke-width="2.2" marker-end="url(#a)"/>
+  <text x="880" y="392" text-anchor="middle" fill="#94a3b8" font-size="12.5">[02]</text>
+  <path d="M840 466 H920" fill="none" stroke="#9aa6bd" stroke-width="2.2" marker-end="url(#a)"/>
+  <path d="M920 488 H840" fill="none" stroke="#9aa6bd" stroke-width="2.2" marker-end="url(#a)"/>
+
+  <path d="M1100 350 C1180 300, 1240 296, 1300 296" fill="none" stroke="#9aa6bd" stroke-width="2.2" marker-end="url(#a)"/>
+  <text x="1210" y="318" text-anchor="middle" fill="#94a3b8" font-size="12.5">[05] reason</text>
+
+  <path d="M1150 438 H1300" fill="none" stroke="#9aa6bd" stroke-width="2.2" marker-end="url(#a)" stroke-dasharray="6 5"/>
+  <text x="1225" y="428" text-anchor="middle" fill="#94a3b8" font-size="12.5">[04] read · [07] runtime</text>
+
+  <path d="M790 510 C860 580, 1120 590, 1260 590 C1300 590, 1305 530, 1320 486" fill="none" stroke="#4f46e5" stroke-width="2.2" marker-end="url(#ai)"/>
+  <g><rect x="900" y="566" width="300" height="44" rx="10" fill="#fff" stroke="#c7cef5"/><text x="1050" y="586" text-anchor="middle" fill="#3730a3" font-size="13.5">[03] write import + approved</text><text x="1050" y="603" text-anchor="middle" fill="#94a3b8" font-size="12">documents.schema.json</text></g>
+
+  <path d="M1100 510 C1180 560, 1240 580, 1300 580" fill="none" stroke="#9aa6bd" stroke-width="2.2" marker-end="url(#a)"/>
+  <text x="1180" y="556" text-anchor="middle" fill="#94a3b8" font-size="12.5">[06] traces</text>
+
+  <!-- contract legend -->
+  <line x1="90" y1="660" x2="1510" y2="660" stroke="#e2e8f0" stroke-width="1.5"/>
+  <text x="90" y="694" fill="#0f172a" font-size="17" font-weight="700">Contract set (contracts/)</text>
+  <g font-size="14.5" fill="#64748b">
+    <text x="90" y="726">[01] Frontend &#8596; Java &#183; openapi + asyncapi</text>
+    <text x="90" y="752">[02] Java &#8596; Python Agent &#183; turns + stream</text>
+    <text x="90" y="778">[03] Java &#8596; Elastic &#183; documents.schema.json</text>
+    <text x="560" y="726">[04] Agent &#8596; Elastic MCP &#183; evidence-tools</text>
+    <text x="560" y="752">[05] ADK workers &#8596; structured output</text>
+    <text x="560" y="778">[06] Agent &#8596; Phoenix &#183; openinference-traces</text>
+    <text x="1030" y="726">[07] Agent &#8596; Elastic runtime repository</text>
+    <text x="1030" y="752" fill="#94a3b8">business docs: Java-written</text>
+    <text x="1030" y="778" fill="#94a3b8">agent_* runtime-only: Python, TTL</text>
+  </g>
+
+  <text x="90" y="830" fill="#94a3b8" font-size="13.5">Memory: L1/L2 run (Python, volatile) &#183; Session (Java) &#183; L3 knowledge (Elastic, Java write / Python read) &#183; L4 reflection (Phoenix)</text>
+</svg>

@@ -9,6 +9,40 @@ The project focuses on the work that usually happens after a dashboard: a
 marketer sees that something changed, but still has to explain why it matters,
 what to test next, and how to turn the decision into a concrete campaign plan.
 
+## Architecture Diagrams
+
+LaunchPilot reads a creator team's SNS performance CSV, finds growth signals, forms causal hypotheses, and turns them into next-week experiments that a human approves into the calendar. The five diagrams below walk from the outside in: what the system is, how a single turn flows, how the agents run, how output is gated, and how it deploys. Source SVGs and a viewer live in [`docs/architecture/diagrams/`](docs/architecture/diagrams/).
+
+### 1. System Context
+
+<img src="docs/architecture/diagrams/1-system-context.png" alt="System Context" width="100%"/>
+
+A content or growth manager uploads a CSV and approves plans. Behind one product boundary, LaunchPilot orchestrates three external systems: Gemini reasons and generates, Elastic serves evidence and is the single store, and Phoenix/Arize captures traces for self-reflection. The user gets back signals, hypotheses, experiments, and the live reasoning that produced them.
+
+### 2. Turn Lifecycle
+
+<img src="docs/architecture/diagrams/2-turn-lifecycle.png" alt="Turn Lifecycle" width="100%"/>
+
+Every user turn follows the same path. The agent interprets free text into a proposed `StateDelta`, a deterministic reducer (not the LLM) owns the actual transition, and the router picks exactly one delegation mode: chat directly, delegate a revision, re-run a phase worker, or ask for clarification. State is then committed and checkpointed to Elastic. The principle: the LLM proposes, code owns the transition.
+
+### 3. Nonlinear Phase Graph
+
+<img src="docs/architecture/diagrams/3-nonlinear-phase-graph.png" alt="Nonlinear Phase Graph" width="100%"/>
+
+The four phase agents (analysis, hypothesis, planning, evaluation) each run individually. Free-text intent can reach any phase whose inputs already exist, so ordering is enforced as a data-dependency guard rather than a fixed rail. A user can backtrack to any earlier phase, which invalidates downstream artifacts and records a compact lesson, or restore an earlier state from an Elastic checkpoint instead of re-running forward.
+
+### 4. Phase Execution & Approval Gate
+
+<img src="docs/architecture/diagrams/4-phase-execution-gate.png" alt="Phase Execution and Approval Gate" width="100%"/>
+
+Inside one phase, a single worker runs against Gemini with structured output, gets validated, saved, and streamed back as blocks. The experiment plan additionally passes a deterministic reviewer gate (the final authority on schema and evidence grounding) before any approval block reaches the user. Only after a human approves does the Java backend write the immutable `growth_briefs` and `calendar_events` to Elastic; the Python agent never persists business documents.
+
+### 5. Containers & Contracts
+
+<img src="docs/architecture/diagrams/5-containers-contracts.png" alt="Containers and Contracts" width="100%"/>
+
+Three deployable containers (Next.js frontend, Java gateway, Python agent core) and three external systems, with one fixed contract per boundary. Java owns the approval gate and all business writes to Elastic; the Python core reads evidence over an MCP wrapper and keeps its own runtime-only state in `agent_*` indices. Every boundary is contract-first (`extra=forbid`), numbered `[01]`–`[07]` in [`contracts/`](contracts/).
+
 ## Product Loop
 
 ```text

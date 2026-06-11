@@ -1,0 +1,102 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" font-family="'Segoe UI','Inter',system-ui,sans-serif">
+  <defs>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse"><circle cx="1.5" cy="1.5" r="1.1" fill="#e6eaf2"/></pattern>
+    <filter id="card" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="4" stdDeviation="11" flood-color="#243b6b" flood-opacity="0.10"/></filter>
+    <marker id="a" markerWidth="11" markerHeight="11" refX="8" refY="5" orient="auto"><path d="M0,0 L9,5 L0,10 z" fill="#9aa6bd"/></marker>
+    <marker id="ai" markerWidth="11" markerHeight="11" refX="8" refY="5" orient="auto"><path d="M0,0 L9,5 L0,10 z" fill="#4f46e5"/></marker>
+  </defs>
+
+  <rect width="1600" height="900" fill="#fbfcfe"/>
+  <rect width="1600" height="900" fill="url(#grid)"/>
+
+  <text x="90" y="92" fill="#0f172a" font-size="40" font-weight="700">Phase Execution &amp; Approval Gate</text>
+  <text x="90" y="130" fill="#64748b" font-size="20">One worker per phase, then a deterministic reviewer gate before any human approval reaches Elastic.</text>
+  <rect x="90" y="148" width="96" height="4" rx="2" fill="#4f46e5"/>
+
+  <!-- Band A -->
+  <text x="90" y="200" fill="#0f172a" font-size="18" font-weight="700">Inside one phase run</text>
+  <g font-size="14.5">
+    <g filter="url(#card)"><rect x="90" y="216" width="262" height="124" rx="14" fill="#fff" stroke="#e2e8f0" stroke-width="1.5"/>
+      <text x="112" y="250" fill="#1e293b" font-size="16.5" font-weight="700">Load context</text>
+      <text x="112" y="280" fill="#64748b">prior phase artifacts</text>
+      <text x="112" y="304" fill="#64748b">+ recent episode memory</text></g>
+    <g filter="url(#card)"><rect x="382" y="216" width="262" height="124" rx="14" fill="#fff" stroke="#e2e8f0" stroke-width="1.5"/>
+      <text x="404" y="250" fill="#1e293b" font-size="16.5" font-weight="700">Run worker</text>
+      <text x="404" y="280" fill="#64748b">Gemini structured output</text>
+      <text x="404" y="304" fill="#94a3b8">analyst / strategist / writer</text></g>
+    <g filter="url(#card)"><rect x="674" y="216" width="262" height="124" rx="14" fill="#fff" stroke="#e2e8f0" stroke-width="1.5"/>
+      <text x="696" y="250" fill="#1e293b" font-size="16.5" font-weight="700">Validate</text>
+      <text x="696" y="280" fill="#64748b">Pydantic / JSON Schema</text>
+      <text x="696" y="304" fill="#94a3b8">bad shape handled, no crash</text></g>
+    <g filter="url(#card)"><rect x="966" y="216" width="262" height="124" rx="14" fill="#fff" stroke="#e2e8f0" stroke-width="1.5"/>
+      <text x="988" y="250" fill="#1e293b" font-size="16.5" font-weight="700">Save artifact</text>
+      <text x="988" y="280" fill="#64748b">phase_artifacts store</text>
+      <text x="988" y="304" fill="#94a3b8">+ Elastic runtime ref</text></g>
+    <g filter="url(#card)"><rect x="1258" y="216" width="252" height="124" rx="14" fill="#fff" stroke="#e2e8f0" stroke-width="1.5"/>
+      <text x="1280" y="250" fill="#1e293b" font-size="16.5" font-weight="700">Emit blocks</text>
+      <text x="1280" y="280" fill="#64748b">stream text + artifact</text>
+      <text x="1280" y="304" fill="#94a3b8">blocks[] over WebSocket</text></g>
+  </g>
+  <g fill="none" stroke="#9aa6bd" stroke-width="2.4">
+    <path d="M352 278 H382" marker-end="url(#a)"/><path d="M644 278 H674" marker-end="url(#a)"/>
+    <path d="M936 278 H966" marker-end="url(#a)"/><path d="M1228 278 H1258" marker-end="url(#a)"/>
+  </g>
+
+  <!-- Band B -->
+  <text x="90" y="430" fill="#0f172a" font-size="18" font-weight="700">Approval gate &#8212; EXPERIMENT_PLAN only</text>
+
+  <g font-size="14.5">
+    <g filter="url(#card)"><rect x="90" y="450" width="210" height="118" rx="14" fill="#fff" stroke="#e2e8f0" stroke-width="1.5"/>
+      <text x="112" y="486" fill="#1e293b" font-size="16.5" font-weight="700">Writer plan</text>
+      <text x="112" y="516" fill="#64748b">experiment items</text>
+      <text x="112" y="540" fill="#94a3b8">success_criteria required</text></g>
+    <g filter="url(#card)"><rect x="340" y="450" width="200" height="118" rx="14" fill="#fff" stroke="#e2e8f0" stroke-width="1.5"/>
+      <text x="362" y="486" fill="#1e293b" font-size="16.5" font-weight="700">Assemble</text>
+      <text x="362" y="516" fill="#64748b">formatter.assemble</text>
+      <text x="362" y="540" fill="#94a3b8">signals+hyp+plan</text></g>
+    <g filter="url(#card)"><rect x="580" y="450" width="250" height="118" rx="14" fill="#eef2ff" stroke="#4f46e5" stroke-width="1.8"/>
+      <text x="602" y="486" fill="#3730a3" font-size="16.5" font-weight="800">reviewer.review</text>
+      <text x="602" y="516" fill="#4f46e5">deterministic check</text>
+      <text x="602" y="540" fill="#6366f1">final authority (evidence_ref, schema)</text></g>
+    <g filter="url(#card)"><rect x="880" y="450" width="230" height="118" rx="14" fill="#fff" stroke="#c7cef5" stroke-width="1.5"/>
+      <text x="902" y="486" fill="#1e293b" font-size="16.5" font-weight="700">Approval block</text>
+      <text x="902" y="516" fill="#64748b">emitted to user</text>
+      <text x="902" y="540" fill="#94a3b8">human in the loop</text></g>
+  </g>
+  <g fill="none" stroke="#9aa6bd" stroke-width="2.4">
+    <path d="M300 509 H340" marker-end="url(#a)"/><path d="M540 509 H580" marker-end="url(#a)"/>
+  </g>
+  <path d="M830 509 H880" fill="none" stroke="#4f46e5" stroke-width="2.4" marker-end="url(#ai)"/>
+  <text x="855" y="498" text-anchor="middle" fill="#4f46e5" font-size="13">pass</text>
+
+  <!-- fail branch -->
+  <path d="M705 568 V628" fill="none" stroke="#9aa6bd" stroke-width="2.2" marker-end="url(#a)"/>
+  <text x="722" y="600" fill="#94a3b8" font-size="13">fail</text>
+  <g filter="url(#card)"><rect x="560" y="632" width="290" height="86" rx="14" fill="#fff" stroke="#e2e8f0" stroke-width="1.5"/>
+    <text x="582" y="666" fill="#1e293b" font-size="15.5" font-weight="700">Validation failed</text>
+    <text x="582" y="694" fill="#64748b" font-size="14">issues returned, no approval block</text></g>
+
+  <!-- approval handoff to Java + Elastic -->
+  <path d="M995 568 V628" fill="none" stroke="#9aa6bd" stroke-width="2.2" marker-end="url(#a)"/>
+  <text x="1012" y="600" fill="#94a3b8" font-size="13">approve</text>
+  <g filter="url(#card)"><rect x="880" y="632" width="230" height="118" rx="14" fill="#fff" stroke="#e2e8f0" stroke-width="1.5"/>
+    <text x="902" y="668" fill="#1e293b" font-size="16.5" font-weight="700">Java Backend</text>
+    <text x="902" y="698" fill="#64748b" font-size="14">owns approval gate</text>
+    <text x="902" y="722" fill="#94a3b8" font-size="13.5">Python never persists business docs</text></g>
+  <path d="M1110 691 H1170" fill="none" stroke="#9aa6bd" stroke-width="2.4" marker-end="url(#a)"/>
+  <g filter="url(#card)"><rect x="1170" y="632" width="340" height="118" rx="14" fill="#fff" stroke="#e2e8f0" stroke-width="1.5"/>
+    <text x="1192" y="668" fill="#1e293b" font-size="16.5" font-weight="700">Elastic (write on approval)</text>
+    <text x="1192" y="698" fill="#64748b" font-size="14">growth_briefs (1) + calendar_events (N)</text>
+    <text x="1192" y="722" fill="#94a3b8" font-size="13.5">immutable, append-only</text></g>
+
+  <!-- data dependency footer -->
+  <g font-size="14.5" font-weight="600">
+    <text x="90" y="800" fill="#0f172a" font-size="16" font-weight="700">Data dependency (read from phase_artifacts)</text>
+    <g filter="url(#card)"><rect x="430" y="780" width="170" height="44" rx="22" fill="#fff" stroke="#e2e8f0"/><text x="515" y="808" text-anchor="middle" fill="#475569">signals</text></g>
+    <g filter="url(#card)"><rect x="660" y="780" width="200" height="44" rx="22" fill="#fff" stroke="#e2e8f0"/><text x="760" y="808" text-anchor="middle" fill="#475569">hypotheses</text></g>
+    <g filter="url(#card)"><rect x="920" y="780" width="200" height="44" rx="22" fill="#eef2ff" stroke="#4f46e5"/><text x="1020" y="808" text-anchor="middle" fill="#3730a3">experiment plan</text></g>
+  </g>
+  <g fill="none" stroke="#9aa6bd" stroke-width="2.2">
+    <path d="M600 802 H660" marker-end="url(#a)"/><path d="M860 802 H920" marker-end="url(#a)"/>
+  </g>
+</svg>
