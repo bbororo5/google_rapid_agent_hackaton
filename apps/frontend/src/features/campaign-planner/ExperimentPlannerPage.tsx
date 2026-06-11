@@ -74,12 +74,12 @@ function activityTarget(title: string) {
 }
 
 function compactActivityBlocks(blocks: Extract<StreamMessageBlock, { kind: "activity" }>[]) {
-  return [...blocks.reduce((latest, block) => latest.set(activityTarget(block.title), block), new Map<string, Extract<StreamMessageBlock, { kind: "activity" }> >()).values()];
+  return [...blocks.reduce((latest, block) => latest.set(block.id || activityTarget(block.title), block), new Map<string, Extract<StreamMessageBlock, { kind: "activity" }> >()).values()];
 }
 
 function toolSummary(blocks: Extract<StreamMessageBlock, { kind: "activity" }>[]) {
   const failed = blocks.filter((block) => block.status === "failed").length;
-  const running = blocks.filter((block) => block.status === "running").length;
+  const running = blocks.filter((block) => block.status === "running" || block.status === "queued").length;
   const done = blocks.filter((block) => block.status === "done").length;
 
   if (failed > 0) return `${failed} tool check${failed === 1 ? "" : "s"} need attention`;
@@ -90,17 +90,22 @@ function toolSummary(blocks: Extract<StreamMessageBlock, { kind: "activity" }>[]
 function ActivitySummary({ blocks }: { blocks: Extract<StreamMessageBlock, { kind: "activity" }>[] }) {
   const compactedBlocks = compactActivityBlocks(blocks);
   if (compactedBlocks.length === 0) return null;
+  const hasRunning = compactedBlocks.some((block) => block.status === "running" || block.status === "queued");
 
   return (
-    <details className="tool-summary">
+    <details className={`tool-summary${hasRunning ? " running" : ""}`} open={hasRunning}>
       <summary>
         <span className="timeline-glyph" aria-hidden="true" />
-        <span>{toolSummary(compactedBlocks)}</span>
+        <span>
+          {toolSummary(compactedBlocks)}
+          {hasRunning ? <b className="tool-live-label">Live</b> : null}
+        </span>
       </summary>
       <div className="tool-summary-list">
         {compactedBlocks.map((block) => (
           <span className={block.status} key={block.id}>
-            {block.title}
+            <b>{block.title}</b>
+            {block.detail ? <small>{block.detail}</small> : null}
           </span>
         ))}
       </div>
@@ -120,6 +125,7 @@ function StreamMessageGroupCard({
       .filter((block): block is Extract<StreamMessageBlock, { kind: "text" }> => block.kind === "text")
       .map((block) => block.text)
       .join("\n");
+    const attachments = group.blocks.filter((block): block is Extract<StreamMessageBlock, { kind: "attachment" }> => block.kind === "attachment");
 
     return (
       <article className="thread-message user">
@@ -128,7 +134,17 @@ function StreamMessageGroupCard({
             <strong>You</strong>
             <span>Message</span>
           </div>
-          <p>{text}</p>
+          {text ? <p>{text}</p> : null}
+          {attachments.length > 0 ? (
+            <div className="message-attachments" aria-label="Attached files">
+              {attachments.map((attachment) => (
+                <span className="message-attachment-chip" key={attachment.fileName}>
+                  <Paperclip size={14} strokeWidth={1.9} />
+                  <span>{attachment.fileName}</span>
+                </span>
+              ))}
+            </div>
+          ) : null}
         </div>
       </article>
     );
@@ -163,6 +179,8 @@ function StreamBlockRow({
   switch (block.kind) {
     case "text":
       return <TimelineTextRow text={block.text} tone="text" />;
+    case "attachment":
+      return <TimelineTextRow text={block.fileName} tone="done" />;
     case "activity":
       return <TimelineTextRow text={block.title} tone={block.status === "failed" ? "failed" : block.status === "done" ? "done" : "active"} />;
     case "markdown_document":

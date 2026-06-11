@@ -63,6 +63,8 @@ function toolLogsFromStreamMessage(event: ExperimentPlannerEvent & { type: "STRE
     .map((block, index) => ({
       sequence: event.message.sequence * 100 + index,
       tool_name: block.id ?? block.title,
+      display_title: block.title,
+      display_detail: block.detail ?? null,
       status: block.status === "failed" ? "FAILED" : block.status === "done" ? "SUCCESS" : block.status === "running" ? "RUNNING" : "PENDING",
       duration_ms: null,
       error_message: block.status === "failed" ? block.detail ?? null : null,
@@ -165,8 +167,14 @@ export function experimentPlannerReducer(state: ExperimentPlannerState, event: E
     case "SELECT_CSV":
       return {
         ...clearError(state),
-        phase: "input_ready",
+        phase: state.thread.threadId ? state.phase : "input_ready",
         composer: { ...state.composer, file: event.file },
+      };
+
+    case "CLEAR_SELECTED_CSV":
+      return {
+        ...state,
+        composer: { ...state.composer, file: null },
       };
 
     case "IMPORT_REQUESTED":

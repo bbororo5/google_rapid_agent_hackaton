@@ -2,10 +2,14 @@
   "command_id": "cmd_20260601_001",
   "type": "message.send",
   "thread_id": "thread_20260601_001",
-  "content": "좋아, 승인할게. 캘린더에 넣어줘.",
-  "action": {
-    "name": "approve",
-    "target_id": "appr_20260601_001"
-  },
+  "content": "분석을 도와줘!",
+  "attachments": [
+    {
+      "kind": "csv_import",
+      "id": "imp_20260601_001",
+      "title": "sample-channel-metrics.csv",
+      "filename": "sample-channel-metrics.csv"
+    }
+  ],
   "client_created_at": "2026-06-01T16:33:10+09:00"
 }

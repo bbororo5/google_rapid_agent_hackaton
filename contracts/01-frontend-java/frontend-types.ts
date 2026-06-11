@@ -33,11 +33,21 @@ export interface AgentMessage {
   message_id: string;
   role: "user" | "assistant";
   content: string;
+  attachments?: MessageAttachment[];
 }
 
 export type StreamMessageRole = "user" | "assistant" | "system";
 
 export type MessageBlockKind = "text" | "activity" | "markdown_document" | "artifact" | "approval" | "result" | "error";
+
+export type MessageAttachmentKind = "csv_import" | "growth_brief" | "document" | "artifact";
+
+export interface MessageAttachment {
+  kind: MessageAttachmentKind;
+  id: string;
+  title?: string;
+  filename?: string;
+}
 
 export type MessageBlock =
   | { kind: "text"; text: string }
@@ -75,6 +85,7 @@ export interface MessageSendCommand {
   type: "message.send";
   thread_id: string;
   content: string;
+  attachments?: MessageAttachment[];
   action?: {
     name: "approve" | "reject" | "request_changes" | "open_document" | "revise_artifact" | "cancel";
     target_id?: string | null;
@@ -139,6 +150,8 @@ export interface ExperimentItem {
 export interface ToolCallLog {
   sequence: number;
   tool_name: string;
+  display_title?: string;
+  display_detail?: string | null;
   status: ToolCallStatus;
   duration_ms: number | null;
   error_message?: string | null;

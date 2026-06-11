@@ -3,6 +3,7 @@ import type {
   AgentDocument,
   StreamMessage,
   AgentMessage,
+  MessageAttachment,
   ApproveExperimentPlanResponse,
   ApprovalCommitResult,
   CalendarEventRef,
@@ -18,6 +19,7 @@ export type {
   AgentDocument,
   StreamMessage,
   AgentMessage,
+  MessageAttachment,
   ApproveExperimentPlanResponse,
   ApprovalCommitResult,
   CalendarEventRef,
@@ -119,6 +121,7 @@ export interface ExperimentPlannerState {
 export type ExperimentPlannerEvent =
   | { type: "UPDATE_QUESTION"; question: string }
   | { type: "SELECT_CSV"; file: File }
+  | { type: "CLEAR_SELECTED_CSV" }
   | { type: "IMPORT_REQUESTED" }
   | { type: "IMPORT_SUCCEEDED"; importResult: ImportCsvResponse }
   | { type: "IMPORT_FAILED"; message: string }

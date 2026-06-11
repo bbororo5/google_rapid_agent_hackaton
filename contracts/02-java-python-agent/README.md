@@ -101,8 +101,16 @@ Java may persist them as-is or normalize them into frontend `StreamMessage`.
   "role": "assistant",
   "created_at": "2026-06-01T16:31:10+09:00",
   "blocks": [
-    { "kind": "activity", "title": "Checked metric baseline", "status": "done" },
+    {
+      "kind": "activity",
+      "id": "analysis.evidence",
+      "title": "Checking campaign evidence",
+      "status": "done",
+      "detail": "Metric baseline and campaign context loaded."
+    },
     { "kind": "text", "text": "The save-rate lift looks repeatable." }
   ]
 }
 ```
+
+`activity` blocks are user-safe progress summaries. Python may emit multiple blocks with the same `id`; Java and the frontend should treat the latest status for that `id` as the current row. `detail` must summarize observable work only and must not expose hidden chain-of-thought.

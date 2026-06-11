@@ -59,3 +59,14 @@ components:
               kind:
                 type: string
                 enum: [text, activity, markdown_document, artifact, approval, result, error]
+              id:
+                type: string
+                description: Stable block identifier, required for activity updates that replace prior progress rows.
+              title:
+                type: string
+              status:
+                type: string
+                enum: [queued, running, done, failed]
+              detail:
+                type: string
+                description: User-safe progress detail; must not expose hidden chain-of-thought.

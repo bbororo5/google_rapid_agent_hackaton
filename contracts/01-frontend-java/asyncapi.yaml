@@ -220,6 +220,22 @@ components:
     StreamMessageRole:
       type: string
       enum: [user, assistant, system]
+    MessageAttachmentKind:
+      type: string
+      enum: [csv_import, growth_brief, document, artifact]
+    MessageAttachment:
+      type: object
+      additionalProperties: false
+      required: [kind, id]
+      properties:
+        kind:
+          $ref: "#/components/schemas/MessageAttachmentKind"
+        id:
+          type: string
+        title:
+          type: string
+        filename:
+          type: string
     TextBlock:
       type: object
       additionalProperties: false
@@ -406,6 +422,13 @@ components:
           type: string
           minLength: 1
           maxLength: 4000
+        attachments:
+          type: array
+          description: >
+            Optional user-visible resources attached to this turn. Attachments
+            carry metadata only; Java resolves and validates referenced uploads.
+          items:
+            $ref: "#/components/schemas/MessageAttachment"
         action:
           $ref: "#/components/schemas/MessageSendAction"
         client_created_at:

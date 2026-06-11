@@ -13,6 +13,7 @@ import type {
   AgentDocument,
   AgentThreadObservation,
   AgentMessage,
+  MessageAttachment,
   AgentStreamRecoveryStatus,
   AgentTimelineItem,
   Hypothesis,
@@ -109,6 +110,7 @@ export interface PlannerProgressView {
 
 export type StreamMessageBlock =
   | { kind: "text"; text: string }
+  | { kind: "attachment"; fileName: string; label?: string }
   | { kind: "activity"; id: string; title: string; status: "queued" | "running" | "done" | "failed"; detail?: string }
   | { kind: "markdown_document"; id: string; title: string; summary?: string; markdown: string; document: AgentDocument }
   | { kind: "artifact"; id: string; artifactKind: "signal" | "hypothesis" | "experiment_plan" | "growth_brief"; title: string; content: unknown }
@@ -293,6 +295,28 @@ function agentThreadStreamUrl(threadId: string) {
   return `${agentApiBaseUrl}/api/agent/threads/${threadId}/stream`;
 }
 
+function csvPrompt(text: string) {
+  const trimmed = text.trim();
+  return trimmed || "분석을 도와줘.";
+}
+
+function csvAttachment(importResult: ImportCsvResponse, fileName: string): MessageAttachment {
+  return {
+    kind: "csv_import",
+    id: importResult.import_id,
+    title: fileName,
+    filename: fileName,
+  };
+}
+
+function attachmentBlocks(attachments: MessageAttachment[] | undefined): StreamMessageBlock[] {
+  return (attachments ?? []).map((attachment) => ({
+    kind: "attachment" as const,
+    fileName: attachment.filename ?? attachment.title ?? attachment.id,
+    label: attachment.kind === "csv_import" ? "CSV attached" : attachment.title,
+  }));
+}
+
 const THREAD_STORAGE_KEY = "launchpilot.thread";
 
 function persistThread(threadId: string, streamUrl: string) {
@@ -336,9 +360,9 @@ function toolBlock(tool: ToolCallLog): StreamMessageBlock {
   return {
     kind: "activity",
     id: `tool:${tool.sequence}:${tool.tool_name}`,
-    title: toolStatusLabel(tool),
+    title: tool.display_title ?? toolStatusLabel(tool),
     status,
-    detail: tool.error_message ?? undefined,
+    detail: tool.display_detail ?? tool.error_message ?? undefined,
   };
 }
 
@@ -381,6 +405,12 @@ function streamMessagesFromState(input: {
   // Drop optimistic local user bubbles once the server has echoed the same text
   // back into the timeline (otherwise every sent message renders twice).
   const echoedUserCounts = new Map<string, number>();
+  const localAttachmentQueues = new Map<string, MessageAttachment[][]>();
+  for (const message of localUserMessages) {
+    if (!message.attachments?.length) continue;
+    const key = message.content.trim();
+    localAttachmentQueues.set(key, [...(localAttachmentQueues.get(key) ?? []), message.attachments]);
+  }
   for (const item of serverUserMessages) {
     const key = item.message.content.trim();
     echoedUserCounts.set(key, (echoedUserCounts.get(key) ?? 0) + 1);
@@ -397,12 +427,19 @@ function streamMessagesFromState(input: {
   const streamMessages: StreamMessage[] = [
     ...input.timelineItems.map((item) => {
       if (item.kind === "user_message") {
+        const key = item.message.content.trim();
+        const localAttachmentQueue = localAttachmentQueues.get(key) ?? [];
+        const fallbackAttachments = localAttachmentQueue.shift() ?? [];
+        const attachments = item.message.attachments?.length ? item.message.attachments : fallbackAttachments;
         return {
           id: item.id,
           sequence: item.sequence,
           role: "user" as const,
           createdAt: null,
-          blocks: [{ kind: "text" as const, text: item.message.content }],
+          blocks: [
+            { kind: "text" as const, text: item.message.content },
+            ...attachmentBlocks(attachments),
+          ],
         };
       }
       if (item.kind === "tool") {
@@ -449,14 +486,19 @@ function streamMessagesFromState(input: {
         blocks: [{ kind: "text" as const, text: item.message.content }],
       };
     }),
-    ...pendingLocalUserMessages.map((message, index) => ({
-      id: message.message_id,
-      sequence: "clientSequence" in message ? message.clientSequence : 10_000 + index,
-      role: "user" as const,
-      createdAt: null,
-      clientPhase: "phaseAtSend" in message ? message.phaseAtSend : undefined,
-      blocks: [{ kind: "text" as const, text: message.content }],
-    })),
+    ...pendingLocalUserMessages.map((message, index) => {
+      return {
+        id: message.message_id,
+        sequence: "clientSequence" in message ? message.clientSequence : 10_000 + index,
+        role: "user" as const,
+        createdAt: null,
+        clientPhase: "phaseAtSend" in message ? message.phaseAtSend : undefined,
+        blocks: [
+          { kind: "text" as const, text: message.content },
+          ...attachmentBlocks(message.attachments),
+        ],
+      };
+    }),
   ];
 
   if (input.primaryExperiment) {
@@ -890,7 +932,7 @@ function composerFromState(state: ExperimentPlannerState, displayState: AgentDis
               disabled: !state.thread.threadId,
               title: "Stop this analysis",
             }
-          : { kind: "send", label: "Send", disabled: !value.trim(), title: "Send a message to the thread" },
+          : { kind: "send", label: "Send", disabled: !value.trim() && !fileName, title: "Send a message to the thread" },
       };
     }
     case "signal_review":
@@ -899,7 +941,7 @@ function composerFromState(state: ExperimentPlannerState, displayState: AgentDis
         mode: "review_gate",
         inputDisabled: false,
         canAttachCsv: true,
-        primaryAction: { kind: "send", label: "Send", disabled: !value.trim(), title: "Send a message to the thread" },
+        primaryAction: { kind: "send", label: "Send", disabled: !value.trim() && !fileName, title: "Send a message to the thread" },
       };
     case "awaiting_approval":
       return {
@@ -907,7 +949,7 @@ function composerFromState(state: ExperimentPlannerState, displayState: AgentDis
         mode: "approval_gate",
         inputDisabled: false,
         canAttachCsv: true,
-        primaryAction: { kind: "send", label: "Send", disabled: !value.trim(), title: "Send a message to the thread" },
+        primaryAction: { kind: "send", label: "Send", disabled: !value.trim() && !fileName, title: "Send a message to the thread" },
       };
     case "approved":
       return {
@@ -915,7 +957,7 @@ function composerFromState(state: ExperimentPlannerState, displayState: AgentDis
         mode: "completed",
         inputDisabled: false,
         canAttachCsv: true,
-        primaryAction: { kind: "send", label: "Send", disabled: !value.trim(), title: "Send a message to the thread" },
+        primaryAction: { kind: "send", label: "Send", disabled: !value.trim() && !fileName, title: "Send a message to the thread" },
       };
     case "failed":
     case "cancelled":
@@ -925,7 +967,7 @@ function composerFromState(state: ExperimentPlannerState, displayState: AgentDis
         mode: "error",
         inputDisabled: false,
         canAttachCsv: true,
-        primaryAction: { kind: "send", label: "Send", disabled: !value.trim(), title: "Send a message to the thread" },
+        primaryAction: { kind: "send", label: "Send", disabled: !value.trim() && !fileName, title: "Send a message to the thread" },
       };
     default:
       return {
@@ -933,7 +975,7 @@ function composerFromState(state: ExperimentPlannerState, displayState: AgentDis
         mode: displayState === "processing" ? "session_in_progress" : "prepare_session",
         inputDisabled: false,
         canAttachCsv: displayState !== "processing",
-        primaryAction: displayState === "processing" ? { kind: "stop", label: "Stop", disabled: true } : { kind: "send", label: "Send", disabled: !value.trim() },
+        primaryAction: displayState === "processing" ? { kind: "stop", label: "Stop", disabled: true } : { kind: "send", label: "Send", disabled: !value.trim() && !fileName },
       };
   }
 }
@@ -1118,12 +1160,14 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
       bindThreadToCampaign(threadId);
       await connectStream(threadId, streamUrl);
 
-      const content = composerQuestionRef.current.trim() || `Analyze the campaign metrics I just uploaded (${importingState.composer.file.name}).`;
+      const content = csvPrompt(composerQuestionRef.current);
+      const attachments = [csvAttachment(importResult, importingState.composer.file.name)];
       streamRef.current?.send({
         command_id: commandId("cmd_initial_analysis"),
         type: "message.send",
         thread_id: threadId,
         content,
+        attachments,
         client_created_at: new Date().toISOString(),
       });
       setLocalUserMessages((messages) => [
@@ -1132,6 +1176,7 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
           message_id: `msg_local_${Date.now()}`,
           role: "user",
           content,
+          attachments,
           clientSequence: nextLocalSequence(),
           phaseAtSend: "live",
         },
@@ -1183,29 +1228,35 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
   }
 
   async function attachCsv(file: File) {
-    const current = stateRef.current;
-    // Pre-analysis (no live thread yet): keep the normal selection flow that
-    // arms the Analyze action.
-    if (!current.thread.threadId) {
-      dispatch({ type: "SELECT_CSV", file });
-      return;
-    }
-    // Mid-conversation: ingest the new metrics into Elastic, then ask the agent
-    // to re-analyze in place on the existing thread (no phase reset).
+    dispatch({ type: "SELECT_CSV", file });
+  }
+
+  async function sendCsvMessageOnThread(current: ExperimentPlannerState, file: File, text: string) {
     const threadId = current.thread.threadId;
-    const content = `Analyze the campaign metrics I just uploaded (${file.name}).`;
+    if (!threadId) return false;
+    const content = csvPrompt(text);
+    let attachments: MessageAttachment[] = [
+      {
+        kind: "csv_import",
+        id: `pending_csv_${Date.now()}`,
+        title: file.name,
+        filename: file.name,
+      },
+    ];
     setLocalUserMessages((messages) => [
       ...messages,
       {
         message_id: `msg_local_${Date.now()}`,
         role: "user",
         content,
+        attachments,
         clientSequence: nextLocalSequence(),
         phaseAtSend: current.phase,
       },
     ]);
     try {
-      await api.importCsv({ file, workspaceId: "demo_workspace", campaignId: "camp_comeback_teaser" });
+      const importResult = await api.importCsv({ file, workspaceId: "demo_workspace", campaignId: "camp_comeback_teaser" });
+      attachments = [csvAttachment(importResult, file.name)];
     } catch {
       // Ingestion failed; still let the agent analyze whatever baseline exists.
     }
@@ -1214,9 +1265,15 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
       type: "message.send",
       thread_id: threadId,
       content,
+      attachments,
       client_created_at: new Date().toISOString(),
     });
     bindThreadToCampaign(threadId);
+    composerQuestionRef.current = "";
+    setComposerQuestion("");
+    dispatch({ type: "UPDATE_QUESTION", question: "" });
+    dispatch({ type: "CLEAR_SELECTED_CSV" });
+    return true;
   }
 
   async function sendComposerMessage() {
@@ -1225,6 +1282,11 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
 
     if (current.phase === "input_ready" && current.composer.file) {
       void analyze();
+      return;
+    }
+
+    if (current.composer.file && current.thread.threadId) {
+      await sendCsvMessageOnThread(current, current.composer.file, text);
       return;
     }
 
