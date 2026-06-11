@@ -1,6 +1,6 @@
 "use client";
 
-import { ChangeEvent, CSSProperties, KeyboardEvent, ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { ChangeEvent, CSSProperties, KeyboardEvent, ReactNode, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Bell,
@@ -500,30 +500,61 @@ function ThreadPanel({
   onOpenDocument: (document: StreamDocument) => void;
 }) {
   const threadEndRef = useRef<HTMLDivElement | null>(null);
+  const threadScrollRef = useRef<HTMLDivElement | null>(null);
   const composerInputRef = useRef<HTMLTextAreaElement | null>(null);
   const csvInputRef = useRef<HTMLInputElement | null>(null);
   const scrollKey = useMemo(
     () =>
       [
-        view.thread.groups.length,
-        view.thread.items.length,
-        view.screen.statusRows.length,
+        view.thread.groups
+          .map((group) =>
+            [
+              group.id,
+              group.blocks.length,
+              group.blocks
+                .map((block) => {
+                  if (block.kind === "text") return `text:${block.text.length}:${block.text.slice(-80)}`;
+                  if (block.kind === "activity") return `activity:${block.title}:${block.status}:${block.detail ?? ""}`;
+                  if (block.kind === "artifact") return `artifact:${block.id}:${block.title}`;
+                  if (block.kind === "markdown_document") return `doc:${block.id}:${block.title}`;
+                  if (block.kind === "approval") return `approval:${block.id}:${block.title}`;
+                  if (block.kind === "result") return `result:${block.title}:${block.detail ?? ""}`;
+                  if (block.kind === "error") return `error:${block.title}:${block.detail ?? ""}`;
+                  return block.kind;
+                })
+                .join("|"),
+            ].join("~")
+          )
+          .join("::"),
+        view.screen.statusRows.map((status) => `${status.title}:${status.detail}`).join("|"),
         view.screen.errorMessage ?? "",
         view.thread.primaryExperiment?.id ?? "",
         view.approval.receipt?.growth_brief_id ?? "",
       ].join(":"),
     [
-      view.thread.groups.length,
-      view.thread.items.length,
-      view.screen.statusRows.length,
+      view.thread.groups,
+      view.screen.statusRows,
       view.screen.errorMessage,
       view.thread.primaryExperiment?.id,
       view.approval.receipt?.growth_brief_id,
     ]
   );
 
-  useEffect(() => {
-    threadEndRef.current?.scrollIntoView({ block: "end", behavior: "auto" });
+  useLayoutEffect(() => {
+    const scrollToBottom = () => {
+      const scrollContainer = threadScrollRef.current;
+      if (scrollContainer) {
+        scrollContainer.scrollTop = scrollContainer.scrollHeight;
+      }
+      threadEndRef.current?.scrollIntoView({ block: "end", behavior: "auto" });
+    };
+
+    scrollToBottom();
+    const firstFrame = window.requestAnimationFrame(() => {
+      scrollToBottom();
+      window.requestAnimationFrame(scrollToBottom);
+    });
+    return () => window.cancelAnimationFrame(firstFrame);
   }, [scrollKey]);
 
   useEffect(() => {
@@ -569,7 +600,7 @@ function ThreadPanel({
 
   return (
     <section className={`thread-panel${view.thread.hasActivity ? "" : " empty-thread"}`} aria-label="Campaign agent thread" tabIndex={-1}>
-      <div className="thread-scroll">
+      <div className="thread-scroll" ref={threadScrollRef}>
         {view.screen.intro ? (
           <div className="thread-empty-intro" aria-label="LaunchPilot prompt">
             <h1>{view.screen.intro.title}</h1>
