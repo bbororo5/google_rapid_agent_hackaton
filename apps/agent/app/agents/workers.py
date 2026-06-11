@@ -10,6 +10,7 @@ synthesized analysis `date_range` instead of the old structured run request.
 from __future__ import annotations
 
 import json
+from collections.abc import Awaitable, Callable
 
 from app.contracts import (
     DateRange,
@@ -112,12 +113,16 @@ async def run_chat(content: str, context: str = "") -> str:
     return await adk_agents.run_text("chat", prompt)
 
 
-async def run_advisor(content: str, context: str) -> str:
+async def run_advisor(
+    content: str,
+    context: str,
+    on_delta: Callable[[str], Awaitable[None]] | None = None,
+) -> str:
     """Context-rich reply after the goal controller has selected a budget."""
     from app.agents import adk_agents
 
     prompt = f"{context}\n\n[User request]\n{content}"
-    return await adk_agents.run_text("advisor", prompt)
+    return await adk_agents.run_text("advisor", prompt, on_delta=on_delta)
 
 
 async def run_writer(

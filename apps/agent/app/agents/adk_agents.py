@@ -16,6 +16,7 @@ import logging
 import os
 import time
 import uuid
+from collections.abc import Awaitable, Callable
 
 from app.agents import instructions
 from app.agents.output_schemas import (
@@ -198,7 +199,11 @@ async def run_structured(kind: str, user_text: str) -> dict:
     return json.loads(final_text)
 
 
-async def run_text(kind: str, user_text: str) -> str:
+async def run_text(
+    kind: str,
+    user_text: str,
+    on_delta: Callable[[str], Awaitable[None]] | None = None,
+) -> str:
     """Run one agent and return its plain-text reply (no output_schema)."""
     from google.adk.runners import Runner
     from google.adk.sessions import InMemorySessionService
@@ -214,11 +219,45 @@ async def run_text(kind: str, user_text: str) -> str:
 
     async def _collect() -> str | None:
         final_text: str | None = None
+        streamed_text = ""
+        pending_delta = ""
+
+        async def _flush_delta(force: bool = False) -> None:
+            nonlocal pending_delta
+            if not on_delta or not pending_delta:
+                return
+            if not force and len(pending_delta) < 80 and "\n" not in pending_delta:
+                return
+            delta = pending_delta
+            pending_delta = ""
+            await on_delta(delta)
+
         async for event in runner.run_async(
             user_id="orchestrator", session_id=sid, new_message=content
         ):
-            if event.is_final_response() and event.content and event.content.parts:
-                final_text = event.content.parts[0].text
+            if not event.content or not event.content.parts:
+                continue
+            event_text = event.content.parts[0].text or ""
+            if event.is_final_response():
+                final_text = event_text
+                if on_delta and streamed_text and event_text.startswith(streamed_text):
+                    tail = event_text[len(streamed_text):]
+                    if tail:
+                        pending_delta += tail
+                        streamed_text = event_text
+                continue
+            if not on_delta or not event_text:
+                continue
+            if event_text.startswith(streamed_text):
+                delta = event_text[len(streamed_text):]
+                streamed_text = event_text
+            else:
+                delta = event_text
+                streamed_text += event_text
+            if delta:
+                pending_delta += delta
+                await _flush_delta()
+        await _flush_delta(force=True)
         return final_text
 
     final_text = await _run_with_timeout(kind, "text", _collect)

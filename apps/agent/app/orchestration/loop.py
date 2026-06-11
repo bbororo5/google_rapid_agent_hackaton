@@ -144,9 +144,17 @@ class AgentLoop:
             + turn.content
         )
         state.llm_calls += 1
-        reply = await workers.run_advisor(turn.content, prompt)
+        emitted_delta = False
+
+        async def emit_delta(delta: str) -> None:
+            nonlocal emitted_delta
+            emitted_delta = True
+            await self._emitter.assistant_text(turn.record, delta)
+
+        reply = await workers.run_advisor(turn.content, prompt, on_delta=emit_delta)
         turn.record.state.active_chat_history.append({"role": "assistant", "content": reply})
-        await self._emitter.assistant_text(turn.record, reply)
+        if not emitted_delta:
+            await self._emitter.assistant_text(turn.record, reply)
         await self._emitter.progress(
             turn.record,
             "advisor.respond",

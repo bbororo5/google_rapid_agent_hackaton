@@ -151,6 +151,7 @@ function StreamBlockSequence({
 }) {
   const rows: ReactNode[] = [];
   let activityRun: Extract<StreamMessageBlock, { kind: "activity" }>[] = [];
+  let textRun = "";
 
   const flushActivityRun = () => {
     if (activityRun.length === 0) return;
@@ -158,15 +159,29 @@ function StreamBlockSequence({
     activityRun = [];
   };
 
+  const flushTextRun = () => {
+    if (!textRun) return;
+    rows.push(<TimelineTextRow text={textRun} tone="text" key={`${groupId}:text:${rows.length}`} />);
+    textRun = "";
+  };
+
   blocks.forEach((block, index) => {
     if (block.kind === "activity") {
+      flushTextRun();
       activityRun.push(block);
       return;
     }
+    if (block.kind === "text") {
+      flushActivityRun();
+      textRun += block.text;
+      return;
+    }
 
+    flushTextRun();
     flushActivityRun();
     rows.push(<StreamBlockRow key={`${groupId}:${index}`} block={block} onOpenDocument={onOpenDocument} />);
   });
+  flushTextRun();
   flushActivityRun();
 
   return <>{rows}</>;
