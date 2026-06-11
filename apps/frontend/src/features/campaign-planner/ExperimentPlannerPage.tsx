@@ -129,6 +129,38 @@ function ActivitySummary({ blocks }: { blocks: Extract<StreamMessageBlock, { kin
   );
 }
 
+function StreamBlockSequence({
+  groupId,
+  blocks,
+  onOpenDocument,
+}: {
+  groupId: string;
+  blocks: StreamMessageBlock[];
+  onOpenDocument: (document: StreamDocument) => void;
+}) {
+  const rows: ReactNode[] = [];
+  let activityRun: Extract<StreamMessageBlock, { kind: "activity" }>[] = [];
+
+  const flushActivityRun = () => {
+    if (activityRun.length === 0) return;
+    rows.push(<ActivitySummary blocks={activityRun} key={`${groupId}:activity:${rows.length}`} />);
+    activityRun = [];
+  };
+
+  blocks.forEach((block, index) => {
+    if (block.kind === "activity") {
+      activityRun.push(block);
+      return;
+    }
+
+    flushActivityRun();
+    rows.push(<StreamBlockRow key={`${groupId}:${index}`} block={block} onOpenDocument={onOpenDocument} />);
+  });
+  flushActivityRun();
+
+  return <>{rows}</>;
+}
+
 function StreamMessageGroupCard({
   group,
   onOpenDocument,
@@ -166,19 +198,13 @@ function StreamMessageGroupCard({
     );
   }
 
-  const activityBlocks = group.blocks.filter((block): block is Extract<StreamMessageBlock, { kind: "activity" }> => block.kind === "activity");
-  const visibleBlocks = group.blocks.filter((block) => block.kind !== "activity");
-
   return (
     <article className="thread-message assistant-flow-message">
       <div className="message-avatar">{group.role === "system" ? "!" : "LP"}</div>
       <div className="assistant-flow">
         <div className="assistant-flow-label">{group.role === "system" ? "System" : "LaunchPilot"}</div>
         <div className="assistant-timeline">
-          {visibleBlocks.map((block, index) => (
-            <StreamBlockRow key={`${group.id}:${index}`} block={block} onOpenDocument={onOpenDocument} />
-          ))}
-          <ActivitySummary blocks={activityBlocks} />
+          <StreamBlockSequence groupId={group.id} blocks={group.blocks} onOpenDocument={onOpenDocument} />
         </div>
       </div>
     </article>

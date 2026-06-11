@@ -570,9 +570,6 @@ function shouldStartThreadGroup(previous: ThreadMessageGroup | null, message: St
   if (previous.role !== message.role) return true;
   if (message.role === "user") return true;
   if (message.role === "system") return true;
-  const previousActivityOnly = previous.blocks.every((block) => block.kind === "activity");
-  const nextActivityOnly = message.blocks.every((block) => block.kind === "activity");
-  if (previousActivityOnly || nextActivityOnly) return previousActivityOnly !== nextActivityOnly;
   return false;
 }
 
