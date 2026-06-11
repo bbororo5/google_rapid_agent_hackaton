@@ -73,11 +73,11 @@ class Settings(BaseModel):
     # --- Server ---
     port: int = 8000
 
-    # --- Signal thresholds (UNVERIFIED placeholders, agent-tool-spec §6) ---
+    # --- Signal thresholds (UNVERIFIED placeholders) ---
     signal_threshold_high: float = 2.0  # >= this lift => strong signal
     signal_threshold_low: float = 1.3   # >= this => weak signal; below => noise
 
-    # --- Failure policy (agent-tool-spec §4) ---
+    # --- Failure policy ---
     tool_max_retries: int = 2   # Class 1: cheap retries, no LLM
     backtrack_limit: int = 3    # Class 2: max review-fail re-runs before FAILED
 

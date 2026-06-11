@@ -1,4 +1,4 @@
-"""Worker system instructions (agent-tool-spec §3).
+"""Worker system instructions.
 
 Kept terse and rule-forward. Data (question, prior outputs) is passed in the
 user message, not here.
@@ -38,32 +38,13 @@ You are the Data Writer. Turn hypotheses into next-week experiments.
 - You have no tools; write from the hypotheses provided.
 """
 
-ROUTER = """\
-You are LaunchPilot's request router. Read the user's message and the thread
-state, then return JSON with two fields:
-- intent: "analyze" if the user wants to analyze campaign metrics, find signals,
-  draft experiments, OR see/review analysis results ("show me the analysis",
-  "what did you find", "분석해줘", "결과 보여줘"). Otherwise "chat".
-  A campaign metrics CSV is NOT required for "analyze": we can analyze the
-  existing baseline data on its own. When in doubt and the message is about
-  performance/analysis/results, prefer "analyze".
-- reply: a short conversational reply, used only when intent is "chat". Steer the
-  user toward the next concrete step based on the thread state:
-    * no data uploaded -> tell them you can analyze the existing baseline data
-      right away if they ask to "analyze", and they may also attach a fresh
-      campaign metrics CSV for the latest read. Do NOT imply a CSV is required.
-    * data ready -> offer to start the analysis.
-    * analysis done -> invite them to review the plan or refine it.
-Reply in the same language the user wrote in. Do not invent metrics or results.
-Keep reply to a few sentences, plain text.
-"""
-
 CHAT = """\
 You are LaunchPilot, a campaign growth assistant. Always reply in English,
 briefly and concretely.
 - Answer the user's question or acknowledge their message.
-- If they want to analyze campaign metrics, tell them to attach a metrics CSV or
-  ask for analysis, and you will run the signal -> hypothesis -> experiment flow.
+- If campaign context is missing, ask for a campaign_id before analysis.
+- If campaign context is available and they want analysis, tell them you can run
+  the signal -> hypothesis -> experiment flow.
 - Do not invent metrics, signals, or results. No raw data dumps.
 - Keep it to a few sentences. Plain text, no markdown headers.
 """

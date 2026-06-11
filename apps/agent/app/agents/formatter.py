@@ -4,10 +4,9 @@ Assembles the three worker outputs into the final AgentResultPayload. Its job is
 *structural* only (contract 05). Semantic errors (hallucinated refs, missing
 caveat) are NOT fixed here — those route back to a worker via failure.py.
 
-Decision rationale (agent-tool-spec §6, report.md §11): a SCHEMA_INVALID is a
-shape slip, not a reasoning error, so deterministic assembly is correct and
-cheaper than another LLM hop. With output_schema enforced upstream this rarely
-triggers at all.
+Decision rationale: a SCHEMA_INVALID is a shape slip, not a reasoning error, so
+deterministic assembly is correct and cheaper than another LLM hop. With
+output_schema enforced upstream this rarely triggers at all.
 """
 from __future__ import annotations
 

@@ -1,109 +1,92 @@
-"""Golden path end-to-end in STUB mode (no LLM, no Elastic).
+"""Golden scenario tests for the Orchestrator Component.
 
-Drives the orchestrator like the turn API would and asserts the thread reaches
-an approval block carrying a contract-valid payload, with contract-valid blocks.
+These tests intentionally verify observable full-path outcomes instead of
+fine-grained reducer/repository internals. Behavioral quality and drift are
+tracked through Phoenix traces and ADK eval scenarios.
 """
 from __future__ import annotations
+
+import json
+from pathlib import Path
+from typing import Any
 
 import pytest
 
 from app import orchestrator
-from app.contracts import AgentResultPayload, InternalStreamMessage, StreamRole
+from app.contracts import AgentResultPayload, InternalStreamMessage
 from app.runtime.thread_store import ThreadStore
 
 
+SCENARIOS = Path(__file__).parents[1] / "app/eval/dataset/scenarios.json"
+
+
+def _load_scenarios() -> list[dict[str, Any]]:
+    return json.loads(SCENARIOS.read_text())
+
+
 def _blocks(record):
-    return [b for m in record.messages for b in m.blocks]
+    return [block for message in record.messages for block in message.blocks]
+
+
+def _blocks_since(record, index: int):
+    return [block for message in record.messages[index:] for block in message.blocks]
+
+
+def _kinds(blocks):
+    return [block["kind"] for block in blocks]
 
 
 @pytest.mark.asyncio
-async def test_first_turn_reaches_approval() -> None:
+@pytest.mark.parametrize("scenario", _load_scenarios(), ids=lambda item: item["id"])
+async def test_golden_orchestrator_scenarios(scenario: dict[str, Any]) -> None:
     store = ThreadStore()
-    record = store.get_or_create("thread_test123")
-    record.set_context("demo_workspace", "camp_comeback_teaser")
+    record = store.get_or_create(f"thread_{scenario['id']}")
+    record.set_context(scenario.get("workspace_id"), scenario.get("campaign_id"))
 
-    await orchestrator.process_turn(record, "What should we test next week?")
+    turn_boundaries: list[int] = []
+    for turn in scenario["turns"]:
+        turn_boundaries.append(len(record.messages))
+        await orchestrator.process_turn(record, turn)
 
-    # Sequence is monotonic from 1.
-    seqs = [m.sequence for m in record.messages]
-    assert seqs == list(range(1, len(seqs) + 1))
+    for message in record.messages:
+        InternalStreamMessage.model_validate(message.model_dump(mode="json"))
 
-    # Every message is contract-valid.
-    for m in record.messages:
-        InternalStreamMessage.model_validate(m.model_dump(mode="json"))
+    expected = scenario["expected"]
+    all_blocks = _blocks(record)
+    final_block = all_blocks[-1]
 
-    kinds = {b["kind"] for b in _blocks(record)}
-    assert "activity" in kinds
-    assert "artifact" in kinds
-    assert "approval" in kinds
+    if expected.get("final_block"):
+        assert final_block["kind"] == expected["final_block"]
 
-    # The approval block carries a contract-valid payload and a plan target.
-    approval = next(b for b in _blocks(record) if b["kind"] == "approval")
-    assert approval["target_id"].startswith("plan_")
-    payload = AgentResultPayload.model_validate(approval["payload"])
-    assert payload.signals
-    assert payload.hypotheses
-    assert payload.experiment_plan.items
+    if expected.get("requires_artifact"):
+        assert any(block["kind"] == "artifact" for block in all_blocks)
 
+    if expected.get("retryable") is not None:
+        assert final_block["retryable"] is expected["retryable"]
 
-@pytest.mark.asyncio
-async def test_second_turn_is_free_chat() -> None:
-    store = ThreadStore()
-    record = store.get_or_create("thread_test456")
-    record.set_context("demo_workspace", "camp_comeback_teaser")  # data present -> analyze
+    if expected.get("second_turn_blocks") is not None:
+        second_blocks = _blocks_since(record, turn_boundaries[1])
+        assert _kinds(second_blocks) == expected["second_turn_blocks"]
 
-    await orchestrator.process_turn(record, "Find the signal.")
-    first_count = len(record.messages)
-    await orchestrator.process_turn(record, "고마워, 다른 건 없어?")
+    if expected.get("second_turn_excludes"):
+        second_kinds = set(_kinds(_blocks_since(record, turn_boundaries[1])))
+        assert not second_kinds.intersection(expected["second_turn_excludes"])
 
-    # The follow-up turn adds a single assistant text reply (no new pipeline).
-    extra = record.messages[first_count:]
-    assert len(extra) == 1
-    assert extra[0].role == StreamRole.assistant
-    assert extra[0].blocks[0]["kind"] == "text"
-    assert not any(b["kind"] == "approval" for b in extra[0].blocks)
+    if expected.get("reply_contains"):
+        second_blocks = _blocks_since(record, turn_boundaries[1])
+        assert expected["reply_contains"] in second_blocks[-1]["text"]
 
+    if expected.get("second_turn_includes"):
+        second_kinds = set(_kinds(_blocks_since(record, turn_boundaries[1])))
+        assert set(expected["second_turn_includes"]).issubset(second_kinds)
 
-@pytest.mark.asyncio
-async def test_chat_without_data_steers_to_csv() -> None:
-    store = ThreadStore()
-    record = store.get_or_create("thread_chat1")
+    if expected.get("requires_new_plan"):
+        first_blocks = _blocks_since(record, turn_boundaries[0])
+        second_blocks = _blocks_since(record, turn_boundaries[1])
+        first_plan = next(block for block in first_blocks if block["kind"] == "approval")["target_id"]
+        second_plan = next(block for block in second_blocks if block["kind"] == "approval")["target_id"]
+        assert second_plan != first_plan
 
-    # No data, no analysis keyword -> chat reply that steers to uploading a CSV.
-    await orchestrator.process_turn(record, "안녕하세요")
-
-    assert len(record.messages) == 1
-    block = record.messages[0].blocks[0]
-    assert block["kind"] == "text"
-    assert "CSV" in block["text"]
-    assert not record.pipeline_started  # chat must not start the pipeline
-
-
-@pytest.mark.asyncio
-async def test_analyze_without_csv_runs_pipeline_on_baseline() -> None:
-    store = ThreadStore()
-    record = store.get_or_create("thread_chat2")
-
-    # CSV is new data; with no fresh upload, analysis still runs on the existing
-    # baseline data already in Elastic.
-    await orchestrator.process_turn(record, "분석해줘")
-
-    assert record.pipeline_started
-    assert any(
-        b["kind"] == "approval" for m in record.messages for b in m.blocks
-    )
-
-
-@pytest.mark.asyncio
-async def test_cancel_between_stages() -> None:
-    store = ThreadStore()
-    record = store.get_or_create("thread_cancel")
-    record.set_context("demo_workspace", "camp_comeback_teaser")  # data present -> analyze
-    record.cancelled = True
-
-    await orchestrator.process_turn(record, "Analyze this.")
-
-    # A cancel before the first stage yields a single system result block.
-    assert len(record.messages) == 1
-    assert record.messages[0].role == StreamRole.system
-    assert record.messages[0].blocks[0]["kind"] == "result"
+    approval_blocks = [block for block in all_blocks if block["kind"] == "approval"]
+    for block in approval_blocks:
+        AgentResultPayload.model_validate(block["payload"])

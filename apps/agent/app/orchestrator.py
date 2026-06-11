@@ -1,15 +1,15 @@
-"""Conversation-first orchestrator (golden path: fixed 4 workers).
+"""State-reactive orchestrator for Python Agent Core v2.
 
-A turn drives the work. The first substantive turn on a thread runs the full
-analysis pipeline (analyst -> strategist -> writer -> reviewer) and streams
-user-safe blocks; later turns get a short free-chat reply. Question-based routing
-(per-intent worker selection) is intentionally deferred.
+Each turn resolves scope and bounded memory, interprets free-form text into a
+StateDeltaProposal, reduces it into authoritative workflow state, then replies
+directly, delegates to a phase facade, or reruns the worker pipeline from the
+target phase.
 
 Approve/reject/cancel/revise are resolved in Java and never reach here
 (contract 02 README, Action Handling), so this module only ever sees free-form
 content turns.
 
-Deterministic review with prefix-reuse backtracking on fail (agent-tool-spec §4).
+Deterministic review still uses prefix-reuse backtracking on reviewer failure.
 Cancellation is checked between stages (best-effort).
 """
 from __future__ import annotations
@@ -29,7 +29,21 @@ from app.contracts import (
 )
 from app.ids import approval_id
 from app.runtime import blocks
+from app.runtime.repository import (
+    DeltaEvent,
+    RepositoryConflict,
+    RuntimeArtifact,
+    get_runtime_repository,
+)
 from app.runtime.thread_store import ThreadRecord
+from app.runtime.state import (
+    DelegationMode,
+    PhaseType,
+    compact_state_summary,
+    decide_delegation,
+    reduce_state,
+    resolve_scope,
+)
 from app import tracing
 
 log = logging.getLogger("launchpilot.orchestrator")
@@ -64,14 +78,17 @@ def _baseline_window(current: DateRange) -> DateRange:
     )
 
 
-def _thread_context(record: ThreadRecord, has_csv: bool) -> str:
-    # State hint that steers the router/chat reply toward the next concrete step.
-    if record.pipeline_started:
+def _thread_context(record: ThreadRecord, has_scope: bool) -> str:
+    # State hint that steers direct chat toward the next concrete step.
+    has_plan = bool(
+        record.state.active_artifact_id
+        or record.state.phase_artifacts[PhaseType.EXPERIMENT_PLAN.value].get("experiment_plan")
+    )
+    if has_plan:
         return "analysis_done"
-    if has_csv:
+    if has_scope:
         return "ready_to_analyze"
-    # No CSV: suggest the upload at most twice, then stay quiet about it.
-    return "need_csv" if record.csv_hint_count < 2 else "need_csv_quiet"
+    return "need_campaign"
 
 
 async def process_turn(
@@ -79,13 +96,38 @@ async def process_turn(
 ) -> None:
     """Handle one user turn. Safe to launch as a background task.
 
-    Orchestrator routing pass: a single fast router call classifies intent and
-    drafts a steering reply. Then either run the analysis pipeline (analysis
-    intent + data available) or emit the router's reply. Any failure becomes an
-    error block rather than an unhandled task exception.
+    Turn setup resolves scope and bounded memory, the interpreter proposes a
+    StateDelta, the reducer produces a deterministic delegation decision, and
+    the orchestrator either replies directly, delegates, or reruns the pipeline.
+    Any failure becomes an error block rather than an unhandled task exception.
     """
-    has_csv = bool(attachments) or record.workspace_id is not None
-    context = _thread_context(record, has_csv)
+    async with record.turn_lock:
+        await _process_turn_locked(record, content, attachments)
+
+
+async def _process_turn_locked(
+    record: ThreadRecord, content: str, attachments: tuple = ()
+) -> None:
+    """Handle a turn while holding the per-thread state lock."""
+    repository = get_runtime_repository()
+    persisted_state = await repository.load_state(record.thread_id)
+    if persisted_state:
+        record.state = persisted_state
+        if persisted_state.scope:
+            record.set_context(persisted_state.scope.workspace_id, persisted_state.scope.campaign_id)
+    scope = resolve_scope(record.thread_id, record.workspace_id, record.campaign_id, record.state)
+    if scope:
+        record.set_context(scope.workspace_id, scope.campaign_id)
+        record.state = await repository.create_or_load_state(scope)
+        record.state.scope = scope
+        campaign_context = await repository.load_campaign_context(scope)
+        recent_messages = await repository.load_recent_messages(scope, limit=12)
+    else:
+        campaign_context = None
+        recent_messages = []
+    expected_revision = record.state.revision
+    has_scope = scope is not None
+    context = _thread_context(record, has_scope)
     # AGENT span: the whole thread turn (contract 06 §Span Hierarchy).
     meta = {
         "thread_id": record.thread_id,
@@ -101,49 +143,139 @@ async def process_turn(
         campaign_id=record.campaign_id,
     ) as turn_span:
       try:
-        route = await workers.run_router(content, context)
-        intent = route["intent"]
-        log.info("turn thread=%s intent=%s has_csv=%s pipeline_started=%s content=%r",
-                 record.thread_id, intent, has_csv, record.pipeline_started, content[:80])
-        tracing.set_metadata(turn_span, {**meta, "intent": intent})
+        state_summary = compact_state_summary(record.state)
+        if campaign_context:
+            state_summary += f"; campaign={campaign_context.name or campaign_context.campaign_id}"
+        if recent_messages:
+            state_summary += f"; recent_messages={len(recent_messages)}"
+        delta = await workers.run_turn_interpreter(
+            content, f"{context}; {state_summary}", record.state.current_phase
+        )
+        reducer_decision = reduce_state(record.state, delta, content)
+        delegation = decide_delegation(reducer_decision)
+        log.info(
+            "turn thread=%s intent=%s phase=%s target=%s has_scope=%s content=%r",
+            record.thread_id,
+            delta.intent.value,
+            record.state.current_phase.value,
+            record.state.target_phase.value,
+            has_scope,
+            content[:80],
+        )
+        tracing.set_metadata(
+            turn_span,
+            {
+                **meta,
+                "agent.scope.workspace_id": record.workspace_id,
+                "agent.scope.campaign_id": record.campaign_id,
+                "agent.state.revision_before": reducer_decision.revision_before,
+                "agent.state.revision_after": reducer_decision.revision_after,
+                "agent.delta.intent": delta.intent.value,
+                "agent.delta.response_mode": delta.response_mode.value,
+                "agent.reducer.decision": reducer_decision.decision.value,
+                "agent.delegation.mode": delegation.mode.value,
+                "agent.repository.backend": repository.backend_name,
+                "phase": record.state.current_phase.value,
+            },
+        )
 
-        if intent == "analyze":
-            # Analysis no longer requires a fresh CSV: with no upload we analyze
-            # the existing baseline data; with an upload we factor it in too.
-            # Re-runnable: a later "analyze" (e.g. after a mid-thread CSV upload)
-            # starts a fresh pass over the now-updated data.
-            record.pipeline_started = True
-            # Scope every evidence query in this run to the turn's campaign +
-            # analysis window (read from the ContextVar by the evidence tools).
-            current = _analysis_window()
-            baseline = _baseline_window(current)
-            # CHAIN span: the orchestrator pipeline (analyst..reviewer). Parents
-            # the worker LLM/tool spans and the reviewer gate inside.
-            with evidence.scope(
-                record.workspace_id, record.campaign_id,
-                current.start, current.end, baseline.start, baseline.end,
-            ), tracing.chain_span(
-                "launchpilot.orchestrator",
-                input_value=content[:2000],
-                metadata={**meta, "stage": "PIPELINE"},
-                workspace_id=record.workspace_id,
-                campaign_id=record.campaign_id,
-            ) as pipeline_span:
-                summary = await _run_pipeline(record, content)
-                if summary:
-                    tracing.set_output(pipeline_span, summary)
-            # Stamp the root AGENT span output too (Phoenix showed input only).
-            tracing.set_output(turn_span, summary or {"intent": "analyze", "status": "incomplete"})
-        else:
-            # chat, or analysis already done -> emit the router's reply. The CSV
-            # nudge lives in the router context (need_csv -> need_csv_quiet after
-            # two turns) so the reply stays in the user's own language.
-            if context == "need_csv":
-                record.csv_hint_count += 1
-            reply = route.get("reply") or "How can I help with your campaign analysis?"
-            log.info("chat reply thread=%s context=%s hint=%d", record.thread_id, context, record.csv_hint_count)
+        if delegation.mode == DelegationMode.CLARIFY:
+            reply = (
+                delta.clarification_question
+                or delta.reply
+                or "I can do that, but please confirm the change first."
+            )
             await blocks.assistant(record, [blocks.text_block(reply)])
-            tracing.set_output(turn_span, {"intent": "chat", "reply": reply[:500]})
+            tracing.set_output(turn_span, {"mode": "clarify", "reply": reply[:500]})
+        elif delegation.mode == DelegationMode.RERUN:
+            if not scope:
+                await blocks.system(
+                    record,
+                    [blocks.error_block(
+                        "Campaign context required",
+                        "campaign_id를 확인할 수 없어 분석을 시작하지 않았습니다. 같은 thread에 campaign_id를 포함해 다시 요청해 주세요.",
+                        retryable=True,
+                    )],
+                )
+                tracing.set_output(turn_span, {"mode": "rerun", "status": "missing_campaign"})
+            elif not campaign_context:
+                await blocks.system(
+                    record,
+                    [blocks.error_block(
+                        "Campaign context not found",
+                        f"campaign_id={scope.campaign_id} 컨텍스트를 찾지 못해 분석을 시작하지 않았습니다.",
+                        retryable=True,
+                    )],
+                )
+                tracing.set_output(turn_span, {"mode": "rerun", "status": "campaign_not_found"})
+            else:
+                # Analysis no longer requires a fresh CSV: with no upload we analyze
+                # the existing baseline data; with an upload we factor it in too.
+                # Re-runnable: a later "analyze" starts a fresh pass over updated data.
+                # Scope every evidence query in this run to the turn's campaign +
+                # analysis window (read from the ContextVar by the evidence tools).
+                current = _analysis_window()
+                baseline = _baseline_window(current)
+                # CHAIN span: the orchestrator pipeline (analyst..reviewer). Parents
+                # the worker LLM/tool spans and the reviewer gate inside.
+                with evidence.scope(
+                    record.workspace_id, record.campaign_id,
+                    current.start, current.end, baseline.start, baseline.end,
+                ), tracing.chain_span(
+                    "launchpilot.orchestrator",
+                    input_value=content[:2000],
+                    metadata={**meta, "stage": "PIPELINE"},
+                    workspace_id=record.workspace_id,
+                    campaign_id=record.campaign_id,
+                ) as pipeline_span:
+                    summary = await _run_pipeline(record, content, record.state.current_phase, repository)
+                    if summary:
+                        tracing.set_output(pipeline_span, summary)
+                tracing.set_output(turn_span, summary or {"mode": "rerun", "status": "incomplete"})
+        elif delegation.mode == DelegationMode.DELEGATE:
+            reply = (
+                "요청은 현재 단계의 산출물 수정으로 분류했습니다. "
+                "세부 phase agent는 다음 구현 범위라서, 지금은 오케스트레이터가 상태와 수정 의도만 안전하게 기록합니다."
+            )
+            record.state.active_chat_history.append({"role": "assistant", "content": reply})
+            await blocks.assistant(record, [blocks.text_block(reply)])
+            tracing.set_output(turn_span, {"mode": "delegate", "target_phase": delegation.target_phase.value})
+        else:
+            # Chat or analysis already done: emit the interpreter's direct reply.
+            reply = delta.reply or "How can I help with your campaign analysis?"
+            record.state.active_chat_history.append({"role": "assistant", "content": reply})
+            log.info(
+                "chat reply thread=%s context=%s",
+                record.thread_id,
+                context,
+            )
+            await blocks.assistant(record, [blocks.text_block(reply)])
+            tracing.set_output(turn_span, {"mode": "direct", "reply": reply[:500]})
+        if scope:
+            event = DeltaEvent(
+                scope=scope,
+                proposal=delta,
+                reducer_decision={
+                    "decision": reducer_decision.decision.value,
+                    "delegation_mode": reducer_decision.delegation_mode.value,
+                    "reason": reducer_decision.reason,
+                    "revision_before": reducer_decision.revision_before,
+                    "revision_after": reducer_decision.revision_after,
+                },
+            )
+            try:
+                await repository.commit_state(expected_revision, record.state, event)
+                tracing.set_metadata(turn_span, {"agent.state_delta.delta_id": event.delta_id})
+            except RepositoryConflict:
+                tracing.set_metadata(turn_span, {"agent.repository.conflict": True})
+                await blocks.system(
+                    record,
+                    [blocks.error_block(
+                        "Agent busy",
+                        "동일 thread의 상태가 먼저 갱신되어 이번 턴의 상태 저장을 중단했습니다. 잠시 후 다시 시도해 주세요.",
+                        retryable=True,
+                    )],
+                )
       except _Cancelled:
         log.info("turn cancelled thread=%s", record.thread_id)
         await blocks.system(record, [blocks.result_block("Run cancelled", "The analysis was cancelled.")])
@@ -155,7 +287,12 @@ async def process_turn(
         )
 
 
-async def _run_pipeline(record: ThreadRecord, content: str) -> dict | None:
+async def _run_pipeline(
+    record: ThreadRecord,
+    content: str,
+    start_phase: PhaseType = PhaseType.DATA_ANALYSIS,
+    repository=None,
+) -> dict | None:
     settings = get_settings()
     date_range = _analysis_window()
 
@@ -182,46 +319,94 @@ async def _run_pipeline(record: ThreadRecord, content: str) -> dict | None:
         except Exception as exc:  # noqa: BLE001 - advisory only, never fatal
             log.warning("reflection skipped: %s", exc)
 
-    # --- Stage 1: Analyst (detect signals, then ground them) ---
-    _check_cancel(record)
-    log.info("[1/4] analyst start (llm=%s)", mode)
-    await blocks.assistant(record, [blocks.activity_block("query_metric_baseline", "Checking metric baseline", "running")])
-    signal_out = await workers.run_analyst(content, date_range)
-    signals: list[Signal] = signal_out.signals
-    log.info("[1/4] analyst done: %d signal(s)", len(signals))
-    await blocks.assistant(
-        record,
-        [blocks.activity_block("query_metric_baseline", "Checked metric baseline", "done")],
-    )
-    for sig in signals:
+    if start_phase == PhaseType.DATA_ANALYSIS:
+        # --- Stage 1: Analyst (detect signals, then ground them) ---
+        record.state.current_phase = PhaseType.DATA_ANALYSIS
+        _check_cancel(record)
+        log.info("[1/4] analyst start (llm=%s)", mode)
+        await blocks.assistant(record, [blocks.activity_block("query_metric_baseline", "Checking metric baseline", "running")])
+        signal_out = await workers.run_analyst(content, date_range)
+        signals: list[Signal] = signal_out.signals
+        record.state.phase_artifacts[PhaseType.DATA_ANALYSIS.value]["signals"] = [
+            sig.model_dump(mode="json") for sig in signals
+        ]
+        await _save_phase_artifact_ref(
+            record,
+            repository,
+            PhaseType.DATA_ANALYSIS,
+            "signals",
+            {"signals": [sig.model_dump(mode="json") for sig in signals]},
+        )
+        log.info("[1/4] analyst done: %d signal(s)", len(signals))
         await blocks.assistant(
             record,
-            [
-                blocks.text_block(sig.description),
-                blocks.artifact_block(sig.id, "signal", sig.title, sig.model_dump(mode="json")),
-            ],
+            [blocks.activity_block("query_metric_baseline", "Checked metric baseline", "done")],
         )
+        for sig in signals:
+            await blocks.assistant(
+                record,
+                [
+                    blocks.text_block(sig.description),
+                    blocks.artifact_block(sig.id, "signal", sig.title, sig.model_dump(mode="json")),
+                ],
+            )
+    else:
+        signals = [
+            Signal(**raw)
+            for raw in record.state.phase_artifacts[PhaseType.DATA_ANALYSIS.value].get("signals", [])
+        ]
+        if not signals:
+            signals = (await workers.run_analyst(content, date_range)).signals
 
     # --- Stage 2: Strategist (why hypotheses) ---
-    _check_cancel(record)
-    log.info("[2/4] strategist start")
-    await blocks.assistant(record, [blocks.activity_block("search_team_notes", "Searching team notes", "running")])
-    hyp_out = await workers.run_strategist(content, signals)
-    hypotheses: list[Hypothesis] = hyp_out.hypotheses
-    log.info("[2/4] strategist done: %d hypothesis(es)", len(hypotheses))
-    await blocks.assistant(record, [blocks.activity_block("search_team_notes", "Checked team notes", "done")])
-    for hyp in hypotheses:
-        await blocks.assistant(
+    if start_phase in (PhaseType.DATA_ANALYSIS, PhaseType.HYPOTHESIS_GEN):
+        record.state.current_phase = PhaseType.HYPOTHESIS_GEN
+        _check_cancel(record)
+        log.info("[2/4] strategist start")
+        await blocks.assistant(record, [blocks.activity_block("search_team_notes", "Searching team notes", "running")])
+        hyp_out = await workers.run_strategist(content, signals)
+        hypotheses: list[Hypothesis] = hyp_out.hypotheses
+        record.state.phase_artifacts[PhaseType.HYPOTHESIS_GEN.value]["hypotheses"] = [
+            hyp.model_dump(mode="json") for hyp in hypotheses
+        ]
+        await _save_phase_artifact_ref(
             record,
-            [
-                blocks.text_block(hyp.rationale),
-                blocks.artifact_block(hyp.id, "hypothesis", hyp.statement, hyp.model_dump(mode="json")),
-            ],
+            repository,
+            PhaseType.HYPOTHESIS_GEN,
+            "hypotheses",
+            {"hypotheses": [hyp.model_dump(mode="json") for hyp in hypotheses]},
         )
+        log.info("[2/4] strategist done: %d hypothesis(es)", len(hypotheses))
+        await blocks.assistant(record, [blocks.activity_block("search_team_notes", "Checked team notes", "done")])
+        for hyp in hypotheses:
+            await blocks.assistant(
+                record,
+                [
+                    blocks.text_block(hyp.rationale),
+                    blocks.artifact_block(hyp.id, "hypothesis", hyp.statement, hyp.model_dump(mode="json")),
+                ],
+            )
+    else:
+        hypotheses = [
+            Hypothesis(**raw)
+            for raw in record.state.phase_artifacts[PhaseType.HYPOTHESIS_GEN.value].get("hypotheses", [])
+        ]
+        if not hypotheses:
+            hypotheses = (await workers.run_strategist(content, signals)).hypotheses
 
     # --- Stage 3 + 4: Writer + Reviewer gate with prefix-reuse backtracking ---
+    record.state.current_phase = PhaseType.EXPERIMENT_PLAN
     log.info("[3/4] writer start")
     plan = (await workers.run_writer(content, date_range, hypotheses)).experiment_plan
+    record.state.phase_artifacts[PhaseType.EXPERIMENT_PLAN.value]["experiment_plan"] = plan.model_dump(mode="json")
+    record.state.active_artifact_id = plan.id
+    await _save_phase_artifact_ref(
+        record,
+        repository,
+        PhaseType.EXPERIMENT_PLAN,
+        "experiment_plan",
+        {"experiment_plan": plan.model_dump(mode="json")},
+    )
     log.info("[3/4] writer done: %d item(s)", len(plan.items))
     backtrack_count = 0
     payload: AgentResultPayload
@@ -291,6 +476,8 @@ async def _run_pipeline(record: ThreadRecord, content: str) -> dict | None:
             plan = (await workers.run_writer(content, date_range, hypotheses)).experiment_plan
 
     # --- Done: emit the plan artifact + open the approval gate (Java takes over) ---
+    pending_approval_id = approval_id()
+    record.state.pending_approval_id = pending_approval_id
     await blocks.assistant(
         record,
         [
@@ -301,7 +488,7 @@ async def _run_pipeline(record: ThreadRecord, content: str) -> dict | None:
     await blocks.assistant(
         record,
         [blocks.approval_block(
-            approval_id(),
+            pending_approval_id,
             "Approve experiment plan",
             plan.id,
             payload.model_dump(mode="json"),
@@ -318,3 +505,23 @@ async def _run_pipeline(record: ThreadRecord, content: str) -> dict | None:
         "validator_passed": True,
         "backtracks": backtrack_count,
     }
+
+
+async def _save_phase_artifact_ref(
+    record: ThreadRecord,
+    repository,
+    phase: PhaseType,
+    artifact_type: str,
+    payload: dict,
+) -> None:
+    if repository is None or record.state.scope is None:
+        return
+    artifact = RuntimeArtifact(
+        artifact_type=artifact_type,
+        phase=phase.value,
+        payload=payload,
+    )
+    ref = await repository.save_runtime_artifact(record.state.scope, artifact)
+    refs = record.state.phase_artifact_refs.setdefault(phase.value, [])
+    refs.append(ref)
+    refs[:] = refs[-6:]

@@ -37,6 +37,10 @@ def _extract_payload(record) -> AgentResultPayload | None:
     return None
 
 
+def _blocks(record) -> list[dict]:
+    return [block for message in record.messages for block in message.blocks]
+
+
 def _deterministic_metrics(payload: AgentResultPayload) -> dict:
     # Free metrics straight from the run -- no LLM. The same checks the reviewer
     # gate applies, plus a signal-strength breakdown vs the configured thresholds.
@@ -70,27 +74,35 @@ async def _run_scenario(scenario: dict, use_judge: bool) -> dict:
     record = store.get_or_create(thread_id)
     record.set_context(scenario.get("workspace_id"), scenario.get("campaign_id"))
 
-    result: dict = {"id": scenario["id"], "question": scenario["question"],
-                    "mode": scenario.get("mode")}
+    result: dict = {
+        "id": scenario["id"],
+        "kind": scenario.get("kind"),
+        "turns": scenario["turns"],
+    }
 
     # Wrap the whole scenario in one CHAIN span so the pipeline trace + the judge
     # EVALUATOR span land in the same Phoenix trace.
     with tracing.chain_span(
         "launchpilot.eval.scenario",
-        input_value=scenario["question"],
-        metadata={"scenario_id": scenario["id"], "mode": scenario.get("mode")},
+        input_value=scenario["turns"],
+        metadata={"scenario_id": scenario["id"], "kind": scenario.get("kind")},
         workspace_id=scenario.get("workspace_id"),
         campaign_id=scenario.get("campaign_id"),
     ):
         try:
-            await orchestrator.process_turn(record, scenario["question"])
+            for turn in scenario["turns"]:
+                await orchestrator.process_turn(record, turn)
         except Exception as exc:  # noqa: BLE001 - record the failure, keep going
             result["error"] = f"{type(exc).__name__}: {exc}"
             return result
 
+        blocks = _blocks(record)
+        result["outcome"] = {
+            "final_block": blocks[-1]["kind"] if blocks else None,
+            "block_kinds": [block["kind"] for block in blocks],
+        }
         payload = _extract_payload(record)
         if payload is None:
-            result["error"] = "no approval payload (router chose chat or validation failed)"
             return result
 
         result["metrics"] = _deterministic_metrics(payload)
@@ -106,6 +118,7 @@ async def _run_scenario(scenario: dict, use_judge: bool) -> dict:
                 input_value={"scenario_id": scenario["id"]},
                 output_value=scores.model_dump(mode="json"),
                 metadata={"scenario_id": scenario["id"],
+                          "kind": scenario.get("kind"),
                           "overall": scores.overall},
                 workspace_id=scenario.get("workspace_id"),
                 campaign_id=scenario.get("campaign_id"),
@@ -121,11 +134,15 @@ def _write_report(results: list[dict]) -> None:
     )
 
     lines = ["# LaunchPilot 분석 퀄리티 리포트", ""]
-    lines.append("| scenario | mode | reviewer | sig(S/W/N) | H | E | signal | hyp | plan | overall |")
-    lines.append("|---|---|---|---|---|---|---|---|---|---|")
+    lines.append("| scenario | kind | final | reviewer | sig(S/W/N) | H | E | signal | hyp | plan | overall |")
+    lines.append("|---|---|---|---|---|---|---|---|---|---|---|")
     for r in results:
         if r.get("error"):
-            lines.append(f"| {r['id']} | {r.get('mode','')} | ERROR | - | - | - | - | - | - | {r['error']} |")
+            lines.append(f"| {r['id']} | {r.get('kind','')} | ERROR | - | - | - | - | - | - | - | {r['error']} |")
+            continue
+        final = r.get("outcome", {}).get("final_block", "-")
+        if "metrics" not in r:
+            lines.append(f"| {r['id']} | {r.get('kind','')} | {final} | - | - | - | - | - | - | - | - |")
             continue
         m = r["metrics"]
         b = m["signal_strength"]
@@ -138,7 +155,7 @@ def _write_report(results: list[dict]) -> None:
             sv = hg = pa = ov = "-"
         rev = "PASS" if m["reviewer_passed"] else "FAIL"
         lines.append(
-            f"| {r['id']} | {r.get('mode','')} | {rev} | {sig_b} | "
+            f"| {r['id']} | {r.get('kind','')} | {final} | {rev} | {sig_b} | "
             f"{m['n_hypotheses']} | {m['n_experiments']} | {sv} | {hg} | {pa} | {ov} |"
         )
 

@@ -12,6 +12,7 @@
     "frontend:build": "npm run build -w apps/frontend",
     "frontend:lint": "npm run lint -w apps/frontend",
     "test:e2e": "playwright test",
+    "test:e2e:real": "node tools/e2e-preflight.mjs && playwright test e2e/real-conversation-approval.spec.ts",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:list": "playwright test --list"
   },

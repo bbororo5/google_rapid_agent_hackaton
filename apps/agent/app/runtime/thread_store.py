@@ -1,10 +1,9 @@
-"""In-memory thread store + block message stream.
+"""In-memory live thread store + block message stream.
 
-Conversation-first replacement for the old run store. This is memory layer ①
-(working memory) from docs/memory-and-db-flow.md: volatile, per-thread, gone
-when the process restarts. It holds the committed block timeline with a
-monotonic `sequence` so the WS endpoint (contract 02 asyncapi) can replay on
-reconnect.
+This is not the durable Agent Core runtime repository. It holds the live
+WebSocket block timeline and process-local ThreadRecord handles. Durable
+workflow state is represented by SharedStateVector and committed through
+app.runtime.repository.
 
 A thread is long-lived: many turns, no terminal state. The WS sender streams
 forever until the socket closes.
@@ -16,6 +15,7 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 from app.contracts import InternalStreamMessage
+from app.runtime.state import SharedStateVector
 
 
 @dataclass
@@ -25,9 +25,9 @@ class ThreadRecord:
     thread_id: str
     workspace_id: Optional[str] = None
     campaign_id: Optional[str] = None
-    pipeline_started: bool = False  # the analysis pipeline runs once per thread
     cancelled: bool = False
-    csv_hint_count: int = 0  # how many times we've nudged the user to attach a CSV
+    state: SharedStateVector = field(default_factory=SharedStateVector)
+    turn_lock: asyncio.Lock = field(default_factory=asyncio.Lock)
 
     messages: list[InternalStreamMessage] = field(default_factory=list)
     _seq: int = 0

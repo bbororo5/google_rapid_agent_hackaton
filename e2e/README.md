@@ -2,17 +2,29 @@
 
 These tests are executable acceptance criteria for the conversation-first agent experience.
 
-The suite is intentionally small. It covers only the core user journeys:
+The real-stack suite is intentionally small. It covers only the core user journey
+through the full architecture:
 
-- Free chat, including Enter to send and Shift+Enter for multiline drafts.
-- Saved markdown outputs opening as tabs in the right drawer while staying available from the thread.
-- Agent-raised signal and approval outputs staying inline while also being archived.
-- The CSV demo happy path from upload to approved growth brief.
+- Playwright browser -> Next.js frontend container
+- Frontend -> Java backend container
+- Java -> Python Agent Core container
+- Python -> real Gemini/Google ADK
+- Java/Python -> real Elastic
+- Optional Phoenix export when `PHOENIX_API_KEY` is set
+- CSV demo happy path from upload to approved growth brief
 
 Useful commands:
 
 ```sh
 npm run test:e2e:list
-npm run test:e2e
+E2E_ENV_FILE=s.env npm run test:e2e:real
 npm run test:e2e:ui
 ```
+
+`test:e2e:real` runs `tools/e2e-preflight.mjs` first. It fails fast unless the
+selected env file contains real Gemini/Vertex credentials and real Elastic
+credentials. This prevents accidentally treating stub/offline mode as full E2E.
+
+By default Playwright starts a fresh `docker compose --env-file <env> up --build`
+stack. Set `PLAYWRIGHT_REUSE_SERVER=true` only when intentionally reusing an
+already-running stack during local debugging.

@@ -21,6 +21,7 @@ from app.contracts import (
     Signal,
     SignalDraftOutput,
 )
+from app.runtime.state import DeltaIntent, PhaseType, ResponseMode, StateDeltaProposal
 
 
 def _dump(models) -> str:
@@ -63,35 +64,77 @@ async def run_strategist(content: str, signals: list[Signal]) -> HypothesisDraft
 
 
 _CHAT_CONTEXT_HINT = {
-    # No fresh CSV, but we CAN analyze the existing baseline. Suggest both options.
-    "need_csv": ("State: no fresh CSV uploaded. You can analyze the existing baseline data "
-                 "right away if the user asks to analyze; you may also invite them to attach "
-                 "a campaign metrics CSV for the latest read. Do not imply a CSV is required."),
-    # Same state, but we've already nudged about the CSV - don't repeat that suggestion.
-    "need_csv_quiet": ("State: no fresh CSV uploaded; you can analyze the existing baseline on "
-                       "request. Do NOT suggest uploading a CSV again - just answer helpfully."),
-    "ready_to_analyze": "State: campaign data uploaded, not analyzed yet. Offer to start the analysis.",
+    "need_campaign": "State: campaign context is missing. Ask for a campaign context before analysis.",
+    "ready_to_analyze": "State: campaign context is ready, not analyzed yet. Offer to start the analysis.",
     "analysis_done": "State: analysis and experiment plan complete, awaiting approval. Guide the user to review.",
     "": "State: general conversation.",
 }
 
 
-async def run_router(content: str, context: str = "") -> dict:
-    """One fast pass: classify intent + draft a chat reply.
+async def run_turn_interpreter(
+    content: str,
+    context: str = "",
+    current_phase: PhaseType = PhaseType.DATA_ANALYSIS,
+) -> StateDeltaProposal:
+    """Extract a state transition proposal from free-form user text.
 
-    Returns {"intent": "analyze"|"chat", "reply": str}. Real mode = one Gemini
-    call; stub mode = keyword classify + canned reply (offline/tests).
+    This intentionally does not trust the UI to send state commands. The LLM path
+    can still provide a chat reply through the chat worker, but transition
+    authority remains deterministic and local until a dedicated interpreter
+    output schema is added to the ADK agents.
     """
-    if get_settings().use_real_llm:
-        from app.agents import adk_agents
+    text = content.lower()
+    chat_context = context.split(";", 1)[0].strip()
+    target = _phase_from_text(content, text)
+    wants_backtrack = target is not None and target != current_phase
+    if _looks_like_artifact_revision(content, text, current_phase) and not wants_backtrack:
+        return StateDeltaProposal(
+            intent=DeltaIntent.ARTIFACT_REVISION,
+            response_mode=ResponseMode.DELEGATE,
+            target_phase=current_phase,
+            mutation=_extract_mutation(content, text),
+            confidence=0.74,
+            rationale="phase-local draft artifact revision",
+        )
+    restart_words = (
+        "다시", "처음", "돌아", "재분석", "바꿔", "변경", "수정", "back", "restart",
+        "rerun", "redo", "change", "revise", "from scratch",
+    )
+    if wants_backtrack or (target is not None and any(w in text or w in content for w in restart_words)):
+        return StateDeltaProposal(
+            intent=DeltaIntent.BACKTRACK,
+            response_mode=ResponseMode.RERUN,
+            target_phase=target or PhaseType.DATA_ANALYSIS,
+            restart_from_phase=target or PhaseType.DATA_ANALYSIS,
+            mutation=_extract_mutation(content, text),
+            confidence=0.82,
+            requires_confirmation=False,
+        )
 
-        prompt = f"[Thread state] {_CHAT_CONTEXT_HINT.get(context, '')}\n[User] {content}"
-        data = await adk_agents.run_structured("router", prompt)
-        intent = "analyze" if data.get("intent") == "analyze" else "chat"
-        return {"intent": intent, "reply": data.get("reply", "")}
-    # Stub: deterministic keyword classify + canned steering reply.
-    intent = "analyze" if _stub_is_analyze(content) else "chat"
-    return {"intent": intent, "reply": stub.chat(content, context)}
+    if _stub_is_analyze(content):
+        return StateDeltaProposal(
+            intent=DeltaIntent.START_ANALYSIS,
+            response_mode=ResponseMode.RERUN,
+            target_phase=PhaseType.DATA_ANALYSIS,
+            restart_from_phase=PhaseType.DATA_ANALYSIS,
+            mutation=_extract_mutation(content, text),
+            confidence=0.9,
+        )
+
+    approval_words = ("approve", "approved", "승인", "좋아 진행", "다음 단계", "next phase")
+    if any(w in text or w in content for w in approval_words):
+        return StateDeltaProposal(
+            intent=DeltaIntent.APPROVE,
+            response_mode=ResponseMode.DIRECT,
+            confidence=0.78,
+        )
+
+    return StateDeltaProposal(
+        intent=DeltaIntent.CHAT,
+        response_mode=ResponseMode.DIRECT,
+        confidence=0.75,
+        reply=await run_chat(content, chat_context),
+    )
 
 
 _ANALYZE_KEYWORDS = (
@@ -103,6 +146,54 @@ _ANALYZE_KEYWORDS = (
 def _stub_is_analyze(content: str) -> bool:
     text = content.lower()
     return any(k in content or k in text for k in _ANALYZE_KEYWORDS)
+
+
+def _looks_like_artifact_revision(
+    content: str,
+    text: str,
+    current_phase: PhaseType,
+) -> bool:
+    if current_phase not in (PhaseType.HYPOTHESIS_GEN, PhaseType.EXPERIMENT_PLAN, PhaseType.EXPERIMENT_EVAL):
+        return False
+    revision_terms = (
+        "짧게", "길게", "제목", "문구", "수정", "바꿔", "변경", "다듬",
+        "shorter", "longer", "title", "revise", "edit", "rewrite", "change",
+    )
+    return any(term in content or term in text for term in revision_terms)
+
+
+def _phase_from_text(content: str, text: str) -> PhaseType | None:
+    phase_terms: tuple[tuple[PhaseType, tuple[str, ...]], ...] = (
+        (PhaseType.DATA_ANALYSIS, ("1단계", "데이터", "분석", "analysis", "signal", "metric")),
+        (PhaseType.HYPOTHESIS_GEN, ("2단계", "가설", "hypothesis", "why")),
+        (PhaseType.EXPERIMENT_PLAN, ("3단계", "실험 계획", "계획", "experiment plan", "plan")),
+        (PhaseType.EXPERIMENT_EVAL, ("4단계", "평가", "eval", "evaluation", "review")),
+    )
+    for phase, terms in phase_terms:
+        if any(term in content or term in text for term in terms):
+            return phase
+    return None
+
+
+def _extract_mutation(content: str, text: str) -> dict:
+    mutation: dict = {}
+    metric_terms = {
+        "save_rate": ("save_rate", "저장률", "저장율", "save rate"),
+        "shares": ("shares", "공유", "share"),
+        "views": ("views", "조회", "view"),
+        "comments": ("comments", "댓글", "comment"),
+        "watch_time": ("watch_time", "시청 시간", "watch time"),
+    }
+    for metric, terms in metric_terms.items():
+        if any(term in content or term in text for term in terms):
+            mutation["metric"] = metric
+            break
+    threshold_markers = ("2배", "2x", "two times")
+    if any(marker in text or marker in content for marker in threshold_markers):
+        mutation["threshold_lift"] = 2.0
+    if "다음주" in content or "next week" in text:
+        mutation["time_horizon"] = "next_week"
+    return mutation
 
 
 async def run_chat(content: str, context: str = "") -> str:

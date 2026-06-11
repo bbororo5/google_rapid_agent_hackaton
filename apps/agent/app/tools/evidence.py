@@ -4,12 +4,12 @@ Four read-only, domain-safe tools the ADK workers call. They never expose raw
 DSL/ES|QL; they return normalized evidence dicts shaped exactly like the
 contract responses (ok / tool_name / mcp_tool / evidence_refs / duration_ms).
 
-Caller ownership (agent-tool-spec §1):
+Caller ownership:
 - query_metric_baseline, search_content_posts -> Analyst
 - search_team_notes                            -> Strategist
 - load_growth_brief_context                    -> Orchestrator (pre-injection)
 
-Backend is chosen per call with a 3-tier fallback (agent-tool-spec / contract 04):
+Backend is chosen per call with a 3-tier fallback (contract 04):
   1. Elastic MCP (mcp_client) when ELASTIC_USE_MCP is set  -> contract 04 method B
   2. direct ES (es_client) when ELASTIC_URL/API_KEY are set
   3. seeded stub otherwise (offline/tests)

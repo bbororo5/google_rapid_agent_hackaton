@@ -22,8 +22,8 @@
 |---|---|---|
 | Frontend | UI. Java만 호출 (Python 직접 못 봄) | 브라우저 로컬 상태 |
 | Java | 중계자 + 게이트키퍼 + 불변 쓰기 | 인메모리(thread→ws/camp, 타임라인, 게이트) + Elastic |
-| Python | AI 두뇌 (4-워커 파이프라인) | 인메모리(thread별 block 타임라인) |
-| Elastic | 진실의 원천 | content_posts / growth_briefs / calendar_events |
+| Python | AI 두뇌. Orchestrator Component가 자유 대화를 `StateDeltaProposal`로 해석하고 reducer/delegation을 수행 | 인메모리 block timeline + Elastic runtime repository |
+| Elastic | business data + runtime coordination 저장소 | content_posts / growth_briefs / calendar_events / agent_thread_states / agent_state_deltas / agent_runtime_artifacts / agent_thread_messages |
 
 포트 주의: FE 기본 `NEXT_PUBLIC_AGENT_API_BASE_URL`이 `:8090`인데 Java는 `:8080`. env로 맞춰야 함.
 
@@ -94,9 +94,30 @@ PY가 만들어 FE까지 그대로 흐름.
 
 ---
 
-## 4. Python 파이프라인 — 워커별 입출력 ★
+## 4. Python Orchestrator Component — 턴 처리 ★
 
-`content` 들어오면 4단계 순차 실행. 각 단계 = LLM 워커(real) 또는 stub(offline).
+`content`가 들어오면 Python은 UI가 넘긴 phase command를 신뢰하지 않고, 자유 대화에서 상태 변경 후보를 추출한다.
+
+```
+turn
+  -> resolve ScopeContext(workspace_id, campaign_id, thread_id)
+  -> bounded load(campaign context, thread state, recent messages, runtime refs)
+  -> Turn Interpreter: StateDeltaProposal
+  -> deterministic reducer: SharedStateVector + ReducerDecision
+  -> delegation policy: direct reply | phase delegation facade | pipeline rerun
+  -> commit runtime state/delta with optimistic revision
+```
+
+Scope 규칙:
+
+- `workspace_id`: tenant/data boundary. no-login MVP에서는 `demo_workspace` 기본값 가능.
+- `campaign_id`: primary working context. 분석/역주행 agent work에는 필요하다.
+- Python은 `agent_thread_messages`를 read-only memory source로 사용한다. 기본 writer는 Java다.
+- Python은 승인 전 후보를 business document로 쓰지 않는다. 다만 runtime-only TTL artifact snapshot/ref는 `agent_runtime_artifacts`에 저장할 수 있다.
+
+## 5. Python 파이프라인 — 워커별 입출력 ★
+
+`StateDeltaProposal -> reducer` 결과가 rerun이면 `target_phase`부터 4단계 파이프라인을 실행한다. 각 단계 = LLM 워커(real) 또는 stub(offline).
 
 ```
 content ─> [analyst] ─> signals ─> [strategist] ─> hypotheses ─> [writer] ─> plan

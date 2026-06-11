@@ -9,8 +9,9 @@ import path from "node:path";
 const root = path.resolve(import.meta.dirname, "..");
 const sampleMetricsCsv = path.join(root, "apps/frontend/fixtures/sample-channel-metrics.csv");
 
-// Real multi-agent pipeline takes tens of seconds per turn.
-const ANALYSIS_TIMEOUT = 120_000;
+// Real multi-agent pipeline calls Gemini for multiple phases and can exceed
+// two minutes on cold external runs.
+const ANALYSIS_TIMEOUT = 300_000;
 
 test.describe("real conversation -> CSV analysis -> approval", () => {
   test("chats, analyzes the attached CSV, selects 1-2 experiments, and approves", async ({ page }) => {

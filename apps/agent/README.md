@@ -1,18 +1,22 @@
 # LaunchPilot Agent Service (Python)
 
-FastAPI + Google ADK. Implements the **golden path** (mode M3: fixed 4 workers
-analyst -> strategist -> writer -> reviewer) behind the internal contract that
-Java calls. Built contract-first: the Pydantic models in `app/contracts/` are a
-faithful translation of `contracts/02` (run API + workflow stream) and
-`contracts/05` (worker outputs), and the test suite validates the shipped
-contract example JSONs against them.
+FastAPI + Google ADK. Implements the Python Agent Core behind the internal
+contract that Java calls. The current Orchestrator Component uses
+`StateDeltaProposal -> deterministic reducer -> delegation decision`, then either
+replies directly, delegates to a phase facade, or runs the 4-worker pipeline
+(`analyst -> strategist -> writer -> reviewer`).
+
+Built contract-first: the Pydantic models in `app/contracts/` are a faithful
+translation of `contracts/02` (turn API + workflow stream) and `contracts/05`
+(worker outputs), while runtime state follows `contracts/07`.
 
 ## Two modes (auto-derived, no flag)
 
 | | real | stub (default offline) |
 |---|---|---|
 | **LLM** | ADK on Vertex AI (ADC) when `GOOGLE_GENAI_USE_VERTEXAI=TRUE` + `GOOGLE_CLOUD_PROJECT` set, or AI Studio when `GEMINI_API_KEY` set | deterministic workers |
-| **Evidence** | Elastic MCP when `ELASTIC_MCP_URL` set | seeded BTS demo data |
+| **Evidence** | Direct Elastic or Elastic MCP when configured | seeded BTS demo data |
+| **Runtime state** | Elastic runtime repository when `ELASTIC_URL` + `ELASTIC_API_KEY` set | in-memory repository |
 
 Stub mode lets the whole pipeline + API + WS run and be tested without an LLM or
 a live Elastic cluster.
@@ -30,13 +34,15 @@ gcloud config set project rapid-agent-hackacthon
 
 | Design (docs) | Code |
 |---|---|
-| 4 workers (agent-tool-spec §1) | `app/agents/` (stub.py + adk_agents.py) |
+| Orchestrator v2 design | `docs/architecture/agent-core-v2-design.md` |
+| State + reducer | `app/runtime/state.py` |
+| Runtime repository | `app/runtime/repository.py` |
+| 4 workers | `app/agents/` (stub.py + adk_agents.py) |
 | Evidence tools (contract 04) | `app/tools/evidence.py` |
-| Run working memory ① (memory-and-db-flow) | `app/runtime/store.py` (session state) |
 | Reviewer gate + issue codes (§3-C/§4) | `app/agents/reviewer.py` |
 | Formatter = Python normalization (§6) | `app/agents/formatter.py` |
 | Backtracking routing (§4-B) | `app/agents/failure.py` |
-| Run API + WS (contract 02) | `app/api/runs.py`, `app/api/stream.py` |
+| Turn API + WS (contract 02) | `app/api/turns.py`, `app/api/thread_stream.py` |
 
 ## Run
 
@@ -57,15 +63,25 @@ PYTHONPATH=. uv run --no-project \
   pytest -q
 ```
 
+Pytest is a fast component-level safety net for the Python Agent Core. It does
+not prove real Gemini/Elastic integration. Full system validation is the
+Playwright real-stack E2E suite at the repo root.
+
 - `test_contract_conformance.py` — contract example JSONs validate against the models.
-- `test_golden_path.py` — orchestrator reaches WAITING_FOR_APPROVAL with a valid payload.
+- `test_golden_path.py` — scenario-driven Orchestrator Component golden paths.
 - `test_api.py` — REST 202 + WS replay + snapshot + 404/409 contract errors.
+- `test_evidence_scope.py` — workspace/campaign evidence boundary checks.
+
+Full E2E:
+
+```bash
+E2E_ENV_FILE=s.env npm run test:e2e:real
+```
 
 ## Known stubs (documented gaps, not blockers)
 
 - `team_notes` served from seed; real seed source TBD.
-- `parent_brief_id` continuity (R12/R13) is a no-op.
 - Phoenix/Arize reflection read is stubbed; tracing export is guarded/optional.
-- Question-based routing (M1/M2) deferred — always runs the full pipeline.
-- Real Elastic MCP calls (`app/tools/mcp_client.py`) raise until wired.
+- Detailed phase sub-agent skill hot-swapping and artifact patch schema are deferred.
+- Java-owned `agent_thread_messages` persistence is documented in contract 07; Python currently reads through the runtime repository interface.
 - Signal thresholds (2.0/1.3) are unverified placeholders.

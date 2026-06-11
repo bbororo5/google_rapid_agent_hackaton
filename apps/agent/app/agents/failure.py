@@ -1,4 +1,4 @@
-"""Failure policy (agent-tool-spec §4).
+"""Failure policy for deterministic reviewer backtracking.
 
 Two failure classes:
 - Class 1 (tool/infra): retry cheaply, never call the LLM.
@@ -10,7 +10,7 @@ from __future__ import annotations
 from app.contracts import ValidationIssueCode
 
 # Class 2 — issue code -> which worker is the root cause and must be re-run.
-# (agent-tool-spec §4-B: a review fail does NOT always go back to the strategist.)
+# A review fail does not always go back to the strategist; route by root cause.
 ISSUE_TO_WORKER: dict[ValidationIssueCode, str] = {
     # Plan-shaped problems are the writer's to fix.
     ValidationIssueCode.MISSING_SUCCESS_CRITERIA: "writer",

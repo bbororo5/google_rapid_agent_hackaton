@@ -2,6 +2,7 @@ package com.launchpilot.service;
 
 import com.launchpilot.client.ElasticDocumentWriter;
 import com.launchpilot.dto.common.Channel;
+import com.launchpilot.dto.elastic.CampaignDoc;
 import com.launchpilot.dto.elastic.ContentPostDoc;
 import com.launchpilot.dto.pub.ImportCsvResponse;
 import java.io.IOException;
@@ -79,9 +80,10 @@ public class ImportService {
 
         ElasticDocumentWriter.IndexResult result;
         try {
+            writer.upsertCampaign(toCampaignDoc(workspaceId, campaignId, ingestedAt));
             result = writer.bulkIndexContentPosts(docs);
         } catch (IOException e) {
-            throw ApiException.internal("content_posts indexing failed: " + e.getMessage());
+            throw ApiException.internal("campaign/content_posts indexing failed: " + e.getMessage());
         }
 
         return new ImportCsvResponse(
@@ -93,6 +95,22 @@ public class ImportService {
                 result.failed(),
                 header.columns(),
                 ingestedAt);
+    }
+
+    private CampaignDoc toCampaignDoc(String workspaceId, String campaignId, String timestamp) {
+        return new CampaignDoc(
+                campaignId,
+                workspaceId,
+                "Comeback Teaser",
+                "Demo campaign working context for metric analysis and experiment planning.",
+                List.of("tiktok", "instagram", "youtube"),
+                List.of("save_rate", "retention_rate", "shares"),
+                Map.of("start", "2026-06-01", "end", "2026-06-30"),
+                timestamp,
+                timestamp,
+                "LaunchPilot Demo",
+                List.of("Find repeatable content signals", "Plan 1-2 experiments for next week"),
+                List.of("Use imported campaign evidence", "Require human approval before persistence"));
     }
 
     /**

@@ -20,7 +20,6 @@ from app.agents import instructions
 from app.agents.output_schemas import (
     ExperimentPlanDraftOut,
     HypothesisDraftOut,
-    RouterOut,
     SignalDraftOut,
 )
 from app.config import get_settings
@@ -33,7 +32,7 @@ _log = logging.getLogger("launchpilot.adk")
 # (intermittent ConnectError that the SDK keeps retrying) stalls the whole
 # pipeline forever and the turn looks "stuck". On timeout we raise, which the
 # orchestrator turns into a visible retryable error block.
-_LLM_TIMEOUT_S = float(os.environ.get("LLM_CALL_TIMEOUT_S", "90"))
+_LLM_TIMEOUT_S = float(os.environ.get("LLM_CALL_TIMEOUT_S", "180"))
 
 
 def _build_agents():
@@ -80,18 +79,8 @@ def _build_agents():
         description="Conversational replies about campaign growth work.",
         instruction=instructions.CHAT,
     )
-    # Router: one fast call -> {intent, reply}. Classifies the turn and, for
-    # non-analysis turns, writes the steering reply in the same pass.
-    router = LlmAgent(
-        name="router",
-        model=model,
-        description="Classifies a turn's intent and drafts a chat reply.",
-        instruction=instructions.ROUTER,
-        output_schema=RouterOut,
-        output_key="route",
-    )
     return {"analyst": analyst, "strategist": strategist, "writer": writer,
-            "chat": chat, "router": router}
+            "chat": chat}
 
 
 async def _run_with_timeout(kind: str, shape: str, collect):

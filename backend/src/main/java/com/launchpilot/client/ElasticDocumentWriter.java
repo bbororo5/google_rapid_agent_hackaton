@@ -6,6 +6,7 @@ import co.elastic.clients.elasticsearch.core.BulkRequest;
 import co.elastic.clients.elasticsearch.core.BulkResponse;
 import co.elastic.clients.elasticsearch.core.bulk.BulkResponseItem;
 import com.launchpilot.dto.elastic.CalendarEventDoc;
+import com.launchpilot.dto.elastic.CampaignDoc;
 import com.launchpilot.dto.elastic.ContentPostDoc;
 import com.launchpilot.dto.elastic.GrowthBriefDoc;
 import com.launchpilot.service.ApiException;
@@ -24,6 +25,7 @@ import org.springframework.stereotype.Component;
 public class ElasticDocumentWriter {
 
     public static final String CONTENT_POSTS = "content_posts";
+    public static final String CAMPAIGNS = "campaigns";
     public static final String GROWTH_BRIEFS = "growth_briefs";
     public static final String CALENDAR_EVENTS = "calendar_events";
 
@@ -45,6 +47,7 @@ public class ElasticDocumentWriter {
      */
     @PostConstruct
     public void bootstrap() throws IOException {
+        ensureIndex(CAMPAIGNS, CAMPAIGNS_MAPPING);
         ensureIndex(CONTENT_POSTS, CONTENT_POSTS_MAPPING);
         ensureIndex(GROWTH_BRIEFS, GROWTH_BRIEFS_MAPPING);
         ensureIndex(CALENDAR_EVENTS, CALENDAR_EVENTS_MAPPING);
@@ -89,6 +92,19 @@ public class ElasticDocumentWriter {
             }
         }
         return new IndexResult(docs.size() - failed, failed);
+    }
+
+    /**
+     * Upsert the campaign working context used by Agent Core turn setup.
+     *
+     * CSV import is the no-login MVP's practical campaign entry point, so Java
+     * guarantees that Python can resolve a campaign context before analysis.
+     */
+    public void upsertCampaign(CampaignDoc doc) throws IOException {
+        es.index(i -> i.index(CAMPAIGNS)
+                .id(doc.campaignId())
+                .document(doc)
+                .refresh(Refresh.True));
     }
 
     /**
@@ -137,6 +153,27 @@ public class ElasticDocumentWriter {
     }
 
     public record IndexResult(int indexed, int failed) {}
+
+    private static final String CAMPAIGNS_MAPPING = """
+            {
+              "mappings": {
+                "properties": {
+                  "campaign_id": {"type": "keyword"},
+                  "workspace_id": {"type": "keyword"},
+                  "name": {"type": "text"},
+                  "description": {"type": "text"},
+                  "primary_channels": {"type": "keyword"},
+                  "target_metrics": {"type": "keyword"},
+                  "date_range": {"type": "object"},
+                  "brand_name": {"type": "keyword"},
+                  "goals": {"type": "text"},
+                  "constraints": {"type": "text"},
+                  "created_at": {"type": "date"},
+                  "updated_at": {"type": "date"}
+                }
+              }
+            }
+            """;
 
     private static final String CONTENT_POSTS_MAPPING = """
             {

@@ -8,8 +8,9 @@ Last updated: 2026-06-01
 
 This contract defines the documents Java writes to Elastic and the invariants other components rely on.
 
-Elastic is the single data store for LaunchPilot. In the MVP, Java writes three primary document families:
+Elastic is the single data store for LaunchPilot. In the MVP, Java writes four primary document families:
 
+- `campaigns`: campaign working context while login/workspace membership is absent.
 - `content_posts`: normalized SNS metric rows imported from CSV.
 - `growth_briefs`: immutable approval records used for history and context restoration.
 - `calendar_events`: calendar-optimized projections created from approved experiments.
@@ -20,13 +21,21 @@ Python Agent reads evidence from Elastic through MCP/tooling, but Java owns CSV 
 
 | Index | Writer | Reader | Mutability | Purpose |
 | --- | --- | --- | --- | --- |
+| `campaigns` | Java seed/import flow | Frontend through Java, Python Agent context loader | Upsert by campaign | Primary working context for no-login MVP. |
 | `content_posts` | Java `ImportService` | Python Agent evidence tools, Java import diagnostics | Upsert during import | Normalized SNS metric evidence from CSV. |
 | `growth_briefs` | Java `BusinessDataService` | Java session restore, Python Agent parent context | Append-only | Approved experiment plan record. |
 | `calendar_events` | Java `BusinessDataService` | Frontend calendar through Java | Append-only | Fast calendar view projection. |
 
 ## Core Invariants
 
-- `workspace_id` and `campaign_id` are required on every document.
+- `workspace_id` is the tenant/data boundary. In the no-login MVP it may be a
+  default namespace such as `demo_workspace`, but queries and writes must still
+  carry it so future authorization does not require a data migration.
+- `campaign_id` is the primary working context for the user experience and
+  Agent Core prompt setup. It is not a replacement for `workspace_id`.
+- `workspace_id` and `campaign_id` are required on every business document.
+- Python Agent Core may resolve missing thread context by loading campaign and
+  runtime thread memory from Elastic, but final approval persistence remains Java-owned.
 - `growth_brief_id` is the central approval artifact ID.
 - Every `calendar_events` document created by approval must reference exactly one `growth_brief_id`.
 - `growth_briefs.final_experiments[].id` and `calendar_events.experiment_id` must refer to the same approved experiment IDs.
@@ -57,6 +66,38 @@ The bulk operation is treated as all-or-fail at the application level:
 - If any document fails, Java returns failure and must not claim approval success.
 - If Java cannot prove all documents were written, the approval response must be treated as failed.
 - If retrying after an ambiguous failure, Java must use deterministic IDs to avoid duplicate artifacts.
+
+## Index: `campaigns`
+
+Purpose: campaign working context for Agent Core and UI while there is no login
+or workspace membership model. It must always be interpreted inside a
+`workspace_id` data boundary.
+
+Document ID recommendation: `campaign_id`.
+
+Required fields:
+
+- `campaign_id`
+- `workspace_id`
+- `name`
+- `description`
+- `primary_channels`
+- `target_metrics`
+- `date_range`
+- `created_at`
+- `updated_at`
+
+Optional fields:
+
+- `creator_name`
+- `brand_name`
+- `goals`
+- `constraints`
+- `parent_brief_id`
+
+`campaigns` is context, not evidence by itself. Python may use it to scope
+searches and prompt setup, but claims still require evidence refs from approved
+briefs, content posts, team notes, or metric aggregates.
 
 ## Index: `content_posts`
 
