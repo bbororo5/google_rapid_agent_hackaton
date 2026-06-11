@@ -872,7 +872,7 @@ export function ExperimentPlannerPage() {
   const [openOutputIds, setOpenOutputIds] = useState<string[]>([]);
   const previousOutputCountRef = useRef(0);
   const campaignStatus = view.shell.campaignStatus === "approved" ? "Approved" : view.shell.campaignStatus === "needs_review" ? "Needs approval" : view.shell.campaignStatus === "error" ? "Needs attention" : "Active";
-  const canToggleInspector = inspectorOpen || view.inspector.outputs.length > 0;
+  const canToggleInspector = true;
 
   useEffect(() => {
     const latestOutput = view.inspector.outputs.at(-1) ?? null;
