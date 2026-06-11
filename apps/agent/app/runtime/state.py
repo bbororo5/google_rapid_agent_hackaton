@@ -207,8 +207,6 @@ def reduce_state(
     state.user_query = user_query
     state.revision += 1
     state.active_chat_history.append({"role": "user", "content": user_query})
-    if len(state.active_chat_history) > 12:
-        state.active_chat_history = state.active_chat_history[-12:]
 
     from app.runtime.transitions import TRANSITION_GRAPH
 
