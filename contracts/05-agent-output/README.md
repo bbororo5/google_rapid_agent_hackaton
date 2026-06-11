@@ -122,6 +122,7 @@ Recommended issue codes:
 - `LOW_CONFIDENCE_WITHOUT_CAVEAT`
 - `UNSUPPORTED_CHANNEL`
 - `UNSAFE_OR_UNGROUNDED_CLAIM`
+- `UNGROUNDED_EVIDENCE` (grounding gate: a signal cites an evidence ref the tools never returned in this run, or its numeric values do not match what the cited evidence tool actually returned)
 
 ## Backtracking Rules
 

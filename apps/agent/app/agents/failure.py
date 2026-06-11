@@ -24,6 +24,9 @@ ISSUE_TO_WORKER: dict[ValidationIssueCode, str] = {
     ValidationIssueCode.UNKNOWN_SIGNAL_ID: "strategist",
     # A hallucinated evidence ref must be fixed by whoever produced it.
     ValidationIssueCode.UNKNOWN_EVIDENCE_REF: "generator",  # analyst/strategist
+    # Grounding gate: a signal's refs/values don't match what the tools returned
+    # -> the analyst fabricated or mis-transcribed evidence; re-run from the top.
+    ValidationIssueCode.UNGROUNDED_EVIDENCE: "analyst",
     # Pure shape errors are handled by the deterministic formatter step.
     ValidationIssueCode.SCHEMA_INVALID: "formatter",
 }

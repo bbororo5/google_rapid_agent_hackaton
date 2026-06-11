@@ -52,6 +52,68 @@ _SCOPE: contextvars.ContextVar[Optional[EvidenceScope]] = contextvars.ContextVar
 )
 
 
+class GroundingCapture:
+    """What the evidence tools actually returned during one pipeline run.
+
+    Filled by the tool wrappers below; consumed by the reviewer's grounding
+    gate (refs/values the LLM cites must match these) and by the eval judge
+    (ground-truth context). Mutable on purpose: the same object instance is
+    shared through the ContextVar so writes from tool calls are visible to
+    the orchestrator even if the runtime copied the context.
+    """
+
+    def __init__(self) -> None:
+        self.refs: set[str] = set()
+        # evidence_ref -> the numeric facts behind it (query_metric_baseline only).
+        self.metrics: dict[str, dict] = {}
+
+    def record(self, result: dict) -> None:
+        if not result.get("ok"):
+            return
+        refs = result.get("evidence_refs") or []
+        self.refs.update(refs)
+        if result.get("tool_name") == "query_metric_baseline":
+            for ref in refs:
+                self.metrics[ref] = {
+                    "metric_name": result.get("metric_name"),
+                    "channel": result.get("channel"),
+                    "current_value": result.get("current_value"),
+                    "baseline_value": result.get("baseline_value"),
+                    "lift_ratio": result.get("lift_ratio"),
+                }
+
+    def snapshot(self) -> dict:
+        """Plain-dict view for the reviewer/judge (keeps them decoupled)."""
+        return {"refs": set(self.refs), "metrics": dict(self.metrics)}
+
+
+_CAPTURE: contextvars.ContextVar[Optional[GroundingCapture]] = contextvars.ContextVar(
+    "evidence_capture", default=None
+)
+
+
+@contextlib.contextmanager
+def capture():
+    """Collect tool results for grounding checks. Reuses an outer capture if
+    one is already active (e.g. the eval runner wraps the orchestrator)."""
+    existing = _CAPTURE.get()
+    if existing is not None:
+        yield existing
+        return
+    cap = GroundingCapture()
+    token = _CAPTURE.set(cap)
+    try:
+        yield cap
+    finally:
+        _CAPTURE.reset(token)
+
+
+def _record_capture(result: dict) -> None:
+    cap = _CAPTURE.get()
+    if cap is not None:
+        cap.record(result)
+
+
 @contextlib.contextmanager
 def scope(
     workspace_id, campaign_id, current_start, current_end, baseline_start, baseline_end
@@ -164,6 +226,7 @@ def query_metric_baseline(metric_name: str, channel: str) -> dict:
             lambda: es_client.query_metric_baseline(metric_name, channel, sc),
             _seed,
         )
+        _record_capture(result)
         _stamp(span, result)
         return result
 
@@ -208,6 +271,7 @@ def search_content_posts(channels: list[str], metric_name: str) -> dict:
             lambda: es_client.search_content_posts(channels, metric_name, sc),
             _seed,
         )
+        _record_capture(result)
         _stamp(span, result)
         return result
 
@@ -253,6 +317,7 @@ def search_team_notes(query: str) -> dict:
             lambda: es_client.search_team_notes(query, sc),
             _seed,
         )
+        _record_capture(result)
         _stamp(span, result)
         return result
 

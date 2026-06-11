@@ -291,7 +291,8 @@
             "MISSING_SCHEDULE",
             "LOW_CONFIDENCE_WITHOUT_CAVEAT",
             "UNSUPPORTED_CHANNEL",
-            "UNSAFE_OR_UNGROUNDED_CLAIM"
+            "UNSAFE_OR_UNGROUNDED_CLAIM",
+            "UNGROUNDED_EVIDENCE"
           ]
         },
         "message": {
