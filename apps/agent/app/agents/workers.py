@@ -29,7 +29,22 @@ def _dump(models) -> str:
     return json.dumps([m.model_dump(mode="json") for m in models], ensure_ascii=False)
 
 
-async def run_analyst(content: str, date_range: DateRange) -> SignalDraftOutput:
+def _with_feedback(prompt: str, feedback: str | None) -> str:
+    # Backtrack feedback: tell the re-run worker exactly why the reviewer failed
+    # the previous attempt, so it does not repeat the same mistake. First runs
+    # pass feedback=None and get the original prompt unchanged.
+    if not feedback:
+        return prompt
+    return (
+        f"{prompt}\n"
+        f"Your previous attempt FAILED deterministic review: {feedback}\n"
+        "Fix exactly these issues this time."
+    )
+
+
+async def run_analyst(
+    content: str, date_range: DateRange, feedback: str | None = None
+) -> SignalDraftOutput:
     if get_settings().use_real_llm:
         # Real path: build a prompt and let the ADK analyst agent (with its
         # evidence tools + output_schema) return structured signals.
@@ -40,13 +55,15 @@ async def run_analyst(content: str, date_range: DateRange) -> SignalDraftOutput:
             f"Date range: {date_range.start}..{date_range.end}\n"
             "Detect performance signals and return the signal schema."
         )
-        data = await adk_agents.run_structured("analyst", prompt)
+        data = await adk_agents.run_structured("analyst", _with_feedback(prompt, feedback))
         return SignalDraftOutput(**data)  # re-validate against the contract model
-    # Stub path: deterministic analyst over seed data.
+    # Stub path: deterministic analyst over seed data (feedback is moot).
     return stub.analyst(content, date_range)
 
 
-async def run_strategist(content: str, signals: list[Signal]) -> HypothesisDraftOutput:
+async def run_strategist(
+    content: str, signals: list[Signal], feedback: str | None = None
+) -> HypothesisDraftOutput:
     if get_settings().use_real_llm:
         from app.agents import adk_agents
 
@@ -57,7 +74,7 @@ async def run_strategist(content: str, signals: list[Signal]) -> HypothesisDraft
             f"Signals (JSON): {_dump(signals)}\n"
             "Generate hypotheses for these signals and return the hypothesis schema."
         )
-        data = await adk_agents.run_structured("strategist", prompt)
+        data = await adk_agents.run_structured("strategist", _with_feedback(prompt, feedback))
         return HypothesisDraftOutput(**data)
     return stub.strategist(signals)
 
@@ -120,7 +137,8 @@ async def run_chat(content: str, context: str = "") -> str:
 
 
 async def run_writer(
-    content: str, date_range: DateRange, hypotheses: list[Hypothesis]
+    content: str, date_range: DateRange, hypotheses: list[Hypothesis],
+    feedback: str | None = None,
 ) -> ExperimentPlanDraftOutput:
     if get_settings().use_real_llm:
         from app.agents import adk_agents
@@ -131,6 +149,6 @@ async def run_writer(
             f"Hypotheses (JSON): {_dump(hypotheses)}\n"
             "Draft next-week experiments and return the experiment plan schema."
         )
-        data = await adk_agents.run_structured("writer", prompt)
+        data = await adk_agents.run_structured("writer", _with_feedback(prompt, feedback))
         return ExperimentPlanDraftOutput(**data)
     return stub.writer(hypotheses, date_range)

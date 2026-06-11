@@ -40,8 +40,14 @@ def _build_agents():
     # Imported here (not at module top) so importing this module never requires
     # google-adk unless we actually run in real-LLM mode.
     from google.adk.agents import LlmAgent
+    from google.genai import types
 
     model = get_settings().gemini_model
+    # Low temperature for the structured workers: their job is transcription
+    # (copy tool values), classification, and schema-shaped drafting -- sampling
+    # variety only adds transcription errors the grounding gate then has to catch.
+    transcribe_cfg = types.GenerateContentConfig(temperature=0.0)
+    draft_cfg = types.GenerateContentConfig(temperature=0.2)
     # Analyst: has the two evidence tools AND an output schema. In ADK 2.x tools
     # and output_schema compose (tools run during reasoning, schema shapes the
     # final reply). output_key writes the result into shared session state.
@@ -53,6 +59,7 @@ def _build_agents():
         tools=[evidence.query_metric_baseline, evidence.search_content_posts],
         output_schema=SignalDraftOut,
         output_key="signals",
+        generate_content_config=transcribe_cfg,
     )
     # Strategist: one tool (team notes) + hypothesis schema.
     strategist = LlmAgent(
@@ -63,6 +70,7 @@ def _build_agents():
         tools=[evidence.search_team_notes],
         output_schema=HypothesisDraftOut,
         output_key="hypotheses",
+        generate_content_config=draft_cfg,
     )
     # Writer: no tools (pure generation) + experiment-plan schema.
     writer = LlmAgent(
@@ -72,8 +80,10 @@ def _build_agents():
         instruction=instructions.WRITER,
         output_schema=ExperimentPlanDraftOut,
         output_key="experiment_plan",
+        generate_content_config=draft_cfg,
     )
     # Chat: free conversation. No tools, no output_schema -> plain text reply.
+    # Default sampling (no config): conversational warmth is fine here.
     chat = LlmAgent(
         name="chat",
         model=model,
@@ -89,6 +99,7 @@ def _build_agents():
         instruction=instructions.ROUTER,
         output_schema=RouterOut,
         output_key="route",
+        generate_content_config=transcribe_cfg,
     )
     return {"analyst": analyst, "strategist": strategist, "writer": writer,
             "chat": chat, "router": router}
