@@ -236,7 +236,7 @@ function StreamBlockRow({
         </button>
       );
     case "artifact":
-      return <TimelineTextRow text={`${block.title}`} tone="done" />;
+      return <ArtifactTimelineRow block={block} />;
     case "approval":
       return <TimelineTextRow text={block.title} tone="active" />;
     case "result":
@@ -244,6 +244,36 @@ function StreamBlockRow({
     case "error":
       return <TimelineTextRow text={block.detail ? `${block.title}: ${block.detail}` : block.title} tone="failed" />;
   }
+}
+
+function artifactKindLabel(kind: Extract<StreamMessageBlock, { kind: "artifact" }>["artifactKind"]) {
+  switch (kind) {
+    case "signal":
+      return "Signal artifact";
+    case "hypothesis":
+      return "Hypothesis artifact";
+    case "experiment_plan":
+      return "Experiment plan";
+    case "growth_brief":
+      return "Growth brief";
+    default:
+      return "Artifact";
+  }
+}
+
+function ArtifactTimelineRow({ block }: { block: Extract<StreamMessageBlock, { kind: "artifact" }> }) {
+  return (
+    <div className="timeline-chain-row document done">
+      <span className="timeline-glyph" aria-hidden="true" />
+      <span className="timeline-document-card">
+        <FileText size={15} strokeWidth={1.8} />
+        <span>
+          <strong>{block.title}</strong>
+          <small>{artifactKindLabel(block.artifactKind)}</small>
+        </span>
+      </span>
+    </div>
+  );
 }
 
 function ThreadDisplayItemRow({

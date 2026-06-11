@@ -107,7 +107,7 @@ class AnalysisRoundRunner(BasePhaseRunner):
         if not signals:
             await self.emitter.assistant_text(
                 turn.record,
-                "이 기준으로는 두드러진 신호를 찾지 못했어요. 다른 지표나 기간으로 다시 분석해볼까요?",
+                "I did not find a strong signal with this criterion. Try a different metric or date range.",
             )
             return TurnOutcome({"phase": self.phase.value, "signals": 0, "status": "no_signals"})
         signal_payload = [sig.model_dump(mode="json") for sig in signals]
@@ -144,7 +144,7 @@ class AnalysisRoundRunner(BasePhaseRunner):
             )
         await self.emitter.assistant_text(
             turn.record,
-            "분석 결과를 확인했습니다. 원하면 이 신호를 바탕으로 가설을 세울 수 있습니다.",
+            "Analysis is complete. You can use these signals to generate hypotheses next.",
         )
         return TurnOutcome({"phase": self.phase.value, "signals": len(signals)})
 
@@ -163,7 +163,7 @@ class HypothesisRoundRunner(BasePhaseRunner):
             await self.emitter.system_error(
                 turn.record,
                 "Analysis required",
-                "가설을 세우기 전에 먼저 데이터 분석 라운드를 실행해 주세요.",
+                "Run the data analysis round before generating hypotheses.",
             )
             return TurnOutcome({"phase": self.phase.value, "status": "missing_analysis"})
 
@@ -216,7 +216,7 @@ class HypothesisRoundRunner(BasePhaseRunner):
             )
         await self.emitter.assistant_text(
             turn.record,
-            "가설을 정리했습니다. 특정 가설을 선택하면 그때 실험 계획을 세울 수 있습니다.",
+            "Hypotheses are ready. Choose one when you want to turn it into an experiment plan.",
         )
         return TurnOutcome({"phase": self.phase.value, "hypotheses": len(hypotheses)})
 
@@ -240,7 +240,7 @@ class PlanRoundRunner(BasePhaseRunner):
             await self.emitter.system_error(
                 turn.record,
                 "Hypotheses required",
-                "실험 계획을 세우기 전에 분석과 가설 라운드를 먼저 완료해 주세요.",
+                "Complete the analysis and hypothesis rounds before drafting an experiment plan.",
             )
             return TurnOutcome({"phase": self.phase.value, "status": "missing_hypotheses"})
 
@@ -348,7 +348,7 @@ class UnsupportedPhaseRunner(BasePhaseRunner):
     async def run(self, turn: TurnContext) -> TurnOutcome:
         await self.emitter.assistant_text(
             turn.record,
-            "실험 평가 단계는 아직 실행 결과 입력 후 분석 라운드에서 다룹니다.",
+            "Experiment evaluation is handled after run results are available in a later analysis round.",
         )
         return TurnOutcome({"mode": "phase_not_implemented", "phase": self.phase.value})
 
