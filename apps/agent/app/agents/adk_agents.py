@@ -10,6 +10,7 @@ use SequentialAgent because the product workflow is HITL and non-linear.
 from __future__ import annotations
 
 import asyncio
+from functools import cached_property
 import json
 import logging
 import os
@@ -40,16 +41,39 @@ def _build_agents():
     # Imported here (not at module top) so importing this module never requires
     # google-adk unless we actually run in real-LLM mode.
     from google.adk.agents import LlmAgent
+    from google.adk.models import Gemini
     from google.adk.planners import BuiltInPlanner
+    from google.genai import Client
     from google.genai import types
 
     settings = get_settings()
-    model = settings.gemini_model
+    model_id = settings.gemini_model
+    model = model_id
+    if settings.use_enterpriseai:
+        class EnterpriseGemini(Gemini):
+            @cached_property
+            def api_client(self) -> Client:
+                return Client(
+                    enterprise=True,
+                    project=settings.google_cloud_project,
+                    location=settings.google_cloud_location,
+                )
+
+        model = EnterpriseGemini(model=model_id)
+
     planner = None
-    if settings.gemini_thinking_level:
+    if settings.gemini_thinking_budget is not None:
         planner = BuiltInPlanner(
             thinking_config=types.ThinkingConfig(
-                thinking_level=settings.gemini_thinking_level,
+                thinking_budget=settings.gemini_thinking_budget,
+                include_thoughts=False,
+            )
+        )
+    elif settings.gemini_thinking_level:
+        thinking_level = getattr(types.ThinkingLevel, settings.gemini_thinking_level.upper())
+        planner = BuiltInPlanner(
+            thinking_config=types.ThinkingConfig(
+                thinking_level=thinking_level,
                 include_thoughts=False,
             )
         )

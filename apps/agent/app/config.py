@@ -35,15 +35,22 @@ def _float(name: str, default: float) -> float:
     return float(raw) if raw else default
 
 
+def _optional_int(name: str, default: int | None = None) -> int | None:
+    raw = os.environ.get(name)
+    return int(raw) if raw not in (None, "") else default
+
+
 class Settings(BaseModel):
     # --- LLM ---
     # Two auth paths: AI Studio (gemini_api_key) OR Vertex AI (ADC + project).
     gemini_api_key: str | None = None
     gemini_model: str = "gemini-3.5-flash"  # plain model string ADK accepts
+    gemini_thinking_budget: int | None = None
     gemini_thinking_level: str | None = "minimal"
+    use_enterpriseai: bool = False
     use_vertexai: bool = False
     google_cloud_project: str | None = None
-    google_cloud_location: str = "us-central1"
+    google_cloud_location: str = "global"
 
     # --- Evidence (Elastic) ---
     # Direct ES read of the same cluster Java writes (contract 03).
@@ -84,7 +91,10 @@ class Settings(BaseModel):
 
     @property
     def use_real_llm(self) -> bool:
-        return bool(self.gemini_api_key) or (self.use_vertexai and bool(self.google_cloud_project))
+        return (
+            bool(self.gemini_api_key)
+            or ((self.use_vertexai or self.use_enterpriseai) and bool(self.google_cloud_project))
+        )
 
     @property
     def use_real_elastic(self) -> bool:
@@ -113,10 +123,12 @@ def get_settings() -> Settings:
     return Settings(
         gemini_api_key=os.environ.get("GEMINI_API_KEY") or None,
         gemini_model=os.environ.get("GEMINI_MODEL") or "gemini-3.5-flash",
+        gemini_thinking_budget=_optional_int("GEMINI_THINKING_BUDGET"),
         gemini_thinking_level=os.environ.get("GEMINI_THINKING_LEVEL") or "minimal",
+        use_enterpriseai=(os.environ.get("GOOGLE_GENAI_USE_ENTERPRISE", "").upper() in ("TRUE", "1")),
         use_vertexai=(os.environ.get("GOOGLE_GENAI_USE_VERTEXAI", "").upper() in ("TRUE", "1")),
         google_cloud_project=os.environ.get("GOOGLE_CLOUD_PROJECT") or None,
-        google_cloud_location=os.environ.get("GOOGLE_CLOUD_LOCATION") or "us-central1",
+        google_cloud_location=os.environ.get("GOOGLE_CLOUD_LOCATION") or "global",
         elastic_url=os.environ.get("ELASTIC_URL") or None,
         elastic_api_key=os.environ.get("ELASTIC_API_KEY") or None,
         elastic_mcp_url=os.environ.get("ELASTIC_MCP_URL") or None,
