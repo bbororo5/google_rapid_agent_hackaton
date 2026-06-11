@@ -19,14 +19,36 @@ services:
       - "${GOOGLE_ADC_FILE:-./secrets/adc.json}:/secrets/adc.json:ro"
     environment:
       GOOGLE_APPLICATION_CREDENTIALS: /secrets/adc.json
+      # Redis hot tier for live SharedStateVector (ADR-005). Service hostname on
+      # the compose network. Overrides any REDIS_URL leaking from .env.
+      REDIS_URL: redis://redis:6379/0
     ports:
       - "${AGENT_HOST_PORT:-8000}:8000"
+    depends_on:
+      redis:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health').status==200 else 1)"]
       interval: 10s
       timeout: 3s
       retries: 5
       start_period: 20s
+
+  redis:
+    image: redis:7-alpine
+    # Volatile cache only (ADR-005): no persistence configured on purpose. Truth
+    # stays in Elastic; Redis loss triggers rehydrate, not data loss.
+    # Internal-only: the agent reaches it at redis://redis:6379 on the compose
+    # network, so no host port is published (avoids clashing with other local
+    # redis instances). Set REDIS_HOST_PORT in compose to expose for debugging.
+    expose:
+      - "6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
 
   backend:
     build: ./backend

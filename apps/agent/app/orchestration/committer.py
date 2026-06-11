@@ -29,6 +29,9 @@ class StateCommitter:
         )
         try:
             await turn.repository.commit_state(turn.expected_revision, turn.record.state, event)
+            # Refresh the Redis hot tier so the next turn reads the live copy
+            # without an Elastic round-trip (ADR-005). ES remains authoritative.
+            await turn.hot_store.put_state(turn.record.thread_id, turn.record.state)
             tracing.set_metadata(span, {"agent.state_delta.delta_id": event.delta_id})
             await self._emitter.progress(turn.record, "state.commit", "Saved thread state", "done", event.delta_id)
         except RepositoryConflict:

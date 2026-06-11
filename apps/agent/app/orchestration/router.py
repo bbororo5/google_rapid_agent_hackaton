@@ -10,6 +10,7 @@ from app import tracing
 from app.orchestration.emitter import StreamEmitter
 from app.orchestration.models import TurnContext, TurnDecision, TurnOutcome
 from app.orchestration.phases import PhaseRunnerRegistry, analysis_window, baseline_window
+from app.runtime.restore import restore_from_episode
 from app.runtime.state import DelegationMode, DeltaIntent, PhaseType
 from app.tools import evidence
 
@@ -52,6 +53,12 @@ class TurnRouter:
                 "campaign_id를 확인할 수 없어 분석을 시작하지 않았습니다. 같은 thread에 campaign_id를 포함해 다시 요청해 주세요.",
             )
             return TurnOutcome({"mode": "rerun", "status": "missing_campaign"})
+
+        # Restore (ADR-005 Phase 4): a backtrack that names a past episode rebuilds
+        # the live state from that checkpoint instead of re-running forward.
+        restore_episode_id = decision.delta.mutation.get("restore_episode_id")
+        if decision.delta.intent == DeltaIntent.BACKTRACK and restore_episode_id:
+            return await self._restore(turn, str(restore_episode_id))
         if not turn.campaign_context:
             await self._emitter.system_error(
                 turn.record,
@@ -99,6 +106,23 @@ class TurnRouter:
                 "done",
             )
         return outcome
+
+    async def _restore(self, turn: TurnContext, episode_id: str) -> TurnOutcome:
+        episode = await turn.repository.get_episode(episode_id)
+        if episode is None:
+            await self._emitter.system_error(
+                turn.record,
+                "Checkpoint not found",
+                f"복원할 에피소드(episode_id={episode_id})를 찾지 못해 상태를 되돌리지 않았습니다.",
+            )
+            return TurnOutcome({"mode": "restore", "status": "episode_not_found"})
+        await restore_from_episode(turn.record.state, episode, turn.repository)
+        phase = turn.record.state.current_phase
+        await self._emitter.assistant_text(
+            turn.record,
+            f"{phase.value} 시점({episode_id})으로 상태를 되돌렸습니다. 이어서 진행할 수 있습니다.",
+        )
+        return TurnOutcome({"mode": "restore", "phase": phase.value, "episode_id": episode_id})
 
     async def _delegate(self, turn: TurnContext, decision: TurnDecision) -> TurnOutcome:
         reply = (

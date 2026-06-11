@@ -28,19 +28,29 @@ def _dump(models) -> str:
     return json.dumps([m.model_dump(mode="json") for m in models], ensure_ascii=False)
 
 
-async def run_analyst(content: str, date_range: DateRange) -> SignalDraftOutput:
+def _memory_section(memory_context: str | None) -> str:
+    # Compact past-episode context (ADR-005 Phase 3). Empty when no episodes.
+    return f"{memory_context}\n" if memory_context else ""
+
+
+async def run_analyst(
+    content: str, date_range: DateRange, memory_context: str | None = None
+) -> SignalDraftOutput:
     from app.agents import adk_agents
 
     prompt = (
         f"User request: {content}\n"
         f"Date range: {date_range.start}..{date_range.end}\n"
+        f"{_memory_section(memory_context)}"
         "Detect performance signals and return the signal schema."
     )
     data = await adk_agents.run_structured("analyst", prompt)
     return SignalDraftOutput(**data)  # re-validate against the contract model
 
 
-async def run_strategist(content: str, signals: list[Signal]) -> HypothesisDraftOutput:
+async def run_strategist(
+    content: str, signals: list[Signal], memory_context: str | None = None
+) -> HypothesisDraftOutput:
     from app.agents import adk_agents
 
     # Pass the upstream signals in the prompt so the strategist can ground on
@@ -48,6 +58,7 @@ async def run_strategist(content: str, signals: list[Signal]) -> HypothesisDraft
     prompt = (
         f"User request: {content}\n"
         f"Signals (JSON): {_dump(signals)}\n"
+        f"{_memory_section(memory_context)}"
         "Generate hypotheses for these signals and return the hypothesis schema."
     )
     data = await adk_agents.run_structured("strategist", prompt)
@@ -105,7 +116,10 @@ async def run_chat(content: str, context: str = "") -> str:
 
 
 async def run_writer(
-    content: str, date_range: DateRange, hypotheses: list[Hypothesis]
+    content: str,
+    date_range: DateRange,
+    hypotheses: list[Hypothesis],
+    memory_context: str | None = None,
 ) -> ExperimentPlanDraftOutput:
     from app.agents import adk_agents
 
@@ -113,6 +127,7 @@ async def run_writer(
         f"User request: {content}\n"
         f"Date range: {date_range.start}..{date_range.end}\n"
         f"Hypotheses (JSON): {_dump(hypotheses)}\n"
+        f"{_memory_section(memory_context)}"
         "Draft next-week experiments and return the experiment plan schema."
     )
     data = await adk_agents.run_structured("writer", prompt)

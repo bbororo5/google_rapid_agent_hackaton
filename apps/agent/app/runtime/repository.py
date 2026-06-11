@@ -14,6 +14,7 @@ import httpx
 from pydantic import BaseModel, Field
 
 from app.config import get_settings
+from app.runtime.episode import Episode, EpisodeOutcome
 from app.runtime.state import ScopeContext, SharedStateVector, StateDeltaProposal
 
 
@@ -83,6 +84,23 @@ class AgentRuntimeRepository(Protocol):
     async def load_runtime_artifacts(self, refs: list[str]) -> list[RuntimeArtifact]:
         ...
 
+    async def save_episode(self, episode: Episode) -> str:
+        ...
+
+    async def query_episodes(
+        self,
+        scope: ScopeContext,
+        *,
+        phase: str | None = None,
+        outcome: EpisodeOutcome | None = None,
+        run_id: str | None = None,
+        limit: int = 5,
+    ) -> list[Episode]:
+        ...
+
+    async def get_episode(self, episode_id: str) -> Episode | None:
+        ...
+
 
 class InMemoryAgentRuntimeRepository:
     backend_name = "memory"
@@ -93,6 +111,7 @@ class InMemoryAgentRuntimeRepository:
         self._artifacts: dict[str, RuntimeArtifact] = {}
         self._messages: dict[tuple[str, str, str], list[ThreadMessage]] = {}
         self._campaigns: dict[tuple[str, str], CampaignContext] = {}
+        self._episodes: list[Episode] = []
 
     async def load_state(self, thread_id: str) -> SharedStateVector | None:
         state = self._states.get(thread_id)
@@ -141,6 +160,37 @@ class InMemoryAgentRuntimeRepository:
     async def load_runtime_artifacts(self, refs: list[str]) -> list[RuntimeArtifact]:
         return [self._artifacts[ref] for ref in refs if ref in self._artifacts]
 
+    async def save_episode(self, episode: Episode) -> str:
+        self._episodes.append(episode.model_copy(deep=True))
+        return episode.episode_id
+
+    async def query_episodes(
+        self,
+        scope: ScopeContext,
+        *,
+        phase: str | None = None,
+        outcome: EpisodeOutcome | None = None,
+        run_id: str | None = None,
+        limit: int = 5,
+    ) -> list[Episode]:
+        matched = [
+            ep
+            for ep in self._episodes
+            if ep.workspace_id == scope.workspace_id
+            and ep.campaign_id == scope.campaign_id
+            and (phase is None or ep.phase.value == phase)
+            and (outcome is None or ep.outcome == outcome)
+            and (run_id is None or ep.run_id == run_id)
+        ]
+        matched.sort(key=lambda ep: ep.created_at, reverse=True)
+        return [ep.model_copy(deep=True) for ep in matched[:limit]]
+
+    async def get_episode(self, episode_id: str) -> Episode | None:
+        for ep in self._episodes:
+            if ep.episode_id == episode_id:
+                return ep.model_copy(deep=True)
+        return None
+
     def set_messages_for_local_test(self, scope: ScopeContext, messages: list[ThreadMessage]) -> None:
         self._messages[(scope.workspace_id, scope.campaign_id, scope.thread_id)] = messages
 
@@ -152,6 +202,7 @@ class ElasticAgentRuntimeRepository:
     delta_index = "agent_state_deltas"
     artifact_index = "agent_runtime_artifacts"
     message_index = "agent_thread_messages"
+    episode_index = "agent_episodes"
     campaign_index = "campaigns"
 
     def __init__(self, url: str, api_key: str) -> None:
@@ -316,6 +367,68 @@ class ElasticAgentRuntimeRepository:
             for doc in docs
             if doc.get("found")
         ]
+
+    async def save_episode(self, episode: Episode) -> str:
+        # Interim writer (ADR-005 C4 target is Java): Python writes agent_episodes
+        # directly, consistent with the other runtime indices above. Migration to
+        # a Java writer is non-breaking (same schema) and tracked as Phase 5.
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.put(
+                f"{self._url}/{self.episode_index}/_doc/{episode.episode_id}",
+                headers=self._headers,
+                json=episode.model_dump(mode="json"),
+            )
+        response.raise_for_status()
+        return episode.episode_id
+
+    async def query_episodes(
+        self,
+        scope: ScopeContext,
+        *,
+        phase: str | None = None,
+        outcome: EpisodeOutcome | None = None,
+        run_id: str | None = None,
+        limit: int = 5,
+    ) -> list[Episode]:
+        # MVP retrieval (ADR-005 C6): hard filter + recency. Hybrid kNN + summary
+        # is deferred; the embedding field is reserved on the document.
+        filters: list[dict[str, Any]] = [
+            {"term": {"workspace_id": scope.workspace_id}},
+            {"term": {"campaign_id": scope.campaign_id}},
+        ]
+        if phase is not None:
+            filters.append({"term": {"phase": phase}})
+        if outcome is not None:
+            filters.append({"term": {"outcome": outcome.value}})
+        if run_id is not None:
+            filters.append({"term": {"run_id": run_id}})
+        query = {
+            "size": limit,
+            "sort": [{"created_at": {"order": "desc"}}],
+            "query": {"bool": {"filter": filters}},
+        }
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.post(
+                f"{self._url}/{self.episode_index}/_search",
+                headers=self._headers,
+                json=query,
+            )
+        if response.status_code == 404:
+            return []
+        response.raise_for_status()
+        hits = response.json().get("hits", {}).get("hits", [])
+        return [Episode.model_validate(hit["_source"]) for hit in hits]
+
+    async def get_episode(self, episode_id: str) -> Episode | None:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get(
+                f"{self._url}/{self.episode_index}/_doc/{episode_id}",
+                headers=self._headers,
+            )
+        if response.status_code == 404:
+            return None
+        response.raise_for_status()
+        return Episode.model_validate(response.json().get("_source", {}))
 
 
 _memory_repository = InMemoryAgentRuntimeRepository()

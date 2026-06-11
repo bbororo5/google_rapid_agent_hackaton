@@ -19,8 +19,14 @@ Useful commands:
 ```sh
 npm run test:e2e:list
 E2E_ENV_FILE=.env npm run test:e2e:real
+E2E_ENV_FILE=.env npm run test:e2e:memory
 npm run test:e2e:ui
 ```
+
+`memory-continuity.spec.ts` is the ADR-005 runtime-memory journey (Redis hot tier
++ Elastic episodic persistence). It drives repeated backtracks and a resumed
+pipeline to assert the thread stays coherent across episode checkpoints. The
+stack now also starts a `redis` service (see `docker-compose.yml`).
 
 `test:e2e` and `test:e2e:real` run the same full E2E target:
 `real-round-based-workflow.spec.ts`. The command runs `tools/e2e-preflight.mjs`

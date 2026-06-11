@@ -30,6 +30,7 @@ source of truth.
 | `agent_state_deltas` | Python Agent Core | Python Agent Core, observability tooling | Append-only | Auditable transition event log produced from free-form turns. |
 | `agent_runtime_artifacts` | Python Agent Core | Python Agent Core | Append-only versioned, TTL | Pre-approval runtime artifact snapshots or refs. |
 | `agent_thread_messages` | Java Backend | Python Agent Core, Java Backend | Append-only | Session conversation memory and replay source scoped by workspace + campaign + thread. |
+| `agent_episodes` | Java Backend (target) / Python (interim) | Python Agent Core | Append-only | Episodic memory + restore checkpoints persisted at semantic boundaries (phase boundary, approve/reject/backtrack). See ADR-005. |
 
 ## Core Invariants
 
@@ -305,6 +306,69 @@ Allowed `artifact_kind`:
 - `experiment_plan`
 - `evaluation`
 - `generic`
+
+## Index: `agent_episodes`
+
+Purpose: episodic memory (ADR-005). One episode is the dialogue span since the
+last checkpoint plus a state snapshot that makes it a restore point. Persisted at
+semantic boundaries (phase boundary, approve/reject/backtrack), not every turn.
+
+Document ID recommendation: `episode_id`.
+
+Required fields:
+
+- `episode_id`
+- `workspace_id`
+- `campaign_id`
+- `thread_id`
+- `phase`
+- `outcome` (`forward` | `approve` | `reject` | `backtrack`)
+- `run_id` (obsolete-filter tag; retrieval filters by current run)
+- `raw` (dialogue span)
+- `summary` (nullable; MVP defers LLM summary)
+- `embedding` (nullable; MVP defers; reserved for hybrid kNN retrieval)
+- `state_snapshot` (`current_phase`, `target_phase`, `phase_artifact_refs`, `key_params`, `revision`)
+- `created_at`
+
+Rules:
+
+- Append-only. Discarded (`backtrack`) episodes are kept; failures are retained
+  on purpose to avoid repeating mistakes.
+- `state_snapshot` is mandatory: lessons are lossy, so restore reads the snapshot.
+- Retrieval (Python, read-only): hard filter `workspace_id` + `campaign_id`
+  [+ `phase`/`outcome`/`run_id`] + recency. MVP returns raw; hybrid kNN +
+  summary is deferred.
+- Writer: ADR-005 C4 targets a Java writer (Python builds + signals). The interim
+  implementation writes from Python via the runtime repository; migration is
+  non-breaking (identical schema).
+
+Retention: align with `agent_state_deltas` (7 days) or the demo reset boundary;
+longer than `agent_thread_states` since episodes are checkpoints + audit.
+
+Example:
+
+```json
+{
+  "episode_id": "ep_5f3a9c2b1d4e",
+  "workspace_id": "demo_workspace",
+  "campaign_id": "camp_comeback_teaser",
+  "thread_id": "thread_20260611_001",
+  "phase": "DATA_ANALYSIS",
+  "outcome": "backtrack",
+  "run_id": "run_7",
+  "raw": [{"role": "user", "content": "save_rate 말고 shares 기준으로 다시"}],
+  "summary": null,
+  "embedding": null,
+  "state_snapshot": {
+    "current_phase": "DATA_ANALYSIS",
+    "target_phase": "DATA_ANALYSIS",
+    "phase_artifact_refs": {"DATA_ANALYSIS": ["runtime_art_ab12cd34ef56"]},
+    "key_params": {"metric": "shares"},
+    "revision": 9
+  },
+  "created_at": 1781090400.0
+}
+```
 
 ## Concurrency Rules
 
