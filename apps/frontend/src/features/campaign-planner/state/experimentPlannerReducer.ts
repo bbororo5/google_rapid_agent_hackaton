@@ -63,6 +63,8 @@ function toolLogsFromStreamMessage(event: ExperimentPlannerEvent & { type: "STRE
     .map((block, index) => ({
       sequence: event.message.sequence * 100 + index,
       tool_name: block.id ?? block.title,
+      display_title: block.title,
+      display_detail: block.detail ?? null,
       status: block.status === "failed" ? "FAILED" : block.status === "done" ? "SUCCESS" : block.status === "running" ? "RUNNING" : "PENDING",
       duration_ms: null,
       error_message: block.status === "failed" ? block.detail ?? null : null,

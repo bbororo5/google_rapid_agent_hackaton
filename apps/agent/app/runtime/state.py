@@ -11,7 +11,7 @@ import time
 from enum import Enum
 from typing import Any, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class PhaseType(str, Enum):
@@ -120,6 +120,30 @@ class StateDeltaProposal(BaseModel):
     rationale: Optional[str] = None
     reply: Optional[str] = None
 
+    @field_validator("target_phase", "restart_from_phase", mode="before")
+    @classmethod
+    def normalize_phase_aliases(cls, value: Any) -> Any:
+        if value is None or isinstance(value, PhaseType):
+            return value
+        if not isinstance(value, str):
+            return value
+        normalized = value.strip().upper()
+        aliases = {
+            "ANALYSIS": PhaseType.DATA_ANALYSIS.value,
+            "DATA": PhaseType.DATA_ANALYSIS.value,
+            "SIGNAL_ANALYSIS": PhaseType.DATA_ANALYSIS.value,
+            "HYPOTHESIS": PhaseType.HYPOTHESIS_GEN.value,
+            "HYPOTHESIS_GENERATION": PhaseType.HYPOTHESIS_GEN.value,
+            "HYPOTHESIS_GEN": PhaseType.HYPOTHESIS_GEN.value,
+            "PLANNING": PhaseType.EXPERIMENT_PLAN.value,
+            "PLAN": PhaseType.EXPERIMENT_PLAN.value,
+            "EXPERIMENT_PLANNING": PhaseType.EXPERIMENT_PLAN.value,
+            "EVALUATION": PhaseType.EXPERIMENT_EVAL.value,
+            "EVAL": PhaseType.EXPERIMENT_EVAL.value,
+            "EXPERIMENT_EVALUATION": PhaseType.EXPERIMENT_EVAL.value,
+        }
+        return aliases.get(normalized, normalized)
+
 
 class ReducerDecisionType(str, Enum):
     ACCEPTED = "ACCEPTED"
@@ -225,6 +249,23 @@ def reduce_state(
         )
 
     if delta.intent == DeltaIntent.START_ANALYSIS:
+        has_csv_attachment = bool(delta.mutation.get("has_csv_attachment"))
+        has_existing_signals = bool(state.phase_artifacts[PhaseType.DATA_ANALYSIS.value].get("signals"))
+        if not has_csv_attachment and not has_existing_signals:
+            state.user_intent = IntentType.FREE_CHAT
+            state.target_phase = state.current_phase
+            state.execution_plan = [state.current_phase.value]
+            delta.response_mode = ResponseMode.DIRECT
+            delta.reply = delta.reply or "캠페인 지표 CSV를 첨부하면 바로 분석을 시작할 수 있습니다. 지금은 어떤 기준으로 볼지 먼저 같이 정리해볼게요."
+            return ReducerDecision(
+                decision=ReducerDecisionType.ACCEPTED,
+                delegation_mode=DelegationMode.DIRECT,
+                state=state,
+                reason="analysis request blocked until csv attachment or prior analysis exists",
+                delta=delta,
+                revision_before=before,
+                revision_after=state.revision,
+            )
         state.target_phase = PhaseType.DATA_ANALYSIS
         state.current_phase = PhaseType.DATA_ANALYSIS
         state.user_intent = IntentType.INITIAL_RUN
@@ -240,6 +281,21 @@ def reduce_state(
         )
 
     if delta.intent == DeltaIntent.START_HYPOTHESIS:
+        if not state.phase_artifacts[PhaseType.DATA_ANALYSIS.value].get("signals"):
+            state.user_intent = IntentType.FREE_CHAT
+            state.target_phase = state.current_phase
+            state.execution_plan = [state.current_phase.value]
+            delta.response_mode = ResponseMode.DIRECT
+            delta.reply = delta.reply or "분석 결과가 아직 없어서 가설을 바로 세우지는 않았습니다. 먼저 캠페인 지표를 분석한 뒤, 그 신호를 바탕으로 가설을 만들 수 있어요."
+            return ReducerDecision(
+                decision=ReducerDecisionType.ACCEPTED,
+                delegation_mode=DelegationMode.DIRECT,
+                state=state,
+                reason="hypothesis request blocked until analysis artifact exists",
+                delta=delta,
+                revision_before=before,
+                revision_after=state.revision,
+            )
         state.target_phase = PhaseType.HYPOTHESIS_GEN
         state.current_phase = PhaseType.HYPOTHESIS_GEN
         state.user_intent = IntentType.HYPOTHESIS_REQUEST
@@ -255,6 +311,21 @@ def reduce_state(
         )
 
     if delta.intent == DeltaIntent.START_PLAN:
+        if not state.phase_artifacts[PhaseType.HYPOTHESIS_GEN.value].get("hypotheses"):
+            state.user_intent = IntentType.FREE_CHAT
+            state.target_phase = state.current_phase
+            state.execution_plan = [state.current_phase.value]
+            delta.response_mode = ResponseMode.DIRECT
+            delta.reply = delta.reply or "확정된 가설이 아직 없어서 실험 계획을 바로 만들지는 않았습니다. 먼저 분석 신호를 보고 가설을 세운 뒤 계획으로 이어가겠습니다."
+            return ReducerDecision(
+                decision=ReducerDecisionType.ACCEPTED,
+                delegation_mode=DelegationMode.DIRECT,
+                state=state,
+                reason="plan request blocked until hypothesis artifact exists",
+                delta=delta,
+                revision_before=before,
+                revision_after=state.revision,
+            )
         state.target_phase = PhaseType.EXPERIMENT_PLAN
         state.current_phase = PhaseType.EXPERIMENT_PLAN
         state.user_intent = IntentType.PLAN_REQUEST

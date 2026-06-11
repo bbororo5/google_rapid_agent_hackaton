@@ -7,8 +7,10 @@
   "blocks": [
     {
       "kind": "activity",
-      "title": "Checked metric baseline",
-      "status": "done"
+      "id": "analysis.evidence",
+      "title": "Checking campaign evidence",
+      "status": "done",
+      "detail": "Metric baseline and campaign context loaded."
     },
     {
       "kind": "text",

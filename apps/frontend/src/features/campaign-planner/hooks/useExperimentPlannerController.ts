@@ -13,6 +13,7 @@ import type {
   AgentDocument,
   AgentThreadObservation,
   AgentMessage,
+  MessageAttachment,
   AgentStreamRecoveryStatus,
   AgentTimelineItem,
   Hypothesis,
@@ -294,19 +295,26 @@ function agentThreadStreamUrl(threadId: string) {
   return `${agentApiBaseUrl}/api/agent/threads/${threadId}/stream`;
 }
 
-function csvAttachmentContent(text: string, fileName: string) {
+function csvPrompt(text: string) {
   const trimmed = text.trim();
-  const prompt = trimmed || "분석을 도와줘.";
-  return `${prompt}\n\nAttached CSV: ${fileName}`;
+  return trimmed || "분석을 도와줘.";
 }
 
-function splitCsvAttachment(content: string): { text: string; fileName: string | null } {
-  const match = content.match(/\n\nAttached CSV:\s*(.+\.csv)\s*$/i);
-  if (!match) return { text: content, fileName: null };
+function csvAttachment(importResult: ImportCsvResponse, fileName: string): MessageAttachment {
   return {
-    text: content.slice(0, match.index).trim(),
-    fileName: match[1].trim(),
+    kind: "csv_import",
+    id: importResult.import_id,
+    title: fileName,
+    filename: fileName,
   };
+}
+
+function attachmentBlocks(attachments: MessageAttachment[] | undefined): StreamMessageBlock[] {
+  return (attachments ?? []).map((attachment) => ({
+    kind: "attachment" as const,
+    fileName: attachment.filename ?? attachment.title ?? attachment.id,
+    label: attachment.kind === "csv_import" ? "CSV attached" : attachment.title,
+  }));
 }
 
 const THREAD_STORAGE_KEY = "launchpilot.thread";
@@ -352,9 +360,9 @@ function toolBlock(tool: ToolCallLog): StreamMessageBlock {
   return {
     kind: "activity",
     id: `tool:${tool.sequence}:${tool.tool_name}`,
-    title: toolStatusLabel(tool),
+    title: tool.display_title ?? toolStatusLabel(tool),
     status,
-    detail: tool.error_message ?? undefined,
+    detail: tool.display_detail ?? tool.error_message ?? undefined,
   };
 }
 
@@ -397,6 +405,12 @@ function streamMessagesFromState(input: {
   // Drop optimistic local user bubbles once the server has echoed the same text
   // back into the timeline (otherwise every sent message renders twice).
   const echoedUserCounts = new Map<string, number>();
+  const localAttachmentQueues = new Map<string, MessageAttachment[][]>();
+  for (const message of localUserMessages) {
+    if (!message.attachments?.length) continue;
+    const key = message.content.trim();
+    localAttachmentQueues.set(key, [...(localAttachmentQueues.get(key) ?? []), message.attachments]);
+  }
   for (const item of serverUserMessages) {
     const key = item.message.content.trim();
     echoedUserCounts.set(key, (echoedUserCounts.get(key) ?? 0) + 1);
@@ -413,15 +427,18 @@ function streamMessagesFromState(input: {
   const streamMessages: StreamMessage[] = [
     ...input.timelineItems.map((item) => {
       if (item.kind === "user_message") {
-        const parsed = splitCsvAttachment(item.message.content);
+        const key = item.message.content.trim();
+        const localAttachmentQueue = localAttachmentQueues.get(key) ?? [];
+        const fallbackAttachments = localAttachmentQueue.shift() ?? [];
+        const attachments = item.message.attachments?.length ? item.message.attachments : fallbackAttachments;
         return {
           id: item.id,
           sequence: item.sequence,
           role: "user" as const,
           createdAt: null,
           blocks: [
-            { kind: "text" as const, text: parsed.text },
-            ...(parsed.fileName ? [{ kind: "attachment" as const, fileName: parsed.fileName, label: "CSV attached" }] : []),
+            { kind: "text" as const, text: item.message.content },
+            ...attachmentBlocks(attachments),
           ],
         };
       }
@@ -470,7 +487,6 @@ function streamMessagesFromState(input: {
       };
     }),
     ...pendingLocalUserMessages.map((message, index) => {
-      const parsed = splitCsvAttachment(message.content);
       return {
         id: message.message_id,
         sequence: "clientSequence" in message ? message.clientSequence : 10_000 + index,
@@ -478,8 +494,8 @@ function streamMessagesFromState(input: {
         createdAt: null,
         clientPhase: "phaseAtSend" in message ? message.phaseAtSend : undefined,
         blocks: [
-          { kind: "text" as const, text: parsed.text },
-          ...(parsed.fileName ? [{ kind: "attachment" as const, fileName: parsed.fileName, label: "CSV attached" }] : []),
+          { kind: "text" as const, text: message.content },
+          ...attachmentBlocks(message.attachments),
         ],
       };
     }),
@@ -1144,12 +1160,14 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
       bindThreadToCampaign(threadId);
       await connectStream(threadId, streamUrl);
 
-      const content = csvAttachmentContent(composerQuestionRef.current, importingState.composer.file.name);
+      const content = csvPrompt(composerQuestionRef.current);
+      const attachments = [csvAttachment(importResult, importingState.composer.file.name)];
       streamRef.current?.send({
         command_id: commandId("cmd_initial_analysis"),
         type: "message.send",
         thread_id: threadId,
         content,
+        attachments,
         client_created_at: new Date().toISOString(),
       });
       setLocalUserMessages((messages) => [
@@ -1158,6 +1176,7 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
           message_id: `msg_local_${Date.now()}`,
           role: "user",
           content,
+          attachments,
           clientSequence: nextLocalSequence(),
           phaseAtSend: "live",
         },
@@ -1215,19 +1234,29 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
   async function sendCsvMessageOnThread(current: ExperimentPlannerState, file: File, text: string) {
     const threadId = current.thread.threadId;
     if (!threadId) return false;
-    const content = csvAttachmentContent(text, file.name);
+    const content = csvPrompt(text);
+    let attachments: MessageAttachment[] = [
+      {
+        kind: "csv_import",
+        id: `pending_csv_${Date.now()}`,
+        title: file.name,
+        filename: file.name,
+      },
+    ];
     setLocalUserMessages((messages) => [
       ...messages,
       {
         message_id: `msg_local_${Date.now()}`,
         role: "user",
         content,
+        attachments,
         clientSequence: nextLocalSequence(),
         phaseAtSend: current.phase,
       },
     ]);
     try {
-      await api.importCsv({ file, workspaceId: "demo_workspace", campaignId: "camp_comeback_teaser" });
+      const importResult = await api.importCsv({ file, workspaceId: "demo_workspace", campaignId: "camp_comeback_teaser" });
+      attachments = [csvAttachment(importResult, file.name)];
     } catch {
       // Ingestion failed; still let the agent analyze whatever baseline exists.
     }
@@ -1236,6 +1265,7 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
       type: "message.send",
       thread_id: threadId,
       content,
+      attachments,
       client_created_at: new Date().toISOString(),
     });
     bindThreadToCampaign(threadId);

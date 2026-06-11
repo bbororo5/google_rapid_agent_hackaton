@@ -65,16 +65,20 @@ The client sends exactly one command shape:
   "command_id": "cmd_20260601_001",
   "type": "message.send",
   "thread_id": "thread_20260601_001",
-  "content": "좋아, 승인할게. 캘린더에 넣어줘.",
-  "action": {
-    "name": "approve",
-    "target_id": "appr_20260601_001"
-  },
+  "content": "분석을 도와줘!",
+  "attachments": [
+    {
+      "kind": "csv_import",
+      "id": "imp_20260601_001",
+      "title": "sample-channel-metrics.csv",
+      "filename": "sample-channel-metrics.csv"
+    }
+  ],
   "client_created_at": "2026-06-01T16:33:10+09:00"
 }
 ```
 
-`content` is always the user-visible utterance sent to Agent Core. `action` is optional metadata attached to a UI-originated utterance; it is not a separate command path.
+`content` is always the user-visible utterance sent to Agent Core. Files and generated resources are carried in `attachments[]`; the frontend must not encode attachment labels into `content`. `action` is optional metadata attached to a UI-originated utterance; it is not a separate command path.
 
 The server sends exactly one frame shape:
 
@@ -87,7 +91,13 @@ The server sends exactly one frame shape:
   "created_at": "2026-06-01T16:31:10+09:00",
   "blocks": [
     { "kind": "text", "text": "I found a repeatable save-rate signal." },
-    { "kind": "activity", "title": "Checked metric baseline", "status": "done" },
+    {
+      "kind": "activity",
+      "id": "analysis.evidence",
+      "title": "Checking campaign evidence",
+      "status": "done",
+      "detail": "Metric baseline and campaign context loaded."
+    },
     { "kind": "markdown_document", "id": "doc_evidence_scan_001", "title": "Evidence notes", "markdown": "## Evidence notes\n..." }
   ]
 }
@@ -96,7 +106,7 @@ The server sends exactly one frame shape:
 Supported block kinds:
 
 - `text`: Natural-language chat content.
-- `activity`: User-visible work progress.
+- `activity`: User-visible work progress. Activity titles and details must summarize system work without exposing hidden chain-of-thought.
 - `markdown_document`: Markdown document to render as a small thread card and open in the right panel.
 - `artifact`: Structured output such as a signal, hypothesis, experiment plan, or growth brief.
 - `approval`: Approval surface before consequential persistence.

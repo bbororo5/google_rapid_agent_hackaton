@@ -148,7 +148,7 @@ public class AgentStreamRelayService {
                     ctx.workspaceId(),
                     ctx.campaignId(),
                     cmd.content().trim(),
-                    List.of(),
+                    internalAttachments(cmd.attachments()),
                     cmd.clientCreatedAt(),
                     null));
             log.info("<- /turns accepted thread={}", threadId);
@@ -169,9 +169,21 @@ public class AgentStreamRelayService {
             return existing.get();
         }
         AgentThreadRegistry.RunContext ctx = threads.last().orElseGet(
-                () -> new AgentThreadRegistry.RunContext(demoWorkspaceId, demoCampaignId));
+            () -> new AgentThreadRegistry.RunContext(demoWorkspaceId, demoCampaignId));
         threads.put(threadId, ctx);
         return ctx;
+    }
+
+    private List<Map<String, Object>> internalAttachments(List<Map<String, Object>> attachments) {
+        if (attachments == null || attachments.isEmpty()) {
+            return List.of();
+        }
+        return attachments.stream()
+                .filter(attachment -> attachment.get("kind") != null && attachment.get("id") != null)
+                .map(attachment -> Map.of(
+                        "kind", attachment.get("kind"),
+                        "id", attachment.get("id")))
+                .toList();
     }
 
     private void onWorkflowEvent(String threadId, StreamMessage message) {

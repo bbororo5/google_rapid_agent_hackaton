@@ -45,6 +45,8 @@ async function attachCsvAndAsk(page: Page, text: string): Promise<void> {
   const analyzeButton = page.locator("button.composer-action-analyze");
   if (await analyzeButton.isVisible({ timeout: 3000 }).catch(() => false)) {
     await analyzeButton.click();
+  } else {
+    await page.locator("button.composer-action-send").click();
   }
   const sentMessage = userMessages.filter({ hasText: text });
   await expect(sentMessage).toBeVisible({ timeout: 30_000 });
