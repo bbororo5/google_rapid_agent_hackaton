@@ -1345,22 +1345,26 @@ a {
   width: 34px;
   height: 34px;
   padding: 0 8px;
+  border: 0;
   border-radius: 8px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
+  background: transparent;
   color: var(--ink-muted);
   font-size: 12px;
   font-weight: 750;
+  font-family: inherit;
   white-space: nowrap;
   cursor: pointer;
 }
 
 .composer-attach.empty {
   width: auto;
-  border: 1px solid var(--line);
-  background: var(--surface-muted);
+  border: 1px solid color-mix(in srgb, var(--blue) 28%, var(--line));
+  background: color-mix(in srgb, var(--blue) 9%, var(--surface-muted));
+  color: var(--ink-soft);
 }
 
 .composer-attach.disabled {
@@ -1370,7 +1374,7 @@ a {
 }
 
 .composer-attach:hover {
-  background: var(--surface-muted);
+  background: color-mix(in srgb, var(--blue) 14%, var(--surface-muted));
   color: var(--ink);
 }
 

@@ -434,6 +434,7 @@ function ThreadPanel({
 }) {
   const threadEndRef = useRef<HTMLDivElement | null>(null);
   const composerInputRef = useRef<HTMLTextAreaElement | null>(null);
+  const csvInputRef = useRef<HTMLInputElement | null>(null);
   const scrollKey = useMemo(
     () =>
       [
@@ -491,6 +492,14 @@ function ThreadPanel({
     handleComposerPrimaryAction();
   };
 
+  const handleCsvAttachClick = () => {
+    if (!view.composer.canAttachCsv) return;
+    if (csvInputRef.current) {
+      csvInputRef.current.value = "";
+    }
+    csvInputRef.current?.click();
+  };
+
   return (
     <section className={`thread-panel${view.thread.hasActivity ? "" : " empty-thread"}`} aria-label="Campaign agent thread" tabIndex={-1}>
       <div className="thread-scroll">
@@ -510,7 +519,7 @@ function ThreadPanel({
       </div>
 
       <div className="thread-composer">
-        <input id="csv-input" type="file" accept=".csv,text/csv" aria-label="CSV file" disabled={!view.composer.canAttachCsv} onChange={onFileChange} />
+        <input ref={csvInputRef} id="csv-input" type="file" accept=".csv,text/csv" aria-label="CSV file" disabled={!view.composer.canAttachCsv} onChange={onFileChange} />
         <textarea
           ref={composerInputRef}
           id="agent-question"
@@ -524,15 +533,17 @@ function ThreadPanel({
           onKeyDown={handleComposerKeyDown}
         />
         <div className="composer-toolbar">
-          <label
+          <button
+            type="button"
             className={`composer-attach${view.composer.fileName ? "" : " empty"}${view.composer.canAttachCsv ? "" : " disabled"}`}
-            htmlFor="csv-input"
+            disabled={!view.composer.canAttachCsv}
+            onClick={handleCsvAttachClick}
             title={view.composer.fileName ? "Replace CSV" : "Attach CSV"}
             aria-label={view.composer.fileName ? "Replace CSV campaign metrics" : "Attach CSV campaign metrics"}
           >
             <Paperclip size={18} strokeWidth={1.8} />
             {view.composer.fileName ? null : <span>Attach campaign metrics CSV</span>}
-          </label>
+          </button>
           {view.composer.fileName ? (
             <span className="file-chip" id="file-name">{view.composer.fileName}</span>
           ) : null}
