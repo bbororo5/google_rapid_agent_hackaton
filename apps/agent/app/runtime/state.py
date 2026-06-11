@@ -137,6 +137,7 @@ class StateDeltaProposal(BaseModel):
             "HYPOTHESIS_GEN": PhaseType.HYPOTHESIS_GEN.value,
             "PLANNING": PhaseType.EXPERIMENT_PLAN.value,
             "PLAN": PhaseType.EXPERIMENT_PLAN.value,
+            "PLAN_GENERATION": PhaseType.EXPERIMENT_PLAN.value,
             "EXPERIMENT_PLANNING": PhaseType.EXPERIMENT_PLAN.value,
             "EVALUATION": PhaseType.EXPERIMENT_EVAL.value,
             "EVAL": PhaseType.EXPERIMENT_EVAL.value,
@@ -174,14 +175,6 @@ class DelegationDecision(BaseModel):
     reason: str
 
 
-_NEXT_PHASE = {
-    PhaseType.DATA_ANALYSIS: PhaseType.HYPOTHESIS_GEN,
-    PhaseType.HYPOTHESIS_GEN: PhaseType.EXPERIMENT_PLAN,
-    PhaseType.EXPERIMENT_PLAN: PhaseType.EXPERIMENT_EVAL,
-    PhaseType.EXPERIMENT_EVAL: PhaseType.EXPERIMENT_EVAL,
-}
-
-
 def resolve_scope(
     thread_id: str,
     workspace_id: str | None,
@@ -217,180 +210,14 @@ def reduce_state(
     if len(state.active_chat_history) > 12:
         state.active_chat_history = state.active_chat_history[-12:]
 
-    if delta.confidence < 0.55 or delta.requires_confirmation:
-        state.user_intent = IntentType.FREE_CHAT
-        state.execution_plan = [state.current_phase.value]
-        return ReducerDecision(
-            decision=ReducerDecisionType.CLARIFY,
-            delegation_mode=DelegationMode.CLARIFY,
-            state=state,
-            reason="low confidence or confirmation required",
-            delta=delta,
-            revision_before=before,
-            revision_after=state.revision,
-        )
+    from app.runtime.transitions import TRANSITION_GRAPH
 
-    if delta.intent == DeltaIntent.BACKTRACK:
-        target = delta.target_phase or delta.restart_from_phase or PhaseType.DATA_ANALYSIS
-        state.target_phase = target
-        state.current_phase = target
-        state.user_intent = IntentType.BACKTRACK
-        state.execution_plan = [target.value]
-        _record_lesson(state, target, delta)
-        _invalidate_downstream_artifacts(state, target)
-        return ReducerDecision(
-            decision=ReducerDecisionType.ACCEPTED,
-            delegation_mode=DelegationMode.RERUN,
-            state=state,
-            reason=f"backtrack accepted to {target.value}",
-            delta=delta,
-            revision_before=before,
-            revision_after=state.revision,
-        )
-
-    if delta.intent == DeltaIntent.START_ANALYSIS:
-        has_csv_attachment = bool(delta.mutation.get("has_csv_attachment"))
-        has_existing_signals = bool(state.phase_artifacts[PhaseType.DATA_ANALYSIS.value].get("signals"))
-        if not has_csv_attachment and not has_existing_signals:
-            state.user_intent = IntentType.FREE_CHAT
-            state.target_phase = state.current_phase
-            state.execution_plan = [state.current_phase.value]
-            delta.response_mode = ResponseMode.DIRECT
-            delta.reply = delta.reply or "캠페인 지표 CSV를 첨부하면 바로 분석을 시작할 수 있습니다. 지금은 어떤 기준으로 볼지 먼저 같이 정리해볼게요."
-            return ReducerDecision(
-                decision=ReducerDecisionType.ACCEPTED,
-                delegation_mode=DelegationMode.DIRECT,
-                state=state,
-                reason="analysis request blocked until csv attachment or prior analysis exists",
-                delta=delta,
-                revision_before=before,
-                revision_after=state.revision,
-            )
-        state.target_phase = PhaseType.DATA_ANALYSIS
-        state.current_phase = PhaseType.DATA_ANALYSIS
-        state.user_intent = IntentType.INITIAL_RUN
-        state.execution_plan = [PhaseType.DATA_ANALYSIS.value]
-        return ReducerDecision(
-            decision=ReducerDecisionType.ACCEPTED,
-            delegation_mode=DelegationMode.RERUN,
-            state=state,
-            reason="analysis run requested",
-            delta=delta,
-            revision_before=before,
-            revision_after=state.revision,
-        )
-
-    if delta.intent == DeltaIntent.START_HYPOTHESIS:
-        if not state.phase_artifacts[PhaseType.DATA_ANALYSIS.value].get("signals"):
-            state.user_intent = IntentType.FREE_CHAT
-            state.target_phase = state.current_phase
-            state.execution_plan = [state.current_phase.value]
-            delta.response_mode = ResponseMode.DIRECT
-            delta.reply = delta.reply or "분석 결과가 아직 없어서 가설을 바로 세우지는 않았습니다. 먼저 캠페인 지표를 분석한 뒤, 그 신호를 바탕으로 가설을 만들 수 있어요."
-            return ReducerDecision(
-                decision=ReducerDecisionType.ACCEPTED,
-                delegation_mode=DelegationMode.DIRECT,
-                state=state,
-                reason="hypothesis request blocked until analysis artifact exists",
-                delta=delta,
-                revision_before=before,
-                revision_after=state.revision,
-            )
-        state.target_phase = PhaseType.HYPOTHESIS_GEN
-        state.current_phase = PhaseType.HYPOTHESIS_GEN
-        state.user_intent = IntentType.HYPOTHESIS_REQUEST
-        state.execution_plan = [PhaseType.HYPOTHESIS_GEN.value]
-        return ReducerDecision(
-            decision=ReducerDecisionType.ACCEPTED,
-            delegation_mode=DelegationMode.RERUN,
-            state=state,
-            reason="hypothesis generation requested",
-            delta=delta,
-            revision_before=before,
-            revision_after=state.revision,
-        )
-
-    if delta.intent == DeltaIntent.START_PLAN:
-        if not state.phase_artifacts[PhaseType.HYPOTHESIS_GEN.value].get("hypotheses"):
-            state.user_intent = IntentType.FREE_CHAT
-            state.target_phase = state.current_phase
-            state.execution_plan = [state.current_phase.value]
-            delta.response_mode = ResponseMode.DIRECT
-            delta.reply = delta.reply or "확정된 가설이 아직 없어서 실험 계획을 바로 만들지는 않았습니다. 먼저 분석 신호를 보고 가설을 세운 뒤 계획으로 이어가겠습니다."
-            return ReducerDecision(
-                decision=ReducerDecisionType.ACCEPTED,
-                delegation_mode=DelegationMode.DIRECT,
-                state=state,
-                reason="plan request blocked until hypothesis artifact exists",
-                delta=delta,
-                revision_before=before,
-                revision_after=state.revision,
-            )
-        state.target_phase = PhaseType.EXPERIMENT_PLAN
-        state.current_phase = PhaseType.EXPERIMENT_PLAN
-        state.user_intent = IntentType.PLAN_REQUEST
-        state.execution_plan = [PhaseType.EXPERIMENT_PLAN.value]
-        return ReducerDecision(
-            decision=ReducerDecisionType.ACCEPTED,
-            delegation_mode=DelegationMode.RERUN,
-            state=state,
-            reason="experiment planning requested",
-            delta=delta,
-            revision_before=before,
-            revision_after=state.revision,
-        )
-
-    if delta.intent == DeltaIntent.ARTIFACT_REVISION:
-        state.user_intent = IntentType.ARTIFACT_REVISION
-        state.target_phase = delta.target_phase or state.current_phase
-        state.execution_plan = [state.target_phase.value]
-        return ReducerDecision(
-            decision=ReducerDecisionType.ACCEPTED,
-            delegation_mode=DelegationMode.DELEGATE,
-            state=state,
-            reason="phase-local artifact revision should be delegated",
-            delta=delta,
-            revision_before=before,
-            revision_after=state.revision,
-        )
-
-    if delta.intent == DeltaIntent.ARTIFACT_QUERY:
-        state.user_intent = IntentType.ARTIFACT_QUERY
-        state.target_phase = state.current_phase
-        state.execution_plan = [state.current_phase.value]
-        return ReducerDecision(
-            decision=ReducerDecisionType.ACCEPTED,
-            delegation_mode=DelegationMode.DIRECT,
-            state=state,
-            reason="artifact query answered from runtime state",
-            delta=delta,
-            revision_before=before,
-            revision_after=state.revision,
-        )
-
-    if delta.intent == DeltaIntent.APPROVE:
-        state.user_intent = IntentType.APPROVE
-        state.current_phase = _NEXT_PHASE[state.current_phase]
-        state.target_phase = state.current_phase
-        state.execution_plan = _plan_from(state.current_phase)
-        return ReducerDecision(
-            decision=ReducerDecisionType.ACCEPTED,
-            delegation_mode=DelegationMode.DIRECT,
-            state=state,
-            reason="approval intent detected; business persistence remains Java-owned",
-            delta=delta,
-            revision_before=before,
-            revision_after=state.revision,
-        )
-
-    state.user_intent = IntentType.FREE_CHAT
-    state.target_phase = state.current_phase
-    state.execution_plan = [state.current_phase.value]
+    transition_result = TRANSITION_GRAPH.reduce(state, delta)
     return ReducerDecision(
-        decision=ReducerDecisionType.ACCEPTED,
-        delegation_mode=DelegationMode.DIRECT,
+        decision=transition_result.decision,
+        delegation_mode=transition_result.delegation,
         state=state,
-        reason="direct orchestrator reply",
+        reason=transition_result.render_reason(state, delta),
         delta=delta,
         revision_before=before,
         revision_after=state.revision,
@@ -416,26 +243,3 @@ def compact_state_summary(state: SharedStateVector) -> str:
         f"intent={state.user_intent.value}; revision={state.revision}; "
         f"artifact_keys={artifacts}; compact_lessons={lessons or 'none'}"
     )
-
-
-def _plan_from(start: PhaseType) -> list[str]:
-    phases = list(PhaseType)
-    idx = phases.index(start)
-    return [phase.value for phase in phases[idx:]]
-
-
-def _record_lesson(state: SharedStateVector, phase: PhaseType, delta: StateDeltaProposal) -> None:
-    if not delta.mutation:
-        return
-    parts = [f"{key}={value}" for key, value in sorted(delta.mutation.items())]
-    summary = f"Backtrack requested for {phase.value}; changed " + ", ".join(parts[:4])
-    state.compact_lessons.append(CompactLesson(phase=phase, summary=summary[:280]))
-    state.compact_lessons = state.compact_lessons[-6:]
-
-
-def _invalidate_downstream_artifacts(state: SharedStateVector, target: PhaseType) -> None:
-    phases = list(PhaseType)
-    start = phases.index(target)
-    for phase in phases[start:]:
-        state.phase_artifacts[phase.value] = {}
-        state.phase_artifact_refs[phase.value] = []

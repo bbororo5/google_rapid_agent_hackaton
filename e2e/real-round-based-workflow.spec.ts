@@ -8,9 +8,7 @@ import path from "node:path";
 // request must not automatically consume the full analyst -> strategist ->
 // writer -> approval pipeline.
 //
-// This is the default real E2E target for the orchestrator refactor. It is
-// expected to fail until the runtime stops treating one analysis request as a
-// command to run the full analyst -> strategist -> writer -> approval pipeline.
+// This is the default real E2E target for the orchestrator refactor.
 // Run with:
 //
 //   E2E_ENV_FILE=.env npm run test:e2e:real
@@ -57,10 +55,6 @@ function approvalButton(page: Page): Locator {
   return page.getByRole("button", { name: /approve experiments/i });
 }
 
-function decisionRegion(page: Page): Locator {
-  return page.getByRole("region", { name: /current decision/i });
-}
-
 function threadArticles(page: Page): Locator {
   return page.getByRole("region", { name: /campaign agent thread/i }).getByRole("article");
 }
@@ -69,8 +63,15 @@ async function expectNoApprovalGate(page: Page): Promise<void> {
   await expect(approvalButton(page)).toHaveCount(0);
 }
 
-async function expectIntermediateDecisionOnly(page: Page): Promise<void> {
-  await expect(decisionRegion(page).first()).toBeVisible({ timeout: ROUND_TIMEOUT });
+async function expectAnalysisRoundComplete(page: Page): Promise<void> {
+  const thread = page.getByRole("region", { name: /campaign agent thread/i });
+  await expect(thread.getByText("분석 결과를 확인했습니다").first()).toBeVisible({ timeout: ROUND_TIMEOUT });
+  await expectNoApprovalGate(page);
+}
+
+async function expectHypothesisRoundComplete(page: Page): Promise<void> {
+  const thread = page.getByRole("region", { name: /campaign agent thread/i });
+  await expect(thread.getByText("가설을 정리했습니다").first()).toBeVisible({ timeout: ROUND_TIMEOUT });
   await expectNoApprovalGate(page);
 }
 
@@ -98,13 +99,15 @@ test.describe("real round-based workflow", () => {
 
     // Round 1. Free conversation starts the thread, but must not run the phase
     // pipeline just because the user is talking about campaign uncertainty.
+    const beforeOpeningChat = await threadArticles(page).count();
     await sendMessage(page, "이번 캠페인 반응이 애매한데, 다음 주에 뭘 테스트하면 좋을지 같이 보고 싶어.");
+    await expectAssistantTurnAfter(page, beforeOpeningChat);
     await expectNoApprovalGate(page);
 
     // Round 2. CSV + analysis request should stop at data-analysis output.
     await attachCsvAndAsk(page, "이 CSV로 저장률과 리텐션 관점에서 분석해줘.");
     await expectLiveProgress(page);
-    await expectIntermediateDecisionOnly(page);
+    await expectAnalysisRoundComplete(page);
 
     // Round 3. User can discuss the analysis without forcing hypothesis/plan
     // generation. The system should answer in the current analysis context.
@@ -115,7 +118,7 @@ test.describe("real round-based workflow", () => {
 
     // Round 4. Hypothesis generation happens only when the user asks for it.
     await sendMessage(page, "방금 분석 결과를 바탕으로 원인 가설을 세워줘.");
-    await expectIntermediateDecisionOnly(page);
+    await expectHypothesisRoundComplete(page);
 
     // Round 5. Hypothesis discussion stays within hypothesis context.
     const beforeHypothesisDiscussion = await threadArticles(page).count();
@@ -147,7 +150,7 @@ test.describe("real round-based workflow", () => {
 
     // Round 10. Post-experiment analysis is a new explicit analysis round.
     await attachCsvAndAsk(page, "실험 후 결과 CSV야. 이전에 승인한 실험과 이어서 결과를 분석해줘.");
-    await expectIntermediateDecisionOnly(page);
+    await expectAnalysisRoundComplete(page);
 
     // Round 11. The user asks for learned insight as free conversation.
     const beforeInsightChat = await threadArticles(page).count();
@@ -163,10 +166,10 @@ test.describe("real round-based workflow", () => {
     await sendMessage(page, "이번 캠페인 다음 주 실험까지 단계별로 같이 잡아보자.");
     await expectAssistantTurnAfter(page, beforeOpeningChat);
     await attachCsvAndAsk(page, "이 CSV로 저장률 중심 분석부터 시작해줘.");
-    await expectIntermediateDecisionOnly(page);
+    await expectAnalysisRoundComplete(page);
 
     await sendMessage(page, "이 분석 결과로 가설을 세워줘.");
-    await expectIntermediateDecisionOnly(page);
+    await expectHypothesisRoundComplete(page);
 
     await sendMessage(page, "이 가설 기준으로 실험 계획 초안을 만들어줘.");
     await expectApprovalGate(page);
@@ -175,6 +178,6 @@ test.describe("real round-based workflow", () => {
     // analysis by changing the metric. The system should react to state, not the
     // previously expected procedure.
     await sendMessage(page, "잠깐, 저장률 말고 공유 수 기준으로 처음 분석부터 다시 봐줘.");
-    await expectIntermediateDecisionOnly(page);
+    await expectAnalysisRoundComplete(page);
   });
 });
