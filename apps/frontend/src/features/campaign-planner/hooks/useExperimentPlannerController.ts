@@ -254,6 +254,23 @@ function toolLogs(state: ExperimentPlannerState) {
   return state.thread.toolLogs;
 }
 
+function hasCompletedAnalysisRound(state: ExperimentPlannerState) {
+  if (state.review.payload?.signals.length || state.phase === "signal_review") return true;
+  return state.thread.timelineItems.some((item) => {
+    if (item.kind === "tool") {
+      const title = item.tool.display_title ?? item.tool.tool_name;
+      return (
+        item.tool.status === "SUCCESS" &&
+        (/Finished DATA_ANALYSIS round/i.test(title) || /Saved analysis artifacts/i.test(title) || /Saved thread state/i.test(title))
+      );
+    }
+    if (item.kind === "assistant_message") {
+      return item.message.content.includes("분석 결과를 확인했습니다");
+    }
+    return false;
+  });
+}
+
 function observations(state: ExperimentPlannerState) {
   return state.thread.observations;
 }
@@ -669,6 +686,50 @@ function signalMarkdown(signal: Signal) {
   ].join("\n");
 }
 
+function analysisFallbackOutputFromTimeline(items: AgentTimelineItem[]): OutputPanelItem | null {
+  const signalTexts: string[] = [];
+  let sawAnalysisCompletion = false;
+
+  items.forEach((item) => {
+    if (item.kind === "assistant_message") {
+      const content = item.message.content.trim();
+      if (!content) return;
+      if (content.includes("분석 결과를 확인했습니다")) {
+        sawAnalysisCompletion = true;
+        return;
+      }
+      if (/showed .*lift compared to its baseline/i.test(content) || /observed .*lift/i.test(content)) {
+        signalTexts.push(content);
+      }
+    }
+    if (item.kind === "tool") {
+      const title = item.tool.display_title ?? item.tool.tool_name;
+      if (item.tool.status === "SUCCESS" && (/Finished DATA_ANALYSIS round/i.test(title) || /Saved analysis artifacts/i.test(title))) {
+        sawAnalysisCompletion = true;
+      }
+    }
+  });
+
+  if (!sawAnalysisCompletion && signalTexts.length === 0) return null;
+
+  const lines = ["# Analysis result", ""];
+  if (signalTexts.length > 0) {
+    lines.push("## Signals", "", ...signalTexts.map((text) => `- ${text}`));
+  } else {
+    lines.push("Analysis completed. The structured signal artifact was not available in the client stream.");
+  }
+
+  return {
+    id: "analysis:fallback",
+    title: "Analysis result",
+    eyebrow: "Analysis output",
+    kind: "document",
+    summary: signalTexts.length > 0 ? `${signalTexts.length} signal${signalTexts.length === 1 ? "" : "s"} found` : "Analysis completed",
+    markdown: lines.join("\n"),
+    sequence: 0,
+  };
+}
+
 function experimentPlanMarkdown(experiments: ExperimentItem[], hypothesis: Hypothesis | null) {
   const lines = ["# Experiment plan", ""];
   if (hypothesis) {
@@ -713,6 +774,7 @@ function approvalMarkdown(input: { approval: ApproveExperimentPlanResponse; expe
 function outputPanelItemsFromState(input: {
   documents: AgentDocument[];
   signalGate: GateReview | null;
+  analysisFallback: OutputPanelItem | null;
   approvalGate: GateReview | null;
   draftExperiments: ExperimentItem[];
   finalExperiments: ExperimentItem[];
@@ -730,6 +792,11 @@ function outputPanelItemsFromState(input: {
       kind: "signal",
       summary: `${input.signalGate.signal.metric_name} · ${input.signalGate.signal.lift_ratio.toFixed(1)}x`,
       markdown: signalMarkdown(input.signalGate.signal),
+      sequence: sequence++,
+    });
+  } else if (input.analysisFallback) {
+    items.push({
+      ...input.analysisFallback,
       sequence: sequence++,
     });
   }
@@ -779,7 +846,7 @@ function buildChecklist(state: ExperimentPlannerState): ChecklistStep[] {
   const csvRun = Boolean(state.importResult) || state.phase === "importing";
   const started = Boolean(state.thread.threadId) || ["starting", "connecting", "live", "signal_review", "awaiting_approval", "approved"].includes(state.phase);
   const connected = state.thread.connection === "open" || ["live", "signal_review", "awaiting_approval", "approved"].includes(state.phase);
-  const hasSignal = Boolean(state.review.payload?.signals.length) || state.phase === "signal_review";
+  const hasSignal = hasCompletedAnalysisRound(state);
   const hasPlan = Boolean(state.review.payload?.experiment_plan.items.length);
   const needsApproval = state.phase === "awaiting_approval" || state.review.approving;
   const approved = state.phase === "approved";
@@ -808,6 +875,7 @@ function buildChecklist(state: ExperimentPlannerState): ChecklistStep[] {
 function agentState(state: ExperimentPlannerState): AgentDisplayState {
   if (state.phase === "input_ready") return "selected";
   if (state.phase === "importing") return "importing";
+  if (state.phase === "live" && hasCompletedAnalysisRound(state)) return "ready";
   if (state.phase === "signal_review" || state.phase === "awaiting_approval") return "ready";
   if (["starting", "connecting", "live"].includes(state.phase)) return "processing";
   if (state.phase === "approved") return "approved";
@@ -828,7 +896,7 @@ function readableWorkflowState(state: ExperimentPlannerState, displayState: Agen
     case "connecting":
       return "Connecting stream";
     case "live":
-      return "Agent responding";
+      return hasCompletedAnalysisRound(state) ? "Ready to discuss" : "Agent responding";
     case "signal_review":
     case "awaiting_approval":
       return "Review needed";
@@ -936,7 +1004,7 @@ function composerFromState(state: ExperimentPlannerState, displayState: AgentDis
       // (importResult) and chat-started runs (artifact documents stream in); plain
       // free chat produces neither, so it keeps the Send button.
       const analysisInProgress =
-        !state.review.payload && (Boolean(state.importResult) || state.thread.documents.length > 0);
+        !state.review.payload && !hasCompletedAnalysisRound(state) && (Boolean(state.importResult) || state.thread.documents.length > 0);
       return {
         ...base,
         mode: "session_in_progress",
@@ -1490,6 +1558,8 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
   const currentApproval = approval(state);
   const currentApprovalSequence = state.review.approvalSequence;
   const currentCalendarEvents = calendarEvents(state);
+  const currentAnalysisFallbackOutput =
+    signalGate || currentDraftExperiments.length > 0 || currentApproval ? null : analysisFallbackOutputFromTimeline(timelineItems(state));
   const liveThreadActivity = currentMessages.length > 0 || currentDocuments.length > 0 || currentObservations.length > 0;
   const statusRows = buildStatusRows(state, currentImportOrLast, liveThreadActivity);
   const screen: PlannerScreenView = {
@@ -1530,6 +1600,7 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
   const outputPanelItems = outputPanelItemsFromState({
     documents: currentDocuments,
     signalGate,
+    analysisFallback: currentAnalysisFallbackOutput,
     approvalGate,
     draftExperiments: currentDraftExperiments,
     finalExperiments: currentFinalExperiments,

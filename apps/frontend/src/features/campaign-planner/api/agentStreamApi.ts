@@ -32,6 +32,23 @@ function reconnectDelay(attempt: number) {
   return Math.round(capped * (0.7 + Math.random() * 0.6));
 }
 
+function normalizeStreamMessage(message: StreamMessage): StreamMessage {
+  return {
+    ...message,
+    blocks: message.blocks.map((block) => {
+      if (block.kind === "artifact") {
+        const raw = block as typeof block & { artifactKind?: typeof block.artifact_kind };
+        return { ...block, artifact_kind: block.artifact_kind ?? raw.artifactKind };
+      }
+      if (block.kind === "approval") {
+        const raw = block as typeof block & { targetId?: typeof block.target_id };
+        return { ...block, target_id: block.target_id ?? raw.targetId };
+      }
+      return block;
+    }),
+  };
+}
+
 export function createWebSocketAgentStreamApi(): AgentStreamApi {
   return {
     connect({ streamUrl, onOpen, onEvent, onError, onClose }) {
@@ -69,7 +86,7 @@ export function createWebSocketAgentStreamApi(): AgentStreamApi {
         socket.addEventListener("message", (message) => {
           try {
             const streamMessage = JSON.parse(message.data as string) as StreamMessage;
-            onEvent(streamMessage);
+            onEvent(normalizeStreamMessage(streamMessage));
           } catch {
             onError("Agent stream sent an invalid event.");
           }

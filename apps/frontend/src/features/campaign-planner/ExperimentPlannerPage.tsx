@@ -908,7 +908,7 @@ export function ExperimentPlannerPage() {
     if (latestOutput && (outputWasAdded || !activeOutputId || !activeOutputExists)) {
       setActiveOutputId(latestOutput.id);
       setOpenOutputIds((ids) => (ids.includes(latestOutput.id) ? ids : [...ids, latestOutput.id]));
-      if (outputWasAdded && (latestOutput.id.startsWith("document:") || latestOutput.id.startsWith("signal:"))) {
+      if (outputWasAdded && (latestOutput.id.startsWith("document:") || latestOutput.id.startsWith("signal:") || latestOutput.id.startsWith("analysis:"))) {
         setInspectorOpen(true);
       }
     }
