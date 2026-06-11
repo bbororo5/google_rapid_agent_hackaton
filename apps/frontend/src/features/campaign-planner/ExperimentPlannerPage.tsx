@@ -90,12 +90,16 @@ function toolSummary(blocks: Extract<StreamMessageBlock, { kind: "activity" }>[]
 function ActivitySummary({ blocks }: { blocks: Extract<StreamMessageBlock, { kind: "activity" }>[] }) {
   const compactedBlocks = compactActivityBlocks(blocks);
   if (compactedBlocks.length === 0) return null;
+  const hasRunning = compactedBlocks.some((block) => block.status === "running" || block.status === "queued");
 
   return (
-    <details className="tool-summary">
+    <details className={`tool-summary${hasRunning ? " running" : ""}`} open={hasRunning}>
       <summary>
         <span className="timeline-glyph" aria-hidden="true" />
-        <span>{toolSummary(compactedBlocks)}</span>
+        <span>
+          {toolSummary(compactedBlocks)}
+          {hasRunning ? <b className="tool-live-label">Live</b> : null}
+        </span>
       </summary>
       <div className="tool-summary-list">
         {compactedBlocks.map((block) => (
@@ -120,6 +124,7 @@ function StreamMessageGroupCard({
       .filter((block): block is Extract<StreamMessageBlock, { kind: "text" }> => block.kind === "text")
       .map((block) => block.text)
       .join("\n");
+    const attachments = group.blocks.filter((block): block is Extract<StreamMessageBlock, { kind: "attachment" }> => block.kind === "attachment");
 
     return (
       <article className="thread-message user">
@@ -128,7 +133,17 @@ function StreamMessageGroupCard({
             <strong>You</strong>
             <span>Message</span>
           </div>
-          <p>{text}</p>
+          {text ? <p>{text}</p> : null}
+          {attachments.length > 0 ? (
+            <div className="message-attachments" aria-label="Attached files">
+              {attachments.map((attachment) => (
+                <span className="message-attachment-chip" key={attachment.fileName}>
+                  <Paperclip size={14} strokeWidth={1.9} />
+                  <span>{attachment.fileName}</span>
+                </span>
+              ))}
+            </div>
+          ) : null}
         </div>
       </article>
     );
@@ -163,6 +178,8 @@ function StreamBlockRow({
   switch (block.kind) {
     case "text":
       return <TimelineTextRow text={block.text} tone="text" />;
+    case "attachment":
+      return <TimelineTextRow text={block.fileName} tone="done" />;
     case "activity":
       return <TimelineTextRow text={block.title} tone={block.status === "failed" ? "failed" : block.status === "done" ? "done" : "active"} />;
     case "markdown_document":

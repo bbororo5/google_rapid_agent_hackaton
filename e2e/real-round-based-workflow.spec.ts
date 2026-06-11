@@ -37,11 +37,18 @@ async function sendMessage(page: Page, text: string): Promise<void> {
 async function attachCsvAndAsk(page: Page, text: string): Promise<void> {
   const box = await composer(page);
   await box.fill(text);
+  const userMessages = page.locator(".thread-message.user");
+  const beforeAttachUserMessages = await userMessages.count();
   await page.locator("#csv-input").setInputFiles(sampleMetricsCsv);
+  await expect(userMessages).toHaveCount(beforeAttachUserMessages);
+  await expect(page.locator(".file-chip")).toContainText("sample-channel-metrics.csv");
   const analyzeButton = page.locator("button.composer-action-analyze");
   if (await analyzeButton.isVisible({ timeout: 3000 }).catch(() => false)) {
     await analyzeButton.click();
   }
+  const sentMessage = userMessages.filter({ hasText: text });
+  await expect(sentMessage).toBeVisible({ timeout: 30_000 });
+  await expect(sentMessage).toContainText("sample-channel-metrics.csv");
 }
 
 function approvalButton(page: Page): Locator {
@@ -86,7 +93,6 @@ test.describe("real round-based workflow", () => {
 
     // Round 2. CSV + analysis request should stop at data-analysis output.
     await attachCsvAndAsk(page, "이 CSV로 저장률과 리텐션 관점에서 분석해줘.");
-    await expect(page.getByText(/Analyze the campaign metrics I just uploaded/i)).toBeVisible({ timeout: 30_000 });
     await expectIntermediateDecisionOnly(page);
 
     // Round 3. User can discuss the analysis without forcing hypothesis/plan

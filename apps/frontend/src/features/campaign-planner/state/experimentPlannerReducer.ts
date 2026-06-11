@@ -165,8 +165,14 @@ export function experimentPlannerReducer(state: ExperimentPlannerState, event: E
     case "SELECT_CSV":
       return {
         ...clearError(state),
-        phase: "input_ready",
+        phase: state.thread.threadId ? state.phase : "input_ready",
         composer: { ...state.composer, file: event.file },
+      };
+
+    case "CLEAR_SELECTED_CSV":
+      return {
+        ...state,
+        composer: { ...state.composer, file: null },
       };
 
     case "IMPORT_REQUESTED":
