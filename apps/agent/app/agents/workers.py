@@ -19,7 +19,7 @@ from app.contracts import (
     Signal,
     SignalDraftOutput,
 )
-from app.runtime.state import DeltaIntent, PhaseType, StateDeltaProposal
+from app.runtime.state import PhaseType, StateDeltaProposal
 
 
 def _dump(models) -> str:
@@ -97,10 +97,7 @@ async def run_turn_interpreter(
     mutation_summary = data.pop("mutation_summary", None)
     if mutation_summary:
         data["mutation"] = {"summary": mutation_summary}
-    proposal = StateDeltaProposal(**data)
-    if proposal.intent == DeltaIntent.CHAT and not proposal.reply:
-        proposal.reply = await run_chat(content, context.split(";", 1)[0].strip())
-    return proposal
+    return StateDeltaProposal(**data)
 
 
 async def run_chat(content: str, context: str = "") -> str:
@@ -113,6 +110,14 @@ async def run_chat(content: str, context: str = "") -> str:
 
     prompt = f"[Thread state] {_CHAT_CONTEXT_HINT.get(context, '')}\n[User] {content}"
     return await adk_agents.run_text("chat", prompt)
+
+
+async def run_advisor(content: str, context: str) -> str:
+    """Context-rich reply after the goal controller has selected a budget."""
+    from app.agents import adk_agents
+
+    prompt = f"{context}\n\n[User request]\n{content}"
+    return await adk_agents.run_text("advisor", prompt)
 
 
 async def run_writer(

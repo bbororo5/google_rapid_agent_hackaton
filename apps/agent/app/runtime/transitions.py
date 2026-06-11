@@ -143,6 +143,9 @@ class TransitionGraph:
         if delta.confidence < 0.55 or delta.requires_confirmation:
             self._clarify_result.apply(state, delta)
             return self._clarify_result
+        if delta.intent == DeltaIntent.APPROVE and not state.pending_approval_id:
+            APPROVE_AS_CONTINUE.apply(state, delta)
+            return APPROVE_AS_CONTINUE
         rule = self._rules.get(delta.intent)
         if rule:
             return rule.apply(state, delta)
@@ -219,6 +222,14 @@ DIRECT_FREE_CHAT = TransitionResult(
     delegation=DelegationMode.DIRECT,
     reason="direct orchestrator reply",
     user_intent=IntentType.FREE_CHAT,
+)
+
+APPROVE_AS_CONTINUE = TransitionResult(
+    decision=ReducerDecisionType.ACCEPTED,
+    delegation=DelegationMode.RERUN,
+    reason="approval-like continuation without pending approval should run the next phase",
+    target=TransitionTarget(_approval_target, plan_from_target=True),
+    user_intent=IntentType.APPROVE,
 )
 
 TRANSITION_GRAPH = TransitionGraph(

@@ -46,6 +46,7 @@ graph LR
 | [투명성 · 관측성](adr/03-transparency.md) | 영속 WS 타임라인(0008), glass-box 정규화(0009), L4 자가 성찰(0010) |
 | [엔지니어링 규율](adr/04-discipline.md) | 계약 우선(0011), 안정적 데모(0012) |
 | [오케스트레이터 v2](adr/05-state-reactive-workflow.md) | 자유 대화 기반 `StateDelta`, deterministic reducer, Elastic runtime repository(0013) |
+| [Agent loop autonomy](agent-loop-autonomy-plan.md) | 단발 dispatcher에서 goal-seeking loop로 확장하기 위한 `GoalController`, `AgentLoop`, `ConversationAdvisor`, dynamic budget profile 설계 |
 
 ## 범위 외 (Non-goals)
 
@@ -63,6 +64,7 @@ graph LR
 | 대상 | 문서 |
 |---|---|
 | 컨테이너·컴포넌트·시퀀스 구조 | [launchpilot-c4.md](launchpilot-c4.md) |
+| 자율 agent loop 개선 계획 | [agent-loop-autonomy-plan.md](agent-loop-autonomy-plan.md) |
 | 제품 포지셔닝·사용자·시나리오 | [PRD](../product/LaunchPilot_PRD.md) |
 | 결정의 맥락과 대안 | [ADR](adr/) |
 | 경계별 계약 | [`contracts/`](../../contracts/) |

@@ -336,8 +336,8 @@ analysis, and backtracking.
 | System diagram | [C4 architecture](docs/architecture/launchpilot-c4.md) |
 | Data and block flow | [Data flow](docs/architecture/data-flow.md) |
 | Agent Core v2 design | [Agent Core v2](docs/architecture/agent-core-v2-design.md) |
+| Agent loop autonomy plan | [Agent loop autonomy](docs/architecture/agent-loop-autonomy-plan.md) |
 | Architecture decisions | [ADRs](docs/architecture/adr/README.md) |
 | Frontend state ownership | [Frontend state ownership](docs/frontend/frontend-state-ownership-decision.md) |
 | Contracts | [Contract index](contracts/README.md) |
 | E2E workflow | [Playwright E2E tests](e2e/README.md) |
-

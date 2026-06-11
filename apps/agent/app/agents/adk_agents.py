@@ -119,6 +119,13 @@ def _build_agents():
         instruction=instructions.CHAT,
         planner=planner,
     )
+    advisor = LlmAgent(
+        name="advisor",
+        model=model,
+        description="Context-rich user-facing reasoning and follow-up.",
+        instruction=instructions.ADVISOR,
+        planner=planner,
+    )
     interpreter = LlmAgent(
         name="interpreter",
         model=model,
@@ -128,8 +135,14 @@ def _build_agents():
         output_schema=TurnInterpreterOut,
         output_key="state_delta",
     )
-    return {"analyst": analyst, "strategist": strategist, "writer": writer,
-            "chat": chat, "interpreter": interpreter}
+    return {
+        "analyst": analyst,
+        "strategist": strategist,
+        "writer": writer,
+        "chat": chat,
+        "advisor": advisor,
+        "interpreter": interpreter,
+    }
 
 
 async def _run_with_timeout(kind: str, shape: str, collect):
