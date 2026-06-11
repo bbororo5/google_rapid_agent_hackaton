@@ -40,8 +40,19 @@ def _build_agents():
     # Imported here (not at module top) so importing this module never requires
     # google-adk unless we actually run in real-LLM mode.
     from google.adk.agents import LlmAgent
+    from google.adk.planners import BuiltInPlanner
+    from google.genai import types
 
-    model = get_settings().gemini_model
+    settings = get_settings()
+    model = settings.gemini_model
+    planner = None
+    if settings.gemini_thinking_level:
+        planner = BuiltInPlanner(
+            thinking_config=types.ThinkingConfig(
+                thinking_level=settings.gemini_thinking_level,
+                include_thoughts=False,
+            )
+        )
     # Analyst: has the two evidence tools AND an output schema. In ADK 2.x tools
     # and output_schema compose (tools run during reasoning, schema shapes the
     # final reply). output_key writes the result into shared session state.
@@ -51,6 +62,7 @@ def _build_agents():
         description="Detects quantitative performance signals.",
         instruction=instructions.ANALYST,
         tools=[evidence.query_metric_baseline, evidence.search_content_posts],
+        planner=planner,
         output_schema=SignalDraftOut,
         output_key="signals",
     )
@@ -61,6 +73,7 @@ def _build_agents():
         description="Generates causal hypotheses.",
         instruction=instructions.STRATEGIST,
         tools=[evidence.search_team_notes],
+        planner=planner,
         output_schema=HypothesisDraftOut,
         output_key="hypotheses",
     )
@@ -70,6 +83,7 @@ def _build_agents():
         model=model,
         description="Drafts next-week experiments.",
         instruction=instructions.WRITER,
+        planner=planner,
         output_schema=ExperimentPlanDraftOut,
         output_key="experiment_plan",
     )
@@ -79,12 +93,14 @@ def _build_agents():
         model=model,
         description="Conversational replies about campaign growth work.",
         instruction=instructions.CHAT,
+        planner=planner,
     )
     interpreter = LlmAgent(
         name="interpreter",
         model=model,
         description="Interprets free-form turns into state delta proposals.",
         instruction=instructions.INTERPRETER,
+        planner=planner,
         output_schema=TurnInterpreterOut,
         output_key="state_delta",
     )

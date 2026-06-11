@@ -39,7 +39,8 @@ class Settings(BaseModel):
     # --- LLM ---
     # Two auth paths: AI Studio (gemini_api_key) OR Vertex AI (ADC + project).
     gemini_api_key: str | None = None
-    gemini_model: str = "gemini-flash-latest"  # plain model string ADK accepts
+    gemini_model: str = "gemini-3.5-flash"  # plain model string ADK accepts
+    gemini_thinking_level: str | None = "minimal"
     use_vertexai: bool = False
     google_cloud_project: str | None = None
     google_cloud_location: str = "us-central1"
@@ -111,7 +112,8 @@ def get_settings() -> Settings:
     # Cached so every module reads one immutable Settings instance per process.
     return Settings(
         gemini_api_key=os.environ.get("GEMINI_API_KEY") or None,
-        gemini_model=os.environ.get("GEMINI_MODEL") or "gemini-flash-latest",
+        gemini_model=os.environ.get("GEMINI_MODEL") or "gemini-3.5-flash",
+        gemini_thinking_level=os.environ.get("GEMINI_THINKING_LEVEL") or "minimal",
         use_vertexai=(os.environ.get("GOOGLE_GENAI_USE_VERTEXAI", "").upper() in ("TRUE", "1")),
         google_cloud_project=os.environ.get("GOOGLE_CLOUD_PROJECT") or None,
         google_cloud_location=os.environ.get("GOOGLE_CLOUD_LOCATION") or "us-central1",
