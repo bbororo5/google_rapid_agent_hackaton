@@ -129,6 +129,9 @@ class AgentLoop:
         )
         context = self._prompts.build_interpreter_context(turn)
         prompt = (
+            "[output_language]\n"
+            "English only. Do not answer in French, Korean, or any other non-English language."
+            "\n\n"
             "[goal]\n"
             + json.dumps(state.goal.model_dump(mode="json"), ensure_ascii=False, sort_keys=True)
             + "\n\n[decision]\n"
