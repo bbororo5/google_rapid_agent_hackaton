@@ -1532,13 +1532,13 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
     (selectedHypothesisId ? allHypotheses.find((h) => h.id === selectedHypothesisId) : null) ??
     allHypotheses[0] ?? null;
   const primaryExperiment = draftExperiments(state)[0] ?? finalExperiments(state)[0] ?? null;
-  const signalGate: GateReview | null = lastSignalRef.current
+  const signalGate: GateReview | null = state.phase === "signal_review" && lastSignalRef.current
     ? {
         id: "signal",
         title: "Signal Review",
-        status: state.phase === "signal_review" ? "active" : "complete",
+        status: "active",
         signal: lastSignalRef.current,
-        actionLabel: state.phase === "signal_review" ? "Use this signal" : "Signal accepted",
+        actionLabel: "Use this signal",
       }
     : null;
   const approvalGate: GateReview | null =

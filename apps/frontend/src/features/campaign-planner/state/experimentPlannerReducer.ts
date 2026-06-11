@@ -234,6 +234,7 @@ export const initialExperimentPlannerState: ExperimentPlannerState = {
   review: {
     payload: null,
     activeSignalId: null,
+    confirmedSignalId: null,
     approvalId: null,
     selectedHypothesisId: null,
     selectedExperimentIds: [],
@@ -318,6 +319,7 @@ export function experimentPlannerReducer(state: ExperimentPlannerState, event: E
           ...state.review,
           payload: null,
           activeSignalId: null,
+          confirmedSignalId: null,
           approvalId: null,
           selectedHypothesisId: null,
           selectedExperimentIds: [],
@@ -428,7 +430,14 @@ export function experimentPlannerReducer(state: ExperimentPlannerState, event: E
         };
       }
 
-      if (incomingPayload && incomingPayload.signals[0] && state.phase !== "awaiting_approval" && state.phase !== "approved") {
+      const incomingSignalId = incomingPayload?.signals[0]?.id ?? null;
+      if (
+        incomingPayload &&
+        incomingSignalId &&
+        incomingSignalId !== state.review.confirmedSignalId &&
+        state.phase !== "awaiting_approval" &&
+        state.phase !== "approved"
+      ) {
         return {
           ...clearError(state),
           phase: "signal_review",
@@ -451,7 +460,15 @@ export function experimentPlannerReducer(state: ExperimentPlannerState, event: E
 
     case "SIGNAL_CONFIRMED":
       if (state.phase !== "signal_review") return state;
-      return { ...state, phase: "live" };
+      return {
+        ...state,
+        phase: "live",
+        review: {
+          ...state.review,
+          confirmedSignalId: state.review.activeSignalId,
+          activeSignalId: null,
+        },
+      };
 
     case "STREAM_FAILED":
       return {

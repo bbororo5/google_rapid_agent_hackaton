@@ -88,6 +88,7 @@ export interface ThreadState {
 export interface ReviewState {
   payload: AgentResultPayload | null;
   activeSignalId: string | null;
+  confirmedSignalId: string | null;
   approvalId: string | null;
   // Null = show/approve all hypotheses' experiments. Set = filter to one hypothesis.
   selectedHypothesisId: string | null;
