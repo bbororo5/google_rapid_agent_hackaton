@@ -22,6 +22,7 @@ from app.config import get_settings
 from app.contracts import AgentResultPayload
 from app.observability import init_tracing
 from app.runtime.thread_store import ThreadStore
+from app.tools import evidence
 
 _HERE = Path(__file__).resolve().parent
 _DATASET = _HERE / "dataset" / "scenarios.json"
@@ -37,11 +38,12 @@ def _extract_payload(record) -> AgentResultPayload | None:
     return None
 
 
-def _deterministic_metrics(payload: AgentResultPayload) -> dict:
+def _deterministic_metrics(payload: AgentResultPayload, grounding: dict | None = None) -> dict:
     # Free metrics straight from the run -- no LLM. The same checks the reviewer
-    # gate applies, plus a signal-strength breakdown vs the configured thresholds.
+    # gate applies (including the grounding gate when a capture is available),
+    # plus a signal-strength breakdown vs the configured thresholds.
     s = get_settings()
-    report = reviewer.review(payload)
+    report = reviewer.review(payload, grounding)
 
     def _bucket(lift: float) -> str:
         if lift >= s.signal_threshold_high:
@@ -82,23 +84,26 @@ async def _run_scenario(scenario: dict, use_judge: bool) -> dict:
         workspace_id=scenario.get("workspace_id"),
         campaign_id=scenario.get("campaign_id"),
     ):
-        try:
-            await orchestrator.process_turn(record, scenario["question"])
-        except Exception as exc:  # noqa: BLE001 - record the failure, keep going
-            result["error"] = f"{type(exc).__name__}: {exc}"
-            return result
+        # Outer capture: the orchestrator's inner evidence.capture() reuses this
+        # object, so the tool ground truth survives the turn and feeds the judge.
+        with evidence.capture() as grounding:
+            try:
+                await orchestrator.process_turn(record, scenario["question"])
+            except Exception as exc:  # noqa: BLE001 - record the failure, keep going
+                result["error"] = f"{type(exc).__name__}: {exc}"
+                return result
 
         payload = _extract_payload(record)
         if payload is None:
             result["error"] = "no approval payload (router chose chat or validation failed)"
             return result
 
-        result["metrics"] = _deterministic_metrics(payload)
+        result["metrics"] = _deterministic_metrics(payload, grounding.snapshot())
 
         if use_judge:
             from app.eval import judge as judge_mod
 
-            scores = await judge_mod.judge(payload)
+            scores = await judge_mod.judge(payload, grounding.snapshot())
             result["quality"] = scores.model_dump(mode="json")
             # EVALUATOR span: LLM-as-a-judge quality summary (contract 06).
             with tracing.evaluator_span(

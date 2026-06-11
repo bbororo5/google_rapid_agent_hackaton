@@ -45,13 +45,21 @@ class QualityScore(BaseModel):
 
 _INSTRUCTION = """You are a strict QA reviewer for a growth-marketing analysis agent.
 You receive a JSON payload with `signals`, `hypotheses`, and an `experiment_plan`.
+When provided, you also receive TOOL EVIDENCE: the ground-truth values the evidence
+tools actually returned during the run (`refs` = every evidence ref that exists;
+`metrics` = the real current/baseline/lift values per metric ref). Treat the tool
+evidence as the source of truth -- the payload may misquote it.
+
 Score the ANALYSIS QUALITY on three axes, 1 (poor) to 5 (excellent):
 
 1. signal_validity: Are signals real, meaningful changes (lift_ratio), grounded by
-   evidence_refs? Penalize noise dressed up as signal, or signals with no evidence.
+   evidence_refs? When tool evidence is present, CROSS-CHECK: a signal citing a ref
+   absent from `refs`, or quoting numbers that contradict `metrics`, scores 1-2.
+   Penalize noise dressed up as signal, or signals with no evidence.
 2. hypothesis_grounding: Do hypotheses cite signals/evidence, AVOID causal overreach
    (prefer "associated with" over "caused"), and hedge low/medium confidence with
-   caveats? Penalize ungrounded or overconfident claims.
+   caveats? When tool evidence is present, penalize claims that go beyond what the
+   cited evidence supports. Penalize ungrounded or overconfident claims.
 3. plan_actionability: Does each experiment have a MEASURABLE success_criteria, a
    concrete channel and scheduled_at, and trace to a real hypothesis_id? Penalize
    vague or unschedulable experiments.
@@ -59,8 +67,15 @@ Score the ANALYSIS QUALITY on three axes, 1 (poor) to 5 (excellent):
 Be specific in each rationale (name ids, numbers). Return the QualityScore schema only."""
 
 
-async def judge(payload: AgentResultPayload) -> QualityScore:
-    """Score one analysis payload. Requires real-LLM mode (raises otherwise)."""
+async def judge(
+    payload: AgentResultPayload, evidence_snapshot: dict | None = None
+) -> QualityScore:
+    """Score one analysis payload. Requires real-LLM mode (raises otherwise).
+
+    evidence_snapshot: GroundingCapture.snapshot() from the same run -- the
+    ground-truth tool results the judge cross-checks the payload against.
+    Without it the judge can only score plausibility, not grounding.
+    """
     if not get_settings().use_real_llm:
         raise RuntimeError("judge requires real-LLM mode (set GEMINI_API_KEY or Vertex ADC)")
 
@@ -84,6 +99,12 @@ async def judge(payload: AgentResultPayload) -> QualityScore:
     user_text = "Payload to score (JSON):\n" + json.dumps(
         payload.model_dump(mode="json"), ensure_ascii=False
     )
+    if evidence_snapshot and evidence_snapshot.get("refs"):
+        user_text += "\n\nTOOL EVIDENCE (ground truth from this run):\n" + json.dumps(
+            {"refs": sorted(evidence_snapshot["refs"]),
+             "metrics": evidence_snapshot.get("metrics") or {}},
+            ensure_ascii=False,
+        )
     content = types.Content(role="user", parts=[types.Part(text=user_text)])
     final_text: str | None = None
     async for event in runner.run_async(user_id="evaluator", session_id=sid, new_message=content):
