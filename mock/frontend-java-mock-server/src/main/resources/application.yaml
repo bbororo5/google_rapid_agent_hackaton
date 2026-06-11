@@ -1,5 +1,0 @@
-server:
-  port: 8090
-
-mock:
-  public-base-url: ${MOCK_PUBLIC_BASE_URL:http://localhost:8090}
