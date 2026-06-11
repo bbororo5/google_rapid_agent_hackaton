@@ -62,6 +62,7 @@ export type AgentTimelineItem =
   | { id: string; sequence: number; kind: "user_message"; message: AgentMessage }
   | { id: string; sequence: number; kind: "assistant_message"; message: AgentMessage }
   | { id: string; sequence: number; kind: "document"; document: AgentDocument }
+  | { id: string; sequence: number; kind: "artifact"; artifactKind: "signal" | "hypothesis" | "experiment_plan" | "growth_brief" | "generic"; title: string; content: unknown }
   | { id: string; sequence: number; kind: "observation"; observation: AgentThreadObservation }
   | { id: string; sequence: number; kind: "tool"; tool: ToolCallLog };
 

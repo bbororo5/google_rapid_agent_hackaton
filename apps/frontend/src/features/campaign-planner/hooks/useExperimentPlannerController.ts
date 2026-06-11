@@ -113,7 +113,7 @@ export type StreamMessageBlock =
   | { kind: "attachment"; fileName: string; label?: string }
   | { kind: "activity"; id: string; title: string; status: "queued" | "running" | "done" | "failed"; detail?: string }
   | { kind: "markdown_document"; id: string; title: string; summary?: string; markdown: string; document: AgentDocument }
-  | { kind: "artifact"; id: string; artifactKind: "signal" | "hypothesis" | "experiment_plan" | "growth_brief"; title: string; content: unknown }
+  | { kind: "artifact"; id: string; artifactKind: "signal" | "hypothesis" | "experiment_plan" | "growth_brief" | "generic"; title: string; content: unknown }
   | { kind: "approval"; id: string; title: string; targetId: string; actions: ("approve" | "reject" | "request_changes")[] }
   | { kind: "result"; title: string; detail?: string }
   | { kind: "error"; title: string; detail?: string; retryable?: boolean };
@@ -469,6 +469,23 @@ function streamMessagesFromState(input: {
           ],
         };
       }
+      if (item.kind === "artifact") {
+        return {
+          id: item.id,
+          sequence: item.sequence,
+          role: "assistant" as const,
+          createdAt: null,
+          blocks: [
+            {
+              kind: "artifact" as const,
+              id: item.id.replace(/^artifact:/, ""),
+              artifactKind: item.artifactKind,
+              title: item.title,
+              content: item.content,
+            },
+          ],
+        };
+      }
       if (item.kind === "observation") {
         return {
           id: item.id,
@@ -553,6 +570,9 @@ function shouldStartThreadGroup(previous: ThreadMessageGroup | null, message: St
   if (previous.role !== message.role) return true;
   if (message.role === "user") return true;
   if (message.role === "system") return true;
+  const previousActivityOnly = previous.blocks.every((block) => block.kind === "activity");
+  const nextActivityOnly = message.blocks.every((block) => block.kind === "activity");
+  if (previousActivityOnly || nextActivityOnly) return previousActivityOnly !== nextActivityOnly;
   return false;
 }
 
@@ -705,11 +725,11 @@ function outputPanelItemsFromState(input: {
   const items = input.documents.map(documentPanelItem);
   let sequence = items.length + 1;
 
-  if (input.signalGate?.id === "signal" && input.signalGate.status === "complete") {
+  if (input.signalGate?.id === "signal") {
     items.push({
       id: `signal:${input.signalGate.signal.id}`,
       title: input.signalGate.signal.title,
-      eyebrow: "Confirmed signal",
+      eyebrow: input.signalGate.status === "complete" ? "Confirmed signal" : "Analysis result",
       kind: "signal",
       summary: `${input.signalGate.signal.metric_name} · ${input.signalGate.signal.lift_ratio.toFixed(1)}x`,
       markdown: signalMarkdown(input.signalGate.signal),

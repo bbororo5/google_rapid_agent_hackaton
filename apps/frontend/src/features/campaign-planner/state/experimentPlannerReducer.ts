@@ -5,6 +5,8 @@ import type {
   ExperimentItem,
   ExperimentPlannerEvent,
   ExperimentPlannerState,
+  Hypothesis,
+  Signal,
   ToolCallLog,
 } from "./experimentPlannerTypes";
 
@@ -36,14 +38,6 @@ function mergeTimelineItems(timelineItems: AgentTimelineItem[], items: AgentTime
   }, timelineItems);
 }
 
-function textFromStreamMessage(event: ExperimentPlannerEvent & { type: "STREAM_EVENT_RECEIVED" }) {
-  return event.message.blocks
-    .filter((block) => block.kind === "text")
-    .map((block) => block.text)
-    .join("\n")
-    .trim();
-}
-
 function documentsFromStreamMessage(event: ExperimentPlannerEvent & { type: "STREAM_EVENT_RECEIVED" }): AgentDocument[] {
   return event.message.blocks
     .filter((block) => block.kind === "markdown_document")
@@ -73,42 +67,148 @@ function toolLogsFromStreamMessage(event: ExperimentPlannerEvent & { type: "STRE
 
 function timelineItemsFromStreamMessage(event: ExperimentPlannerEvent & { type: "STREAM_EVENT_RECEIVED" }): AgentTimelineItem[] {
   const sequence = event.message.sequence;
-  const text = textFromStreamMessage(event);
-  const textItem: AgentTimelineItem[] =
-    text && event.message.role === "user"
-      ? [{ id: `message:${event.message.id}`, sequence, kind: "user_message", message: { message_id: event.message.id, role: "user", content: text } }]
-      : text && event.message.role === "assistant"
-        ? [{ id: `message:${event.message.id}`, sequence, kind: "assistant_message", message: { message_id: event.message.id, role: "assistant", content: text } }]
-        : [];
-  const documentItems: AgentTimelineItem[] = documentsFromStreamMessage(event).map((document) => ({
-    id: `document:${document.document_id}`,
-    sequence,
-    kind: "document",
-    document,
-  }));
-  const toolItems: AgentTimelineItem[] = toolLogsFromStreamMessage(event).map((tool) => ({
-    id: `tool:${tool.sequence}:${tool.tool_name}`,
-    sequence,
-    kind: "tool",
-    tool,
-  }));
-  return [...textItem, ...documentItems, ...toolItems];
+  return event.message.blocks.flatMap((block, index): AgentTimelineItem[] => {
+    const itemSequence = sequence + index / 1000;
+    if (block.kind === "text") {
+      const text = block.text.trim();
+      if (!text) return [];
+      return event.message.role === "user"
+        ? [{ id: `message:${event.message.id}:${index}`, sequence: itemSequence, kind: "user_message", message: { message_id: event.message.id, role: "user", content: text } }]
+        : [{ id: `message:${event.message.id}:${index}`, sequence: itemSequence, kind: "assistant_message", message: { message_id: event.message.id, role: "assistant", content: text } }];
+    }
+
+    if (block.kind === "markdown_document") {
+      const document: AgentDocument = {
+        document_id: block.id,
+        kind: block.id.includes("evidence_scan") ? "evidence_scan" : "generic",
+        title: block.title,
+        format: "markdown",
+        summary: block.summary ?? block.title,
+        content: block.markdown,
+      };
+      return [{ id: `document:${document.document_id}`, sequence: itemSequence, kind: "document", document }];
+    }
+
+    if (block.kind === "artifact") {
+      return [
+        {
+          id: `artifact:${block.id}`,
+          sequence: itemSequence,
+          kind: "artifact",
+          artifactKind: block.artifact_kind,
+          title: block.title,
+          content: block.content,
+        },
+      ];
+    }
+
+    if (block.kind !== "activity") return [];
+    const tool: ToolCallLog = {
+      sequence: event.message.sequence * 100 + index,
+      tool_name: block.id ?? block.title,
+      display_title: block.title,
+      display_detail: block.detail ?? null,
+      status: block.status === "failed" ? "FAILED" : block.status === "done" ? "SUCCESS" : block.status === "running" ? "RUNNING" : "PENDING",
+      duration_ms: null,
+      error_message: block.status === "failed" ? block.detail ?? null : null,
+    };
+    return [{ id: `tool:${tool.sequence}:${tool.tool_name}`, sequence: itemSequence, kind: "tool", tool }];
+  });
 }
 
-function payloadFromStreamMessage(event: ExperimentPlannerEvent & { type: "STREAM_EVENT_RECEIVED" }): AgentResultPayload | null {
+function payloadFromStreamMessage(event: ExperimentPlannerEvent & { type: "STREAM_EVENT_RECEIVED" }, currentPayload: AgentResultPayload | null): AgentResultPayload | null {
   const approvalBlock = event.message.blocks.find((block) => block.kind === "approval" && block.payload);
   if (approvalBlock?.kind === "approval" && approvalBlock.payload) return approvalBlock.payload;
 
   const artifactBlock = event.message.blocks.find((block) => block.kind === "artifact" && isAgentResultPayload(block.content));
-  if (artifactBlock?.kind === "artifact" && isAgentResultPayload(artifactBlock.content)) return artifactBlock.content;
+  if (artifactBlock?.kind === "artifact" && isAgentResultPayload(artifactBlock.content)) return mergeAgentResultPayload(currentPayload, artifactBlock.content);
+
+  const signalArtifact = event.message.blocks.find((block) => block.kind === "artifact" && signalsFromArtifactContent(block.content).length > 0);
+  if (signalArtifact?.kind === "artifact") {
+    const signals = signalsFromArtifactContent(signalArtifact.content);
+    return mergeAgentResultPayload(currentPayload, {
+      signals,
+      hypotheses: [],
+      experiment_plan: currentPayload?.experiment_plan ?? {
+        id: `plan_pending:${signals[0].id}`,
+        summary: "",
+        overall_confidence: signals[0].confidence,
+        items: [],
+      },
+    });
+  }
+
+  const hypothesisArtifact = event.message.blocks.find((block) => block.kind === "artifact" && hypothesesFromArtifactContent(block.content).length > 0);
+  if (hypothesisArtifact?.kind === "artifact") {
+    return mergeAgentResultPayload(currentPayload, {
+      signals: [],
+      hypotheses: hypothesesFromArtifactContent(hypothesisArtifact.content),
+      experiment_plan: currentPayload?.experiment_plan ?? {
+        id: "plan_pending",
+        summary: "",
+        overall_confidence: "medium",
+        items: [],
+      },
+    });
+  }
 
   return null;
+}
+
+function mergeById<T extends { id: string }>(previous: T[], next: T[]) {
+  const merged = new Map(previous.map((item) => [item.id, item]));
+  next.forEach((item) => merged.set(item.id, { ...merged.get(item.id), ...item }));
+  return [...merged.values()];
+}
+
+function mergeAgentResultPayload(current: AgentResultPayload | null, next: AgentResultPayload): AgentResultPayload {
+  return {
+    signals: mergeById(current?.signals ?? [], next.signals),
+    hypotheses: mergeById(current?.hypotheses ?? [], next.hypotheses),
+    experiment_plan: next.experiment_plan.items.length > 0 || !current?.experiment_plan ? next.experiment_plan : current.experiment_plan,
+  };
 }
 
 function isAgentResultPayload(value: unknown): value is AgentResultPayload {
   if (!value || typeof value !== "object") return false;
   const candidate = value as Partial<AgentResultPayload>;
   return Array.isArray(candidate.signals) && Array.isArray(candidate.hypotheses) && typeof candidate.experiment_plan === "object" && candidate.experiment_plan !== null;
+}
+
+function isSignal(value: unknown): value is Signal {
+  if (!value || typeof value !== "object") return false;
+  const candidate = value as Partial<Signal>;
+  return (
+    typeof candidate.id === "string" &&
+    typeof candidate.title === "string" &&
+    typeof candidate.description === "string" &&
+    typeof candidate.metric_name === "string" &&
+    typeof candidate.current_value === "number" &&
+    typeof candidate.baseline_value === "number" &&
+    typeof candidate.lift_ratio === "number" &&
+    typeof candidate.confidence === "string" &&
+    Array.isArray(candidate.evidence_refs)
+  );
+}
+
+function isHypothesis(value: unknown): value is Hypothesis {
+  if (!value || typeof value !== "object") return false;
+  const candidate = value as Partial<Hypothesis>;
+  return typeof candidate.id === "string" && Array.isArray(candidate.signal_ids) && typeof candidate.statement === "string";
+}
+
+function signalsFromArtifactContent(content: unknown): Signal[] {
+  if (isSignal(content)) return [content];
+  if (!content || typeof content !== "object") return [];
+  const candidate = content as { signals?: unknown };
+  return Array.isArray(candidate.signals) ? candidate.signals.filter(isSignal) : [];
+}
+
+function hypothesesFromArtifactContent(content: unknown): Hypothesis[] {
+  if (isHypothesis(content)) return [content];
+  if (!content || typeof content !== "object") return [];
+  const candidate = content as { hypotheses?: unknown };
+  return Array.isArray(candidate.hypotheses) ? candidate.hypotheses.filter(isHypothesis) : [];
 }
 
 export const initialExperimentPlannerState: ExperimentPlannerState = {
@@ -258,7 +358,7 @@ export function experimentPlannerReducer(state: ExperimentPlannerState, event: E
       // Server-echoed user text now flows through timelineItems (kind user_message)
       // so it keeps its real stream sequence and interleaves with assistant blocks.
       const messages = state.thread.messages;
-      const payload = payloadFromStreamMessage(event) ?? state.review.payload;
+      const payload = payloadFromStreamMessage(event, state.review.payload) ?? state.review.payload;
       const approvalBlock = event.message.blocks.find((block) => block.kind === "approval");
       const resultBlock = event.message.blocks.find((block) => block.kind === "result");
       const errorBlock = event.message.blocks.find((block) => block.kind === "error");

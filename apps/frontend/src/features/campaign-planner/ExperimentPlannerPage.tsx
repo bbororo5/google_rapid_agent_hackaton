@@ -66,6 +66,22 @@ function activityTarget(title: string) {
   return title
     .replace(/^Checking\s+/i, "")
     .replace(/^Checked\s+/i, "")
+    .replace(/^Loading\s+/i, "")
+    .replace(/^Loaded\s+/i, "")
+    .replace(/^Resolving\s+/i, "")
+    .replace(/^Resolved\s+/i, "")
+    .replace(/^Interpreting\s+/i, "")
+    .replace(/^Interpreted\s+/i, "")
+    .replace(/^Applying\s+/i, "")
+    .replace(/^Applied\s+/i, "")
+    .replace(/^Starting\s+/i, "")
+    .replace(/^Finished\s+/i, "")
+    .replace(/^Preparing\s+/i, "")
+    .replace(/^Prepared\s+/i, "")
+    .replace(/^Drafting\s+/i, "")
+    .replace(/^Drafted\s+/i, "")
+    .replace(/^Saving\s+/i, "")
+    .replace(/^Saved\s+/i, "")
     .replace(/^Queued\s+/i, "")
     .replace(/^Could not check\s+/i, "")
     .replace(/\s+in\s+\d+ms$/i, "")
@@ -74,7 +90,7 @@ function activityTarget(title: string) {
 }
 
 function compactActivityBlocks(blocks: Extract<StreamMessageBlock, { kind: "activity" }>[]) {
-  return [...blocks.reduce((latest, block) => latest.set(block.id || activityTarget(block.title), block), new Map<string, Extract<StreamMessageBlock, { kind: "activity" }> >()).values()];
+  return [...blocks.reduce((latest, block) => latest.set(activityTarget(block.title) || block.id, block), new Map<string, Extract<StreamMessageBlock, { kind: "activity" }> >()).values()];
 }
 
 function toolSummary(blocks: Extract<StreamMessageBlock, { kind: "activity" }>[]) {
@@ -855,7 +871,7 @@ export function ExperimentPlannerPage() {
     if (latestOutput && (outputWasAdded || !activeOutputId || !activeOutputExists)) {
       setActiveOutputId(latestOutput.id);
       setOpenOutputIds((ids) => (ids.includes(latestOutput.id) ? ids : [...ids, latestOutput.id]));
-      if (outputWasAdded && latestOutput.id.startsWith("document:")) {
+      if (outputWasAdded && (latestOutput.id.startsWith("document:") || latestOutput.id.startsWith("signal:"))) {
         setInspectorOpen(true);
       }
     }
