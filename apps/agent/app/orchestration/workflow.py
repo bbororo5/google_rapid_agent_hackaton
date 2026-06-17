@@ -9,7 +9,9 @@ from app.orchestration.checkpoint import Checkpointer
 from app.orchestration.committer import StateCommitter
 from app.orchestration.context import PromptContextBuilder, TurnContextLoader
 from app.orchestration.emitter import StreamEmitter
+from app.orchestration.goals import GoalController
 from app.orchestration.interpreter import TurnInterpreter
+from app.orchestration.loop import AgentLoop
 from app.orchestration.models import CancelledTurn
 from app.orchestration.phases import PhaseRunnerRegistry
 from app.orchestration.router import TurnRouter
@@ -28,6 +30,8 @@ class TurnWorkflow:
         self.loader = TurnContextLoader(self.emitter)
         self.interpreter = TurnInterpreter(self.emitter, prompts)
         self.router = TurnRouter(self.emitter, phases)
+        self.goals = GoalController()
+        self.loop = AgentLoop(self.emitter, self.router, prompts)
         self.committer = StateCommitter(self.emitter)
         self.checkpointer = Checkpointer(self.emitter)
 
@@ -51,6 +55,7 @@ class TurnWorkflow:
                     turn.has_scope,
                     content[:80],
                 )
+                goal = self.goals.create(turn, decision)
                 tracing.set_metadata(
                     turn_span,
                     {
@@ -59,9 +64,13 @@ class TurnWorkflow:
                         "agent.scope.campaign_id": record.campaign_id,
                         "agent.repository.backend": turn.repository.backend_name,
                         **decision.trace_metadata,
+                        "agent.goal.kind": goal.kind.value,
+                        "agent.goal.budget_profile": goal.budget_profile.value,
+                        "agent.goal.max_steps": goal.budgets.max_steps,
+                        "agent.goal.max_llm_calls": goal.budgets.max_llm_calls,
                     },
                 )
-                outcome = await self.router.route(turn, decision)
+                outcome = await self.loop.run(turn, decision, goal)
                 tracing.set_output(turn_span, outcome.trace_output)
                 if outcome.commit_state:
                     await self.committer.commit(turn, decision, turn_span)

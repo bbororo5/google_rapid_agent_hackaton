@@ -213,9 +213,6 @@ def apply_proposed_change(
     state.user_query = user_query
     state.revision += 1
     state.active_chat_history.append({"role": "user", "content": user_query})
-    # 채팅 기록은 최근 12개만 유지(프롬프트가 무한정 길어지지 않게).
-    if len(state.active_chat_history) > 12:
-        state.active_chat_history = state.active_chat_history[-12:]
 
     # 2) 전이 그래프에 판정을 맡긴다 = 이 변경안이 단계 이동인지, 되묻기인지,
     #    그냥 답변인지를 규칙으로 결정 (transitions.py). 순환 import 회피용 지역 import.

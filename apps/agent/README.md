@@ -2,7 +2,8 @@
 
 FastAPI + Google ADK. Java sends free-form user turns to Python Agent Core;
 Python interprets each turn into `StateDeltaProposal`, applies the deterministic
-reducer, and executes at most one requested workflow phase per user round.
+reducer, builds a budgeted `TurnGoal`, and runs that goal through the
+orchestration loop.
 
 The service is intentionally real-integration first:
 
@@ -21,6 +22,7 @@ must surface as an explicit error instead of silently producing synthetic output
 | Orchestrator v2 design | `docs/architecture/agent-core-v2-design.md` |
 | State + reducer | `app/runtime/state.py` |
 | Runtime repository | `app/runtime/repository.py` |
+| Goal loop | `app/orchestration/goals.py`, `app/orchestration/loop.py` |
 | ADK workers | `app/agents/adk_agents.py`, `app/agents/workers.py` |
 | Turn interpreter | `app/agents/instructions.py`, `app/agents/output_schemas.py` |
 | Evidence tools | `app/tools/evidence.py` |
@@ -29,13 +31,17 @@ must surface as an explicit error instead of silently producing synthetic output
 
 ## Workflow Shape
 
-The orchestrator is round-based:
+The orchestrator is goal-based, with round-based phase execution inside the
+loop:
 
 - Analysis request -> analyst only -> signal artifacts.
 - Hypothesis request -> strategist only -> hypothesis artifacts.
 - Planning request -> writer + reviewer -> approval gate.
-- Approval/reject/cancel structured actions are Java-owned and do not reach the
-  probabilistic agent core.
+- Discussion and artifact questions -> conversation advisor using the full
+  transcript, live block timeline, and saved phase artifacts.
+- Approval/reject/cancel structured UI actions are Java-owned. Textual
+  approve-like continuations without a pending approval run the next phase
+  instead of only advancing state.
 
 ## Run
 

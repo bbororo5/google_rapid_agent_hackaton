@@ -33,7 +33,7 @@ class HypothesisRoundRunner(BasePhaseRunner):
         await self.emitter.system_error(
             turn.record,
             "Analysis required",
-            "가설을 세우기 전에 먼저 데이터 분석 라운드를 실행해 주세요.",
+            "Run the data analysis round before generating hypotheses.",
         )
         return TurnOutcome({"phase": self.phase.value, "status": "missing_analysis"})
 
@@ -87,5 +87,5 @@ class HypothesisRoundRunner(BasePhaseRunner):
             )
         await self.emitter.assistant_text(
             turn.record,
-            "가설을 정리했습니다. 특정 가설을 선택하면 그때 실험 계획을 세울 수 있습니다.",
+            "Hypotheses are ready. Choose one when you want to turn it into an experiment plan.",
         )

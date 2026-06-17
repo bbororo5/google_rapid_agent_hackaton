@@ -10,6 +10,7 @@ synthesized analysis `date_range` instead of the old structured run request.
 from __future__ import annotations
 
 import json
+from collections.abc import Awaitable, Callable
 
 from app.contracts import (
     DateRange,
@@ -19,7 +20,7 @@ from app.contracts import (
     Signal,
     SignalDraftOutput,
 )
-from app.runtime.state import TurnIntent, PhaseType, ProposedChange
+from app.runtime.state import PhaseType, ProposedChange
 
 
 def _dump(models) -> str:
@@ -97,10 +98,7 @@ async def run_turn_interpreter(
     mutation_summary = data.pop("mutation_summary", None)
     if mutation_summary:
         data["mutation"] = {"summary": mutation_summary}
-    proposal = ProposedChange(**data)
-    if proposal.intent == TurnIntent.CHAT and not proposal.reply:
-        proposal.reply = await run_chat(content, context.split(";", 1)[0].strip())
-    return proposal
+    return ProposedChange(**data)
 
 
 async def run_chat(content: str, context: str = "") -> str:
@@ -113,6 +111,18 @@ async def run_chat(content: str, context: str = "") -> str:
 
     prompt = f"[Thread state] {_CHAT_CONTEXT_HINT.get(context, '')}\n[User] {content}"
     return await adk_agents.run_text("chat", prompt)
+
+
+async def run_advisor(
+    content: str,
+    context: str,
+    on_delta: Callable[[str], Awaitable[None]] | None = None,
+) -> str:
+    """Context-rich reply after the goal controller has selected a budget."""
+    from app.agents import adk_agents
+
+    prompt = f"{context}\n\n[User request]\n{content}"
+    return await adk_agents.run_text("advisor", prompt, on_delta=on_delta)
 
 
 async def run_writer(

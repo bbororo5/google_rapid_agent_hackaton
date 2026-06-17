@@ -43,7 +43,7 @@ class PlanRoundRunner(BasePhaseRunner):
         await self.emitter.system_error(
             turn.record,
             "Hypotheses required",
-            "실험 계획을 세우기 전에 분석과 가설 라운드를 먼저 완료해 주세요.",
+            "Complete the analysis and hypothesis rounds before drafting an experiment plan.",
         )
         return TurnOutcome({"phase": self.phase.value, "status": "missing_hypotheses"})
 

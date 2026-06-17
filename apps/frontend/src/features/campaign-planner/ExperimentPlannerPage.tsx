@@ -1,6 +1,6 @@
 "use client";
 
-import { ChangeEvent, CSSProperties, KeyboardEvent, ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { ChangeEvent, CSSProperties, KeyboardEvent, ReactNode, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Bell,
@@ -52,6 +52,17 @@ function StreamingText({ text }: { text: string }) {
 }
 
 function TimelineTextRow({ text, tone }: { text: string; tone: "text" | "active" | "done" | "failed" }) {
+  if (tone === "text") {
+    return (
+      <div className={`timeline-chain-row ${tone}`}>
+        <span className="timeline-glyph" aria-hidden="true" />
+        <div className="timeline-markdown">
+          <MarkdownContent markdown={normalizeAssistantMarkdown(text)} />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <p className={`timeline-chain-row ${tone}`}>
       <span className="timeline-glyph" aria-hidden="true" />
@@ -140,6 +151,7 @@ function StreamBlockSequence({
 }) {
   const rows: ReactNode[] = [];
   let activityRun: Extract<StreamMessageBlock, { kind: "activity" }>[] = [];
+  let textRun = "";
 
   const flushActivityRun = () => {
     if (activityRun.length === 0) return;
@@ -147,15 +159,29 @@ function StreamBlockSequence({
     activityRun = [];
   };
 
+  const flushTextRun = () => {
+    if (!textRun) return;
+    rows.push(<TimelineTextRow text={textRun} tone="text" key={`${groupId}:text:${rows.length}`} />);
+    textRun = "";
+  };
+
   blocks.forEach((block, index) => {
     if (block.kind === "activity") {
+      flushTextRun();
       activityRun.push(block);
       return;
     }
+    if (block.kind === "text") {
+      flushActivityRun();
+      textRun += block.text;
+      return;
+    }
 
+    flushTextRun();
     flushActivityRun();
     rows.push(<StreamBlockRow key={`${groupId}:${index}`} block={block} onOpenDocument={onOpenDocument} />);
   });
+  flushTextRun();
   flushActivityRun();
 
   return <>{rows}</>;
@@ -236,7 +262,7 @@ function StreamBlockRow({
         </button>
       );
     case "artifact":
-      return <TimelineTextRow text={`${block.title}`} tone="done" />;
+      return <ArtifactTimelineRow block={block} />;
     case "approval":
       return <TimelineTextRow text={block.title} tone="active" />;
     case "result":
@@ -244,6 +270,36 @@ function StreamBlockRow({
     case "error":
       return <TimelineTextRow text={block.detail ? `${block.title}: ${block.detail}` : block.title} tone="failed" />;
   }
+}
+
+function artifactKindLabel(kind: Extract<StreamMessageBlock, { kind: "artifact" }>["artifactKind"]) {
+  switch (kind) {
+    case "signal":
+      return "Signal artifact";
+    case "hypothesis":
+      return "Hypothesis artifact";
+    case "experiment_plan":
+      return "Experiment plan";
+    case "growth_brief":
+      return "Growth brief";
+    default:
+      return "Artifact";
+  }
+}
+
+function ArtifactTimelineRow({ block }: { block: Extract<StreamMessageBlock, { kind: "artifact" }> }) {
+  return (
+    <div className="timeline-chain-row document done">
+      <span className="timeline-glyph" aria-hidden="true" />
+      <span className="timeline-document-card">
+        <FileText size={15} strokeWidth={1.8} />
+        <span>
+          <strong>{block.title}</strong>
+          <small>{artifactKindLabel(block.artifactKind)}</small>
+        </span>
+      </span>
+    </div>
+  );
 }
 
 function ThreadDisplayItemRow({
@@ -459,30 +515,61 @@ function ThreadPanel({
   onOpenDocument: (document: StreamDocument) => void;
 }) {
   const threadEndRef = useRef<HTMLDivElement | null>(null);
+  const threadScrollRef = useRef<HTMLDivElement | null>(null);
   const composerInputRef = useRef<HTMLTextAreaElement | null>(null);
   const csvInputRef = useRef<HTMLInputElement | null>(null);
   const scrollKey = useMemo(
     () =>
       [
-        view.thread.groups.length,
-        view.thread.items.length,
-        view.screen.statusRows.length,
+        view.thread.groups
+          .map((group) =>
+            [
+              group.id,
+              group.blocks.length,
+              group.blocks
+                .map((block) => {
+                  if (block.kind === "text") return `text:${block.text.length}:${block.text.slice(-80)}`;
+                  if (block.kind === "activity") return `activity:${block.title}:${block.status}:${block.detail ?? ""}`;
+                  if (block.kind === "artifact") return `artifact:${block.id}:${block.title}`;
+                  if (block.kind === "markdown_document") return `doc:${block.id}:${block.title}`;
+                  if (block.kind === "approval") return `approval:${block.id}:${block.title}`;
+                  if (block.kind === "result") return `result:${block.title}:${block.detail ?? ""}`;
+                  if (block.kind === "error") return `error:${block.title}:${block.detail ?? ""}`;
+                  return block.kind;
+                })
+                .join("|"),
+            ].join("~")
+          )
+          .join("::"),
+        view.screen.statusRows.map((status) => `${status.title}:${status.detail}`).join("|"),
         view.screen.errorMessage ?? "",
         view.thread.primaryExperiment?.id ?? "",
         view.approval.receipt?.growth_brief_id ?? "",
       ].join(":"),
     [
-      view.thread.groups.length,
-      view.thread.items.length,
-      view.screen.statusRows.length,
+      view.thread.groups,
+      view.screen.statusRows,
       view.screen.errorMessage,
       view.thread.primaryExperiment?.id,
       view.approval.receipt?.growth_brief_id,
     ]
   );
 
-  useEffect(() => {
-    threadEndRef.current?.scrollIntoView({ block: "end", behavior: "auto" });
+  useLayoutEffect(() => {
+    const scrollToBottom = () => {
+      const scrollContainer = threadScrollRef.current;
+      if (scrollContainer) {
+        scrollContainer.scrollTop = scrollContainer.scrollHeight;
+      }
+      threadEndRef.current?.scrollIntoView({ block: "end", behavior: "auto" });
+    };
+
+    scrollToBottom();
+    const firstFrame = window.requestAnimationFrame(() => {
+      scrollToBottom();
+      window.requestAnimationFrame(scrollToBottom);
+    });
+    return () => window.cancelAnimationFrame(firstFrame);
   }, [scrollKey]);
 
   useEffect(() => {
@@ -528,7 +615,7 @@ function ThreadPanel({
 
   return (
     <section className={`thread-panel${view.thread.hasActivity ? "" : " empty-thread"}`} aria-label="Campaign agent thread" tabIndex={-1}>
-      <div className="thread-scroll">
+      <div className="thread-scroll" ref={threadScrollRef}>
         {view.screen.intro ? (
           <div className="thread-empty-intro" aria-label="LaunchPilot prompt">
             <h1>{view.screen.intro.title}</h1>
@@ -830,47 +917,112 @@ function InspectorPanel({
 }
 
 function MarkdownContent({ markdown }: { markdown: string }) {
-  const lines = markdown.split("\n");
+  const lines = normalizeAssistantMarkdown(markdown).split("\n");
   const elements: ReactNode[] = [];
-  let listItems: string[] = [];
+  let unorderedItems: ReactNode[] = [];
+  let orderedItems: ReactNode[] = [];
 
-  const flushList = () => {
-    if (listItems.length === 0) return;
+  const flushUnorderedList = () => {
+    if (unorderedItems.length === 0) return;
     elements.push(
       <ul key={`list-${elements.length}`}>
-        {listItems.map((item) => (
-          <li key={item}>{item}</li>
-        ))}
+        {unorderedItems}
       </ul>
     );
-    listItems = [];
+    unorderedItems = [];
+  };
+
+  const flushOrderedList = () => {
+    if (orderedItems.length === 0) return;
+    elements.push(
+      <ol key={`ordered-list-${elements.length}`}>
+        {orderedItems}
+      </ol>
+    );
+    orderedItems = [];
+  };
+
+  const flushLists = () => {
+    flushUnorderedList();
+    flushOrderedList();
   };
 
   lines.forEach((line, index) => {
+    if (line.startsWith("### ")) {
+      flushLists();
+      elements.push(<h3 key={index}>{parseInlineMarkdown(line.slice(4))}</h3>);
+      return;
+    }
     if (line.startsWith("## ")) {
-      flushList();
-      elements.push(<h2 key={index}>{line.slice(3)}</h2>);
+      flushLists();
+      elements.push(<h2 key={index}>{parseInlineMarkdown(line.slice(3))}</h2>);
       return;
     }
     if (line.startsWith("# ")) {
-      flushList();
-      elements.push(<h1 key={index}>{line.slice(2)}</h1>);
+      flushLists();
+      elements.push(<h1 key={index}>{parseInlineMarkdown(line.slice(2))}</h1>);
+      return;
+    }
+    if (line.trim() === "---") {
+      flushLists();
+      elements.push(<hr key={index} />);
       return;
     }
     if (line.startsWith("- ")) {
-      listItems.push(line.slice(2));
+      flushOrderedList();
+      unorderedItems.push(<li key={`u-${index}`}>{parseInlineMarkdown(line.slice(2))}</li>);
+      return;
+    }
+    const orderedMatch = line.match(/^\d+\.\s+(.+)$/);
+    if (orderedMatch) {
+      flushUnorderedList();
+      orderedItems.push(<li key={`o-${index}`}>{parseInlineMarkdown(orderedMatch[1])}</li>);
       return;
     }
     if (!line.trim()) {
-      flushList();
+      flushLists();
       return;
     }
-    flushList();
-    elements.push(<p key={index}>{line}</p>);
+    flushLists();
+    elements.push(<p key={index}>{parseInlineMarkdown(line)}</p>);
   });
-  flushList();
+  flushLists();
 
   return elements;
+}
+
+function normalizeAssistantMarkdown(markdown: string) {
+  return markdown
+    .replace(/\r\n/g, "\n")
+    .replace(/([^\n])\s+(---)(?=\s|$)/g, "$1\n\n$2")
+    .replace(/([^\n])\s+(#{1,3}\s+)/g, "$1\n\n$2")
+    .replace(/([^\n])\s+(\d+\.\s+\*\*)/g, "$1\n\n$2")
+    .replace(/([^\n])\s+(-\s+\*\*)/g, "$1\n\n$2");
+}
+
+function parseInlineMarkdown(text: string): ReactNode[] {
+  const nodes: ReactNode[] = [];
+  const pattern = /(\*\*[^*]+\*\*|`[^`]+`)/g;
+  let cursor = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = pattern.exec(text))) {
+    if (match.index > cursor) {
+      nodes.push(text.slice(cursor, match.index));
+    }
+    const token = match[0];
+    const key = `${token}-${match.index}`;
+    if (token.startsWith("**")) {
+      nodes.push(<strong key={key}>{token.slice(2, -2)}</strong>);
+    } else {
+      nodes.push(<code key={key}>{token.slice(1, -1)}</code>);
+    }
+    cursor = match.index + token.length;
+  }
+  if (cursor < text.length) {
+    nodes.push(text.slice(cursor));
+  }
+  return nodes;
 }
 
 function CampaignAgentWorkspace({

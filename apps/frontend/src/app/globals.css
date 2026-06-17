@@ -1194,6 +1194,23 @@ a {
   box-shadow: 0 6px 16px rgba(34, 31, 25, 0.04);
 }
 
+div.timeline-chain-row.document {
+  cursor: default;
+}
+
+.timeline-document-card strong,
+.timeline-document-card small {
+  display: block;
+}
+
+.timeline-document-card small {
+  margin-top: 1px;
+  color: var(--ink-muted);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
 .timeline-chain-row.document:hover .timeline-document-card {
   border-color: color-mix(in srgb, var(--blue) 30%, var(--line));
   color: var(--ink);
@@ -1222,14 +1239,19 @@ a {
   font-size: 13px;
 }
 
-.markdown-document {
+.markdown-document,
+.timeline-markdown {
   color: var(--ink);
   font-size: 14px;
   line-height: 1.58;
 }
 
 .markdown-document h1,
-.markdown-document h2 {
+.markdown-document h2,
+.markdown-document h3,
+.timeline-markdown h1,
+.timeline-markdown h2,
+.timeline-markdown h3 {
   margin: 0 0 10px;
   color: var(--ink);
   line-height: 1.22;
@@ -1243,17 +1265,71 @@ a {
   font-size: 17px;
 }
 
+.markdown-document h3,
+.timeline-markdown h3 {
+  font-size: 15px;
+}
+
+.timeline-markdown h1 {
+  font-size: 17px;
+}
+
+.timeline-markdown h2 {
+  font-size: 16px;
+}
+
 .markdown-document p,
-.markdown-document ul {
+.markdown-document ul,
+.markdown-document ol,
+.timeline-markdown p,
+.timeline-markdown ul,
+.timeline-markdown ol {
   margin: 0 0 12px;
 }
 
-.markdown-document ul {
+.markdown-document ul,
+.markdown-document ol,
+.timeline-markdown ul,
+.timeline-markdown ol {
   padding-left: 18px;
 }
 
-.markdown-document li + li {
+.markdown-document li + li,
+.timeline-markdown li + li {
   margin-top: 5px;
+}
+
+.markdown-document strong,
+.timeline-markdown strong {
+  color: var(--ink);
+  font-weight: 750;
+}
+
+.markdown-document code,
+.timeline-markdown code {
+  padding: 1px 5px;
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--surface-muted) 70%, white);
+  color: var(--ink);
+  font-size: 0.9em;
+}
+
+.markdown-document hr,
+.timeline-markdown hr {
+  height: 1px;
+  margin: 14px 0;
+  border: 0;
+  background: var(--line);
+}
+
+.timeline-markdown {
+  max-width: 100%;
+  color: var(--ink-soft);
+  font-size: 15px;
+}
+
+.timeline-markdown > :last-child {
+  margin-bottom: 0;
 }
 
 .streaming-text {
@@ -1602,6 +1678,10 @@ a {
 
 .output-kind-dot.signal {
   background: var(--green);
+}
+
+.output-kind-dot.hypothesis {
+  background: var(--blue);
 }
 
 .output-kind-dot.experiment_plan {

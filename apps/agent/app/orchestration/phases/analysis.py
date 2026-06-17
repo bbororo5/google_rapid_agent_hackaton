@@ -77,7 +77,7 @@ class AnalysisRoundRunner(BasePhaseRunner):
         # 신호가 없으면 다른 기준을 제안하며 라운드를 깔끔히 끝낸다.
         await self.emitter.assistant_text(
             turn.record,
-            "이 기준으로는 두드러진 신호를 찾지 못했어요. 다른 지표나 기간으로 다시 분석해볼까요?",
+            "I did not find a strong signal with this criterion. Try a different metric or date range.",
         )
         return TurnOutcome({"phase": self.phase.value, "signals": 0, "status": "no_signals"})
 
@@ -115,5 +115,5 @@ class AnalysisRoundRunner(BasePhaseRunner):
             )
         await self.emitter.assistant_text(
             turn.record,
-            "분석 결과를 확인했습니다. 원하면 이 신호를 바탕으로 가설을 세울 수 있습니다.",
+            "Analysis is complete. You can use these signals to generate hypotheses next.",
         )

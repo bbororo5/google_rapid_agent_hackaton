@@ -16,6 +16,7 @@ import logging
 import os
 import time
 import uuid
+from collections.abc import Awaitable, Callable
 
 from app.agents import instructions
 from app.agents.output_schemas import (
@@ -35,44 +36,8 @@ _log = logging.getLogger("launchpilot.adk")
 # pipeline forever and the turn looks "stuck". On timeout we raise, which the
 # orchestrator turns into a visible retryable error block.
 _LLM_TIMEOUT_S = float(os.environ.get("LLM_CALL_TIMEOUT_S", "180"))
-
-
-def _select_model(settings, Gemini, Client):
-    """설정에 맞는 Gemini 모델을 고른다. 엔터프라이즈면 전용 클라이언트로 감싼다."""
-    model_id = settings.gemini_model
-    if not settings.use_enterpriseai:
-        return model_id
-
-    class EnterpriseGemini(Gemini):
-        @cached_property
-        def api_client(self) -> Client:
-            return Client(
-                enterprise=True,
-                project=settings.google_cloud_project,
-                location=settings.google_cloud_location,
-            )
-
-    return EnterpriseGemini(model=model_id)
-
-
-def _build_planner(settings, BuiltInPlanner, types):
-    """'생각(thinking)' 설정을 고른다. 예산 > 레벨 우선, 둘 다 없으면 None(plan 없음)."""
-    if settings.gemini_thinking_budget is not None:
-        return BuiltInPlanner(
-            thinking_config=types.ThinkingConfig(
-                thinking_budget=settings.gemini_thinking_budget,
-                include_thoughts=False,
-            )
-        )
-    if settings.gemini_thinking_level:
-        thinking_level = getattr(types.ThinkingLevel, settings.gemini_thinking_level.upper())
-        return BuiltInPlanner(
-            thinking_config=types.ThinkingConfig(
-                thinking_level=thinking_level,
-                include_thoughts=False,
-            )
-        )
-    return None
+_TEXT_STREAM_FALLBACK_DELAY_S = float(os.environ.get("TEXT_STREAM_FALLBACK_DELAY_S", "0.035"))
+_TEXT_STREAM_FALLBACK_CHARS = int(os.environ.get("TEXT_STREAM_FALLBACK_CHARS", "90"))
 
 
 def _build_agents():
@@ -84,10 +49,37 @@ def _build_agents():
     from google.genai import Client
     from google.genai import types
 
-    # 모델과 '생각' 설정을 고른 뒤, 같은 모델/플래너로 일꾼 5명을 만든다.
     settings = get_settings()
-    model = _select_model(settings, Gemini, Client)
-    planner = _build_planner(settings, BuiltInPlanner, types)
+    model_id = settings.gemini_model
+    model = model_id
+    if settings.use_enterpriseai:
+        class EnterpriseGemini(Gemini):
+            @cached_property
+            def api_client(self) -> Client:
+                return Client(
+                    enterprise=True,
+                    project=settings.google_cloud_project,
+                    location=settings.google_cloud_location,
+                )
+
+        model = EnterpriseGemini(model=model_id)
+
+    planner = None
+    if settings.gemini_thinking_budget is not None:
+        planner = BuiltInPlanner(
+            thinking_config=types.ThinkingConfig(
+                thinking_budget=settings.gemini_thinking_budget,
+                include_thoughts=False,
+            )
+        )
+    elif settings.gemini_thinking_level:
+        thinking_level = getattr(types.ThinkingLevel, settings.gemini_thinking_level.upper())
+        planner = BuiltInPlanner(
+            thinking_config=types.ThinkingConfig(
+                thinking_level=thinking_level,
+                include_thoughts=False,
+            )
+        )
     # Analyst: has the two evidence tools AND an output schema. In ADK 2.x tools
     # and output_schema compose (tools run during reasoning, schema shapes the
     # final reply). output_key writes the result into shared session state.
@@ -130,6 +122,13 @@ def _build_agents():
         instruction=instructions.CHAT,
         planner=planner,
     )
+    advisor = LlmAgent(
+        name="advisor",
+        model=model,
+        description="Context-rich user-facing reasoning and follow-up.",
+        instruction=instructions.ADVISOR,
+        planner=planner,
+    )
     interpreter = LlmAgent(
         name="interpreter",
         model=model,
@@ -139,23 +138,14 @@ def _build_agents():
         output_schema=TurnInterpreterOut,
         output_key="state_delta",
     )
-    return {"analyst": analyst, "strategist": strategist, "writer": writer,
-            "chat": chat, "interpreter": interpreter}
-
-
-_AGENT_CACHE: dict | None = None
-
-
-def _get_agent(kind: str):
-    """일꾼 에이전트를 처음 한 번만 만들고, 이후엔 캐시에서 꺼낸다.
-
-    get_settings()가 lru_cache라 설정이 고정이므로 5개를 매번 새로 만들 이유가 없다.
-    (예전엔 호출마다 _build_agents()를 다시 불러 낭비가 컸다.)
-    """
-    global _AGENT_CACHE
-    if _AGENT_CACHE is None:
-        _AGENT_CACHE = _build_agents()
-    return _AGENT_CACHE[kind]
+    return {
+        "analyst": analyst,
+        "strategist": strategist,
+        "writer": writer,
+        "chat": chat,
+        "advisor": advisor,
+        "interpreter": interpreter,
+    }
 
 
 async def _run_with_timeout(kind: str, shape: str, collect):
@@ -178,20 +168,15 @@ async def _run_with_timeout(kind: str, shape: str, collect):
     return result
 
 
-async def _run_agent_to_text(kind: str, user_text: str, shape: str) -> str:
-    """일꾼 에이전트를 한 번 돌려 최종 응답 '텍스트'를 돌려준다.
-
-    run_structured/run_text가 똑같이 반복하던 'Runner + 세션 + 이벤트 수집'
-    보일러플레이트를 한곳에 모았다. 구조화/텍스트 차이는 호출부에서 처리한다
-    (JSON으로 파싱하느냐 마느냐).
-    """
+async def run_structured(kind: str, user_text: str) -> dict:
+    """Run one worker agent and return its parsed JSON output (a dict)."""
     from google.adk.runners import Runner
     from google.adk.sessions import InMemorySessionService
     from google.genai import types
 
-    # 1) 캐시된 에이전트를 꺼내고, 이 호출 전용 인메모리 세션을 연다.
-    #    (상태는 오케스트레이터가 프롬프트로 직접 넘기므로 세션 공유가 필요 없다.)
-    agent = _get_agent(kind)
+    agent = _build_agents()[kind]
+    # Fresh in-memory session per worker call (the orchestrator threads state
+    # itself via prompts, so workers don't need a shared ADK session here).
     session_service = InMemorySessionService()
     runner = Runner(agent=agent, app_name=_APP, session_service=session_service)
     sid = f"sess_{uuid.uuid4().hex[:8]}"
@@ -200,8 +185,8 @@ async def _run_agent_to_text(kind: str, user_text: str, shape: str) -> str:
     content = types.Content(role="user", parts=[types.Part(text=user_text)])
 
     async def _collect() -> str | None:
-        # 2) 이벤트 스트림 중 '최종 응답'의 텍스트만 취한다.
         final_text: str | None = None
+        # run_async yields a stream of events; the structured JSON is on the final one.
         async for event in runner.run_async(
             user_id="orchestrator", session_id=sid, new_message=content
         ):
@@ -209,19 +194,106 @@ async def _run_agent_to_text(kind: str, user_text: str, shape: str) -> str:
                 final_text = event.content.parts[0].text
         return final_text
 
-    # 3) 타임아웃을 씌워 실행하고, 빈 응답이면 에러로 올린다.
-    final_text = await _run_with_timeout(kind, shape, _collect)
+    final_text = await _run_with_timeout(kind, "structured", _collect)
+    if not final_text:
+        raise RuntimeError(f"{kind}: empty agent response")
+    # output_schema guarantees the final text is schema-conforming JSON.
+    return json.loads(final_text)
+
+
+async def run_text(
+    kind: str,
+    user_text: str,
+    on_delta: Callable[[str], Awaitable[None]] | None = None,
+) -> str:
+    """Run one agent and return its plain-text reply (no output_schema)."""
+    from google.adk.runners import Runner
+    from google.adk.sessions import InMemorySessionService
+    from google.genai import types
+
+    agent = _build_agents()[kind]
+    session_service = InMemorySessionService()
+    runner = Runner(agent=agent, app_name=_APP, session_service=session_service)
+    sid = f"sess_{uuid.uuid4().hex[:8]}"
+    await session_service.create_session(app_name=_APP, user_id="orchestrator", session_id=sid)
+
+    content = types.Content(role="user", parts=[types.Part(text=user_text)])
+
+    async def _emit_synthetic_stream(text: str) -> None:
+        if not on_delta:
+            return
+        for chunk in _text_stream_chunks(text, _TEXT_STREAM_FALLBACK_CHARS):
+            await on_delta(chunk)
+            await asyncio.sleep(_TEXT_STREAM_FALLBACK_DELAY_S)
+
+    async def _collect() -> str | None:
+        final_text: str | None = None
+        streamed_text = ""
+        pending_delta = ""
+
+        async def _flush_delta(force: bool = False) -> None:
+            nonlocal pending_delta
+            if not on_delta or not pending_delta:
+                return
+            if not force and len(pending_delta) < 80 and "\n" not in pending_delta:
+                return
+            delta = pending_delta
+            pending_delta = ""
+            await on_delta(delta)
+
+        async for event in runner.run_async(
+            user_id="orchestrator", session_id=sid, new_message=content
+        ):
+            if not event.content or not event.content.parts:
+                continue
+            event_text = event.content.parts[0].text or ""
+            if event.is_final_response():
+                final_text = event_text
+                if on_delta and streamed_text and event_text.startswith(streamed_text):
+                    tail = event_text[len(streamed_text):]
+                    if tail:
+                        pending_delta += tail
+                        streamed_text = event_text
+                continue
+            if not on_delta or not event_text:
+                continue
+            if event_text.startswith(streamed_text):
+                delta = event_text[len(streamed_text):]
+                streamed_text = event_text
+            else:
+                delta = event_text
+                streamed_text += event_text
+            if delta:
+                pending_delta += delta
+                await _flush_delta()
+        await _flush_delta(force=True)
+        if on_delta and final_text and not streamed_text:
+            await _emit_synthetic_stream(final_text)
+        return final_text
+
+    final_text = await _run_with_timeout(kind, "text", _collect)
     if not final_text:
         raise RuntimeError(f"{kind}: empty agent response")
     return final_text
 
 
-async def run_structured(kind: str, user_text: str) -> dict:
-    """일꾼을 돌려 구조화 JSON(dict)을 돌려준다. output_schema가 JSON 형태를 보장한다."""
-    final_text = await _run_agent_to_text(kind, user_text, "structured")
-    return json.loads(final_text)
-
-
-async def run_text(kind: str, user_text: str) -> str:
-    """일꾼을 돌려 평문 텍스트를 돌려준다 (output_schema 없음)."""
-    return await _run_agent_to_text(kind, user_text, "text")
+def _text_stream_chunks(text: str, target_chars: int) -> list[str]:
+    chunks: list[str] = []
+    start = 0
+    length = len(text)
+    while start < length:
+        end = min(length, start + target_chars)
+        if end < length:
+            candidates = [
+                text.rfind("\n\n", start, end),
+                text.rfind(". ", start, end),
+                text.rfind("? ", start, end),
+                text.rfind("! ", start, end),
+                text.rfind(" ", start, end),
+            ]
+            split_at = max(candidates)
+            if split_at > start + max(24, target_chars // 3):
+                end = split_at + (2 if text.startswith("\n\n", split_at) else 1)
+        chunks.append(text[start:end])
+        start = end
+    return chunks

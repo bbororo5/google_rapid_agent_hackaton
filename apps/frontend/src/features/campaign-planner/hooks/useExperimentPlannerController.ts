@@ -165,7 +165,7 @@ export interface OutputPanelItem {
   id: string;
   title: string;
   eyebrow: string;
-  kind: "document" | "signal" | "experiment_plan" | "approval";
+  kind: "document" | "signal" | "hypothesis" | "experiment_plan" | "approval";
   summary: string;
   markdown: string;
   sequence: number;
@@ -265,7 +265,7 @@ function hasCompletedAnalysisRound(state: ExperimentPlannerState) {
       );
     }
     if (item.kind === "assistant_message") {
-      return item.message.content.includes("분석 결과를 확인했습니다");
+      return item.message.content.includes("Analysis is complete") || item.message.content.includes("분석 결과를 확인했습니다");
     }
     return false;
   });
@@ -314,7 +314,7 @@ function agentThreadStreamUrl(threadId: string) {
 
 function csvPrompt(text: string) {
   const trimmed = text.trim();
-  return trimmed || "분석을 도와줘.";
+  return trimmed || "Analyze this campaign data and return the results in English.";
 }
 
 function csvAttachment(importResult: ImportCsvResponse, fileName: string): MessageAttachment {
@@ -686,6 +686,42 @@ function signalMarkdown(signal: Signal) {
   ].join("\n");
 }
 
+function analysisMarkdown(signals: Signal[]) {
+  const lines = ["# Analysis result", ""];
+  if (signals.length === 0) {
+    lines.push("Analysis completed. No structured signal artifact was available in the client stream.");
+    return lines.join("\n");
+  }
+
+  lines.push(`${signals.length} signal${signals.length === 1 ? "" : "s"} found.`, "");
+  signals.forEach((signal, index) => {
+    lines.push(`## ${index + 1}. ${signal.title}`, "");
+    lines.push(`**Signal:** ${signal.metric_name} · ${signal.lift_ratio.toFixed(1)}x · ${confidenceLabel(signal.confidence)}`, "");
+    lines.push(signal.description, "");
+    lines.push(`- Current: ${formatPercent(signal.current_value)}`);
+    lines.push(`- Baseline: ${formatPercent(signal.baseline_value)}`);
+    lines.push(`- Evidence refs: ${signal.evidence_refs.join(", ")}`);
+    lines.push("");
+  });
+  return lines.join("\n");
+}
+
+function hypothesesMarkdown(hypotheses: Hypothesis[]) {
+  const lines = ["# Hypotheses", "", `${hypotheses.length} ${hypotheses.length === 1 ? "hypothesis" : "hypotheses"} ready.`, ""];
+  hypotheses.forEach((hypothesis, index) => {
+    lines.push(`## ${index + 1}. ${hypothesis.statement}`, "");
+    lines.push(hypothesis.rationale, "");
+    lines.push(`- Confidence: ${confidenceLabel(hypothesis.confidence)}`);
+    lines.push(`- Signal refs: ${hypothesis.signal_ids.join(", ")}`);
+    lines.push(`- Evidence refs: ${hypothesis.supporting_evidence_refs.join(", ")}`);
+    if (hypothesis.caveats.length > 0) {
+      lines.push(`- Caveats: ${hypothesis.caveats.join("; ")}`);
+    }
+    lines.push("");
+  });
+  return lines.join("\n");
+}
+
 function analysisFallbackOutputFromTimeline(items: AgentTimelineItem[]): OutputPanelItem | null {
   const signalTexts: string[] = [];
   let sawAnalysisCompletion = false;
@@ -694,7 +730,7 @@ function analysisFallbackOutputFromTimeline(items: AgentTimelineItem[]): OutputP
     if (item.kind === "assistant_message") {
       const content = item.message.content.trim();
       if (!content) return;
-      if (content.includes("분석 결과를 확인했습니다")) {
+      if (content.includes("Analysis is complete") || content.includes("분석 결과를 확인했습니다")) {
         sawAnalysisCompletion = true;
         return;
       }
@@ -773,6 +809,8 @@ function approvalMarkdown(input: { approval: ApproveExperimentPlanResponse; expe
 
 function outputPanelItemsFromState(input: {
   documents: AgentDocument[];
+  signals: Signal[];
+  hypotheses: Hypothesis[];
   signalGate: GateReview | null;
   analysisFallback: OutputPanelItem | null;
   approvalGate: GateReview | null;
@@ -784,7 +822,17 @@ function outputPanelItemsFromState(input: {
   const items = input.documents.map(documentPanelItem);
   let sequence = items.length + 1;
 
-  if (input.signalGate?.id === "signal") {
+  if (input.signals.length > 0) {
+    items.push({
+      id: `analysis:${input.signals.map((signal) => signal.id).join(":")}`,
+      title: "Analysis result",
+      eyebrow: "Analysis output",
+      kind: "signal",
+      summary: `${input.signals.length} signal${input.signals.length === 1 ? "" : "s"} found`,
+      markdown: analysisMarkdown(input.signals),
+      sequence: sequence++,
+    });
+  } else if (input.signalGate?.id === "signal") {
     items.push({
       id: `signal:${input.signalGate.signal.id}`,
       title: input.signalGate.signal.title,
@@ -797,6 +845,18 @@ function outputPanelItemsFromState(input: {
   } else if (input.analysisFallback) {
     items.push({
       ...input.analysisFallback,
+      sequence: sequence++,
+    });
+  }
+
+  if (input.hypotheses.length > 0) {
+    items.push({
+      id: `hypotheses:${input.hypotheses.map((hypothesis) => hypothesis.id).join(":")}`,
+      title: "Hypotheses",
+      eyebrow: "Hypothesis output",
+      kind: "hypothesis",
+      summary: `${input.hypotheses.length} ${input.hypotheses.length === 1 ? "hypothesis" : "hypotheses"} ready`,
+      markdown: hypothesesMarkdown(input.hypotheses),
       sequence: sequence++,
     });
   }
@@ -1608,6 +1668,8 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
   const threadItems = threadDisplayItemsFromProjection({ groups: threadGroups, gates, currentGate });
   const outputPanelItems = outputPanelItemsFromState({
     documents: currentDocuments,
+    signals: currentSignals.length > 0 ? currentSignals : lastSignalsRef.current,
+    hypotheses: currentHypotheses.length > 0 ? currentHypotheses : lastHypothesesRef.current,
     signalGate,
     analysisFallback: currentAnalysisFallbackOutput,
     approvalGate,

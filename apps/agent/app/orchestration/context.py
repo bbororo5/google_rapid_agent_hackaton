@@ -7,6 +7,7 @@ object-oriented without hiding workflow order inside one procedural method.
 
 from __future__ import annotations
 
+import json
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Protocol
@@ -89,7 +90,7 @@ class ResolveTurnScope:
 @dataclass(slots=True)
 class LoadScopedRuntimeContext:
     emitter: StreamEmitter
-    memory_limit: int = 12
+    memory_limit: int = 10000
 
     async def apply(self, turn: TurnContext) -> None:
         if not turn.scope:
@@ -140,6 +141,16 @@ class StateSummarySection:
 
 
 @dataclass(frozen=True, slots=True)
+class FullArtifactsSection:
+    def render(self, turn: TurnContext) -> str:
+        return "[phase_artifacts_json]\n" + json.dumps(
+            turn.record.state.phase_artifacts,
+            ensure_ascii=False,
+            sort_keys=True,
+        )
+
+
+@dataclass(frozen=True, slots=True)
 class CampaignSection:
     def render(self, turn: TurnContext) -> str | None:
         if not turn.campaign_context:
@@ -149,19 +160,32 @@ class CampaignSection:
 
 
 @dataclass(frozen=True, slots=True)
-class RecentMessagesSection:
-    max_messages: int = 8
-    max_chars: int = 240
-
+class ConversationTranscriptSection:
     def render(self, turn: TurnContext) -> str | None:
         lines = []
-        for message in turn.recent_messages[-self.max_messages :]:
-            content = " ".join(message.content.split())[: self.max_chars]
+        for message in turn.recent_messages:
+            content = " ".join(message.content.split())
             if content:
                 lines.append(f"- {message.role}: {content}")
         if not lines:
             return None
-        return "[recent_messages]\n" + "\n".join(lines)
+        return "[conversation_transcript]\n" + "\n".join(lines)
+
+
+@dataclass(frozen=True, slots=True)
+class LiveBlockTimelineSection:
+    def render(self, turn: TurnContext) -> str | None:
+        if not turn.record.messages:
+            return None
+        payload = [
+            message.model_dump(mode="json")
+            for message in turn.record.messages
+        ]
+        return "[live_block_timeline_json]\n" + json.dumps(
+            payload,
+            ensure_ascii=False,
+            sort_keys=True,
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -189,7 +213,9 @@ class PromptContextBuilder:
             StateHintSection(),
             StateSummarySection(),
             CampaignSection(),
-            RecentMessagesSection(),
+            ConversationTranscriptSection(),
+            FullArtifactsSection(),
+            LiveBlockTimelineSection(),
             AttachmentsSection(),
         )
 

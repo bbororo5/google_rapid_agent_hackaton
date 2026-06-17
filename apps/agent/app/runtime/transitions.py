@@ -146,6 +146,9 @@ class TransitionGraph:
         if delta.confidence < 0.55 or delta.requires_confirmation:
             self._clarify_result.apply(state, delta)
             return self._clarify_result
+        if delta.intent == TurnIntent.APPROVE and not state.pending_approval_id:
+            APPROVE_AS_CONTINUE.apply(state, delta)
+            return APPROVE_AS_CONTINUE
         rule = self._rules.get(delta.intent)
         if rule:
             return rule.apply(state, delta)
@@ -224,6 +227,14 @@ DIRECT_FREE_CHAT = TransitionResult(
     user_intent=UserIntent.FREE_CHAT,
 )
 
+APPROVE_AS_CONTINUE = TransitionResult(
+    decision=ChangeDecisionType.ACCEPTED,
+    delegation=DelegationMode.RERUN,
+    reason="approval-like continuation without pending approval should run the next phase",
+    target=TransitionTarget(_approval_target, plan_from_target=True),
+    user_intent=UserIntent.APPROVE,
+)
+
 TRANSITION_GRAPH = TransitionGraph(
     clarify_result=TransitionResult(
         decision=ChangeDecisionType.CLARIFY,
@@ -259,7 +270,7 @@ TRANSITION_GRAPH = TransitionGraph(
                     predicate=_has_analysis_input,
                     failure=GuardFailure(
                         reason="analysis request blocked until csv attachment or prior analysis exists",
-                        reply="캠페인 지표 CSV를 첨부하면 바로 분석을 시작할 수 있습니다. 지금은 어떤 기준으로 볼지 먼저 같이 정리해볼게요.",
+                        reply="Attach a campaign metrics CSV to start analysis. For now, I can help clarify which metric or window to inspect first.",
                     ),
                 ),
             ),
@@ -279,7 +290,7 @@ TRANSITION_GRAPH = TransitionGraph(
                     predicate=_has_signals,
                     failure=GuardFailure(
                         reason="hypothesis request blocked until analysis artifact exists",
-                        reply="분석 결과가 아직 없어서 가설을 바로 세우지는 않았습니다. 먼저 캠페인 지표를 분석한 뒤, 그 신호를 바탕으로 가설을 만들 수 있어요.",
+                        reply="There is no analysis result yet, so I did not generate hypotheses. Analyze campaign metrics first, then I can build hypotheses from those signals.",
                     ),
                 ),
             ),
@@ -299,7 +310,7 @@ TRANSITION_GRAPH = TransitionGraph(
                     predicate=_has_hypotheses,
                     failure=GuardFailure(
                         reason="plan request blocked until hypothesis artifact exists",
-                        reply="확정된 가설이 아직 없어서 실험 계획을 바로 만들지는 않았습니다. 먼저 분석 신호를 보고 가설을 세운 뒤 계획으로 이어가겠습니다.",
+                        reply="There is no confirmed hypothesis yet, so I did not draft an experiment plan. Generate hypotheses from the analysis signals first, then continue to planning.",
                     ),
                 ),
             ),

@@ -88,11 +88,11 @@ def summarize_failures(workspace_id: str | None = None, campaign_id: str | None 
     counts = {tok: text.count(tok) for tok in _ISSUE_TOKENS if tok in text}
     fails = text.count('"passed":false') + text.count("'passed': False")
     if not counts and not fails:
-        summary = "과거 검수 스팬에서 반복 실패 패턴 없음."
+        summary = "No repeated validation failure pattern was found in prior review spans."
     else:
         top = sorted(counts.items(), key=lambda kv: kv[1], reverse=True)[:3]
-        freq = ", ".join(f"{k} x{v}" for k, v in top) or "(코드 미상)"
-        summary = f"과거 검수 실패 {fails}건, 빈도 상위 이슈: {freq}. (참고용, 결정론 검수 우선)"
+        freq = ", ".join(f"{k} x{v}" for k, v in top) or "(unknown code)"
+        summary = f"Found {fails} prior validation failure(s). Most frequent issues: {freq}. Advisory only; deterministic validation remains authoritative."
 
     # EVALUATOR span so the reflection shows in the trace (contract 06 §Reflection).
     with tracing.evaluator_span(

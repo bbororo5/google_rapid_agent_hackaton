@@ -45,5 +45,5 @@ class StateCommitter:
             await self._emitter.system_error(
                 turn.record,
                 "Agent busy",
-                "동일 thread의 상태가 먼저 갱신되어 이번 턴의 상태 저장을 중단했습니다. 잠시 후 다시 시도해 주세요.",
+                "This thread was updated by another turn first, so this turn was not saved. Please try again shortly.",
             )
