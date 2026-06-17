@@ -1,7 +1,7 @@
 """계획 라운드: 가설을 다음 주 실험 계획으로 만들고, 승인 관문을 연다."""
 from __future__ import annotations
 
-from app import tracing
+from app import telemetry
 from app.agents import formatter, reviewer, workers
 from app.contracts import Hypothesis, Signal
 from app.ids import approval_id
@@ -93,19 +93,14 @@ class PlanRoundRunner(BasePhaseRunner):
             "workspace_id": turn.record.workspace_id,
             "campaign_id": turn.record.campaign_id,
         }
-        with tracing.guardrail_span(
-            "launchpilot.reviewer_gate",
+        with telemetry.guardrail_span(
             input_value={"signals": len(signals), "hypotheses": len(hypotheses), "items": len(plan.items)},
             metadata={**guardrail_metadata, "validator_passed": None, "backtrack_count": 0},
             workspace_id=turn.record.workspace_id,
             campaign_id=turn.record.campaign_id,
         ) as guardrail_span:
             report = reviewer.review(review_payload)
-            tracing.set_output(guardrail_span, report.model_dump(mode="json"))
-            tracing.set_metadata(
-                guardrail_span,
-                {**guardrail_metadata, "validator_passed": report.passed, "backtrack_count": 0},
-            )
+            telemetry.record_guardrail_result(guardrail_span, report, guardrail_metadata)
         log.info("[plan] reviewer passed=%s issues=%d", report.passed, len(report.issues))
         return report
 

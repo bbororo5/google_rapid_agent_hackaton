@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 
-from app import tracing
+from app import telemetry
 from app.orchestration.checkpoint import Checkpointer
 from app.orchestration.committer import StateCommitter
 from app.orchestration.context import PromptContextBuilder, TurnContextLoader
@@ -37,9 +37,8 @@ class TurnWorkflow:
 
     async def run(self, record: ThreadRecord, content: str, attachments: tuple = ()) -> None:
         turn = await self.loader.load(record, content, attachments)
-        with tracing.agent_span(
-            "launchpilot.thread",
-            input_value=content[:2000],
+        with telemetry.turn_span(
+            content,
             metadata=turn.trace_metadata,
             workspace_id=record.workspace_id,
             campaign_id=record.campaign_id,
@@ -56,22 +55,17 @@ class TurnWorkflow:
                     content[:80],
                 )
                 goal = self.goals.create(turn, decision)
-                tracing.set_metadata(
+                telemetry.record_turn_decision(
                     turn_span,
-                    {
-                        **turn.trace_metadata,
-                        "agent.scope.workspace_id": record.workspace_id,
-                        "agent.scope.campaign_id": record.campaign_id,
-                        "agent.repository.backend": turn.repository.backend_name,
-                        **decision.trace_metadata,
-                        "agent.goal.kind": goal.kind.value,
-                        "agent.goal.budget_profile": goal.budget_profile.value,
-                        "agent.goal.max_steps": goal.budgets.max_steps,
-                        "agent.goal.max_llm_calls": goal.budgets.max_llm_calls,
-                    },
+                    turn_metadata=turn.trace_metadata,
+                    decision_metadata=decision.trace_metadata,
+                    workspace_id=record.workspace_id,
+                    campaign_id=record.campaign_id,
+                    repository_backend=turn.repository.backend_name,
+                    goal=goal,
                 )
                 outcome = await self.loop.run(turn, decision, goal)
-                tracing.set_output(turn_span, outcome.trace_output)
+                telemetry.record_turn_outcome(turn_span, outcome.trace_output)
                 if outcome.commit_state:
                     await self.committer.commit(turn, decision, turn_span)
                     await self.checkpointer.maybe_checkpoint(turn, decision, outcome, turn_span)

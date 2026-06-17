@@ -9,7 +9,7 @@ episode here; the runtime repository persists it.
 """
 from __future__ import annotations
 
-from app import tracing
+from app import telemetry
 from app.orchestration.emitter import StreamEmitter
 from app.orchestration.models import TurnContext, TurnDecision, TurnOutcome
 from app.runtime.episode import EpisodeOutcome, build_episode
@@ -65,10 +65,7 @@ class Checkpointer:
             key_params=dict(decision.delta.mutation),
         )
         episode_id = await turn.repository.save_episode(episode)
-        tracing.set_metadata(
-            span,
-            {"agent.episode.id": episode_id, "agent.episode.outcome": outcome.value},
-        )
+        telemetry.record_episode_checkpoint(span, episode_id=episode_id, outcome=outcome.value)
         await self._emitter.progress(
             turn.record,
             "episode.checkpoint",
