@@ -37,6 +37,44 @@ _log = logging.getLogger("launchpilot.adk")
 _LLM_TIMEOUT_S = float(os.environ.get("LLM_CALL_TIMEOUT_S", "180"))
 
 
+def _select_model(settings, Gemini, Client):
+    """설정에 맞는 Gemini 모델을 고른다. 엔터프라이즈면 전용 클라이언트로 감싼다."""
+    model_id = settings.gemini_model
+    if not settings.use_enterpriseai:
+        return model_id
+
+    class EnterpriseGemini(Gemini):
+        @cached_property
+        def api_client(self) -> Client:
+            return Client(
+                enterprise=True,
+                project=settings.google_cloud_project,
+                location=settings.google_cloud_location,
+            )
+
+    return EnterpriseGemini(model=model_id)
+
+
+def _build_planner(settings, BuiltInPlanner, types):
+    """'생각(thinking)' 설정을 고른다. 예산 > 레벨 우선, 둘 다 없으면 None(plan 없음)."""
+    if settings.gemini_thinking_budget is not None:
+        return BuiltInPlanner(
+            thinking_config=types.ThinkingConfig(
+                thinking_budget=settings.gemini_thinking_budget,
+                include_thoughts=False,
+            )
+        )
+    if settings.gemini_thinking_level:
+        thinking_level = getattr(types.ThinkingLevel, settings.gemini_thinking_level.upper())
+        return BuiltInPlanner(
+            thinking_config=types.ThinkingConfig(
+                thinking_level=thinking_level,
+                include_thoughts=False,
+            )
+        )
+    return None
+
+
 def _build_agents():
     # Imported here (not at module top) so importing this module never requires
     # google-adk unless we actually run in real-LLM mode.
@@ -46,41 +84,10 @@ def _build_agents():
     from google.genai import Client
     from google.genai import types
 
+    # 모델과 '생각' 설정을 고른 뒤, 같은 모델/플래너로 일꾼 5명을 만든다.
     settings = get_settings()
-    model_id = settings.gemini_model
-    model = model_id
-    # 1) 모델 고르기: 엔터프라이즈 모드면 전용 클라이언트로 감싼 Gemini를 쓴다.
-    if settings.use_enterpriseai:
-        class EnterpriseGemini(Gemini):
-            @cached_property
-            def api_client(self) -> Client:
-                return Client(
-                    enterprise=True,
-                    project=settings.google_cloud_project,
-                    location=settings.google_cloud_location,
-                )
-
-        model = EnterpriseGemini(model=model_id)
-
-    # 2) "생각(thinking)" 설정 고르기: 예산(budget)이 있으면 그걸로,
-    #    없고 레벨만 있으면 레벨로. 둘 다 없으면 planner 없이 간다.
-    planner = None
-    if settings.gemini_thinking_budget is not None:
-        planner = BuiltInPlanner(
-            thinking_config=types.ThinkingConfig(
-                thinking_budget=settings.gemini_thinking_budget,
-                include_thoughts=False,
-            )
-        )
-    elif settings.gemini_thinking_level:
-        thinking_level = getattr(types.ThinkingLevel, settings.gemini_thinking_level.upper())
-        planner = BuiltInPlanner(
-            thinking_config=types.ThinkingConfig(
-                thinking_level=thinking_level,
-                include_thoughts=False,
-            )
-        )
-    # 3) 아래에서 일꾼 5명(분석가/전략가/작성자/챗/인터프리터)을 같은 모델로 만든다.
+    model = _select_model(settings, Gemini, Client)
+    planner = _build_planner(settings, BuiltInPlanner, types)
     # Analyst: has the two evidence tools AND an output schema. In ADK 2.x tools
     # and output_schema compose (tools run during reasoning, schema shapes the
     # final reply). output_key writes the result into shared session state.
