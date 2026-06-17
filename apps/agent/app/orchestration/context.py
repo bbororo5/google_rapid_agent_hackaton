@@ -13,9 +13,9 @@ from typing import Protocol
 
 from app.orchestration.emitter import StreamEmitter
 from app.orchestration.models import TurnContext
-from app.runtime.hot_store import HotStateStore, get_hot_store
+from app.runtime.state_cache import StateCache, get_state_cache
 from app.runtime.repository import AgentRuntimeRepository, get_runtime_repository
-from app.runtime.state import PhaseType, compact_state_summary, resolve_scope
+from app.runtime.state import PhaseType, summarize_state_for_prompt, resolve_scope
 from app.runtime.thread_store import ThreadRecord
 
 
@@ -57,7 +57,7 @@ class LoadPersistedState:
         # Hot tier first (Redis): the live working copy avoids an Elastic read.
         # On a miss, rehydrate from the authoritative runtime repository and
         # repopulate the hot store (ADR-005: ES authoritative, Redis cache).
-        loaded_state = await turn.hot_store.get_state(record.thread_id)
+        loaded_state = await turn.state_cache.get_state(record.thread_id)
         source = "hot"
         if loaded_state is None:
             loaded_state = await turn.repository.load_state(record.thread_id)
@@ -67,7 +67,7 @@ class LoadPersistedState:
             if loaded_state.scope:
                 record.set_context(loaded_state.scope.workspace_id, loaded_state.scope.campaign_id)
             if source == "elastic":
-                await turn.hot_store.put_state(record.thread_id, loaded_state)
+                await turn.state_cache.put_state(record.thread_id, loaded_state)
         turn.expected_revision = record.state.revision
         await self.emitter.progress(record, "turn.load_state", "Loaded thread state", "done", source)
 
@@ -136,7 +136,7 @@ class StateHintSection:
 @dataclass(frozen=True, slots=True)
 class StateSummarySection:
     def render(self, turn: TurnContext) -> str:
-        return f"[thread_state]\n{compact_state_summary(turn.record.state)}"
+        return f"[thread_state]\n{summarize_state_for_prompt(turn.record.state)}"
 
 
 @dataclass(frozen=True, slots=True)
@@ -208,11 +208,11 @@ class TurnContextLoader:
         self,
         emitter: StreamEmitter,
         repository_provider: Callable[[], AgentRuntimeRepository] = get_runtime_repository,
-        hot_store_provider: Callable[[], HotStateStore] = get_hot_store,
+        state_cache_provider: Callable[[], StateCache] = get_state_cache,
         steps: tuple[ContextLoadStep, ...] | None = None,
     ) -> None:
         self._repository_provider = repository_provider
-        self._hot_store_provider = hot_store_provider
+        self._state_cache_provider = state_cache_provider
         self._steps = steps or (
             LoadPersistedState(emitter),
             ResolveTurnScope(emitter),
@@ -226,7 +226,7 @@ class TurnContextLoader:
             content=content,
             attachments=attachments,
             repository=self._repository_provider(),
-            hot_store=self._hot_store_provider(),
+            state_cache=self._state_cache_provider(),
             expected_revision=record.state.revision,
         )
         for step in self._steps:

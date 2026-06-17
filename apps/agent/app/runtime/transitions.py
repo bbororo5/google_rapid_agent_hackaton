@@ -1,6 +1,6 @@
 """Declarative reducer transition graph.
 
-LLMs propose a StateDeltaProposal. This module owns the deterministic graph that
+LLMs propose a ProposedChange. This module owns the deterministic graph that
 decides whether that proposal becomes a state transition, a clarification, or a
 direct reply.
 """
@@ -13,16 +13,16 @@ from dataclasses import dataclass
 from app.runtime.state import (
     CompactLesson,
     DelegationMode,
-    DeltaIntent,
-    IntentType,
+    TurnIntent,
+    UserIntent,
     PhaseType,
-    ReducerDecisionType,
+    ChangeDecisionType,
     ResponseMode,
-    SharedStateVector,
-    StateDeltaProposal,
+    ConversationState,
+    ProposedChange,
 )
 
-Reason = str | Callable[[SharedStateVector, StateDeltaProposal], str]
+Reason = str | Callable[[ConversationState, ProposedChange], str]
 
 _NEXT_PHASE = {
     PhaseType.DATA_ANALYSIS: PhaseType.HYPOTHESIS_GEN,
@@ -34,10 +34,10 @@ _NEXT_PHASE = {
 
 @dataclass(frozen=True, slots=True)
 class TransitionTarget:
-    phase: PhaseType | Callable[[SharedStateVector, StateDeltaProposal], PhaseType]
+    phase: PhaseType | Callable[[ConversationState, ProposedChange], PhaseType]
     plan_from_target: bool = False
 
-    def resolve(self, state: SharedStateVector, delta: StateDeltaProposal) -> PhaseType:
+    def resolve(self, state: ConversationState, delta: ProposedChange) -> PhaseType:
         if callable(self.phase):
             return self.phase(state, delta)
         return self.phase
@@ -50,14 +50,14 @@ class TransitionTarget:
 
 @dataclass(frozen=True, slots=True)
 class TransitionResult:
-    decision: ReducerDecisionType
+    decision: ChangeDecisionType
     delegation: DelegationMode
     reason: Reason
     target: TransitionTarget | None = None
-    user_intent: IntentType = IntentType.FREE_CHAT
+    user_intent: UserIntent = UserIntent.FREE_CHAT
     current_phase_from_target: bool = True
 
-    def apply(self, state: SharedStateVector, delta: StateDeltaProposal) -> None:
+    def apply(self, state: ConversationState, delta: ProposedChange) -> None:
         if self.target is not None:
             target = self.target.resolve(state, delta)
             state.target_phase = target
@@ -69,7 +69,7 @@ class TransitionResult:
             state.execution_plan = [state.current_phase.value]
         state.user_intent = self.user_intent
 
-    def render_reason(self, state: SharedStateVector, delta: StateDeltaProposal) -> str:
+    def render_reason(self, state: ConversationState, delta: ProposedChange) -> str:
         if callable(self.reason):
             return self.reason(state, delta)
         return self.reason
@@ -80,20 +80,20 @@ class GuardFailure:
     reason: Reason
     reply: str
     result: TransitionResult = TransitionResult(
-        decision=ReducerDecisionType.ACCEPTED,
+        decision=ChangeDecisionType.ACCEPTED,
         delegation=DelegationMode.DIRECT,
         reason="guard failed",
-        user_intent=IntentType.FREE_CHAT,
+        user_intent=UserIntent.FREE_CHAT,
     )
 
 
 @dataclass(frozen=True, slots=True)
 class Guard:
     name: str
-    predicate: Callable[[SharedStateVector, StateDeltaProposal], bool]
+    predicate: Callable[[ConversationState, ProposedChange], bool]
     failure: GuardFailure
 
-    def evaluate(self, state: SharedStateVector, delta: StateDeltaProposal) -> GuardFailure | None:
+    def evaluate(self, state: ConversationState, delta: ProposedChange) -> GuardFailure | None:
         if self.predicate(state, delta):
             return None
         return self.failure
@@ -101,12 +101,14 @@ class Guard:
 
 @dataclass(frozen=True, slots=True)
 class TransitionRule:
-    intent: DeltaIntent
+    intent: TurnIntent
     result: TransitionResult
     guards: tuple[Guard, ...] = ()
-    effects: tuple[Callable[[SharedStateVector, StateDeltaProposal], None], ...] = ()
+    effects: tuple[Callable[[ConversationState, ProposedChange], None], ...] = ()
 
-    def apply(self, state: SharedStateVector, delta: StateDeltaProposal) -> TransitionResult:
+    def apply(self, state: ConversationState, delta: ProposedChange) -> TransitionResult:
+        # 1) 가드(전제조건)를 먼저 통과해야 한다. 하나라도 실패하면 그 자리에서
+        #    "직접 답변(안내문)"으로 돌리고 끝낸다 (예: 신호 없이 가설 요청).
         for guard in self.guards:
             failure = guard.evaluate(state, delta)
             if failure:
@@ -122,6 +124,7 @@ class TransitionRule:
                 )
                 failure_result.apply(state, delta)
                 return failure_result
+        # 2) 모든 가드 통과 -> 정상 전이를 상태에 반영하고, 부수 효과(effects)를 실행한다.
         self.result.apply(state, delta)
         for effect in self.effects:
             effect(state, delta)
@@ -139,7 +142,7 @@ class TransitionGraph:
         self._clarify_result = clarify_result
         self._default_result = default_result
 
-    def reduce(self, state: SharedStateVector, delta: StateDeltaProposal) -> TransitionResult:
+    def reduce(self, state: ConversationState, delta: ProposedChange) -> TransitionResult:
         if delta.confidence < 0.55 or delta.requires_confirmation:
             self._clarify_result.apply(state, delta)
             return self._clarify_result
@@ -150,44 +153,44 @@ class TransitionGraph:
         return self._default_result
 
 
-def _current_phase(state: SharedStateVector, _delta: StateDeltaProposal) -> PhaseType:
+def _current_phase(state: ConversationState, _delta: ProposedChange) -> PhaseType:
     return state.current_phase
 
 
-def _backtrack_target(_state: SharedStateVector, delta: StateDeltaProposal) -> PhaseType:
+def _backtrack_target(_state: ConversationState, delta: ProposedChange) -> PhaseType:
     return delta.target_phase or delta.restart_from_phase or PhaseType.DATA_ANALYSIS
 
 
-def _artifact_revision_target(state: SharedStateVector, delta: StateDeltaProposal) -> PhaseType:
+def _artifact_revision_target(state: ConversationState, delta: ProposedChange) -> PhaseType:
     return delta.target_phase or state.current_phase
 
 
-def _approval_target(state: SharedStateVector, _delta: StateDeltaProposal) -> PhaseType:
+def _approval_target(state: ConversationState, _delta: ProposedChange) -> PhaseType:
     return _NEXT_PHASE[state.current_phase]
 
 
-def _has_analysis_input(state: SharedStateVector, delta: StateDeltaProposal) -> bool:
+def _has_analysis_input(state: ConversationState, delta: ProposedChange) -> bool:
     return bool(
         delta.mutation.get("has_csv_attachment")
         or state.phase_artifacts[PhaseType.DATA_ANALYSIS.value].get("signals")
     )
 
 
-def _has_signals(state: SharedStateVector, _delta: StateDeltaProposal) -> bool:
+def _has_signals(state: ConversationState, _delta: ProposedChange) -> bool:
     return bool(state.phase_artifacts[PhaseType.DATA_ANALYSIS.value].get("signals"))
 
 
-def _has_hypotheses(state: SharedStateVector, _delta: StateDeltaProposal) -> bool:
+def _has_hypotheses(state: ConversationState, _delta: ProposedChange) -> bool:
     return bool(state.phase_artifacts[PhaseType.HYPOTHESIS_GEN.value].get("hypotheses"))
 
 
-def _backtrack_effect(state: SharedStateVector, delta: StateDeltaProposal) -> None:
+def _backtrack_effect(state: ConversationState, delta: ProposedChange) -> None:
     target = _backtrack_target(state, delta)
     _record_lesson(state, target, delta)
     _invalidate_downstream_artifacts(state, target)
 
 
-def _backtrack_reason(state: SharedStateVector, delta: StateDeltaProposal) -> str:
+def _backtrack_reason(state: ConversationState, delta: ProposedChange) -> str:
     return f"backtrack accepted to {_backtrack_target(state, delta).value}"
 
 
@@ -197,7 +200,7 @@ def _plan_from(start: PhaseType) -> list[str]:
     return [phase.value for phase in phases[idx:]]
 
 
-def _record_lesson(state: SharedStateVector, phase: PhaseType, delta: StateDeltaProposal) -> None:
+def _record_lesson(state: ConversationState, phase: PhaseType, delta: ProposedChange) -> None:
     if not delta.mutation:
         return
     parts = [f"{key}={value}" for key, value in sorted(delta.mutation.items())]
@@ -206,7 +209,7 @@ def _record_lesson(state: SharedStateVector, phase: PhaseType, delta: StateDelta
     state.compact_lessons = state.compact_lessons[-6:]
 
 
-def _invalidate_downstream_artifacts(state: SharedStateVector, target: PhaseType) -> None:
+def _invalidate_downstream_artifacts(state: ConversationState, target: PhaseType) -> None:
     phases = list(PhaseType)
     start = phases.index(target)
     for phase in phases[start:]:
@@ -215,40 +218,40 @@ def _invalidate_downstream_artifacts(state: SharedStateVector, target: PhaseType
 
 
 DIRECT_FREE_CHAT = TransitionResult(
-    decision=ReducerDecisionType.ACCEPTED,
+    decision=ChangeDecisionType.ACCEPTED,
     delegation=DelegationMode.DIRECT,
     reason="direct orchestrator reply",
-    user_intent=IntentType.FREE_CHAT,
+    user_intent=UserIntent.FREE_CHAT,
 )
 
 TRANSITION_GRAPH = TransitionGraph(
     clarify_result=TransitionResult(
-        decision=ReducerDecisionType.CLARIFY,
+        decision=ChangeDecisionType.CLARIFY,
         delegation=DelegationMode.CLARIFY,
         reason="low confidence or confirmation required",
-        user_intent=IntentType.FREE_CHAT,
+        user_intent=UserIntent.FREE_CHAT,
     ),
     default_result=DIRECT_FREE_CHAT,
     rules=(
         TransitionRule(
-            intent=DeltaIntent.BACKTRACK,
+            intent=TurnIntent.BACKTRACK,
             result=TransitionResult(
-                decision=ReducerDecisionType.ACCEPTED,
+                decision=ChangeDecisionType.ACCEPTED,
                 delegation=DelegationMode.RERUN,
                 reason=_backtrack_reason,
                 target=TransitionTarget(_backtrack_target),
-                user_intent=IntentType.BACKTRACK,
+                user_intent=UserIntent.BACKTRACK,
             ),
             effects=(_backtrack_effect,),
         ),
         TransitionRule(
-            intent=DeltaIntent.START_ANALYSIS,
+            intent=TurnIntent.START_ANALYSIS,
             result=TransitionResult(
-                decision=ReducerDecisionType.ACCEPTED,
+                decision=ChangeDecisionType.ACCEPTED,
                 delegation=DelegationMode.RERUN,
                 reason="analysis run requested",
                 target=TransitionTarget(PhaseType.DATA_ANALYSIS),
-                user_intent=IntentType.INITIAL_RUN,
+                user_intent=UserIntent.INITIAL_RUN,
             ),
             guards=(
                 Guard(
@@ -262,13 +265,13 @@ TRANSITION_GRAPH = TransitionGraph(
             ),
         ),
         TransitionRule(
-            intent=DeltaIntent.START_HYPOTHESIS,
+            intent=TurnIntent.START_HYPOTHESIS,
             result=TransitionResult(
-                decision=ReducerDecisionType.ACCEPTED,
+                decision=ChangeDecisionType.ACCEPTED,
                 delegation=DelegationMode.RERUN,
                 reason="hypothesis generation requested",
                 target=TransitionTarget(PhaseType.HYPOTHESIS_GEN),
-                user_intent=IntentType.HYPOTHESIS_REQUEST,
+                user_intent=UserIntent.HYPOTHESIS_REQUEST,
             ),
             guards=(
                 Guard(
@@ -282,13 +285,13 @@ TRANSITION_GRAPH = TransitionGraph(
             ),
         ),
         TransitionRule(
-            intent=DeltaIntent.START_PLAN,
+            intent=TurnIntent.START_PLAN,
             result=TransitionResult(
-                decision=ReducerDecisionType.ACCEPTED,
+                decision=ChangeDecisionType.ACCEPTED,
                 delegation=DelegationMode.RERUN,
                 reason="experiment planning requested",
                 target=TransitionTarget(PhaseType.EXPERIMENT_PLAN),
-                user_intent=IntentType.PLAN_REQUEST,
+                user_intent=UserIntent.PLAN_REQUEST,
             ),
             guards=(
                 Guard(
@@ -302,35 +305,35 @@ TRANSITION_GRAPH = TransitionGraph(
             ),
         ),
         TransitionRule(
-            intent=DeltaIntent.ARTIFACT_REVISION,
+            intent=TurnIntent.ARTIFACT_REVISION,
             result=TransitionResult(
-                decision=ReducerDecisionType.ACCEPTED,
+                decision=ChangeDecisionType.ACCEPTED,
                 delegation=DelegationMode.DELEGATE,
                 reason="phase-local artifact revision should be delegated",
                 target=TransitionTarget(_artifact_revision_target),
-                user_intent=IntentType.ARTIFACT_REVISION,
+                user_intent=UserIntent.ARTIFACT_REVISION,
                 current_phase_from_target=False,
             ),
         ),
         TransitionRule(
-            intent=DeltaIntent.ARTIFACT_QUERY,
+            intent=TurnIntent.ARTIFACT_QUERY,
             result=TransitionResult(
-                decision=ReducerDecisionType.ACCEPTED,
+                decision=ChangeDecisionType.ACCEPTED,
                 delegation=DelegationMode.DIRECT,
                 reason="artifact query answered from runtime state",
                 target=TransitionTarget(_current_phase),
-                user_intent=IntentType.ARTIFACT_QUERY,
+                user_intent=UserIntent.ARTIFACT_QUERY,
                 current_phase_from_target=False,
             ),
         ),
         TransitionRule(
-            intent=DeltaIntent.APPROVE,
+            intent=TurnIntent.APPROVE,
             result=TransitionResult(
-                decision=ReducerDecisionType.ACCEPTED,
+                decision=ChangeDecisionType.ACCEPTED,
                 delegation=DelegationMode.DIRECT,
                 reason="approval intent detected; business persistence remains Java-owned",
                 target=TransitionTarget(_approval_target, plan_from_target=True),
-                user_intent=IntentType.APPROVE,
+                user_intent=UserIntent.APPROVE,
             ),
         ),
     ),

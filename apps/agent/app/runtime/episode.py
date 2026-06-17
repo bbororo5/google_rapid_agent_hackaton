@@ -17,7 +17,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from app.runtime.state import PhaseType, SharedStateVector
+from app.runtime.state import PhaseType, ConversationState
 
 
 class EpisodeOutcome(str, Enum):
@@ -53,7 +53,7 @@ class Episode(BaseModel):
 
 
 def build_episode(
-    state: SharedStateVector,
+    state: ConversationState,
     outcome: EpisodeOutcome,
     raw_buffer: list[dict[str, str]],
     key_params: dict[str, Any] | None = None,

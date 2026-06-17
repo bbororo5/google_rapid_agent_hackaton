@@ -1,4 +1,4 @@
-"""Phase 1 (ADR-005): Redis hot tier for live SharedStateVector.
+"""Phase 1 (ADR-005): Redis hot tier for live ConversationState.
 
 Covers the in-process fallback store and the turn-load wiring: a hot hit must
 avoid the Elastic read, and a hot miss must rehydrate from the repository and
@@ -9,13 +9,13 @@ from __future__ import annotations
 from app.orchestration.context import LoadPersistedState
 from app.orchestration.emitter import StreamEmitter
 from app.orchestration.models import TurnContext
-from app.runtime.hot_store import InMemoryHotStore, get_hot_store
-from app.runtime.state import PhaseType, ScopeContext, SharedStateVector
+from app.runtime.state_cache import InMemoryHotStore, get_state_cache
+from app.runtime.state import PhaseType, ScopeContext, ConversationState
 from app.runtime.thread_store import ThreadRecord
 
 
-def _state(thread_id: str, revision: int) -> SharedStateVector:
-    return SharedStateVector(
+def _state(thread_id: str, revision: int) -> ConversationState:
+    return ConversationState(
         scope=ScopeContext(workspace_id="demo_workspace", campaign_id="camp_1", thread_id=thread_id),
         current_phase=PhaseType.HYPOTHESIS_GEN,
         revision=revision,
@@ -25,16 +25,16 @@ def _state(thread_id: str, revision: int) -> SharedStateVector:
 class _CountingRepo:
     backend_name = "counting"
 
-    def __init__(self, state: SharedStateVector | None) -> None:
+    def __init__(self, state: ConversationState | None) -> None:
         self._state = state
         self.load_calls = 0
 
-    async def load_state(self, thread_id: str) -> SharedStateVector | None:
+    async def load_state(self, thread_id: str) -> ConversationState | None:
         self.load_calls += 1
         return self._state
 
 
-async def test_in_memory_hot_store_roundtrip() -> None:
+async def test_in_memory_state_cache_roundtrip() -> None:
     hot = InMemoryHotStore()
     assert await hot.get_state("t1") is None
     await hot.put_state("t1", _state("t1", 3))
@@ -44,7 +44,7 @@ async def test_in_memory_hot_store_roundtrip() -> None:
     assert await hot.get_state("t1") is None
 
 
-async def test_in_memory_hot_store_returns_isolated_copies() -> None:
+async def test_in_memory_state_cache_returns_isolated_copies() -> None:
     hot = InMemoryHotStore()
     await hot.put_state("t1", _state("t1", 1))
     first = await hot.get_state("t1")
@@ -53,9 +53,9 @@ async def test_in_memory_hot_store_returns_isolated_copies() -> None:
     assert second.revision == 1
 
 
-def test_get_hot_store_defaults_to_memory_without_redis_url() -> None:
+def test_get_state_cache_defaults_to_memory_without_redis_url() -> None:
     # No REDIS_URL in the test environment => in-process fallback.
-    assert get_hot_store().backend_name == "memory"
+    assert get_state_cache().backend_name == "memory"
 
 
 async def test_load_prefers_hot_and_skips_elastic_on_hit() -> None:
@@ -63,7 +63,7 @@ async def test_load_prefers_hot_and_skips_elastic_on_hit() -> None:
     await hot.put_state("thread_001", _state("thread_001", 7))
     repo = _CountingRepo(state=_state("thread_001", 0))
     record = ThreadRecord(thread_id="thread_001")
-    turn = TurnContext(record=record, content="hi", attachments=(), repository=repo, hot_store=hot)
+    turn = TurnContext(record=record, content="hi", attachments=(), repository=repo, state_cache=hot)
 
     await LoadPersistedState(StreamEmitter()).apply(turn)
 
@@ -76,7 +76,7 @@ async def test_load_miss_rehydrates_from_repo_and_populates_hot() -> None:
     hot = InMemoryHotStore()
     repo = _CountingRepo(state=_state("thread_002", 4))
     record = ThreadRecord(thread_id="thread_002")
-    turn = TurnContext(record=record, content="hi", attachments=(), repository=repo, hot_store=hot)
+    turn = TurnContext(record=record, content="hi", attachments=(), repository=repo, state_cache=hot)
 
     await LoadPersistedState(StreamEmitter()).apply(turn)
 

@@ -21,7 +21,7 @@ class PhaseType(str, Enum):
     EXPERIMENT_EVAL = "EXPERIMENT_EVAL"
 
 
-class IntentType(str, Enum):
+class UserIntent(str, Enum):
     INITIAL_RUN = "INITIAL_RUN"
     HYPOTHESIS_REQUEST = "HYPOTHESIS_REQUEST"
     PLAN_REQUEST = "PLAN_REQUEST"
@@ -64,14 +64,19 @@ def _empty_phase_artifact_refs() -> dict[str, list[str]]:
     return {phase.value: [] for phase in PhaseType}
 
 
-class SharedStateVector(BaseModel):
-    """Mutable per-thread state for the macro graph and micro phase behavior."""
+class ConversationState(BaseModel):
+    """한 대화 스레드의 현재 상태 전부.
+
+    지금 어느 단계인지(current_phase), 단계별로 만들어 낸 결과물(phase_artifacts),
+    최근 채팅 기록(active_chat_history)을 한곳에 담는다. 매 턴마다 reducer가 이
+    상태를 조금씩 바꾼다.
+    """
 
     scope: Optional[ScopeContext] = None
     user_query: str = ""
     current_phase: PhaseType = PhaseType.DATA_ANALYSIS
     target_phase: PhaseType = PhaseType.DATA_ANALYSIS
-    user_intent: IntentType = IntentType.INITIAL_RUN
+    user_intent: UserIntent = UserIntent.INITIAL_RUN
 
     compact_lessons: list[CompactLesson] = Field(default_factory=list)
     phase_artifacts: dict[str, dict[str, Any]] = Field(default_factory=_empty_phase_artifacts)
@@ -84,7 +89,7 @@ class SharedStateVector(BaseModel):
     pending_approval_id: Optional[str] = None
 
 
-class DeltaIntent(str, Enum):
+class TurnIntent(str, Enum):
     CHAT = "CHAT"
     START_ANALYSIS = "START_ANALYSIS"
     START_HYPOTHESIS = "START_HYPOTHESIS"
@@ -105,10 +110,10 @@ class ResponseMode(str, Enum):
     CLARIFY = "CLARIFY"
 
 
-class StateDeltaProposal(BaseModel):
+class ProposedChange(BaseModel):
     """Structured proposal extracted from free-form conversation."""
 
-    intent: DeltaIntent
+    intent: TurnIntent
     response_mode: ResponseMode = ResponseMode.DIRECT
     target_phase: Optional[PhaseType] = None
     restart_from_phase: Optional[PhaseType] = None
@@ -146,7 +151,7 @@ class StateDeltaProposal(BaseModel):
         return aliases.get(normalized, normalized)
 
 
-class ReducerDecisionType(str, Enum):
+class ChangeDecisionType(str, Enum):
     ACCEPTED = "ACCEPTED"
     CLARIFY = "CLARIFY"
     REJECTED = "REJECTED"
@@ -159,12 +164,12 @@ class DelegationMode(str, Enum):
     CLARIFY = "CLARIFY"
 
 
-class ReducerDecision(BaseModel):
-    decision: ReducerDecisionType
+class ChangeDecision(BaseModel):
+    decision: ChangeDecisionType
     delegation_mode: DelegationMode
-    state: SharedStateVector
+    state: ConversationState
     reason: str
-    delta: StateDeltaProposal
+    delta: ProposedChange
     revision_before: int
     revision_after: int
 
@@ -179,7 +184,7 @@ def resolve_scope(
     thread_id: str,
     workspace_id: str | None,
     campaign_id: str | None,
-    existing_state: SharedStateVector | None = None,
+    existing_state: ConversationState | None = None,
 ) -> ScopeContext | None:
     """Resolve turn scope from payload first, then persisted runtime state."""
     restored = existing_state.scope if existing_state else None
@@ -193,27 +198,33 @@ def resolve_scope(
     )
 
 
-def reduce_state(
-    state: SharedStateVector,
-    delta: StateDeltaProposal,
+def apply_proposed_change(
+    state: ConversationState,
+    delta: ProposedChange,
     user_query: str,
-) -> ReducerDecision:
-    """Apply a StateDelta with deterministic guards.
+) -> ChangeDecision:
+    """LLM이 제안한 변경안(delta)을 받아 실제 상태 변화로 확정한다.
 
-    The reducer is deliberately small and explicit. It is the only place where
-    conversation-derived intent becomes authoritative workflow state.
+    여기가 "자유 대화에서 뽑아낸 의도"가 권위 있는 워크플로 상태로 바뀌는
+    유일한 지점이다. LLM은 제안만, 확정은 이 코드(리듀서)가 한다.
     """
+    # 1) 이번 턴 기본 기록: 질문 저장, 리비전 +1, 채팅 기록에 사용자 발화 추가.
     before = state.revision
     state.user_query = user_query
     state.revision += 1
     state.active_chat_history.append({"role": "user", "content": user_query})
+    # 채팅 기록은 최근 12개만 유지(프롬프트가 무한정 길어지지 않게).
     if len(state.active_chat_history) > 12:
         state.active_chat_history = state.active_chat_history[-12:]
 
+    # 2) 전이 그래프에 판정을 맡긴다 = 이 변경안이 단계 이동인지, 되묻기인지,
+    #    그냥 답변인지를 규칙으로 결정 (transitions.py). 순환 import 회피용 지역 import.
     from app.runtime.transitions import TRANSITION_GRAPH
 
     transition_result = TRANSITION_GRAPH.reduce(state, delta)
-    return ReducerDecision(
+
+    # 3) 판정 결과를 한 묶음(ChangeDecision)으로 포장해 돌려준다.
+    return ChangeDecision(
         decision=transition_result.decision,
         delegation_mode=transition_result.delegation,
         state=state,
@@ -224,7 +235,7 @@ def reduce_state(
     )
 
 
-def decide_delegation(decision: ReducerDecision) -> DelegationDecision:
+def decide_delegation(decision: ChangeDecision) -> DelegationDecision:
     return DelegationDecision(
         mode=decision.delegation_mode,
         target_phase=decision.state.target_phase,
@@ -232,7 +243,7 @@ def decide_delegation(decision: ReducerDecision) -> DelegationDecision:
     )
 
 
-def compact_state_summary(state: SharedStateVector) -> str:
+def summarize_state_for_prompt(state: ConversationState) -> str:
     lessons = "; ".join(lesson.summary for lesson in state.compact_lessons[-3:])
     artifacts = {
         phase: sorted(value.keys()) for phase, value in state.phase_artifacts.items() if value

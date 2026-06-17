@@ -2,7 +2,7 @@
 
 This is not the durable Agent Core runtime repository. It holds the live
 WebSocket block timeline and process-local ThreadRecord handles. Durable
-workflow state is represented by SharedStateVector and committed through
+workflow state is represented by ConversationState and committed through
 app.runtime.repository.
 
 A thread is long-lived: many turns, no terminal state. The WS sender streams
@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 from app.contracts import InternalStreamMessage
-from app.runtime.state import SharedStateVector
+from app.runtime.state import ConversationState
 
 
 @dataclass
@@ -26,7 +26,7 @@ class ThreadRecord:
     workspace_id: Optional[str] = None
     campaign_id: Optional[str] = None
     cancelled: bool = False
-    state: SharedStateVector = field(default_factory=SharedStateVector)
+    state: ConversationState = field(default_factory=ConversationState)
     turn_lock: asyncio.Lock = field(default_factory=asyncio.Lock)
 
     messages: list[InternalStreamMessage] = field(default_factory=list)

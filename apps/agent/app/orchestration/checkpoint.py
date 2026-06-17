@@ -13,7 +13,7 @@ from app import tracing
 from app.orchestration.emitter import StreamEmitter
 from app.orchestration.models import TurnContext, TurnDecision, TurnOutcome
 from app.runtime.episode import EpisodeOutcome, build_episode
-from app.runtime.state import DeltaIntent
+from app.runtime.state import TurnIntent
 
 
 class Checkpointer:
@@ -22,11 +22,11 @@ class Checkpointer:
 
     def _outcome_for(self, decision: TurnDecision, route_outcome: TurnOutcome) -> EpisodeOutcome | None:
         intent = decision.delta.intent
-        if intent == DeltaIntent.BACKTRACK:
+        if intent == TurnIntent.BACKTRACK:
             return EpisodeOutcome.BACKTRACK
-        if intent == DeltaIntent.APPROVE:
+        if intent == TurnIntent.APPROVE:
             return EpisodeOutcome.APPROVE
-        if intent == DeltaIntent.REJECT:
+        if intent == TurnIntent.REJECT:
             return EpisodeOutcome.REJECT
         if self._phase_round_completed(route_outcome):
             return EpisodeOutcome.FORWARD

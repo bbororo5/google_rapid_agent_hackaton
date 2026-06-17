@@ -1,4 +1,4 @@
-"""Redis hot tier for the live SharedStateVector (ADR-005).
+"""Redis hot tier for the live ConversationState (ADR-005).
 
 The live working copy of per-thread state lives here so a turn does not pay an
 Elastic round-trip to read state. Elastic stays authoritative: this store is a
@@ -17,7 +17,7 @@ from __future__ import annotations
 from typing import Optional, Protocol
 
 from app.config import get_settings
-from app.runtime.state import SharedStateVector
+from app.runtime.state import ConversationState
 
 _KEY_PREFIX = "lp:rt"
 _DEFAULT_TTL_SECONDS = 60 * 60 * 24  # 24h, aligned with agent_thread_states retention
@@ -27,13 +27,13 @@ def _state_key(thread_id: str) -> str:
     return f"{_KEY_PREFIX}:{thread_id}:state"
 
 
-class HotStateStore(Protocol):
+class StateCache(Protocol):
     backend_name: str
 
-    async def get_state(self, thread_id: str) -> SharedStateVector | None:
+    async def get_state(self, thread_id: str) -> ConversationState | None:
         ...
 
-    async def put_state(self, thread_id: str, state: SharedStateVector) -> None:
+    async def put_state(self, thread_id: str, state: ConversationState) -> None:
         ...
 
     async def drop_state(self, thread_id: str) -> None:
@@ -48,11 +48,11 @@ class InMemoryHotStore:
     def __init__(self) -> None:
         self._states: dict[str, str] = {}
 
-    async def get_state(self, thread_id: str) -> SharedStateVector | None:
+    async def get_state(self, thread_id: str) -> ConversationState | None:
         raw = self._states.get(thread_id)
-        return SharedStateVector.model_validate_json(raw) if raw else None
+        return ConversationState.model_validate_json(raw) if raw else None
 
-    async def put_state(self, thread_id: str, state: SharedStateVector) -> None:
+    async def put_state(self, thread_id: str, state: ConversationState) -> None:
         # Store JSON so a returned object is never an aliased mutable reference.
         self._states[thread_id] = state.model_dump_json()
 
@@ -70,26 +70,26 @@ class RedisHotStore:
         self._client = redis_asyncio.from_url(url, decode_responses=True)
         self._ttl = ttl_seconds
 
-    async def get_state(self, thread_id: str) -> SharedStateVector | None:
+    async def get_state(self, thread_id: str) -> ConversationState | None:
         raw = await self._client.get(_state_key(thread_id))
-        return SharedStateVector.model_validate_json(raw) if raw else None
+        return ConversationState.model_validate_json(raw) if raw else None
 
-    async def put_state(self, thread_id: str, state: SharedStateVector) -> None:
+    async def put_state(self, thread_id: str, state: ConversationState) -> None:
         await self._client.set(_state_key(thread_id), state.model_dump_json(), ex=self._ttl)
 
     async def drop_state(self, thread_id: str) -> None:
         await self._client.delete(_state_key(thread_id))
 
 
-_memory_hot_store = InMemoryHotStore()
-_redis_hot_store: Optional[RedisHotStore] = None
+_memory_state_cache = InMemoryHotStore()
+_redis_state_cache: Optional[RedisHotStore] = None
 
 
-def get_hot_store() -> HotStateStore:
-    global _redis_hot_store
+def get_state_cache() -> StateCache:
+    global _redis_state_cache
     settings = get_settings()
     if settings.use_redis and settings.redis_url:
-        if _redis_hot_store is None:
-            _redis_hot_store = RedisHotStore(settings.redis_url)
-        return _redis_hot_store
-    return _memory_hot_store
+        if _redis_state_cache is None:
+            _redis_state_cache = RedisHotStore(settings.redis_url)
+        return _redis_state_cache
+    return _memory_state_cache

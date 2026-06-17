@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from app.runtime.hot_store import HotStateStore
+from app.runtime.state_cache import StateCache
 from app.runtime.repository import (
     AgentRuntimeRepository,
     CampaignContext,
@@ -13,9 +13,9 @@ from app.runtime.repository import (
 )
 from app.runtime.state import (
     DelegationDecision,
-    ReducerDecision,
+    ChangeDecision,
     ScopeContext,
-    StateDeltaProposal,
+    ProposedChange,
 )
 from app.runtime.thread_store import ThreadRecord
 
@@ -30,7 +30,7 @@ class TurnContext:
     content: str
     attachments: tuple
     repository: AgentRuntimeRepository
-    hot_store: HotStateStore
+    state_cache: StateCache
     scope: ScopeContext | None = None
     campaign_context: CampaignContext | None = None
     recent_messages: list[ThreadMessage] = field(default_factory=list)
@@ -53,8 +53,8 @@ class TurnContext:
 
 @dataclass(slots=True)
 class TurnDecision:
-    delta: StateDeltaProposal
-    reducer: ReducerDecision
+    delta: ProposedChange
+    reducer: ChangeDecision
     delegation: DelegationDecision
 
     @property

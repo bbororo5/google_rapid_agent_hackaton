@@ -11,7 +11,7 @@ from app.orchestration.emitter import StreamEmitter
 from app.orchestration.models import TurnContext, TurnDecision, TurnOutcome
 from app.orchestration.phases import PhaseRunnerRegistry, analysis_window, baseline_window
 from app.runtime.restore import restore_from_episode
-from app.runtime.state import DelegationMode, DeltaIntent, PhaseType
+from app.runtime.state import DelegationMode, TurnIntent, PhaseType
 from app.tools import evidence
 
 log = logging.getLogger("launchpilot.orchestration.router")
@@ -46,6 +46,7 @@ class TurnRouter:
         return TurnOutcome({"mode": "clarify", "reply": reply[:500]})
 
     async def _rerun(self, turn: TurnContext, decision: TurnDecision) -> TurnOutcome:
+        # 가드 1) 캠페인 스코프가 없으면 분석을 시작하지 않는다.
         if not turn.scope:
             await self._emitter.system_error(
                 turn.record,
@@ -54,11 +55,13 @@ class TurnRouter:
             )
             return TurnOutcome({"mode": "rerun", "status": "missing_campaign"})
 
-        # Restore (ADR-005 Phase 4): a backtrack that names a past episode rebuilds
-        # the live state from that checkpoint instead of re-running forward.
+        # 갈림길) 과거 에피소드를 지목한 되돌리기면, 앞으로 재실행하지 않고
+        # 그 체크포인트로 상태를 복원한다 (ADR-005 Phase 4).
         restore_episode_id = decision.delta.mutation.get("restore_episode_id")
-        if decision.delta.intent == DeltaIntent.BACKTRACK and restore_episode_id:
+        if decision.delta.intent == TurnIntent.BACKTRACK and restore_episode_id:
             return await self._restore(turn, str(restore_episode_id))
+
+        # 가드 2) 캠페인 컨텍스트(이름/요약)를 못 찾으면 시작하지 않는다.
         if not turn.campaign_context:
             await self._emitter.system_error(
                 turn.record,
@@ -67,6 +70,8 @@ class TurnRouter:
             )
             return TurnOutcome({"mode": "rerun", "status": "campaign_not_found"})
 
+        # 본 작업) 분석 기간을 정하고, 근거 스코프와 트레이스로 감싼 뒤
+        # 현재 단계의 라운드를 실행한다.
         current = analysis_window()
         baseline = baseline_window(current)
         phase = turn.record.state.current_phase
@@ -144,21 +149,26 @@ class TurnRouter:
         await self._emitter.assistant_text(turn.record, reply)
         return TurnOutcome({"mode": "direct", "reply": reply[:500]})
 
-    def _artifact_lookup_reply(self, turn: TurnContext, intent: DeltaIntent) -> str | None:
-        if intent != DeltaIntent.ARTIFACT_QUERY:
+    def _artifact_lookup_reply(self, turn: TurnContext, intent: TurnIntent) -> str | None:
+        # "승인한 게 뭐였지?" 류의 조회 질문일 때만, 저장된 계획을 글로 풀어 답한다.
+        # 그 외 의도면 이 함수는 관여하지 않는다(None 반환).
+        if intent != TurnIntent.ARTIFACT_QUERY:
             return None
 
+        # 1) 상태에서 실험 계획을 꺼낸다. 없으면 안내 한 줄로 끝.
         raw_plan: Any = turn.record.state.phase_artifacts.get(PhaseType.EXPERIMENT_PLAN.value, {}).get(
             "experiment_plan"
         )
         if not isinstance(raw_plan, dict):
             return "아직 이 thread에서 확인할 수 있는 승인된 실험 계획이 없습니다."
 
+        # 2) 계획은 있으나 세부 실험 항목이 없으면, 제목만 알려 준다.
         title = raw_plan.get("summary") or raw_plan.get("id") or "승인된 실험 계획"
         items = raw_plan.get("items") if isinstance(raw_plan.get("items"), list) else []
         if not items:
             return f"승인된 내용은 `{title}` 실험 계획입니다. 세부 실험 항목은 현재 runtime artifact에서 확인되지 않습니다."
 
+        # 3) 항목이 있으면 최대 3개까지 "번호. 제목 (채널, 일정, 성공기준)"으로 풀어 쓴다.
         lines = [f"승인한 내용은 `{title}` 기준의 실험 계획입니다."]
         for index, item in enumerate(items[:3], start=1):
             if not isinstance(item, dict):

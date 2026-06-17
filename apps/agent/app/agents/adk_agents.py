@@ -49,6 +49,7 @@ def _build_agents():
     settings = get_settings()
     model_id = settings.gemini_model
     model = model_id
+    # 1) 모델 고르기: 엔터프라이즈 모드면 전용 클라이언트로 감싼 Gemini를 쓴다.
     if settings.use_enterpriseai:
         class EnterpriseGemini(Gemini):
             @cached_property
@@ -61,6 +62,8 @@ def _build_agents():
 
         model = EnterpriseGemini(model=model_id)
 
+    # 2) "생각(thinking)" 설정 고르기: 예산(budget)이 있으면 그걸로,
+    #    없고 레벨만 있으면 레벨로. 둘 다 없으면 planner 없이 간다.
     planner = None
     if settings.gemini_thinking_budget is not None:
         planner = BuiltInPlanner(
@@ -77,6 +80,7 @@ def _build_agents():
                 include_thoughts=False,
             )
         )
+    # 3) 아래에서 일꾼 5명(분석가/전략가/작성자/챗/인터프리터)을 같은 모델로 만든다.
     # Analyst: has the two evidence tools AND an output schema. In ADK 2.x tools
     # and output_schema compose (tools run during reasoning, schema shapes the
     # final reply). output_key writes the result into shared session state.
@@ -132,6 +136,21 @@ def _build_agents():
             "chat": chat, "interpreter": interpreter}
 
 
+_AGENT_CACHE: dict | None = None
+
+
+def _get_agent(kind: str):
+    """일꾼 에이전트를 처음 한 번만 만들고, 이후엔 캐시에서 꺼낸다.
+
+    get_settings()가 lru_cache라 설정이 고정이므로 5개를 매번 새로 만들 이유가 없다.
+    (예전엔 호출마다 _build_agents()를 다시 불러 낭비가 컸다.)
+    """
+    global _AGENT_CACHE
+    if _AGENT_CACHE is None:
+        _AGENT_CACHE = _build_agents()
+    return _AGENT_CACHE[kind]
+
+
 async def _run_with_timeout(kind: str, shape: str, collect):
     """Await `collect()` under a hard timeout, logging start/elapsed/timeout.
 
@@ -152,15 +171,20 @@ async def _run_with_timeout(kind: str, shape: str, collect):
     return result
 
 
-async def run_structured(kind: str, user_text: str) -> dict:
-    """Run one worker agent and return its parsed JSON output (a dict)."""
+async def _run_agent_to_text(kind: str, user_text: str, shape: str) -> str:
+    """일꾼 에이전트를 한 번 돌려 최종 응답 '텍스트'를 돌려준다.
+
+    run_structured/run_text가 똑같이 반복하던 'Runner + 세션 + 이벤트 수집'
+    보일러플레이트를 한곳에 모았다. 구조화/텍스트 차이는 호출부에서 처리한다
+    (JSON으로 파싱하느냐 마느냐).
+    """
     from google.adk.runners import Runner
     from google.adk.sessions import InMemorySessionService
     from google.genai import types
 
-    agent = _build_agents()[kind]
-    # Fresh in-memory session per worker call (the orchestrator threads state
-    # itself via prompts, so workers don't need a shared ADK session here).
+    # 1) 캐시된 에이전트를 꺼내고, 이 호출 전용 인메모리 세션을 연다.
+    #    (상태는 오케스트레이터가 프롬프트로 직접 넘기므로 세션 공유가 필요 없다.)
+    agent = _get_agent(kind)
     session_service = InMemorySessionService()
     runner = Runner(agent=agent, app_name=_APP, session_service=session_service)
     sid = f"sess_{uuid.uuid4().hex[:8]}"
@@ -169,8 +193,8 @@ async def run_structured(kind: str, user_text: str) -> dict:
     content = types.Content(role="user", parts=[types.Part(text=user_text)])
 
     async def _collect() -> str | None:
+        # 2) 이벤트 스트림 중 '최종 응답'의 텍스트만 취한다.
         final_text: str | None = None
-        # run_async yields a stream of events; the structured JSON is on the final one.
         async for event in runner.run_async(
             user_id="orchestrator", session_id=sid, new_message=content
         ):
@@ -178,37 +202,19 @@ async def run_structured(kind: str, user_text: str) -> dict:
                 final_text = event.content.parts[0].text
         return final_text
 
-    final_text = await _run_with_timeout(kind, "structured", _collect)
+    # 3) 타임아웃을 씌워 실행하고, 빈 응답이면 에러로 올린다.
+    final_text = await _run_with_timeout(kind, shape, _collect)
     if not final_text:
         raise RuntimeError(f"{kind}: empty agent response")
-    # output_schema guarantees the final text is schema-conforming JSON.
+    return final_text
+
+
+async def run_structured(kind: str, user_text: str) -> dict:
+    """일꾼을 돌려 구조화 JSON(dict)을 돌려준다. output_schema가 JSON 형태를 보장한다."""
+    final_text = await _run_agent_to_text(kind, user_text, "structured")
     return json.loads(final_text)
 
 
 async def run_text(kind: str, user_text: str) -> str:
-    """Run one agent and return its plain-text reply (no output_schema)."""
-    from google.adk.runners import Runner
-    from google.adk.sessions import InMemorySessionService
-    from google.genai import types
-
-    agent = _build_agents()[kind]
-    session_service = InMemorySessionService()
-    runner = Runner(agent=agent, app_name=_APP, session_service=session_service)
-    sid = f"sess_{uuid.uuid4().hex[:8]}"
-    await session_service.create_session(app_name=_APP, user_id="orchestrator", session_id=sid)
-
-    content = types.Content(role="user", parts=[types.Part(text=user_text)])
-
-    async def _collect() -> str | None:
-        final_text: str | None = None
-        async for event in runner.run_async(
-            user_id="orchestrator", session_id=sid, new_message=content
-        ):
-            if event.is_final_response() and event.content and event.content.parts:
-                final_text = event.content.parts[0].text
-        return final_text
-
-    final_text = await _run_with_timeout(kind, "text", _collect)
-    if not final_text:
-        raise RuntimeError(f"{kind}: empty agent response")
-    return final_text
+    """일꾼을 돌려 평문 텍스트를 돌려준다 (output_schema 없음)."""
+    return await _run_agent_to_text(kind, user_text, "text")
