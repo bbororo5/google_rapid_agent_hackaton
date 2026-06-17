@@ -74,7 +74,7 @@ class Settings(BaseModel):
     phoenix_use_mcp: bool = False
 
     # --- Runtime hot tier (Redis) ---
-    # Live SharedStateVector working copy (ADR-005). Authoritative truth stays in
+    # Live ConversationState working copy (ADR-005). Authoritative truth stays in
     # Elastic; Redis is a volatile cache. Unset => in-process fallback store.
     redis_url: str | None = None
 

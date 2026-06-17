@@ -11,7 +11,7 @@ from app.orchestration.emitter import StreamEmitter
 from app.orchestration.models import TurnContext, TurnDecision, TurnOutcome
 from app.orchestration.phases import PhaseRunnerRegistry, analysis_window, baseline_window
 from app.runtime.restore import restore_from_episode
-from app.runtime.state import DelegationMode, DeltaIntent, PhaseType
+from app.runtime.state import DelegationMode, TurnIntent, PhaseType
 from app.tools import evidence
 
 log = logging.getLogger("launchpilot.orchestration.router")
@@ -57,7 +57,7 @@ class TurnRouter:
         # Restore (ADR-005 Phase 4): a backtrack that names a past episode rebuilds
         # the live state from that checkpoint instead of re-running forward.
         restore_episode_id = decision.delta.mutation.get("restore_episode_id")
-        if decision.delta.intent == DeltaIntent.BACKTRACK and restore_episode_id:
+        if decision.delta.intent == TurnIntent.BACKTRACK and restore_episode_id:
             return await self._restore(turn, str(restore_episode_id))
         if not turn.campaign_context:
             await self._emitter.system_error(
@@ -144,8 +144,8 @@ class TurnRouter:
         await self._emitter.assistant_text(turn.record, reply)
         return TurnOutcome({"mode": "direct", "reply": reply[:500]})
 
-    def _artifact_lookup_reply(self, turn: TurnContext, intent: DeltaIntent) -> str | None:
-        if intent != DeltaIntent.ARTIFACT_QUERY:
+    def _artifact_lookup_reply(self, turn: TurnContext, intent: TurnIntent) -> str | None:
+        if intent != TurnIntent.ARTIFACT_QUERY:
             return None
 
         raw_plan: Any = turn.record.state.phase_artifacts.get(PhaseType.EXPERIMENT_PLAN.value, {}).get(

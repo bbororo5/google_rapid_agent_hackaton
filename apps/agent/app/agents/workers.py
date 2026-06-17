@@ -20,7 +20,7 @@ from app.contracts import (
     Signal,
     SignalDraftOutput,
 )
-from app.runtime.state import PhaseType, StateDeltaProposal
+from app.runtime.state import PhaseType, ProposedChange
 
 
 def _dump(models) -> str:
@@ -79,7 +79,7 @@ async def run_turn_interpreter(
     content: str,
     context: str = "",
     current_phase: PhaseType = PhaseType.DATA_ANALYSIS,
-) -> StateDeltaProposal:
+) -> ProposedChange:
     """Extract a state transition proposal from free-form user text.
 
     This intentionally does not trust the UI to send state commands. In real LLM
@@ -98,7 +98,7 @@ async def run_turn_interpreter(
     mutation_summary = data.pop("mutation_summary", None)
     if mutation_summary:
         data["mutation"] = {"summary": mutation_summary}
-    return StateDeltaProposal(**data)
+    return ProposedChange(**data)
 
 
 async def run_chat(content: str, context: str = "") -> str:

@@ -13,7 +13,7 @@ from app import tracing
 from app.orchestration.emitter import StreamEmitter
 from app.orchestration.models import TurnContext, TurnDecision, TurnOutcome
 from app.runtime.episode import EpisodeOutcome, build_episode
-from app.runtime.state import DeltaIntent
+from app.runtime.state import TurnIntent
 
 
 class Checkpointer:
@@ -21,12 +21,14 @@ class Checkpointer:
         self._emitter = emitter
 
     def _outcome_for(self, decision: TurnDecision, route_outcome: TurnOutcome) -> EpisodeOutcome | None:
+        # 이 턴이 '기록할 만한 의미 있는 경계'인지 판정해 그 종류를 돌려준다.
+        # (되돌리기/승인/거절은 항상 기록, 그 외엔 라운드가 깔끔히 끝났을 때만 FORWARD.)
         intent = decision.delta.intent
-        if intent == DeltaIntent.BACKTRACK:
+        if intent == TurnIntent.BACKTRACK:
             return EpisodeOutcome.BACKTRACK
-        if intent == DeltaIntent.APPROVE:
+        if intent == TurnIntent.APPROVE:
             return EpisodeOutcome.APPROVE
-        if intent == DeltaIntent.REJECT:
+        if intent == TurnIntent.REJECT:
             return EpisodeOutcome.REJECT
         if self._phase_round_completed(route_outcome):
             return EpisodeOutcome.FORWARD

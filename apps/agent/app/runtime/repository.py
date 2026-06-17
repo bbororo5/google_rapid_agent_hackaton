@@ -15,7 +15,7 @@ from pydantic import BaseModel, Field
 
 from app.config import get_settings
 from app.runtime.episode import Episode, EpisodeOutcome
-from app.runtime.state import ScopeContext, SharedStateVector, StateDeltaProposal
+from app.runtime.state import ScopeContext, ConversationState, ProposedChange
 
 
 class RepositoryConflict(RuntimeError):
@@ -40,10 +40,10 @@ class RuntimeArtifact(BaseModel):
     created_at: float = Field(default_factory=time.time)
 
 
-class DeltaEvent(BaseModel):
+class ChangeLogEntry(BaseModel):
     delta_id: str = Field(default_factory=lambda: f"delta_{uuid.uuid4().hex[:12]}")
     scope: ScopeContext
-    proposal: StateDeltaProposal
+    proposal: ProposedChange
     reducer_decision: dict[str, Any]
     created_at: float = Field(default_factory=time.time)
 
@@ -58,17 +58,17 @@ class ThreadMessage(BaseModel):
 class AgentRuntimeRepository(Protocol):
     backend_name: str
 
-    async def load_state(self, thread_id: str) -> SharedStateVector | None:
+    async def load_state(self, thread_id: str) -> ConversationState | None:
         ...
 
-    async def create_or_load_state(self, scope: ScopeContext) -> SharedStateVector:
+    async def create_or_load_state(self, scope: ScopeContext) -> ConversationState:
         ...
 
     async def commit_state(
         self,
         expected_revision: int,
-        new_state: SharedStateVector,
-        delta_event: DeltaEvent,
+        new_state: ConversationState,
+        delta_event: ChangeLogEntry,
     ) -> None:
         ...
 
@@ -106,32 +106,32 @@ class InMemoryAgentRuntimeRepository:
     backend_name = "memory"
 
     def __init__(self) -> None:
-        self._states: dict[str, SharedStateVector] = {}
-        self._deltas: list[DeltaEvent] = []
+        self._states: dict[str, ConversationState] = {}
+        self._deltas: list[ChangeLogEntry] = []
         self._artifacts: dict[str, RuntimeArtifact] = {}
         self._messages: dict[tuple[str, str, str], list[ThreadMessage]] = {}
         self._campaigns: dict[tuple[str, str], CampaignContext] = {}
         self._episodes: list[Episode] = []
 
-    async def load_state(self, thread_id: str) -> SharedStateVector | None:
+    async def load_state(self, thread_id: str) -> ConversationState | None:
         state = self._states.get(thread_id)
         return state.model_copy(deep=True) if state else None
 
-    async def create_or_load_state(self, scope: ScopeContext) -> SharedStateVector:
+    async def create_or_load_state(self, scope: ScopeContext) -> ConversationState:
         existing = self._states.get(scope.thread_id)
         if existing:
             state = existing.model_copy(deep=True)
             state.scope = state.scope or scope
             return state
-        state = SharedStateVector(scope=scope)
+        state = ConversationState(scope=scope)
         self._states[scope.thread_id] = state.model_copy(deep=True)
         return state
 
     async def commit_state(
         self,
         expected_revision: int,
-        new_state: SharedStateVector,
-        delta_event: DeltaEvent,
+        new_state: ConversationState,
+        delta_event: ChangeLogEntry,
     ) -> None:
         current = self._states.get(delta_event.scope.thread_id)
         current_revision = current.revision if current else 0
@@ -209,7 +209,7 @@ class ElasticAgentRuntimeRepository:
         self._url = url.rstrip("/")
         self._headers = {"Authorization": f"ApiKey {api_key}"}
 
-    async def load_state(self, thread_id: str) -> SharedStateVector | None:
+    async def load_state(self, thread_id: str) -> ConversationState | None:
         async with httpx.AsyncClient(timeout=10.0) as client:
             response = await client.get(
                 f"{self._url}/{self.state_index}/_doc/{thread_id}",
@@ -219,21 +219,22 @@ class ElasticAgentRuntimeRepository:
             return None
         response.raise_for_status()
         source = response.json().get("_source", {})
-        return SharedStateVector.model_validate(source["state"])
+        return ConversationState.model_validate(source["state"])
 
-    async def create_or_load_state(self, scope: ScopeContext) -> SharedStateVector:
+    async def create_or_load_state(self, scope: ScopeContext) -> ConversationState:
         existing = await self.load_state(scope.thread_id)
         if existing:
             existing.scope = existing.scope or scope
             return existing
-        return SharedStateVector(scope=scope)
+        return ConversationState(scope=scope)
 
     async def commit_state(
         self,
         expected_revision: int,
-        new_state: SharedStateVector,
-        delta_event: DeltaEvent,
+        new_state: ConversationState,
+        delta_event: ChangeLogEntry,
     ) -> None:
+        # 1) 저장할 상태 문서를 조립한다.
         doc = {
             "thread_id": delta_event.scope.thread_id,
             "workspace_id": delta_event.scope.workspace_id,
@@ -243,11 +244,13 @@ class ElasticAgentRuntimeRepository:
             "updated_at": time.time(),
         }
         async with httpx.AsyncClient(timeout=10.0) as client:
+            # 2) 같은 thread의 현재 문서를 먼저 읽는다 (남이 먼저 바꿨는지 확인용).
             current = await client.get(
                 f"{self._url}/{self.state_index}/_doc/{delta_event.scope.thread_id}",
                 headers=self._headers,
             )
             if current.status_code == 404:
+                # 2-a) 문서가 아직 없음 = 첫 저장. 그렇다면 revision은 0이어야 맞다.
                 if expected_revision != 0:
                     raise RepositoryConflict("missing state for non-zero revision")
                 state_response = await client.put(
@@ -256,6 +259,8 @@ class ElasticAgentRuntimeRepository:
                     json=doc,
                 )
             else:
+                # 2-b) 이미 있음 = 내가 본 revision과 같을 때만 덮어쓴다.
+                #      (그 사이 다른 턴이 먼저 갱신했으면 revision이 달라 충돌)
                 current.raise_for_status()
                 body = current.json()
                 source = body.get("_source", {})
@@ -263,6 +268,7 @@ class ElasticAgentRuntimeRepository:
                     raise RepositoryConflict(
                         f"stale revision: expected {expected_revision}, current {source.get('revision')}"
                     )
+                # if_seq_no/if_primary_term = Elastic의 "내가 읽은 그 버전일 때만 써라" 잠금.
                 state_response = await client.put(
                     (
                         f"{self._url}/{self.state_index}/_doc/{delta_event.scope.thread_id}"
@@ -271,9 +277,11 @@ class ElasticAgentRuntimeRepository:
                     headers=self._headers,
                     json=doc,
                 )
+            # 3) 쓰는 순간 다른 턴이 끼어들었으면(409) 충돌로 처리한다.
             if state_response.status_code == 409:
                 raise RepositoryConflict("elastic optimistic concurrency conflict")
             state_response.raise_for_status()
+            # 4) 마지막으로 변경 이력(delta)을 별도 인덱스에 남긴다.
             delta_response = await client.put(
                 f"{self._url}/{self.delta_index}/_doc/{delta_event.delta_id}",
                 headers=self._headers,

@@ -7,11 +7,11 @@ from app.orchestration.context import PromptContextBuilder
 from app.orchestration.emitter import StreamEmitter
 from app.orchestration.models import TurnContext, TurnDecision
 from app.runtime.state import (
-    DeltaIntent,
+    TurnIntent,
     PhaseType,
     ResponseMode,
     decide_delegation,
-    reduce_state,
+    apply_proposed_change,
 )
 
 
@@ -34,7 +34,7 @@ class TurnInterpreter:
             turn.record.state.current_phase,
         )
         if self._has_attachment_kind(turn.attachments, "csv_import"):
-            delta.intent = DeltaIntent.START_ANALYSIS
+            delta.intent = TurnIntent.START_ANALYSIS
             delta.response_mode = ResponseMode.RERUN
             delta.target_phase = PhaseType.DATA_ANALYSIS
             delta.restart_from_phase = PhaseType.DATA_ANALYSIS
@@ -53,7 +53,7 @@ class TurnInterpreter:
             "Applying workflow guardrails",
             "running",
         )
-        reducer = reduce_state(turn.record.state, delta, turn.content)
+        reducer = apply_proposed_change(turn.record.state, delta, turn.content)
         delegation = decide_delegation(reducer)
         await self._emitter.progress(
             turn.record,

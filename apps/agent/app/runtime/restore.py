@@ -14,18 +14,18 @@ from __future__ import annotations
 
 from app.runtime.episode import Episode
 from app.runtime.repository import AgentRuntimeRepository
-from app.runtime.state import CompactLesson, IntentType, SharedStateVector
+from app.runtime.state import CompactLesson, UserIntent, ConversationState
 
 
 async def restore_from_episode(
-    state: SharedStateVector,
+    state: ConversationState,
     episode: Episode,
     repository: AgentRuntimeRepository,
-) -> SharedStateVector:
+) -> ConversationState:
     snap = episode.state_snapshot
     state.current_phase = snap.current_phase
     state.target_phase = snap.target_phase
-    state.user_intent = IntentType.BACKTRACK
+    state.user_intent = UserIntent.BACKTRACK
     state.phase_artifact_refs = {k: list(v) for k, v in snap.phase_artifact_refs.items()}
 
     # Rehydrate phase artifact payloads from their runtime-artifact refs so the

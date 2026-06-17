@@ -8,7 +8,7 @@ from enum import Enum
 from pydantic import BaseModel, Field
 
 from app.orchestration.models import TurnContext, TurnDecision
-from app.runtime.state import DelegationMode, DeltaIntent, PhaseType
+from app.runtime.state import DelegationMode, TurnIntent, PhaseType
 
 
 class BudgetProfile(str, Enum):
@@ -78,7 +78,7 @@ class GoalController:
             return GoalKind.REVISE_ARTIFACT
         if decision.delegation.mode == DelegationMode.RERUN:
             return GoalKind.RUN_PHASE
-        if decision.delta.intent in {DeltaIntent.APPROVE, DeltaIntent.REJECT, DeltaIntent.CANCEL}:
+        if decision.delta.intent in {TurnIntent.APPROVE, TurnIntent.REJECT, TurnIntent.CANCEL}:
             return GoalKind.APPROVAL_ACTION
         return GoalKind.ANSWER_QUESTION
 

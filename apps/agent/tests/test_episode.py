@@ -10,16 +10,16 @@ from app.runtime.episode_query import recent_episode_context
 from app.runtime.repository import InMemoryAgentRuntimeRepository, RuntimeArtifact
 from app.runtime.restore import restore_from_episode
 from app.runtime.state import (
-    DeltaIntent,
+    TurnIntent,
     PhaseType,
     ScopeContext,
-    SharedStateVector,
-    StateDeltaProposal,
+    ConversationState,
+    ProposedChange,
 )
 
 
-def _state(phase: PhaseType = PhaseType.HYPOTHESIS_GEN, revision: int = 3) -> SharedStateVector:
-    return SharedStateVector(
+def _state(phase: PhaseType = PhaseType.HYPOTHESIS_GEN, revision: int = 3) -> ConversationState:
+    return ConversationState(
         scope=ScopeContext(workspace_id="demo_workspace", campaign_id="camp_1", thread_id="thread_x"),
         current_phase=phase,
         target_phase=phase,
@@ -75,18 +75,18 @@ async def test_repository_episode_scope_isolation_and_get() -> None:
 
 # --- checkpoint outcome classification ------------------------------------
 
-def _decision(intent: DeltaIntent):
-    return SimpleNamespace(delta=StateDeltaProposal(intent=intent))
+def _decision(intent: TurnIntent):
+    return SimpleNamespace(delta=ProposedChange(intent=intent))
 
 
 def test_checkpointer_outcome_classification() -> None:
     cp = Checkpointer(emitter=None)  # _outcome_for does not touch the emitter
     forward = TurnOutcome({"phase": "DATA_ANALYSIS", "signals": 3})
-    assert cp._outcome_for(_decision(DeltaIntent.BACKTRACK), forward) == EpisodeOutcome.BACKTRACK
-    assert cp._outcome_for(_decision(DeltaIntent.APPROVE), forward) == EpisodeOutcome.APPROVE
-    assert cp._outcome_for(_decision(DeltaIntent.REJECT), forward) == EpisodeOutcome.REJECT
-    assert cp._outcome_for(_decision(DeltaIntent.START_ANALYSIS), forward) == EpisodeOutcome.FORWARD
-    assert cp._outcome_for(_decision(DeltaIntent.CHAT), TurnOutcome({"mode": "direct"})) is None
+    assert cp._outcome_for(_decision(TurnIntent.BACKTRACK), forward) == EpisodeOutcome.BACKTRACK
+    assert cp._outcome_for(_decision(TurnIntent.APPROVE), forward) == EpisodeOutcome.APPROVE
+    assert cp._outcome_for(_decision(TurnIntent.REJECT), forward) == EpisodeOutcome.REJECT
+    assert cp._outcome_for(_decision(TurnIntent.START_ANALYSIS), forward) == EpisodeOutcome.FORWARD
+    assert cp._outcome_for(_decision(TurnIntent.CHAT), TurnOutcome({"mode": "direct"})) is None
 
 
 def test_phase_round_completed_guards() -> None:
