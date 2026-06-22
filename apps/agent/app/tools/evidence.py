@@ -23,7 +23,7 @@ import logging
 from typing import NamedTuple, Optional
 
 from app.config import get_settings
-from app import tracing
+from app import telemetry
 
 log = logging.getLogger("launchpilot.evidence")
 
@@ -93,11 +93,7 @@ def _stamp(span, result: dict) -> None:
     # RETRIEVER span output: map evidence_refs -> retrieval.documents (contract 06
     # §Retriever Span Contract; document.id == EvidenceRef.ref_id). Output value is
     # a concise summary, never raw rows (§Redaction).
-    refs = result.get("evidence_refs") or []
-    tracing.set_documents(span, [{"id": r} for r in refs])
-    summary = {k: v for k, v in result.items() if k != "evidence_refs"}
-    summary["evidence_ref_count"] = len(refs)
-    tracing.set_output(span, summary)
+    telemetry.record_evidence_result(span, result)
 
 
 def _ok(tool_name: str, mcp_tool: str, **extra) -> dict:
@@ -128,7 +124,7 @@ def query_metric_baseline(metric_name: str, channel: str) -> dict:
     """
     sc = _current_scope()
 
-    with tracing.retriever_span(
+    with telemetry.evidence_span(
         "launchpilot.evidence.query_metric_baseline",
         tool_name="query_metric_baseline",
         input_value={"metric_name": metric_name, "channel": channel},
@@ -155,7 +151,7 @@ def search_content_posts(channels: list[str], metric_name: str) -> dict:
     """
     sc = _current_scope()
 
-    with tracing.retriever_span(
+    with telemetry.evidence_span(
         "launchpilot.evidence.search_content_posts",
         tool_name="search_content_posts",
         input_value={"channels": channels, "metric_name": metric_name},
@@ -183,7 +179,7 @@ def search_team_notes(query: str) -> dict:
     """
     sc = _current_scope()
 
-    with tracing.retriever_span(
+    with telemetry.evidence_span(
         "launchpilot.evidence.search_team_notes",
         tool_name="search_team_notes",
         input_value={"query": query},

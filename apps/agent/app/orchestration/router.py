@@ -6,7 +6,7 @@ import logging
 from collections.abc import Awaitable, Callable
 from typing import Any
 
-from app import tracing
+from app import telemetry
 from app.orchestration.emitter import StreamEmitter
 from app.orchestration.models import TurnContext, TurnDecision, TurnOutcome
 from app.orchestration.phases import PhaseRunnerRegistry, analysis_window, baseline_window
@@ -77,10 +77,9 @@ class TurnRouter:
             current.end,
             baseline.start,
             baseline.end,
-        ), tracing.chain_span(
-            "launchpilot.orchestrator",
-            input_value=turn.content[:2000],
-            metadata={**turn.trace_metadata, "stage": "PIPELINE"},
+        ), telemetry.pipeline_span(
+            turn.content,
+            metadata=turn.trace_metadata,
             workspace_id=turn.record.workspace_id,
             campaign_id=turn.record.campaign_id,
         ) as pipeline_span:
@@ -98,7 +97,7 @@ class TurnRouter:
                 current.end,
             )
             outcome = await self._phases.get(phase).run(turn)
-            tracing.set_output(pipeline_span, outcome.trace_output)
+            telemetry.record_pipeline_outcome(pipeline_span, outcome.trace_output)
             await self._emitter.progress(
                 turn.record,
                 "round.dispatch",

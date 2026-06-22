@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from app import tracing
+from app import telemetry
 from app.orchestration.emitter import StreamEmitter
 from app.orchestration.models import TurnContext, TurnDecision
 from app.runtime.repository import ChangeLogEntry, RepositoryConflict
@@ -36,11 +36,11 @@ class StateCommitter:
             # 3) 캐시(Redis)도 최신으로 갱신해 다음 턴이 Elastic 왕복 없이 읽게 한다.
             #    권위는 여전히 Elastic (ADR-005).
             await turn.state_cache.put_state(turn.record.thread_id, turn.record.state)
-            tracing.set_metadata(span, {"agent.state_delta.delta_id": event.delta_id})
+            telemetry.record_state_delta(span, event.delta_id)
             await self._emitter.progress(turn.record, "state.commit", "Saved thread state", "done", event.delta_id)
         except RepositoryConflict:
             # 4) 그 사이 다른 턴이 먼저 상태를 바꿨음 -> 저장 중단하고 재시도 안내.
-            tracing.set_metadata(span, {"agent.repository.conflict": True})
+            telemetry.record_repository_conflict(span)
             await self._emitter.progress(turn.record, "state.commit", "Thread state changed elsewhere", "failed")
             await self._emitter.system_error(
                 turn.record,
