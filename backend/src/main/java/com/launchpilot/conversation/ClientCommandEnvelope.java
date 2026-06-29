@@ -1,6 +1,6 @@
 package com.launchpilot.conversation;
 
-import com.launchpilot.dto.common.MessageSendAction;
+import com.launchpilot.contracts.shared.MessageSendAction;
 import java.util.List;
 import java.util.Map;
 

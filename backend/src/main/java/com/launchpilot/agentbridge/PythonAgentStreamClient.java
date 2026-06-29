@@ -1,7 +1,7 @@
 package com.launchpilot.agentbridge;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.launchpilot.dto.common.StreamMessage;
+import com.launchpilot.contracts.shared.StreamMessage;
 import jakarta.websocket.ContainerProvider;
 import jakarta.websocket.WebSocketContainer;
 import org.slf4j.Logger;

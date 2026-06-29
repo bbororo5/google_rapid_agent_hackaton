@@ -2,7 +2,7 @@ package com.launchpilot.websocket;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.launchpilot.conversation.ConversationMessagePublisher;
-import com.launchpilot.dto.common.StreamMessage;
+import com.launchpilot.contracts.shared.StreamMessage;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Set;

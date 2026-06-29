@@ -1,4 +1,4 @@
-package com.launchpilot.dto.common;
+package com.launchpilot.contracts.shared;
 
 /** 계약 enum. */
 public enum ToolCallStatus {

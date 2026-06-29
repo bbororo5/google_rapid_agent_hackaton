@@ -1,8 +1,8 @@
 package com.launchpilot.contracts.elastic;
 
-import com.launchpilot.dto.common.ExperimentItem;
-import com.launchpilot.dto.common.Hypothesis;
-import com.launchpilot.dto.common.Signal;
+import com.launchpilot.contracts.shared.ExperimentItem;
+import com.launchpilot.contracts.shared.Hypothesis;
+import com.launchpilot.contracts.shared.Signal;
 import java.util.List;
 
 public record GrowthBriefDoc(

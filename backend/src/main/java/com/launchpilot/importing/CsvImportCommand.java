@@ -1,6 +1,6 @@
 package com.launchpilot.importing;
 
-import com.launchpilot.dto.common.Channel;
+import com.launchpilot.contracts.shared.Channel;
 import java.io.InputStream;
 
 /** Transport-neutral command for importing one CSV file. */

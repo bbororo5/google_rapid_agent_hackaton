@@ -1,6 +1,6 @@
 package com.launchpilot.contracts.elastic;
 
-import com.launchpilot.dto.common.Channel;
+import com.launchpilot.contracts.shared.Channel;
 import java.util.Map;
 
 public record ContentPostDoc(

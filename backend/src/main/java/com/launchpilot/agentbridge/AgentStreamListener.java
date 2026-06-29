@@ -1,6 +1,6 @@
 package com.launchpilot.agentbridge;
 
-import com.launchpilot.dto.common.StreamMessage;
+import com.launchpilot.contracts.shared.StreamMessage;
 
 /** Callback invoked when Python Agent Core emits a stream message. */
 public interface AgentStreamListener {

@@ -2,7 +2,7 @@ package com.launchpilot.importing;
 
 import com.launchpilot.conversation.RunContext;
 import com.launchpilot.conversation.ThreadContextStore;
-import com.launchpilot.dto.common.Channel;
+import com.launchpilot.contracts.shared.Channel;
 import com.launchpilot.contracts.elastic.CampaignDoc;
 import com.launchpilot.contracts.elastic.ContentPostDoc;
 import com.launchpilot.contracts.frontend.ImportCsvResponse;

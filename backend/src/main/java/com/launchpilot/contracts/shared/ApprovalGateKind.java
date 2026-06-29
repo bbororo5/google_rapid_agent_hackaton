@@ -1,4 +1,4 @@
-package com.launchpilot.dto.common;
+package com.launchpilot.contracts.shared;
 
 /** 계약 01 asyncapi: 승인 게이트 종류. */
 public enum ApprovalGateKind {

@@ -1,6 +1,6 @@
 package com.launchpilot.conversation;
 
-import com.launchpilot.dto.common.StreamMessage;
+import com.launchpilot.contracts.shared.StreamMessage;
 
 /** Publishes committed conversation messages to interested frontend sessions. */
 public interface ConversationMessagePublisher {

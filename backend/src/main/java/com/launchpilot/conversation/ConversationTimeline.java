@@ -1,6 +1,6 @@
 package com.launchpilot.conversation;
 
-import com.launchpilot.dto.common.StreamMessage;
+import com.launchpilot.contracts.shared.StreamMessage;
 import java.util.List;
 import java.util.Map;
 

@@ -1,4 +1,4 @@
-package com.launchpilot.dto.common;
+package com.launchpilot.contracts.shared;
 
 public record ToolCallLog(
         int sequence,

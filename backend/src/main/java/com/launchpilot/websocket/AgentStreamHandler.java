@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.launchpilot.conversation.ClientCommandEnvelope;
 import com.launchpilot.conversation.ConversationCommandUseCase;
 import com.launchpilot.conversation.ConversationConnectionUseCase;
-import com.launchpilot.dto.common.AgentStreamClientCommand;
+import com.launchpilot.contracts.shared.AgentStreamClientCommand;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;

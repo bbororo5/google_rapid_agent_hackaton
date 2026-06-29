@@ -1,9 +1,9 @@
 package com.launchpilot.conversation;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.launchpilot.dto.common.AgentResultPayload;
-import com.launchpilot.dto.common.ApprovalGateKind;
-import com.launchpilot.dto.common.ApprovalGateRequest;
+import com.launchpilot.contracts.shared.AgentResultPayload;
+import com.launchpilot.contracts.shared.ApprovalGateKind;
+import com.launchpilot.contracts.shared.ApprovalGateRequest;
 import com.launchpilot.common.IdGenerator;
 import java.util.List;
 import java.util.Map;

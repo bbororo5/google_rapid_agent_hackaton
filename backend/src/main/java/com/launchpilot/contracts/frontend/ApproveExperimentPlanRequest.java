@@ -1,6 +1,6 @@
 package com.launchpilot.contracts.frontend;
 
-import com.launchpilot.dto.common.ExperimentItem;
+import com.launchpilot.contracts.shared.ExperimentItem;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.Pattern;

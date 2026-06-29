@@ -1,4 +1,4 @@
-package com.launchpilot.dto.common;
+package com.launchpilot.contracts.shared;
 
 import com.launchpilot.contracts.frontend.CalendarEventRef;
 import java.util.List;

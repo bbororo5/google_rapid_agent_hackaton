@@ -1,6 +1,6 @@
 package com.launchpilot.conversation;
 
-import com.launchpilot.dto.common.ApprovalGateRequest;
+import com.launchpilot.contracts.shared.ApprovalGateRequest;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
