@@ -1,4 +1,4 @@
-package com.launchpilot.ws;
+package com.launchpilot.conversation;
 
 import com.launchpilot.dto.common.StreamMessage;
 import java.time.OffsetDateTime;
@@ -10,30 +10,31 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.springframework.stereotype.Component;
 
 /**
- * 계약 01: thread별 영속(인메모리) 메시지 타임라인 + 단조 sequence.
- * 단일 인스턴스 가정 (DESIGN.md registry와 동일 전제).
+ * Thread-local in-memory timeline with monotonic sequence numbers.
+ * Single Java instance assumption matches the current MVP runtime.
  */
 @Component
-public class AgentThreadTimeline {
+public class InMemoryConversationTimeline implements ConversationTimeline {
 
     private final Map<String, List<StreamMessage>> events = new ConcurrentHashMap<>();
     private final Map<String, AtomicLong> seq = new ConcurrentHashMap<>();
 
-    public synchronized StreamMessage commit(String threadId, String role, List<Map<String, Object>> blocks) {
-        long s = seq.computeIfAbsent(threadId, k -> new AtomicLong()).incrementAndGet();
+    @Override
+    public synchronized StreamMessage append(String threadId, String role, List<Map<String, Object>> blocks) {
+        long sequence = seq.computeIfAbsent(threadId, key -> new AtomicLong()).incrementAndGet();
         StreamMessage message = new StreamMessage(
-                "msg_" + stripThread(threadId) + "_" + s,
+                "msg_" + stripThread(threadId) + "_" + sequence,
                 threadId,
-                s,
+                sequence,
                 role,
                 OffsetDateTime.now().toString(),
                 blocks);
-        events.computeIfAbsent(threadId, k -> new ArrayList<>()).add(message);
+        events.computeIfAbsent(threadId, key -> new ArrayList<>()).add(message);
         return message;
     }
 
-    /** Past messages for a thread, in commit order. Used to replay on (re)connect. */
-    public synchronized List<StreamMessage> events(String threadId) {
+    @Override
+    public synchronized List<StreamMessage> history(String threadId) {
         List<StreamMessage> list = events.get(threadId);
         return list == null ? List.of() : new ArrayList<>(list);
     }

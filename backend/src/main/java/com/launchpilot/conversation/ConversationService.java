@@ -1,78 +1,70 @@
-package com.launchpilot.service;
+package com.launchpilot.conversation;
 
 import com.launchpilot.agentbridge.AgentStreamPort;
 import com.launchpilot.agentbridge.AgentTurnCommand;
 import com.launchpilot.agentbridge.AgentTurnPort;
 import com.launchpilot.approval.ApprovalUseCase;
 import com.launchpilot.approval.ApproveCommand;
-import com.launchpilot.conversation.ApprovalGateStore;
-import com.launchpilot.conversation.RunContext;
-import com.launchpilot.conversation.ThreadContextStore;
-import com.launchpilot.dto.common.AgentStreamClientCommand;
 import com.launchpilot.dto.common.ApprovalCommitResult;
 import com.launchpilot.dto.common.MessageSendAction;
 import com.launchpilot.dto.common.StreamMessage;
-import com.launchpilot.ws.AgentThreadTimeline;
-import com.launchpilot.ws.AgentStreamSessionRegistry;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
-import org.springframework.web.socket.WebSocketSession;
 
-/** Conversation-first FE stream relay. Frontend sees only StreamMessage.blocks[]. */
+/** Conversation-first frontend stream orchestration. */
 @Service
-public class AgentStreamRelayService {
+public class ConversationService implements ConversationCommandUseCase, ConversationConnectionUseCase {
 
-    private static final Logger log = LoggerFactory.getLogger(AgentStreamRelayService.class);
+    private static final Logger log = LoggerFactory.getLogger(ConversationService.class);
 
-    private final AgentThreadTimeline timeline;
-    private final AgentStreamSessionRegistry sessions;
+    private final ConversationTimeline timeline;
+    private final ConversationMessagePublisher publisher;
     private final AgentStreamPort pythonStream;
     private final AgentTurnPort agent;
     private final ApprovalUseCase approvals;
     private final ApprovalGateStore gates;
     private final ThreadContextStore threads;
+    private final DuplicateCommandGuard duplicateCommands;
 
-    private final Set<String> processedCommands = ConcurrentHashMap.newKeySet();
     private final Set<String> startedThreads = ConcurrentHashMap.newKeySet();
 
-    public AgentStreamRelayService(
-            AgentThreadTimeline timeline,
-            AgentStreamSessionRegistry sessions,
+    public ConversationService(
+            ConversationTimeline timeline,
+            ConversationMessagePublisher publisher,
             AgentStreamPort pythonStream,
             AgentTurnPort agent,
             ApprovalUseCase approvals,
             ApprovalGateStore gates,
-            ThreadContextStore threads) {
+            ThreadContextStore threads,
+            DuplicateCommandGuard duplicateCommands) {
         this.timeline = timeline;
-        this.sessions = sessions;
+        this.publisher = publisher;
         this.pythonStream = pythonStream;
         this.agent = agent;
         this.approvals = approvals;
         this.gates = gates;
         this.threads = threads;
+        this.duplicateCommands = duplicateCommands;
     }
 
-    public void ensureStarted(String threadId) {
+    @Override
+    public void openThread(String threadId, Consumer<StreamMessage> historySink) {
         if (startedThreads.add(threadId)) {
             pythonStream.subscribe(threadId, this::onWorkflowEvent);
         }
-    }
 
-    /** Replay a thread's committed timeline to a freshly connected session (survives FE refresh). */
-    public void replayHistory(String threadId, WebSocketSession session) {
-        List<StreamMessage> history = timeline.events(threadId);
-        if (history.isEmpty()) {
-            return;
+        List<StreamMessage> history = timeline.history(threadId);
+        if (!history.isEmpty()) {
+            log.info("replay thread={} messages={}", threadId, history.size());
+            history.forEach(historySink);
         }
-        log.info("replay thread={} messages={} -> session {}", threadId, history.size(), session.getId());
-        for (StreamMessage message : history) {
-            sessions.sendOne(session, message);
-        }
+
         // Re-arm the approval gate so Approve still works after a reconnect.
         if (gates.get(threadId).isEmpty()) {
             for (StreamMessage message : history) {
@@ -83,28 +75,29 @@ public class AgentStreamRelayService {
         }
     }
 
-    public void handleCommand(WebSocketSession session, String threadId, AgentStreamClientCommand cmd) {
-        if (cmd.type() == null || cmd.content() == null || cmd.content().isBlank()) {
+    @Override
+    public void handle(ClientCommandEnvelope command) {
+        if (command.content() == null || command.content().isBlank()) {
             return;
         }
-        if (cmd.commandId() != null && !processedCommands.add(cmd.commandId())) {
+        if (!duplicateCommands.shouldProcess(command.commandId())) {
             return;
         }
 
-        MessageSendAction action = cmd.action();
-        log.info("command thread={} action={} content=\"{}\"", threadId,
-                action != null ? action.name() : "none", abbreviate(cmd.content().trim()));
+        String content = command.content().trim();
+        MessageSendAction action = command.action();
+        log.info("command thread={} action={} content=\"{}\"", command.threadId(),
+                action != null ? action.name() : "none", abbreviate(content));
 
-        // Always echo the user's message into the public timeline.
-        commitAndBroadcast(threadId, "user", List.of(textBlock(cmd.content().trim())));
+        commitAndPublish(command.threadId(), "user", List.of(textBlock(content)));
 
         // Structured actions are deterministic: Java executes them and they never
         // reach the probabilistic agent. Free-form content goes to the agent core.
         if (action != null && action.name() != null) {
-            handleAction(threadId, action, cmd.content().trim());
+            handleAction(command.threadId(), action, content);
             return;
         }
-        sendTurnToAgentCore(threadId, cmd);
+        sendTurnToAgentCore(command, content);
     }
 
     private static String abbreviate(String s) {
@@ -114,9 +107,9 @@ public class AgentStreamRelayService {
     private void handleAction(String threadId, MessageSendAction action, String content) {
         switch (action.name()) {
             case "approve" -> approve(threadId, action);
-            case "reject" -> commitAndBroadcast(threadId, "system",
+            case "reject" -> commitAndPublish(threadId, "system",
                     List.of(resultBlock("Approval rejected", content)));
-            case "cancel" -> commitAndBroadcast(threadId, "system",
+            case "cancel" -> commitAndPublish(threadId, "system",
                     List.of(resultBlock("Run cancelled", content)));
             case "revise_artifact" -> {
                 // MVP: visual-only edit; the final edited list arrives with approve.final_experiments.
@@ -125,30 +118,24 @@ public class AgentStreamRelayService {
         }
     }
 
-    private void sendTurnToAgentCore(String threadId, AgentStreamClientCommand cmd) {
-        RunContext ctx = resolveContext(threadId);
-        log.info("-> POST /turns thread={} ws={} camp={}", threadId,
-                ctx.workspaceId(), ctx.campaignId());
+    private void sendTurnToAgentCore(ClientCommandEnvelope command, String content) {
+        RunContext context = resolveContext(command.threadId());
+        log.info("-> POST /turns thread={} ws={} camp={}", command.threadId(),
+                context.workspaceId(), context.campaignId());
         try {
             agent.submitTurn(new AgentTurnCommand(
-                    threadId,
-                    ctx.workspaceId(),
-                    ctx.campaignId(),
-                    cmd.content().trim(),
-                    internalAttachments(cmd.attachments()),
-                    cmd.clientCreatedAt()));
-            log.info("<- /turns accepted thread={}", threadId);
+                    command.threadId(),
+                    context.workspaceId(),
+                    context.campaignId(),
+                    content,
+                    internalAttachments(command.attachments()),
+                    command.clientCreatedAt()));
+            log.info("<- /turns accepted thread={}", command.threadId());
         } catch (Exception e) {
-            log.warn("agent turn submit failed (thread {}): {}", threadId, e.getMessage());
+            log.warn("agent turn submit failed (thread {}): {}", command.threadId(), e.getMessage());
         }
     }
 
-    /**
-     * Resolve the workspace/campaign context for a thread, registering a live
-     * chat thread that import never registered. Falls back to the most recent
-     * import's context, then to the configured demo defaults, so the agent
-     * always receives a workspace/campaign to scope its evidence queries.
-     */
     private RunContext resolveContext(String threadId) {
         return threads.resolveOrCreate(threadId);
     }
@@ -171,14 +158,14 @@ public class AgentStreamRelayService {
             return;
         }
         log.info("<- python block thread={} seq={} kinds={}", threadId, message.sequence(),
-                blocks.stream().map(b -> String.valueOf(b.get("kind"))).toList());
+                blocks.stream().map(block -> String.valueOf(block.get("kind"))).toList());
         gates.captureIfPresent(threadId, blocks);
-        commitAndBroadcast(threadId, message.role() == null ? "assistant" : message.role(), blocks);
+        commitAndPublish(threadId, message.role() == null ? "assistant" : message.role(), blocks);
     }
 
     private void approve(String threadId, MessageSendAction action) {
         if (gates.get(threadId).isEmpty()) {
-            commitAndBroadcast(threadId, "system",
+            commitAndPublish(threadId, "system",
                     List.of(errorBlock("No approval is open", "Ask the agent to produce a plan first.")));
             return;
         }
@@ -198,17 +185,17 @@ public class AgentStreamRelayService {
                     "message.send"));
         } catch (Exception e) {
             log.error("approve failed (thread {}): {}", threadId, e.getMessage(), e);
-            commitAndBroadcast(threadId, "system", List.of(errorBlock(
+            commitAndPublish(threadId, "system", List.of(errorBlock(
                     "Approval failed", "Could not persist the experiment plan: " + e.getMessage())));
             return;
         }
 
-        commitAndBroadcast(threadId, "assistant", List.of(resultBlock(result)));
+        commitAndPublish(threadId, "assistant", List.of(resultBlock(result)));
     }
 
-    private void commitAndBroadcast(String threadId, String role, List<Map<String, Object>> blocks) {
-        var message = timeline.commit(threadId, role, blocks);
-        sessions.broadcast(threadId, message);
+    private void commitAndPublish(String threadId, String role, List<Map<String, Object>> blocks) {
+        StreamMessage message = timeline.append(threadId, role, blocks);
+        publisher.publish(threadId, message);
     }
 
     private Map<String, Object> textBlock(String text) {

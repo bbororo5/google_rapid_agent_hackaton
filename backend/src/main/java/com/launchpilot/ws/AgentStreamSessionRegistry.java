@@ -1,6 +1,7 @@
 package com.launchpilot.ws;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.launchpilot.conversation.ConversationMessagePublisher;
 import com.launchpilot.dto.common.StreamMessage;
 import java.io.IOException;
 import java.util.Map;
@@ -14,7 +15,7 @@ import org.springframework.web.socket.WebSocketSession;
 
 /** threadId -> FE WebSocket 세션 집합. 브로드캐스트. */
 @Component
-public class AgentStreamSessionRegistry {
+public class AgentStreamSessionRegistry implements ConversationMessagePublisher {
 
     private static final Logger log = LoggerFactory.getLogger(AgentStreamSessionRegistry.class);
 
@@ -36,7 +37,8 @@ public class AgentStreamSessionRegistry {
         }
     }
 
-    public void broadcast(String threadId, StreamMessage message) {
+    @Override
+    public void publish(String threadId, StreamMessage message) {
         Set<WebSocketSession> set = sessions.get(threadId);
         if (set == null) {
             return;

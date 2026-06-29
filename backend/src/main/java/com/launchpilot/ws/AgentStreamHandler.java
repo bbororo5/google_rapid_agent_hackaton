@@ -1,8 +1,10 @@
 package com.launchpilot.ws;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.launchpilot.conversation.ClientCommandEnvelope;
+import com.launchpilot.conversation.ConversationCommandUseCase;
+import com.launchpilot.conversation.ConversationConnectionUseCase;
 import com.launchpilot.dto.common.AgentStreamClientCommand;
-import com.launchpilot.service.AgentStreamRelayService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -19,15 +21,18 @@ public class AgentStreamHandler extends TextWebSocketHandler {
     private static final String THREAD_ID_ATTR = "threadId";
 
     private final AgentStreamSessionRegistry sessions;
-    private final AgentStreamRelayService relay;
+    private final ConversationConnectionUseCase connections;
+    private final ConversationCommandUseCase commands;
     private final ObjectMapper mapper;
 
     public AgentStreamHandler(
             AgentStreamSessionRegistry sessions,
-            AgentStreamRelayService relay,
+            ConversationConnectionUseCase connections,
+            ConversationCommandUseCase commands,
             ObjectMapper mapper) {
         this.sessions = sessions;
-        this.relay = relay;
+        this.connections = connections;
+        this.commands = commands;
         this.mapper = mapper;
     }
 
@@ -44,9 +49,7 @@ public class AgentStreamHandler extends TextWebSocketHandler {
         }
         session.getAttributes().put(THREAD_ID_ATTR, threadId);
         sessions.register(threadId, session);
-        relay.ensureStarted(threadId);
-        // Replay any committed history so a refreshed/reconnected client rebuilds its thread.
-        relay.replayHistory(threadId, session);
+        connections.openThread(threadId, message -> sessions.sendOne(session, message));
     }
 
     @Override
@@ -58,7 +61,16 @@ public class AgentStreamHandler extends TextWebSocketHandler {
         try {
             AgentStreamClientCommand cmd =
                     mapper.readValue(message.getPayload(), AgentStreamClientCommand.class);
-            relay.handleCommand(session, threadId, cmd);
+            if (cmd.type() == null) {
+                return;
+            }
+            commands.handle(new ClientCommandEnvelope(
+                    threadId,
+                    cmd.commandId(),
+                    cmd.content(),
+                    cmd.action(),
+                    cmd.attachments(),
+                    cmd.clientCreatedAt()));
         } catch (Exception e) {
             log.warn("client command parse failed (thread {}): {}", threadId, e.getMessage());
         }
