@@ -10,6 +10,13 @@ paths:
     post:
       operationId: sendAgentTurn
       summary: Send a user turn and thread context to Agent Core.
+      parameters:
+        - $ref: "#/components/parameters/TraceparentHeader"
+        - $ref: "#/components/parameters/LaunchPilotRequestIdHeader"
+        - $ref: "#/components/parameters/LaunchPilotTraceIdHeader"
+        - $ref: "#/components/parameters/LaunchPilotThreadIdHeader"
+        - $ref: "#/components/parameters/LaunchPilotWorkspaceIdHeader"
+        - $ref: "#/components/parameters/LaunchPilotCampaignIdHeader"
       requestBody:
         required: true
         content:
@@ -24,6 +31,47 @@ paths:
               schema:
                 $ref: "#/components/schemas/InternalAgentTurnAccepted"
 components:
+  parameters:
+    TraceparentHeader:
+      name: traceparent
+      in: header
+      required: false
+      schema:
+        type: string
+        pattern: "^00-[a-f0-9]{32}-[a-f0-9]{16}-[0-9a-f]{2}$"
+      description: W3C trace context propagated by Java Backend.
+    LaunchPilotRequestIdHeader:
+      name: x-launchpilot-request-id
+      in: header
+      required: false
+      schema:
+        type: string
+        pattern: "^req_[A-Za-z0-9_]+$"
+    LaunchPilotTraceIdHeader:
+      name: x-launchpilot-trace-id
+      in: header
+      required: false
+      schema:
+        type: string
+    LaunchPilotThreadIdHeader:
+      name: x-launchpilot-thread-id
+      in: header
+      required: false
+      schema:
+        type: string
+        pattern: "^thread_[A-Za-z0-9_]+$"
+    LaunchPilotWorkspaceIdHeader:
+      name: x-launchpilot-workspace-id
+      in: header
+      required: false
+      schema:
+        type: string
+    LaunchPilotCampaignIdHeader:
+      name: x-launchpilot-campaign-id
+      in: header
+      required: false
+      schema:
+        type: string
   schemas:
     TraceContext:
       type: object

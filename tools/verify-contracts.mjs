@@ -113,6 +113,10 @@ function openApiSchema(openApiPath, schemaName) {
   return schema;
 }
 
+function openApiDoc(openApiPath) {
+  return YAML.parse(readText(openApiPath));
+}
+
 function evidenceRefIds() {
   const evidenceDir = path.join(root, "contracts/04-agent-elastic-mcp/examples");
   return unique(
@@ -173,10 +177,12 @@ function assertElasticApprovalRefs() {
 }
 
 function assertJavaPythonTraceContract() {
-  const traceContext = openApiSchema("contracts/02-java-python-agent/openapi.yaml", "TraceContext");
-  const turn = openApiSchema("contracts/02-java-python-agent/openapi.yaml", "InternalAgentTurn");
+  const doc = openApiDoc("contracts/02-java-python-agent/openapi.yaml");
+  const traceContext = doc.components.schemas.TraceContext;
+  const turn = doc.components.schemas.InternalAgentTurn;
   const example = readJson("contracts/02-java-python-agent/examples/internal-agent-turn.json");
   const pythonSchemas = readText("apps/agent/app/contracts/schemas.py");
+  const headerRefs = (doc.paths["/turns"].post.parameters ?? []).map((parameter) => parameter.$ref);
 
   assert(
     JSON.stringify(turn.required) === JSON.stringify(["thread_id", "workspace_id", "campaign_id", "content", "client_created_at", "trace_context"]),
@@ -192,6 +198,12 @@ function assertJavaPythonTraceContract() {
   assert(
     pythonSchemas.includes("_REQ = r\"^req_[A-Za-z0-9_]+$\""),
     "Python Agent Core TraceContext request_id pattern must match contract 02",
+  );
+  assert(headerRefs.includes("#/components/parameters/TraceparentHeader"), "Contract 02 must document traceparent propagation");
+  assert(headerRefs.includes("#/components/parameters/LaunchPilotRequestIdHeader"), "Contract 02 must document x-launchpilot-request-id propagation");
+  assert(
+    doc.components.parameters.TraceparentHeader.schema.pattern === "^00-[a-f0-9]{32}-[a-f0-9]{16}-[0-9a-f]{2}$",
+    "traceparent header pattern must follow W3C trace context",
   );
 }
 
