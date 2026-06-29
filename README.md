@@ -340,6 +340,7 @@ analysis, and backtracking.
 | Architecture overview | [Architecture overview](docs/architecture/overview.md) |
 | System diagram | [C4 architecture](docs/architecture/launchpilot-c4.md) |
 | Data and block flow | [Data flow](docs/architecture/data-flow.md) |
+| Java backend components | [Java backend component boundaries](docs/architecture/java-backend-components.md) |
 | Agent Core v2 design | [Agent Core v2](docs/architecture/agent-core-v2-design.md) |
 | Agent loop autonomy plan | [Agent loop autonomy](docs/architecture/agent-loop-autonomy-plan.md) |
 | Architecture decisions | [ADRs](docs/architecture/adr/README.md) |
