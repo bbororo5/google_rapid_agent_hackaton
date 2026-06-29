@@ -6,6 +6,7 @@ import com.launchpilot.agentbridge.AgentTurnPort;
 import com.launchpilot.approval.ApprovalUseCase;
 import com.launchpilot.approval.ApproveCommand;
 import com.launchpilot.contracts.shared.ApprovalCommitResult;
+import com.launchpilot.contracts.shared.ApprovalGateRequest;
 import com.launchpilot.contracts.shared.MessageSendAction;
 import com.launchpilot.contracts.shared.StreamMessage;
 import com.launchpilot.observability.CorrelationContext;
@@ -198,7 +199,8 @@ public class ConversationService implements ConversationCommandUseCase, Conversa
     }
 
     private void approve(String threadId, MessageSendAction action) {
-        if (gates.get(threadId).isEmpty()) {
+        ApprovalGateRequest gate = gates.get(threadId).orElse(null);
+        if (gate == null) {
             commitAndPublish(threadId, "system",
                     List.of(errorBlock("No approval is open", "Ask the agent to produce a plan first.")));
             return;
@@ -207,16 +209,20 @@ public class ConversationService implements ConversationCommandUseCase, Conversa
         // after a backend restart that dropped the in-memory registry) won't have
         // a registered context. Lazy-register with the same fallback the turn path
         // uses so approval persistence never misses workspace/campaign context.
-        resolveContext(threadId);
+        RunContext context = resolveContext(threadId);
 
         ApprovalCommitResult result;
         try {
             result = approvals.approve(new ApproveCommand(
                     threadId,
-                    null,
+                    context.workspaceId(),
+                    context.campaignId(),
+                    gate.approvalId(),
                     action.targetId(),
+                    gate.payload(),
                     action.payload(),
                     "message.send"));
+            gates.remove(threadId);
         } catch (Exception e) {
             log.error("approve failed (thread {}): {}", threadId, e.getMessage(), e);
             commitAndPublish(threadId, "system", List.of(errorBlock(

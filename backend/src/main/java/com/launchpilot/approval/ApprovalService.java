@@ -2,12 +2,8 @@ package com.launchpilot.approval;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.launchpilot.conversation.ApprovalGateStore;
-import com.launchpilot.conversation.RunContext;
-import com.launchpilot.conversation.ThreadContextStore;
 import com.launchpilot.contracts.shared.AgentResultPayload;
 import com.launchpilot.contracts.shared.ApprovalCommitResult;
-import com.launchpilot.contracts.shared.ApprovalGateRequest;
 import com.launchpilot.contracts.shared.ExperimentItem;
 import com.launchpilot.contracts.shared.Hypothesis;
 import com.launchpilot.contracts.shared.Signal;
@@ -37,22 +33,16 @@ public class ApprovalService implements ApprovalUseCase {
     private static final TypeReference<List<ExperimentItem>> EXPERIMENT_LIST =
             new TypeReference<>() {};
 
-    private final ApprovalGateStore gates;
-    private final ThreadContextStore threadContexts;
     private final ApprovalDocumentRepository documents;
     private final IdGenerator ids;
     private final ObjectMapper mapper;
     private final ObservabilityGateway observability;
 
     public ApprovalService(
-            ApprovalGateStore gates,
-            ThreadContextStore threadContexts,
             ApprovalDocumentRepository documents,
             IdGenerator ids,
             ObjectMapper mapper,
             ObservabilityGateway observability) {
-        this.gates = gates;
-        this.threadContexts = threadContexts;
         this.documents = documents;
         this.ids = ids;
         this.mapper = mapper;
@@ -86,16 +76,11 @@ public class ApprovalService implements ApprovalUseCase {
     }
 
     private ApprovalCommitResult approveInternal(ApproveCommand command) {
-        ApprovalGateRequest gate = gates.get(command.threadId())
-                .orElseThrow(() -> new ApiException(409, "CONFLICT", "thread has no candidate plan"));
-        if (command.targetId() != null && !command.targetId().equals(gate.approvalId())) {
+        if (command.targetId() != null && !command.targetId().equals(command.approvalId())) {
             throw ApiException.badRequest("approval target mismatch");
         }
-        if (command.approvalId() != null && !command.approvalId().equals(gate.approvalId())) {
-            throw ApiException.badRequest("approval id mismatch");
-        }
 
-        AgentResultPayload payload = gate.payload();
+        AgentResultPayload payload = command.candidatePayload();
         if (payload == null || payload.experimentPlan() == null) {
             throw new ApiException(409, "CONFLICT", "thread has no candidate plan");
         }
@@ -103,13 +88,9 @@ public class ApprovalService implements ApprovalUseCase {
             throw new ApiException(409, "CONFLICT", "thread already approved");
         }
 
-        RunContext ctx = threadContexts.get(command.threadId())
-                .orElseThrow(() -> ApiException.internal(
-                        "missing thread context for " + command.threadId()));
-
         String now = OffsetDateTime.now().toString();
         String briefId = ids.briefIdFor(command.threadId());
-        List<ExperimentItem> finalExperiments = resolveFinalExperiments(command, gate);
+        List<ExperimentItem> finalExperiments = resolveFinalExperiments(command, payload);
 
         List<CalendarEventDoc> events = new ArrayList<>();
         List<CalendarEventRef> eventRefs = new ArrayList<>();
@@ -121,8 +102,8 @@ public class ApprovalService implements ApprovalUseCase {
                     eventId,
                     briefId,
                     experiment.id(),
-                    ctx.workspaceId(),
-                    ctx.campaignId(),
+                    command.workspaceId(),
+                    command.campaignId(),
                     experiment.title(),
                     experiment.channel(),
                     experiment.scheduledAt(),
@@ -136,8 +117,8 @@ public class ApprovalService implements ApprovalUseCase {
 
         GrowthBriefDoc brief = new GrowthBriefDoc(
                 briefId,
-                ctx.workspaceId(),
-                ctx.campaignId(),
+                command.workspaceId(),
+                command.campaignId(),
                 command.threadId(),
                 payload.experimentPlan().id(),
                 command.approvedBy(),
@@ -152,9 +133,8 @@ public class ApprovalService implements ApprovalUseCase {
                 now);
 
         documents.persistApproval(brief, events);
-        gates.remove(command.threadId());
 
-        return new ApprovalCommitResult(gate.approvalId(), briefId, eventRefs, now);
+        return new ApprovalCommitResult(command.approvalId(), briefId, eventRefs, now);
     }
 
     private String requestId(ApproveCommand command) {
@@ -172,6 +152,8 @@ public class ApprovalService implements ApprovalUseCase {
         putIfPresent(attributes, "thread_id", command.threadId());
         putIfPresent(attributes, "approval_id", command.approvalId());
         putIfPresent(attributes, "target_id", command.targetId());
+        putIfPresent(attributes, "workspace_id", command.workspaceId());
+        putIfPresent(attributes, "campaign_id", command.campaignId());
         putIfPresent(attributes, "approved_by", command.approvedBy());
         attributes.put("has_final_experiments", command.actionPayload().containsKey("final_experiments"));
         return attributes;
@@ -183,12 +165,12 @@ public class ApprovalService implements ApprovalUseCase {
         }
     }
 
-    private List<ExperimentItem> resolveFinalExperiments(ApproveCommand command, ApprovalGateRequest gate) {
+    private List<ExperimentItem> resolveFinalExperiments(ApproveCommand command, AgentResultPayload payload) {
         Object edited = command.actionPayload().get("final_experiments");
         if (edited != null) {
             return mapper.convertValue(edited, EXPERIMENT_LIST);
         }
-        return gate.payload().experimentPlan().items();
+        return payload.experimentPlan().items();
     }
 
     private List<String> evidenceRefs(AgentResultPayload payload) {
