@@ -301,10 +301,10 @@ Java records that mirror external contracts.
 Target subpackages:
 
 ```text
-contracts.publicapi      # Frontend <-> Java DTOs
-contracts.agent    # Java <-> Python DTOs
-contracts.elastic     # Java -> Elastic documents
-contracts.shared         # Signal, hypothesis, experiment payloads
+contracts.frontend       # Frontend <-> Java DTOs
+contracts.agent          # Java <-> Python DTOs
+contracts.elastic        # Java -> Elastic documents
+contracts.shared         # Shared signal, hypothesis, experiment, stream payloads
 ```
 
 The package should reflect container boundaries, not incidental Java layer
