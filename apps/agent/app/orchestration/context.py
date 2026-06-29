@@ -18,6 +18,7 @@ from app.runtime.state_cache import StateCache, get_state_cache
 from app.runtime.repository import AgentRuntimeRepository, get_runtime_repository
 from app.runtime.state import PhaseType, summarize_state_for_prompt, resolve_scope
 from app.runtime.thread_store import ThreadRecord
+from app.telemetry import AgentTraceContext
 
 
 class ContextLoadStep(Protocol):
@@ -246,7 +247,13 @@ class TurnContextLoader:
             ApplyStateHint(StateHintPolicy()),
         )
 
-    async def load(self, record: ThreadRecord, content: str, attachments: tuple = ()) -> TurnContext:
+    async def load(
+        self,
+        record: ThreadRecord,
+        content: str,
+        attachments: tuple = (),
+        trace_context: AgentTraceContext | None = None,
+    ) -> TurnContext:
         turn = TurnContext(
             record=record,
             content=content,
@@ -254,6 +261,7 @@ class TurnContextLoader:
             repository=self._repository_provider(),
             state_cache=self._state_cache_provider(),
             expected_revision=record.state.revision,
+            trace_context=trace_context,
         )
         for step in self._steps:
             await step.apply(turn)
