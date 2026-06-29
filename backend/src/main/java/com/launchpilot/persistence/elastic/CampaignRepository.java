@@ -1,6 +1,6 @@
 package com.launchpilot.persistence.elastic;
 
-import com.launchpilot.dto.elastic.CampaignDoc;
+import com.launchpilot.contracts.elastic.CampaignDoc;
 
 /** Persistence port for campaign working context documents. */
 public interface CampaignRepository {

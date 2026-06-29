@@ -5,7 +5,7 @@ import co.elastic.clients.elasticsearch._types.Refresh;
 import co.elastic.clients.elasticsearch.core.BulkRequest;
 import co.elastic.clients.elasticsearch.core.BulkResponse;
 import co.elastic.clients.elasticsearch.core.bulk.BulkResponseItem;
-import com.launchpilot.dto.elastic.ContentPostDoc;
+import com.launchpilot.contracts.elastic.ContentPostDoc;
 import com.launchpilot.common.ApiException;
 import java.io.IOException;
 import java.util.List;

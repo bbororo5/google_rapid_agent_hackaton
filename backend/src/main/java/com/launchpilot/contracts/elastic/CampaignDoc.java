@@ -1,4 +1,4 @@
-package com.launchpilot.dto.elastic;
+package com.launchpilot.contracts.elastic;
 
 import java.util.List;
 import java.util.Map;

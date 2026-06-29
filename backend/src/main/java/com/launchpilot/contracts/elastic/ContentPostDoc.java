@@ -1,4 +1,4 @@
-package com.launchpilot.dto.elastic;
+package com.launchpilot.contracts.elastic;
 
 import com.launchpilot.dto.common.Channel;
 import java.util.Map;

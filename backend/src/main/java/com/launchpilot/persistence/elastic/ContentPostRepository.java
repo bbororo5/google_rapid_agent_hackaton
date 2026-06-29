@@ -1,6 +1,6 @@
 package com.launchpilot.persistence.elastic;
 
-import com.launchpilot.dto.elastic.ContentPostDoc;
+import com.launchpilot.contracts.elastic.ContentPostDoc;
 import java.util.List;
 
 /** Persistence port for imported content evidence rows. */

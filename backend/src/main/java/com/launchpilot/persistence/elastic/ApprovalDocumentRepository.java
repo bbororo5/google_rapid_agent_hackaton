@@ -1,7 +1,7 @@
 package com.launchpilot.persistence.elastic;
 
-import com.launchpilot.dto.elastic.CalendarEventDoc;
-import com.launchpilot.dto.elastic.GrowthBriefDoc;
+import com.launchpilot.contracts.elastic.CalendarEventDoc;
+import com.launchpilot.contracts.elastic.GrowthBriefDoc;
 import java.util.List;
 
 /** Persistence port for approved immutable business documents. */

@@ -2,7 +2,7 @@ package com.launchpilot.persistence.elastic;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.elasticsearch._types.Refresh;
-import com.launchpilot.dto.elastic.CampaignDoc;
+import com.launchpilot.contracts.elastic.CampaignDoc;
 import com.launchpilot.common.ApiException;
 import java.io.IOException;
 import org.springframework.stereotype.Component;

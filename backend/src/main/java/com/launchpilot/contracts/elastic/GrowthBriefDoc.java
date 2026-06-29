@@ -1,4 +1,4 @@
-package com.launchpilot.dto.elastic;
+package com.launchpilot.contracts.elastic;
 
 import com.launchpilot.dto.common.ExperimentItem;
 import com.launchpilot.dto.common.Hypothesis;
