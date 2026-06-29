@@ -1,10 +1,9 @@
-package com.launchpilot.client;
+package com.launchpilot.agentbridge;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.launchpilot.dto.common.StreamMessage;
 import jakarta.websocket.ContainerProvider;
 import jakarta.websocket.WebSocketContainer;
-import java.util.function.BiConsumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -15,14 +14,11 @@ import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.client.standard.StandardWebSocketClient;
 import org.springframework.web.socket.handler.AbstractWebSocketHandler;
 
-/**
- * 계약 02 asyncapi: Python Agent Core 내부 스트림(WS) 수신 클라이언트.
- * Java는 사용자 turn을 REST로 전달하고 이 스트림을 구독한다.
- */
+/** Python Agent Core WebSocket boundary for receiving internal stream blocks. */
 @Component
-public class AgentWorkflowStreamClient {
+public class PythonAgentStreamClient implements AgentStreamPort {
 
-    private static final Logger log = LoggerFactory.getLogger(AgentWorkflowStreamClient.class);
+    private static final Logger log = LoggerFactory.getLogger(PythonAgentStreamClient.class);
 
     // The approval message bundles the whole AgentResultPayload (signals +
     // hypotheses + experiment plan) and runs ~20-40KB. The JSR-356 default text
@@ -35,7 +31,7 @@ public class AgentWorkflowStreamClient {
     private final String wsBaseUrl;
     private final StandardWebSocketClient client = largeBufferClient();
 
-    public AgentWorkflowStreamClient(
+    public PythonAgentStreamClient(
             ObjectMapper mapper,
             @Value("${agent.service.url}") String agentServiceUrl) {
         this.mapper = mapper;
@@ -49,21 +45,16 @@ public class AgentWorkflowStreamClient {
         return new StandardWebSocketClient(container);
     }
 
-    /**
-     * Python 내부 스트림에 접속해 workflow 이벤트를 수신하고 onEvent로 넘긴다.
-     *
-     * @param threadId 구독할 thread id
-     * @param onEvent  (threadId, event) 콜백 (relay)
-     */
-    public void connect(String threadId, BiConsumer<String, StreamMessage> onEvent) {
+    @Override
+    public void subscribe(String threadId, AgentStreamListener listener) {
         String uri = wsBaseUrl + "/internal/agent/threads/" + threadId + "/stream";
         client.execute(new AbstractWebSocketHandler() {
             @Override
             protected void handleTextMessage(WebSocketSession session, TextMessage message) {
                 try {
-                    StreamMessage e =
+                    StreamMessage event =
                             mapper.readValue(message.getPayload(), StreamMessage.class);
-                    onEvent.accept(threadId, e);
+                    listener.onMessage(threadId, event);
                 } catch (Exception ex) {
                     log.warn("workflow event parse failed (thread {}): {}", threadId, ex.getMessage());
                 }

@@ -2,8 +2,9 @@ package com.launchpilot.service;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.launchpilot.client.AgentServiceClient;
-import com.launchpilot.client.AgentWorkflowStreamClient;
+import com.launchpilot.agentbridge.AgentStreamPort;
+import com.launchpilot.agentbridge.AgentTurnCommand;
+import com.launchpilot.agentbridge.AgentTurnPort;
 import com.launchpilot.dto.common.AgentResultPayload;
 import com.launchpilot.dto.common.AgentStreamClientCommand;
 import com.launchpilot.dto.common.ApprovalCommitResult;
@@ -11,7 +12,6 @@ import com.launchpilot.dto.common.ApprovalGateRequest;
 import com.launchpilot.dto.common.ExperimentItem;
 import com.launchpilot.dto.common.MessageSendAction;
 import com.launchpilot.dto.common.StreamMessage;
-import com.launchpilot.dto.internal.InternalAgentTurnRequest;
 import com.launchpilot.dto.pub.ApproveExperimentPlanRequest;
 import com.launchpilot.dto.pub.ApproveExperimentPlanResponse;
 import com.launchpilot.ws.AgentThreadTimeline;
@@ -34,8 +34,8 @@ public class AgentStreamRelayService {
 
     private final AgentThreadTimeline timeline;
     private final AgentStreamSessionRegistry sessions;
-    private final AgentWorkflowStreamClient pythonStream;
-    private final AgentServiceClient agent;
+    private final AgentStreamPort pythonStream;
+    private final AgentTurnPort agent;
     private final BusinessDataService business;
     private final AgentThreadRegistry threads;
     private final IdGenerator ids;
@@ -50,8 +50,8 @@ public class AgentStreamRelayService {
     public AgentStreamRelayService(
             AgentThreadTimeline timeline,
             AgentStreamSessionRegistry sessions,
-            AgentWorkflowStreamClient pythonStream,
-            AgentServiceClient agent,
+            AgentStreamPort pythonStream,
+            AgentTurnPort agent,
             BusinessDataService business,
             AgentThreadRegistry threads,
             IdGenerator ids,
@@ -72,7 +72,7 @@ public class AgentStreamRelayService {
 
     public void ensureStarted(String threadId) {
         if (startedThreads.add(threadId)) {
-            pythonStream.connect(threadId, this::onWorkflowEvent);
+            pythonStream.subscribe(threadId, this::onWorkflowEvent);
         }
     }
 
@@ -143,14 +143,13 @@ public class AgentStreamRelayService {
         log.info("-> POST /turns thread={} ws={} camp={}", threadId,
                 ctx.workspaceId(), ctx.campaignId());
         try {
-            agent.sendTurn(new InternalAgentTurnRequest(
+            agent.submitTurn(new AgentTurnCommand(
                     threadId,
                     ctx.workspaceId(),
                     ctx.campaignId(),
                     cmd.content().trim(),
                     internalAttachments(cmd.attachments()),
-                    cmd.clientCreatedAt(),
-                    null));
+                    cmd.clientCreatedAt()));
             log.info("<- /turns accepted thread={}", threadId);
         } catch (Exception e) {
             log.warn("agent turn submit failed (thread {}): {}", threadId, e.getMessage());
