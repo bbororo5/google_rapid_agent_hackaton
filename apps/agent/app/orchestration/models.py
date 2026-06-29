@@ -18,6 +18,7 @@ from app.runtime.state import (
     ProposedChange,
 )
 from app.runtime.thread_store import ThreadRecord
+from app.telemetry import AgentTraceContext
 
 
 class CancelledTurn(Exception):
@@ -36,6 +37,7 @@ class TurnContext:
     recent_messages: list[ThreadMessage] = field(default_factory=list)
     expected_revision: int = 0
     state_hint: str = "need_campaign"
+    trace_context: AgentTraceContext | None = None
 
     @property
     def has_scope(self) -> bool:
@@ -43,12 +45,19 @@ class TurnContext:
 
     @property
     def trace_metadata(self) -> dict[str, Any]:
-        return {
+        metadata = {
             "thread_id": self.record.thread_id,
             "workspace_id": self.record.workspace_id,
             "campaign_id": self.record.campaign_id,
             "stage": "TURN",
         }
+        if self.trace_context is not None:
+            metadata.update(self.trace_context.metadata(
+                thread_id=self.record.thread_id,
+                workspace_id=self.record.workspace_id,
+                campaign_id=self.record.campaign_id,
+            ))
+        return metadata
 
 
 @dataclass(slots=True)

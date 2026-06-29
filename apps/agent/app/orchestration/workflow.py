@@ -16,6 +16,7 @@ from app.orchestration.models import CancelledTurn
 from app.orchestration.phases import PhaseRunnerRegistry
 from app.orchestration.router import TurnRouter
 from app.runtime.thread_store import ThreadRecord
+from app.telemetry import AgentTraceContext
 
 log = logging.getLogger("launchpilot.orchestration.workflow")
 
@@ -35,8 +36,14 @@ class TurnWorkflow:
         self.committer = StateCommitter(self.emitter)
         self.checkpointer = Checkpointer(self.emitter)
 
-    async def run(self, record: ThreadRecord, content: str, attachments: tuple = ()) -> None:
-        turn = await self.loader.load(record, content, attachments)
+    async def run(
+        self,
+        record: ThreadRecord,
+        content: str,
+        attachments: tuple = (),
+        trace_context: AgentTraceContext | None = None,
+    ) -> None:
+        turn = await self.loader.load(record, content, attachments, trace_context=trace_context)
         with telemetry.turn_span(
             content,
             metadata=turn.trace_metadata,

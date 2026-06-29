@@ -15,7 +15,7 @@ from fastapi import FastAPI
 
 from app.api import thread_stream, turns
 from app.config import get_settings
-from app.observability import init_tracing
+from app.observability import CorrelationLogFilter, init_tracing
 
 # Dedicated app logger to stdout so per-stage pipeline logs show in `docker logs`
 # regardless of uvicorn's own logging config. Children: launchpilot.orchestrator,
@@ -27,7 +27,12 @@ from app.observability import init_tracing
 _LEVEL = os.environ.get("AGENT_LOG_LEVEL", "INFO").upper()
 _LIB_LEVEL = os.environ.get("AGENT_LOG_LIBS", "WARNING").upper()
 _handler = logging.StreamHandler(sys.stdout)
-_handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s"))
+_handler.addFilter(CorrelationLogFilter())
+_handler.setFormatter(logging.Formatter(
+    "%(asctime)s %(levelname)s request_id=%(request_id)s trace_id=%(trace_id)s "
+    "thread_id=%(thread_id)s workspace_id=%(workspace_id)s campaign_id=%(campaign_id)s "
+    "%(name)s: %(message)s"
+))
 
 _app_log = logging.getLogger("launchpilot")
 if not _app_log.handlers:

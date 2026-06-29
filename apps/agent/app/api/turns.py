@@ -22,6 +22,7 @@ from app.contracts import (
 )
 from app.ids import now_iso
 from app.runtime.thread_store import STORE
+from app.telemetry import AgentTraceContext
 
 router = APIRouter(prefix="/internal/agent")
 log = logging.getLogger("launchpilot.turns")
@@ -44,16 +45,28 @@ async def send_turn(request: Request):
         log.warning("turn rejected (400): %s", exc.errors())
         return _error(400, ErrorCode.INVALID_REQUEST, exc.errors().__str__())
 
-    log.info("POST /turns thread=%s ws=%s camp=%s content=%r",
-             turn.thread_id, turn.workspace_id, turn.campaign_id, turn.content[:80])
+    trace_context = AgentTraceContext.from_turn(turn)
 
-    # Get/create the thread (the WS may have created it already on connect) and
-    # fill its workspace/campaign context from this turn.
-    record = STORE.get_or_create(turn.thread_id)
-    record.set_context(turn.workspace_id, turn.campaign_id)
+    with trace_context.bind_logs(
+        thread_id=turn.thread_id,
+        workspace_id=turn.workspace_id,
+        campaign_id=turn.campaign_id,
+    ):
+        log.info("POST /turns thread=%s ws=%s camp=%s content=%r",
+                 turn.thread_id, turn.workspace_id, turn.campaign_id, turn.content[:80])
 
-    # Process the turn in the background; blocks arrive over the WS stream.
-    asyncio.create_task(orchestrator.process_turn(record, turn.content, tuple(turn.attachments)))
+        # Get/create the thread (the WS may have created it already on connect) and
+        # fill its workspace/campaign context from this turn.
+        record = STORE.get_or_create(turn.thread_id)
+        record.set_context(turn.workspace_id, turn.campaign_id)
 
-    resp = InternalAgentTurnAccepted(ok=True, thread_id=turn.thread_id, accepted_at=now_iso())
-    return JSONResponse(status_code=202, content=resp.model_dump(mode="json"))
+        # Process the turn in the background; blocks arrive over the WS stream.
+        asyncio.create_task(orchestrator.process_turn(
+            record,
+            turn.content,
+            tuple(turn.attachments),
+            trace_context=trace_context,
+        ))
+
+        resp = InternalAgentTurnAccepted(ok=True, thread_id=turn.thread_id, accepted_at=now_iso())
+        return JSONResponse(status_code=202, content=resp.model_dump(mode="json"))
