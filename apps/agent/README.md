@@ -61,11 +61,22 @@ a configuration error for real runs.
 
 ## Validation
 
-Python contract conformance remains a lightweight local check. Full product
-validation is the repo-root Playwright real-stack E2E:
+Python unit and contract checks:
+
+```bash
+cd apps/agent
+uv run --with-editable . pytest
+```
+
+Repo-level contract and scenario validation:
 
 ```bash
 npm run test:contracts
 npm run test:scenarios
+```
+
+Full product validation is the repo-root Playwright real-stack E2E:
+
+```bash
 E2E_ENV_FILE=.env npm run test:e2e:real
 ```
