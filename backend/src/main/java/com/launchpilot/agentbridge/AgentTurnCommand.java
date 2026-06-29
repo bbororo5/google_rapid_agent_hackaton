@@ -10,7 +10,8 @@ public record AgentTurnCommand(
         String campaignId,
         String content,
         List<Map<String, Object>> attachments,
-        String clientCreatedAt) {
+        String clientCreatedAt,
+        String requestId) {
 
     public AgentTurnCommand {
         attachments = attachments == null ? List.of() : List.copyOf(attachments);

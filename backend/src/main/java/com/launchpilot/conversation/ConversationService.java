@@ -129,7 +129,8 @@ public class ConversationService implements ConversationCommandUseCase, Conversa
                     context.campaignId(),
                     content,
                     internalAttachments(command.attachments()),
-                    command.clientCreatedAt()));
+                    command.clientCreatedAt(),
+                    command.commandId()));
             log.info("<- /turns accepted thread={}", command.threadId());
         } catch (Exception e) {
             log.warn("agent turn submit failed (thread {}): {}", command.threadId(), e.getMessage());
