@@ -15,8 +15,6 @@ from contextvars import ContextVar
 import logging
 from collections.abc import Iterator
 
-from app.config import get_settings
-
 # Use the launchpilot.* namespace so these lines actually surface in the
 # container logs (the app configures logging for launchpilot.*, not app.*).
 log = logging.getLogger("launchpilot.observability")
@@ -67,6 +65,8 @@ def init_tracing():
     global _provider
     if _provider is not None:
         return _provider
+
+    from app.config import get_settings
 
     settings = get_settings()
     # Gate on the API key (the example does the same): no key -> tracing off.
