@@ -68,9 +68,7 @@ public class PythonAgentTurnClient implements AgentTurnPort {
     }
 
     private CorrelationContext correlation(AgentTurnCommand command) {
-        String requestId = command.requestId() == null || command.requestId().isBlank()
-                ? command.threadId()
-                : command.requestId();
+        String requestId = requestId(command);
         return new CorrelationContext(
                 requestId,
                 requestId,
@@ -86,8 +84,17 @@ public class PythonAgentTurnClient implements AgentTurnPort {
         putIfPresent(attributes, "thread_id", command.threadId());
         putIfPresent(attributes, "workspace_id", command.workspaceId());
         putIfPresent(attributes, "campaign_id", command.campaignId());
+        putIfPresent(attributes, "command_request_id", command.requestId());
         attributes.put("attachment_count", command.attachments().size());
         return attributes;
+    }
+
+    private String requestId(AgentTurnCommand command) {
+        String raw = command.requestId() == null || command.requestId().isBlank()
+                ? command.threadId()
+                : command.requestId();
+        String normalized = raw.replaceAll("[^A-Za-z0-9_]", "_");
+        return normalized.startsWith("req_") ? normalized : "req_" + normalized;
     }
 
     private void putIfPresent(Map<String, Object> attributes, String name, Object value) {
