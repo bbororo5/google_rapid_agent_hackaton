@@ -13,7 +13,7 @@ import com.launchpilot.dto.common.Hypothesis;
 import com.launchpilot.dto.common.Signal;
 import com.launchpilot.contracts.elastic.CalendarEventDoc;
 import com.launchpilot.contracts.elastic.GrowthBriefDoc;
-import com.launchpilot.dto.pub.CalendarEventRef;
+import com.launchpilot.contracts.frontend.CalendarEventRef;
 import com.launchpilot.persistence.elastic.ApprovalDocumentRepository;
 import com.launchpilot.common.ApiException;
 import com.launchpilot.common.IdGenerator;

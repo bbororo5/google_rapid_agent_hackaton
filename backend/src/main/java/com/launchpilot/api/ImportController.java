@@ -1,7 +1,7 @@
 package com.launchpilot.api;
 
 import com.launchpilot.dto.common.Channel;
-import com.launchpilot.dto.pub.ImportCsvResponse;
+import com.launchpilot.contracts.frontend.ImportCsvResponse;
 import com.launchpilot.importing.CsvImportCommand;
 import com.launchpilot.importing.ImportUseCase;
 import com.launchpilot.common.ApiException;

@@ -1,6 +1,6 @@
 package com.launchpilot.api;
 
-import com.launchpilot.dto.pub.ErrorResponse;
+import com.launchpilot.contracts.frontend.ErrorResponse;
 import com.launchpilot.common.ApiException;
 import com.launchpilot.common.IdGenerator;
 import org.springframework.http.HttpStatus;

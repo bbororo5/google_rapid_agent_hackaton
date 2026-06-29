@@ -1,4 +1,4 @@
-package com.launchpilot.dto.pub;
+package com.launchpilot.contracts.frontend;
 
 public record CalendarEventRef(
         String eventId,

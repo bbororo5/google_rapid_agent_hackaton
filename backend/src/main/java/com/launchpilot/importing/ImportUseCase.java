@@ -1,6 +1,6 @@
 package com.launchpilot.importing;
 
-import com.launchpilot.dto.pub.ImportCsvResponse;
+import com.launchpilot.contracts.frontend.ImportCsvResponse;
 
 /** Handles the frontend CSV import use case. */
 public interface ImportUseCase {

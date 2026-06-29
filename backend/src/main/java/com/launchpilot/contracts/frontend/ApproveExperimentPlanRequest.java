@@ -1,4 +1,4 @@
-package com.launchpilot.dto.pub;
+package com.launchpilot.contracts.frontend;
 
 import com.launchpilot.dto.common.ExperimentItem;
 import jakarta.validation.constraints.NotBlank;

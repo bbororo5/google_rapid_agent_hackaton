@@ -5,7 +5,7 @@ import com.launchpilot.conversation.ThreadContextStore;
 import com.launchpilot.dto.common.Channel;
 import com.launchpilot.contracts.elastic.CampaignDoc;
 import com.launchpilot.contracts.elastic.ContentPostDoc;
-import com.launchpilot.dto.pub.ImportCsvResponse;
+import com.launchpilot.contracts.frontend.ImportCsvResponse;
 import com.launchpilot.persistence.elastic.CampaignRepository;
 import com.launchpilot.persistence.elastic.ContentPostRepository;
 import com.launchpilot.persistence.elastic.IndexResult;
