@@ -19,6 +19,8 @@ from app.runtime.state import (
 )
 from app.runtime.thread_store import ThreadRecord
 from app.telemetry import AgentTraceContext
+from app.telemetry import decision_metadata as build_decision_metadata
+from app.telemetry import turn_metadata as build_turn_metadata
 
 
 class CancelledTurn(Exception):
@@ -45,12 +47,11 @@ class TurnContext:
 
     @property
     def trace_metadata(self) -> dict[str, Any]:
-        metadata = {
-            "thread_id": self.record.thread_id,
-            "workspace_id": self.record.workspace_id,
-            "campaign_id": self.record.campaign_id,
-            "stage": "TURN",
-        }
+        metadata = build_turn_metadata(
+            thread_id=self.record.thread_id,
+            workspace_id=self.record.workspace_id,
+            campaign_id=self.record.campaign_id,
+        )
         if self.trace_context is not None:
             metadata.update(self.trace_context.metadata(
                 thread_id=self.record.thread_id,
@@ -68,15 +69,15 @@ class TurnDecision:
 
     @property
     def trace_metadata(self) -> dict[str, Any]:
-        return {
-            "agent.state.revision_before": self.reducer.revision_before,
-            "agent.state.revision_after": self.reducer.revision_after,
-            "agent.delta.intent": self.delta.intent.value,
-            "agent.delta.response_mode": self.delta.response_mode.value,
-            "agent.reducer.decision": self.reducer.decision.value,
-            "agent.delegation.mode": self.delegation.mode.value,
-            "phase": self.reducer.state.current_phase.value,
-        }
+        return build_decision_metadata(
+            revision_before=self.reducer.revision_before,
+            revision_after=self.reducer.revision_after,
+            intent=self.delta.intent.value,
+            response_mode=self.delta.response_mode.value,
+            reducer_decision=self.reducer.decision.value,
+            delegation_mode=self.delegation.mode.value,
+            phase=self.reducer.state.current_phase.value,
+        )
 
 
 @dataclass(slots=True)

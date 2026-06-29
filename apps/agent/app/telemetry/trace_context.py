@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from app.observability import bind_correlation
+from app.telemetry.metadata import trace_metadata
 
 
 @dataclass(frozen=True, slots=True)
@@ -54,14 +55,12 @@ class AgentTraceContext:
         workspace_id: str | None,
         campaign_id: str | None,
     ) -> dict[str, Any]:
-        metadata: dict[str, Any] = {
-            "request_id": self.request_id,
-            "trace_id": self.log_trace_id,
-            "trace_source": self.source,
-            "thread_id": thread_id,
-            "workspace_id": workspace_id,
-            "campaign_id": campaign_id,
-        }
-        if self.otel_trace_id:
-            metadata["otel_trace_id"] = self.otel_trace_id
-        return metadata
+        return trace_metadata(
+            request_id=self.request_id,
+            trace_id=self.log_trace_id,
+            trace_source=self.source,
+            thread_id=thread_id,
+            workspace_id=workspace_id,
+            campaign_id=campaign_id,
+            otel_trace_id=self.otel_trace_id,
+        )

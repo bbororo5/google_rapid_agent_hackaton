@@ -88,14 +88,14 @@ class PlanRoundRunner(BasePhaseRunner):
     async def _review_plan(self, turn: TurnContext, signals, hypotheses, plan, review_payload):
         # 승인 가드레일을 통과하는지 검사한다 (트레이스 span으로 감쌈).
         await self.emitter.progress(turn.record, "plan.review", "Checking approval guardrails", "running")
-        guardrail_metadata = {
-            "thread_id": turn.record.thread_id,
-            "workspace_id": turn.record.workspace_id,
-            "campaign_id": turn.record.campaign_id,
-        }
+        guardrail_metadata = telemetry.guardrail_metadata(
+            thread_id=turn.record.thread_id,
+            workspace_id=turn.record.workspace_id,
+            campaign_id=turn.record.campaign_id,
+        )
         with telemetry.guardrail_span(
             input_value={"signals": len(signals), "hypotheses": len(hypotheses), "items": len(plan.items)},
-            metadata={**guardrail_metadata, "validator_passed": None, "backtrack_count": 0},
+            metadata=guardrail_metadata,
             workspace_id=turn.record.workspace_id,
             campaign_id=turn.record.campaign_id,
         ) as guardrail_span:

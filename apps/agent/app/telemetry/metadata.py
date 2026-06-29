@@ -105,6 +105,18 @@ def goal_metadata(
     }
 
 
+def scope_metadata(
+    *,
+    workspace_id: str | None,
+    campaign_id: str | None,
+) -> TelemetryMetadata:
+    """Build metadata for the active tenant/campaign scope."""
+    return {
+        TelemetryKey.AGENT_SCOPE_WORKSPACE_ID.value: workspace_id,
+        TelemetryKey.AGENT_SCOPE_CAMPAIGN_ID.value: campaign_id,
+    }
+
+
 def repository_metadata(
     *,
     backend: str | None = None,

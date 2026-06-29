@@ -11,6 +11,16 @@ from contextlib import AbstractContextManager
 from typing import Any
 
 from app import tracing
+from app.telemetry.keys import TelemetryKey
+from app.telemetry.metadata import (
+    episode_metadata,
+    evidence_metadata,
+    goal_metadata,
+    guardrail_metadata,
+    repository_metadata,
+    scope_metadata,
+    state_delta_metadata,
+)
 
 
 def turn_span(
@@ -41,7 +51,7 @@ def pipeline_span(
     return tracing.chain_span(
         "launchpilot.orchestrator",
         input_value=content[:2000],
-        metadata={**metadata, "stage": "PIPELINE"},
+        metadata={**metadata, TelemetryKey.STAGE.value: "PIPELINE"},
         workspace_id=workspace_id,
         campaign_id=campaign_id,
     )
@@ -89,14 +99,15 @@ def record_turn_decision(
         span,
         {
             **turn_metadata,
-            "agent.scope.workspace_id": workspace_id,
-            "agent.scope.campaign_id": campaign_id,
-            "agent.repository.backend": repository_backend,
+            **scope_metadata(workspace_id=workspace_id, campaign_id=campaign_id),
+            **repository_metadata(backend=repository_backend),
             **decision_metadata,
-            "agent.goal.kind": goal.kind.value,
-            "agent.goal.budget_profile": goal.budget_profile.value,
-            "agent.goal.max_steps": goal.budgets.max_steps,
-            "agent.goal.max_llm_calls": goal.budgets.max_llm_calls,
+            **goal_metadata(
+                kind=goal.kind.value,
+                budget_profile=goal.budget_profile.value,
+                max_steps=goal.budgets.max_steps,
+                max_llm_calls=goal.budgets.max_llm_calls,
+            ),
         },
     )
 
@@ -116,7 +127,7 @@ def record_evidence_result(span, result: dict[str, Any]) -> None:
     refs = result.get("evidence_refs") or []
     tracing.set_documents(span, [{"id": ref} for ref in refs])
     summary = {key: value for key, value in result.items() if key != "evidence_refs"}
-    summary["evidence_ref_count"] = len(refs)
+    summary.update(evidence_metadata(evidence_ref_count=len(refs)))
     tracing.set_output(span, summary)
 
 
@@ -125,23 +136,29 @@ def record_guardrail_result(span, report, metadata: dict[str, Any]) -> None:
     tracing.set_output(span, report.model_dump(mode="json"))
     tracing.set_metadata(
         span,
-        {**metadata, "validator_passed": report.passed, "backtrack_count": 0},
+        {
+            **metadata,
+            **guardrail_metadata(
+                thread_id=metadata[TelemetryKey.THREAD_ID.value],
+                workspace_id=metadata[TelemetryKey.WORKSPACE_ID.value],
+                campaign_id=metadata[TelemetryKey.CAMPAIGN_ID.value],
+                validator_passed=report.passed,
+                backtrack_count=0,
+            ),
+        },
     )
 
 
 def record_state_delta(span, delta_id: str) -> None:
     """Attach the persisted state-delta id to the active turn span."""
-    tracing.set_metadata(span, {"agent.state_delta.delta_id": delta_id})
+    tracing.set_metadata(span, state_delta_metadata(delta_id))
 
 
 def record_episode_checkpoint(span, *, episode_id: str, outcome: str) -> None:
     """Attach the saved episode checkpoint identity to the active turn span."""
-    tracing.set_metadata(
-        span,
-        {"agent.episode.id": episode_id, "agent.episode.outcome": outcome},
-    )
+    tracing.set_metadata(span, episode_metadata(episode_id=episode_id, outcome=outcome))
 
 
 def record_repository_conflict(span) -> None:
     """Mark the active turn span as failed by optimistic concurrency conflict."""
-    tracing.set_metadata(span, {"agent.repository.conflict": True})
+    tracing.set_metadata(span, repository_metadata(conflict=True))
