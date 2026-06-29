@@ -14,13 +14,20 @@ import com.launchpilot.contracts.shared.Signal;
 import com.launchpilot.contracts.elastic.CalendarEventDoc;
 import com.launchpilot.contracts.elastic.GrowthBriefDoc;
 import com.launchpilot.contracts.frontend.CalendarEventRef;
+import com.launchpilot.observability.CorrelationContext;
+import com.launchpilot.observability.ObservabilityGateway;
+import com.launchpilot.observability.ObservationScope;
+import com.launchpilot.observability.ObservedOperation;
+import com.launchpilot.observability.OperationKind;
 import com.launchpilot.persistence.elastic.ApprovalDocumentRepository;
 import com.launchpilot.common.ApiException;
 import com.launchpilot.common.IdGenerator;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import org.springframework.stereotype.Service;
 
@@ -36,22 +43,50 @@ public class ApprovalService implements ApprovalUseCase {
     private final ApprovalDocumentRepository documents;
     private final IdGenerator ids;
     private final ObjectMapper mapper;
+    private final ObservabilityGateway observability;
 
     public ApprovalService(
             ApprovalGateStore gates,
             ThreadContextStore threadContexts,
             ApprovalDocumentRepository documents,
             IdGenerator ids,
-            ObjectMapper mapper) {
+            ObjectMapper mapper,
+            ObservabilityGateway observability) {
         this.gates = gates;
         this.threadContexts = threadContexts;
         this.documents = documents;
         this.ids = ids;
         this.mapper = mapper;
+        this.observability = observability;
     }
 
     @Override
     public ApprovalCommitResult approve(ApproveCommand command) {
+        CorrelationContext correlation = new CorrelationContext(
+                requestId(command),
+                requestId(command),
+                command.threadId(),
+                null,
+                null,
+                "approval",
+                "approve");
+        try (ObservationScope scope = observability.startOperation(
+                new ObservedOperation("approval.persist", OperationKind.APPROVAL_PERSISTENCE, approvalAttributes(command)),
+                correlation)) {
+            try {
+                ApprovalCommitResult result = approveInternal(command);
+                scope.markSuccess(Map.of(
+                        "growth_brief_id", result.growthBriefId(),
+                        "calendar_event_count", result.createdCalendarEvents().size()));
+                return result;
+            } catch (RuntimeException e) {
+                scope.markFailure(e, approvalAttributes(command));
+                throw e;
+            }
+        }
+    }
+
+    private ApprovalCommitResult approveInternal(ApproveCommand command) {
         ApprovalGateRequest gate = gates.get(command.threadId())
                 .orElseThrow(() -> new ApiException(409, "CONFLICT", "thread has no candidate plan"));
         if (command.targetId() != null && !command.targetId().equals(gate.approvalId())) {
@@ -121,6 +156,32 @@ public class ApprovalService implements ApprovalUseCase {
         gates.remove(command.threadId());
 
         return new ApprovalCommitResult(gate.approvalId(), briefId, eventRefs, now);
+    }
+
+    private String requestId(ApproveCommand command) {
+        if (command.approvalId() != null && !command.approvalId().isBlank()) {
+            return command.approvalId();
+        }
+        if (command.targetId() != null && !command.targetId().isBlank()) {
+            return command.targetId();
+        }
+        return command.threadId();
+    }
+
+    private Map<String, Object> approvalAttributes(ApproveCommand command) {
+        Map<String, Object> attributes = new LinkedHashMap<>();
+        putIfPresent(attributes, "thread_id", command.threadId());
+        putIfPresent(attributes, "approval_id", command.approvalId());
+        putIfPresent(attributes, "target_id", command.targetId());
+        putIfPresent(attributes, "approved_by", command.approvedBy());
+        attributes.put("has_final_experiments", command.actionPayload().containsKey("final_experiments"));
+        return attributes;
+    }
+
+    private void putIfPresent(Map<String, Object> attributes, String name, Object value) {
+        if (value != null) {
+            attributes.put(name, value);
+        }
     }
 
     private List<ExperimentItem> resolveFinalExperiments(ApproveCommand command, ApprovalGateRequest gate) {
