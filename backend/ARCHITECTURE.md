@@ -53,6 +53,68 @@ com.launchpilot
 
 ## Component Boundaries
 
+## Dependency Rules
+
+The Java Backend should depend inward from transport and adapters toward use
+cases. Components communicate through explicit interfaces instead of reaching
+across package internals.
+
+Allowed dependency direction:
+
+```text
+api/websocket -> conversation/importing
+conversation -> agentbridge ports, approval, conversation runtime ports
+importing -> persistence.elastic ports, conversation ThreadContextStore
+approval -> persistence.elastic ports, conversation ApprovalGateStore/ThreadContextStore
+agentbridge -> contracts.agentbridge, observability
+persistence.elastic -> contracts.elasticdoc, Elastic client
+observability -> no business component
+config -> concrete adapters and implementations
+```
+
+Forbidden dependencies:
+
+- `api` and `websocket` must not call `agentbridge` or `persistence.elastic`
+  directly.
+- `conversation` must not depend on concrete Python or Elastic adapter classes.
+- `agentbridge` must not call `approval`, `importing`, or `conversation` use
+  cases.
+- `approval` must not call Python Agent Core.
+- `persistence.elastic` must not know frontend or Python transport messages.
+- `observability` must not own business decisions or product workflow.
+
+## Interface Ownership
+
+Each interface belongs to the component that defines the business need, not the
+adapter that happens to satisfy it.
+
+| Interface | Owner | Implemented by | Reason |
+| --- | --- | --- | --- |
+| `ConversationCommandUseCase` | `conversation` | `conversation` | WebSocket edge sends frontend commands into the conversation use case. |
+| `ConversationTimeline` | `conversation` | `conversation` | Timeline is Java live conversation runtime, not transport. |
+| `ThreadContextStore` | `conversation` | `conversation` | Workspace/campaign routing context is owned by live conversation runtime. |
+| `ApprovalGateStore` | `conversation` | `conversation` | Approval blocks are captured from stream state before approval use case runs. |
+| `ImportUseCase` | `importing` | `importing` | HTTP import edge calls one import use case. |
+| `AgentTurnPort` | `conversation` | `agentbridge` | Conversation needs to submit free-form turns without knowing Python transport. |
+| `AgentStreamPort` | `conversation` | `agentbridge` | Conversation needs Python stream events without knowing WS client details. |
+| `ApprovalUseCase` | `approval` | `approval` | Conversation delegates deterministic approval action handling. |
+| `CampaignRepository` | `importing` | `persistence.elastic` | Importing needs to upsert campaign context. |
+| `ContentPostRepository` | `importing` | `persistence.elastic` | Importing needs to persist imported evidence rows. |
+| `ApprovalDocumentRepository` | `approval` | `persistence.elastic` | Approval needs idempotency and immutable business writes. |
+
+## Component Interface Summary
+
+| Component | Inbound interfaces | Outbound interfaces |
+| --- | --- | --- |
+| `api` | HTTP controllers | `ImportUseCase` |
+| `websocket` | `WebSocketHandler` | `ConversationCommandUseCase`, session broadcaster |
+| `conversation` | `ConversationCommandUseCase`, `AgentStreamListener` | `AgentTurnPort`, `AgentStreamPort`, `ApprovalUseCase` |
+| `importing` | `ImportUseCase` | `CampaignRepository`, `ContentPostRepository`, `ThreadContextStore` |
+| `agentbridge` | `AgentTurnPort`, `AgentStreamPort` | Python REST/WS contracts |
+| `approval` | `ApprovalUseCase` | `ApprovalGateStore`, `ThreadContextStore`, `ApprovalDocumentRepository` |
+| `persistence.elastic` | repository interfaces | Elastic Java client |
+| `observability` | `ObservabilityGateway` | logging, metrics, tracing backends |
+
 ### `api`
 
 Transport-only HTTP edge.
