@@ -45,12 +45,15 @@ class LoggingObservabilityGatewayTest {
 
         assertThat(downstream.requestId()).isEqualTo("req_1");
         assertThat(downstream.source()).isEqualTo(DownstreamTraceContext.JAVA_BACKEND_SOURCE);
-        assertThat(downstream.otelTraceId()).isEqualTo("trace_1");
+        assertThat(downstream.otelTraceId()).matches("^[a-f0-9]{32}$");
         assertThat(downstream.headers()).containsEntry("x-launchpilot-request-id", "req_1");
         assertThat(downstream.headers()).containsEntry("x-launchpilot-trace-id", "trace_1");
         assertThat(downstream.headers()).containsEntry("x-launchpilot-thread-id", "thread_1");
         assertThat(downstream.headers()).containsEntry("x-launchpilot-workspace-id", "workspace_1");
         assertThat(downstream.headers()).containsEntry("x-launchpilot-campaign-id", "campaign_1");
+        assertThat(downstream.headers()).containsKey("traceparent");
+        assertThat(downstream.headers().get("traceparent"))
+                .matches("^00-[a-f0-9]{32}-[a-f0-9]{16}-01$");
     }
 
     private CorrelationContext correlation() {

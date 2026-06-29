@@ -23,7 +23,7 @@ It records:
 - downstream correlation headers for Python Agent Core:
   `x-launchpilot-request-id`, `x-launchpilot-trace-id`,
   `x-launchpilot-thread-id`, `x-launchpilot-workspace-id`,
-  `x-launchpilot-campaign-id`
+  `x-launchpilot-campaign-id`, plus W3C `traceparent`
 - `trace_context` in the Java -> Python turn request body
 
 On Google Cloud runtimes, stdout/stderr logs are collected by Cloud Logging.

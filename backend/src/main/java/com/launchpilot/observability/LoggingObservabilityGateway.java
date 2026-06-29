@@ -26,16 +26,19 @@ public class LoggingObservabilityGateway implements ObservabilityGateway {
 
     @Override
     public DownstreamTraceContext downstreamTraceContext(CorrelationContext correlation) {
+        String traceId = W3cTraceContext.traceId(correlation);
+        String spanId = W3cTraceContext.spanId(correlation);
         Map<String, String> headers = new LinkedHashMap<>();
         putIfPresent(headers, "x-launchpilot-request-id", correlation.requestId());
         putIfPresent(headers, "x-launchpilot-trace-id", correlation.traceId());
         putIfPresent(headers, "x-launchpilot-thread-id", correlation.threadId());
         putIfPresent(headers, "x-launchpilot-workspace-id", correlation.workspaceId());
         putIfPresent(headers, "x-launchpilot-campaign-id", correlation.campaignId());
+        headers.put("traceparent", W3cTraceContext.traceparent(traceId, spanId));
         return new DownstreamTraceContext(
                 correlation.requestId(),
                 DownstreamTraceContext.JAVA_BACKEND_SOURCE,
-                correlation.traceId(),
+                traceId,
                 headers);
     }
 
