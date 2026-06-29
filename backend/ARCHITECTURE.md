@@ -48,6 +48,7 @@ com.launchpilot
 ├── persistence.elastic   # Elastic repositories and index bootstrap
 ├── contracts             # Java records mirroring external contracts
 ├── observability         # Java service-level observability boundary
+├── common                # cross-component errors, IDs, and small primitives
 └── config
 ```
 
@@ -69,6 +70,7 @@ approval -> persistence.elastic ports, conversation ApprovalGateStore/ThreadCont
 agentbridge -> contracts.agentbridge, observability
 persistence.elastic -> contracts.elasticdoc, Elastic client
 observability -> no business component
+all components -> common
 config -> concrete adapters and implementations
 ```
 
@@ -82,6 +84,7 @@ Forbidden dependencies:
 - `approval` must not call Python Agent Core.
 - `persistence.elastic` must not know frontend or Python transport messages.
 - `observability` must not own business decisions or product workflow.
+- `common` must not call business components or transport adapters.
 
 ## Interface Ownership
 

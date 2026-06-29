@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.launchpilot.dto.common.AgentResultPayload;
 import com.launchpilot.dto.common.ApprovalGateKind;
 import com.launchpilot.dto.common.ApprovalGateRequest;
-import com.launchpilot.service.IdGenerator;
+import com.launchpilot.common.IdGenerator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;

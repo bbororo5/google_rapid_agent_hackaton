@@ -4,7 +4,7 @@ import com.launchpilot.dto.common.Channel;
 import com.launchpilot.dto.pub.ImportCsvResponse;
 import com.launchpilot.importing.CsvImportCommand;
 import com.launchpilot.importing.ImportUseCase;
-import com.launchpilot.service.ApiException;
+import com.launchpilot.common.ApiException;
 import java.io.IOException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;

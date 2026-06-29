@@ -6,7 +6,7 @@ import co.elastic.clients.elasticsearch.core.BulkRequest;
 import co.elastic.clients.elasticsearch.core.BulkResponse;
 import com.launchpilot.dto.elastic.CalendarEventDoc;
 import com.launchpilot.dto.elastic.GrowthBriefDoc;
-import com.launchpilot.service.ApiException;
+import com.launchpilot.common.ApiException;
 import java.io.IOException;
 import java.util.List;
 import org.springframework.stereotype.Component;

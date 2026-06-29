@@ -1,8 +1,8 @@
 package com.launchpilot.api;
 
 import com.launchpilot.dto.pub.ErrorResponse;
-import com.launchpilot.service.ApiException;
-import com.launchpilot.service.IdGenerator;
+import com.launchpilot.common.ApiException;
+import com.launchpilot.common.IdGenerator;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;

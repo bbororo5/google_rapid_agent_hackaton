@@ -1,6 +1,6 @@
 package com.launchpilot.importing;
 
-import com.launchpilot.service.ApiException;
+import com.launchpilot.common.ApiException;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;

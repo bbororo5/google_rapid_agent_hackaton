@@ -1,4 +1,4 @@
-package com.launchpilot.service;
+package com.launchpilot.common;
 
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;

@@ -1,4 +1,4 @@
-package com.launchpilot.service;
+package com.launchpilot.common;
 
 /** 도메인 오류 -> HTTP 상태 + 계약 에러 코드 매핑. */
 public class ApiException extends RuntimeException {

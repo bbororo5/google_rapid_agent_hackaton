@@ -2,7 +2,7 @@ package com.launchpilot.agentbridge;
 
 import com.launchpilot.dto.internal.InternalAgentTurnAcceptedResponse;
 import com.launchpilot.dto.internal.InternalAgentTurnRequest;
-import com.launchpilot.service.ApiException;
+import com.launchpilot.common.ApiException;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
