@@ -1,4 +1,4 @@
-package com.launchpilot.persistence.elastic;
+package com.launchpilot.approval;
 
 import com.launchpilot.contracts.elastic.CalendarEventDoc;
 import com.launchpilot.contracts.elastic.GrowthBriefDoc;

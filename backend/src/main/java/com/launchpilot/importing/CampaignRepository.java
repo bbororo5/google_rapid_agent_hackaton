@@ -1,4 +1,4 @@
-package com.launchpilot.persistence.elastic;
+package com.launchpilot.importing;
 
 import com.launchpilot.contracts.elastic.CampaignDoc;
 

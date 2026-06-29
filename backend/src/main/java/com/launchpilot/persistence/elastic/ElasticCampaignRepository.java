@@ -3,6 +3,7 @@ package com.launchpilot.persistence.elastic;
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.elasticsearch._types.Refresh;
 import com.launchpilot.contracts.elastic.CampaignDoc;
+import com.launchpilot.importing.CampaignRepository;
 import com.launchpilot.common.ApiException;
 import com.launchpilot.observability.CorrelationContext;
 import com.launchpilot.observability.ObservabilityGateway;

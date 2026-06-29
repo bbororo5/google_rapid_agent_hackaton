@@ -19,7 +19,6 @@ import com.launchpilot.observability.ObservabilityGateway;
 import com.launchpilot.observability.ObservationScope;
 import com.launchpilot.observability.ObservedOperation;
 import com.launchpilot.observability.OperationKind;
-import com.launchpilot.persistence.elastic.ApprovalDocumentRepository;
 import com.launchpilot.common.ApiException;
 import com.launchpilot.common.IdGenerator;
 import java.time.OffsetDateTime;

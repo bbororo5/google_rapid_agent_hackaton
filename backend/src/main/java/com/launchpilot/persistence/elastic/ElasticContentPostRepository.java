@@ -6,6 +6,8 @@ import co.elastic.clients.elasticsearch.core.BulkRequest;
 import co.elastic.clients.elasticsearch.core.BulkResponse;
 import co.elastic.clients.elasticsearch.core.bulk.BulkResponseItem;
 import com.launchpilot.contracts.elastic.ContentPostDoc;
+import com.launchpilot.importing.ContentPostRepository;
+import com.launchpilot.importing.IndexResult;
 import com.launchpilot.common.ApiException;
 import com.launchpilot.observability.CorrelationContext;
 import com.launchpilot.observability.ObservabilityGateway;
