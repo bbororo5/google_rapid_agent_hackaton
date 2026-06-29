@@ -6,6 +6,11 @@ import com.launchpilot.contracts.shared.Channel;
 import com.launchpilot.contracts.elastic.CampaignDoc;
 import com.launchpilot.contracts.elastic.ContentPostDoc;
 import com.launchpilot.contracts.frontend.ImportCsvResponse;
+import com.launchpilot.observability.CorrelationContext;
+import com.launchpilot.observability.ObservabilityGateway;
+import com.launchpilot.observability.ObservationScope;
+import com.launchpilot.observability.ObservedOperation;
+import com.launchpilot.observability.OperationKind;
 import com.launchpilot.persistence.elastic.CampaignRepository;
 import com.launchpilot.persistence.elastic.ContentPostRepository;
 import com.launchpilot.persistence.elastic.IndexResult;
@@ -34,24 +39,53 @@ public class CsvImportService implements ImportUseCase {
     private final ContentPostRepository contentPosts;
     private final IdGenerator ids;
     private final ThreadContextStore threadContexts;
+    private final ObservabilityGateway observability;
 
     public CsvImportService(
             CsvStreamingParser parser,
             CampaignRepository campaigns,
             ContentPostRepository contentPosts,
             IdGenerator ids,
-            ThreadContextStore threadContexts) {
+            ThreadContextStore threadContexts,
+            ObservabilityGateway observability) {
         this.parser = parser;
         this.campaigns = campaigns;
         this.contentPosts = contentPosts;
         this.ids = ids;
         this.threadContexts = threadContexts;
+        this.observability = observability;
     }
 
     @Override
     public ImportCsvResponse importCsv(CsvImportCommand command) {
         String importId = ids.newImportId();
         String threadId = "thread_" + importId.substring("imp_".length());
+        CorrelationContext correlation = new CorrelationContext(
+                importId,
+                importId,
+                threadId,
+                command.workspaceId(),
+                command.campaignId(),
+                "importing",
+                "import_csv");
+        try (ObservationScope scope = observability.startOperation(
+                new ObservedOperation("csv.import", OperationKind.CSV_IMPORT, importAttributes(command)),
+                correlation)) {
+            try {
+                ImportCsvResponse response = importCsv(command, importId, threadId);
+                scope.markSuccess(Map.of(
+                        "indexed_count", response.indexedCount(),
+                        "failed_count", response.failedCount(),
+                        "column_count", response.columns().size()));
+                return response;
+            } catch (RuntimeException e) {
+                scope.markFailure(e, importAttributes(command));
+                throw e;
+            }
+        }
+    }
+
+    private ImportCsvResponse importCsv(CsvImportCommand command, String importId, String threadId) {
         threadContexts.register(threadId, new RunContext(command.workspaceId(), command.campaignId()));
         String ingestedAt = OffsetDateTime.now().toString();
         List<ContentPostDoc> docs = new ArrayList<>();
@@ -77,6 +111,21 @@ public class CsvImportService implements ImportUseCase {
                 result.failed(),
                 header.columns(),
                 ingestedAt);
+    }
+
+    private Map<String, Object> importAttributes(CsvImportCommand command) {
+        Map<String, Object> attributes = new LinkedHashMap<>();
+        putIfPresent(attributes, "filename", command.filename());
+        putIfPresent(attributes, "workspace_id", command.workspaceId());
+        putIfPresent(attributes, "campaign_id", command.campaignId());
+        putIfPresent(attributes, "source_platform", command.sourcePlatform());
+        return attributes;
+    }
+
+    private void putIfPresent(Map<String, Object> attributes, String name, Object value) {
+        if (value != null) {
+            attributes.put(name, value);
+        }
     }
 
     private CampaignDoc toCampaignDoc(String workspaceId, String campaignId, String timestamp) {
