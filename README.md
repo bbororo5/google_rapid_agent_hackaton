@@ -18,7 +18,7 @@ LaunchPilot reads a creator team's SNS performance CSV, finds growth signals, fo
 
 <img src="docs/architecture/diagrams/1-system-context.png" alt="System Context" width="100%"/>
 
-A content or growth manager uploads a CSV and approves plans. Behind one product boundary, LaunchPilot orchestrates three external systems: Gemini reasons and generates, Elastic serves evidence and is the single store, and Phoenix/Arize captures traces for self-reflection. The user gets back signals, hypotheses, experiments, and the live reasoning that produced them.
+A content or growth manager uploads a CSV and approves plans. Behind one product boundary, LaunchPilot orchestrates three external systems: Gemini reasons and generates, Elastic serves evidence and is the single store, and Cloud Logging plus Phoenix/Arize capture service and agent traces. The user gets back signals, hypotheses, experiments, and the live reasoning that produced them.
 
 ### 2. Turn Lifecycle
 
@@ -179,7 +179,8 @@ flowchart LR
     BE["Business Backend<br/>Java 21 + Spring Boot"]
     PY["Agent Service<br/>Python + FastAPI + Google ADK"]
     ES["Elastic Cloud Serverless<br/>Evidence + Business Store"]
-    PH["Arize / Phoenix<br/>OpenInference Traces"]
+    OPS["Google Cloud Operations<br/>Service Logs + Correlation"]
+    PH["Arize / Phoenix<br/>Agent OpenInference Traces"]
     LLM["Gemini"]
 
     FE -->|"POST /api/import/csv"| BE
@@ -189,6 +190,8 @@ flowchart LR
     BE -->|"import + approved writes"| ES
     PY -->|"evidence search"| ES
     PY -->|"reasoning + structured output"| LLM
+    BE -->|"correlated service logs"| OPS
+    PY -->|"correlated agent logs"| OPS
     PY -->|"LLM/tool/reviewer spans"| PH
 ```
 
@@ -198,6 +201,7 @@ flowchart LR
 | Java Backend | Public API, WebSocket timeline, CSV import, approval gate, immutable business writes. |
 | Python Agent Core | Turn interpretation, state reduction, worker orchestration, evidence search, structured generation. |
 | Elastic | Single business datastore, evidence engine, and runtime coordination store. |
+| Google Cloud Operations | Correlated service logs across Java and Python containers. |
 | Phoenix / Arize | OpenInference tracing and agent observability. |
 | Gemini / Google ADK | Worker reasoning and structured generation. |
 
