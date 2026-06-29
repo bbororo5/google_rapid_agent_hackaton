@@ -1,6 +1,6 @@
 package com.launchpilot.agentbridge;
 
-import com.launchpilot.dto.internal.InternalAgentTurnAcceptedResponse;
+import com.launchpilot.contracts.agent.InternalAgentTurnAcceptedResponse;
 
 /** Port for submitting a user turn to Python Agent Core. */
 public interface AgentTurnPort {

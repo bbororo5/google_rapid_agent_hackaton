@@ -67,7 +67,7 @@ api/websocket -> conversation/importing
 conversation -> agentbridge ports, approval, conversation runtime ports
 importing -> persistence.elastic ports, conversation ThreadContextStore
 approval -> persistence.elastic ports, conversation ApprovalGateStore/ThreadContextStore
-agentbridge -> contracts.agentbridge, observability
+agentbridge -> contracts.agent, observability
 persistence.elastic -> contracts.elastic, Elastic client
 observability -> no business component
 all components -> common
@@ -302,7 +302,7 @@ Target subpackages:
 
 ```text
 contracts.publicapi      # Frontend <-> Java DTOs
-contracts.agentbridge    # Java <-> Python DTOs
+contracts.agent    # Java <-> Python DTOs
 contracts.elastic     # Java -> Elastic documents
 contracts.shared         # Signal, hypothesis, experiment payloads
 ```

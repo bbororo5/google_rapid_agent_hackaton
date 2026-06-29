@@ -1,4 +1,4 @@
-package com.launchpilot.dto.internal;
+package com.launchpilot.contracts.agent;
 
 public record InternalAgentTurnAcceptedResponse(
         boolean ok,

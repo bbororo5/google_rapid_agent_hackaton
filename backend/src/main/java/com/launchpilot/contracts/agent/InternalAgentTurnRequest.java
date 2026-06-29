@@ -1,4 +1,4 @@
-package com.launchpilot.dto.internal;
+package com.launchpilot.contracts.agent;
 
 import java.util.List;
 import java.util.Map;
