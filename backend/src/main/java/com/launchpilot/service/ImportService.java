@@ -1,10 +1,12 @@
 package com.launchpilot.service;
 
-import com.launchpilot.client.ElasticDocumentWriter;
 import com.launchpilot.dto.common.Channel;
 import com.launchpilot.dto.elastic.CampaignDoc;
 import com.launchpilot.dto.elastic.ContentPostDoc;
 import com.launchpilot.dto.pub.ImportCsvResponse;
+import com.launchpilot.persistence.elastic.CampaignRepository;
+import com.launchpilot.persistence.elastic.ContentPostRepository;
+import com.launchpilot.persistence.elastic.IndexResult;
 import java.io.IOException;
 import java.io.InputStream;
 import java.time.OffsetDateTime;
@@ -26,7 +28,8 @@ public class ImportService {
             Set.of("post_id", "published_at", "channel", "title", "permalink");
 
     private final CsvStreamingParser parser;
-    private final ElasticDocumentWriter writer;
+    private final CampaignRepository campaigns;
+    private final ContentPostRepository contentPosts;
     private final IdGenerator ids;
     private final AgentThreadRegistry registry;
 
@@ -35,12 +38,17 @@ public class ImportService {
      * convert rows to documents, and write documents to Elasticsearch.
      *
      * @param parser CSV streaming parser used to iterate rows and obtain the header
-     * @param writer writer responsible for bulk-indexing ContentPostDoc documents
      * @param ids generator for import IDs and fallback post IDs
      */
-    public ImportService(CsvStreamingParser parser, ElasticDocumentWriter writer, IdGenerator ids, AgentThreadRegistry registry) {
+    public ImportService(
+            CsvStreamingParser parser,
+            CampaignRepository campaigns,
+            ContentPostRepository contentPosts,
+            IdGenerator ids,
+            AgentThreadRegistry registry) {
         this.parser = parser;
-        this.writer = writer;
+        this.campaigns = campaigns;
+        this.contentPosts = contentPosts;
         this.ids = ids;
         this.registry = registry;
     }
@@ -78,13 +86,8 @@ public class ImportService {
             throw ApiException.badRequest("CSV read failed: " + e.getMessage());
         }
 
-        ElasticDocumentWriter.IndexResult result;
-        try {
-            writer.upsertCampaign(toCampaignDoc(workspaceId, campaignId, ingestedAt));
-            result = writer.bulkIndexContentPosts(docs);
-        } catch (IOException e) {
-            throw ApiException.internal("campaign/content_posts indexing failed: " + e.getMessage());
-        }
+        campaigns.upsertCampaign(toCampaignDoc(workspaceId, campaignId, ingestedAt));
+        IndexResult result = contentPosts.bulkIndex(docs);
 
         return new ImportCsvResponse(
                 true,

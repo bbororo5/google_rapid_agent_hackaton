@@ -1,6 +1,5 @@
 package com.launchpilot.service;
 
-import com.launchpilot.client.ElasticDocumentWriter;
 import com.launchpilot.dto.common.AgentResultPayload;
 import com.launchpilot.dto.common.ExperimentItem;
 import com.launchpilot.dto.common.Hypothesis;
@@ -10,7 +9,7 @@ import com.launchpilot.dto.elastic.GrowthBriefDoc;
 import com.launchpilot.dto.pub.ApproveExperimentPlanRequest;
 import com.launchpilot.dto.pub.ApproveExperimentPlanResponse;
 import com.launchpilot.dto.pub.CalendarEventRef;
-import java.io.IOException;
+import com.launchpilot.persistence.elastic.ApprovalDocumentRepository;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -25,7 +24,7 @@ import org.springframework.stereotype.Service;
 @Service
 public class BusinessDataService {
 
-    private final ElasticDocumentWriter writer;
+    private final ApprovalDocumentRepository documents;
     private final AgentThreadRegistry registry;
     private final IdGenerator ids;
 
@@ -34,10 +33,10 @@ public class BusinessDataService {
      * persist approval artifacts, access run context, and generate stable IDs.
      */
     public BusinessDataService(
-            ElasticDocumentWriter writer,
+            ApprovalDocumentRepository documents,
             AgentThreadRegistry registry,
             IdGenerator ids) {
-        this.writer = writer;
+        this.documents = documents;
         this.registry = registry;
         this.ids = ids;
     }
@@ -65,12 +64,8 @@ public class BusinessDataService {
         }
 
         // 1회성 승인: 같은 thread로 이미 적재됐으면 거부 (결정적 brief_id라 재시도는 멱등)
-        try {
-            if (writer.growthBriefExistsForThread(threadId)) {
-                throw new ApiException(409, "CONFLICT", "thread already approved");
-            }
-        } catch (IOException e) {
-            throw ApiException.internal("approval idempotency check failed: " + e.getMessage());
+        if (documents.growthBriefExistsForThread(threadId)) {
+            throw new ApiException(409, "CONFLICT", "thread already approved");
         }
 
         AgentThreadRegistry.RunContext ctx = registry.get(threadId)
@@ -120,11 +115,7 @@ public class BusinessDataService {
                 1,
                 now);
 
-        try {
-            writer.persistApproval(brief, events);
-        } catch (IOException e) {
-            throw ApiException.internal("approval persistence failed: " + e.getMessage());
-        }
+        documents.persistApproval(brief, events);
 
         return new ApproveExperimentPlanResponse(
                 true,
