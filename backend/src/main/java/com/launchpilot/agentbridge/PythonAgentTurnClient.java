@@ -90,11 +90,7 @@ public class PythonAgentTurnClient implements AgentTurnPort {
     }
 
     private String requestId(AgentTurnCommand command) {
-        String raw = command.requestId() == null || command.requestId().isBlank()
-                ? command.threadId()
-                : command.requestId();
-        String normalized = raw.replaceAll("[^A-Za-z0-9_]", "_");
-        return normalized.startsWith("req_") ? normalized : "req_" + normalized;
+        return AgentTraceRequestIds.normalize(command.requestId(), command.threadId());
     }
 
     private void putIfPresent(Map<String, Object> attributes, String name, Object value) {
