@@ -2,8 +2,9 @@ package com.launchpilot.api;
 
 import com.launchpilot.dto.common.Channel;
 import com.launchpilot.dto.pub.ImportCsvResponse;
+import com.launchpilot.importing.CsvImportCommand;
+import com.launchpilot.importing.ImportUseCase;
 import com.launchpilot.service.ApiException;
-import com.launchpilot.service.ImportService;
 import java.io.IOException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -19,15 +20,15 @@ import org.springframework.web.multipart.MultipartFile;
 @RequestMapping("/api/import")
 public class ImportController {
 
-    private final ImportService importService;
+    private final ImportUseCase importUseCase;
 
     /**
      * Creates an ImportController that handles CSV import requests.
      *
-     * @param importService the service used to perform CSV imports
+     * @param importUseCase the use case used to perform CSV imports
      */
-    public ImportController(ImportService importService) {
-        this.importService = importService;
+    public ImportController(ImportUseCase importUseCase) {
+        this.importUseCase = importUseCase;
     }
 
     /**
@@ -56,13 +57,13 @@ public class ImportController {
         Channel channel = parseChannel(sourcePlatform);
 
         try {
-            ImportCsvResponse body = importService.importCsv(
+            ImportCsvResponse body = importUseCase.importCsv(new CsvImportCommand(
                     file.getInputStream(),
                     StringUtils.hasText(file.getOriginalFilename())
                             ? file.getOriginalFilename() : "upload.csv",
                     workspaceId,
                     campaignId,
-                    channel);
+                    channel));
             return ResponseEntity.status(HttpStatus.CREATED).body(body);
         } catch (IOException e) {
             throw ApiException.badRequest("could not read uploaded file: " + e.getMessage());

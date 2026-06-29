@@ -1,5 +1,6 @@
-package com.launchpilot.service;
+package com.launchpilot.importing;
 
+import com.launchpilot.service.ApiException;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -13,27 +14,13 @@ import java.util.function.BiConsumer;
 import org.springframework.stereotype.Component;
 
 /**
- * OOM 방지용 줄 단위 스트리밍 파서 (C4 CsvStreamingParser).
- * 해커톤 CSV 가정: 단순 콤마 구분, 따옴표 필드 최소 지원.
+ * OOM-safe line-based CSV parser for the import use case.
  */
 @Component
 public class CsvStreamingParser {
 
     public record Header(List<String> columns) {}
 
-    /**
-     * Parse a UTF-8 CSV stream line-by-line and invoke the provided consumer for each data row.
-     *
-     * The first non-null line is treated as the header; subsequent non-blank lines are split into values
-     * and mapped to header columns (missing values are represented as empty strings). The consumer is
-     * called with a 1-based data row number and an insertion-ordered map from column name to value.
-     *
-     * @param in the UTF-8 encoded CSV input stream
-     * @param rowConsumer accepts (rowNumber, columnValueMap) for each data row; rowNumber starts at 1
-     * @return the parsed Header containing the header column names in order
-     * @throws ApiException if the input is empty or the header has no columns
-     * @throws IOException if an I/O error occurs while reading the stream
-     */
     public Header parse(InputStream in, BiConsumer<Integer, Map<String, String>> rowConsumer)
             throws IOException {
         try (BufferedReader reader =
@@ -65,14 +52,6 @@ public class CsvStreamingParser {
         }
     }
 
-    /**
-     * Splits a single CSV line into fields using commas as delimiters while treating text enclosed in double quotes as a single field.
-     *
-     * Fields are trimmed of surrounding whitespace; double-quote characters are removed and commas within quoted sections are preserved.
-     *
-     * @param line the CSV line to split
-     * @return a list of parsed field values in order
-     */
     private List<String> splitCsv(String line) {
         List<String> out = new ArrayList<>();
         StringBuilder cur = new StringBuilder();

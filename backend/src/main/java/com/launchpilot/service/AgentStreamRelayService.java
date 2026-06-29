@@ -5,6 +5,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.launchpilot.agentbridge.AgentStreamPort;
 import com.launchpilot.agentbridge.AgentTurnCommand;
 import com.launchpilot.agentbridge.AgentTurnPort;
+import com.launchpilot.conversation.RunContext;
+import com.launchpilot.conversation.ThreadContextStore;
 import com.launchpilot.dto.common.AgentResultPayload;
 import com.launchpilot.dto.common.AgentStreamClientCommand;
 import com.launchpilot.dto.common.ApprovalCommitResult;
@@ -22,7 +24,6 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.socket.WebSocketSession;
 
@@ -37,11 +38,9 @@ public class AgentStreamRelayService {
     private final AgentStreamPort pythonStream;
     private final AgentTurnPort agent;
     private final BusinessDataService business;
-    private final AgentThreadRegistry threads;
+    private final ThreadContextStore threads;
     private final IdGenerator ids;
     private final ObjectMapper mapper;
-    private final String demoWorkspaceId;
-    private final String demoCampaignId;
 
     private final Map<String, ApprovalGateRequest> gates = new ConcurrentHashMap<>();
     private final Set<String> processedCommands = ConcurrentHashMap.newKeySet();
@@ -53,11 +52,9 @@ public class AgentStreamRelayService {
             AgentStreamPort pythonStream,
             AgentTurnPort agent,
             BusinessDataService business,
-            AgentThreadRegistry threads,
+            ThreadContextStore threads,
             IdGenerator ids,
-            ObjectMapper mapper,
-            @Value("${launchpilot.demo.workspace-id:demo_workspace}") String demoWorkspaceId,
-            @Value("${launchpilot.demo.campaign-id:camp_comeback_teaser}") String demoCampaignId) {
+            ObjectMapper mapper) {
         this.timeline = timeline;
         this.sessions = sessions;
         this.pythonStream = pythonStream;
@@ -66,8 +63,6 @@ public class AgentStreamRelayService {
         this.threads = threads;
         this.ids = ids;
         this.mapper = mapper;
-        this.demoWorkspaceId = demoWorkspaceId;
-        this.demoCampaignId = demoCampaignId;
     }
 
     public void ensureStarted(String threadId) {
@@ -139,7 +134,7 @@ public class AgentStreamRelayService {
     }
 
     private void sendTurnToAgentCore(String threadId, AgentStreamClientCommand cmd) {
-        AgentThreadRegistry.RunContext ctx = resolveContext(threadId);
+        RunContext ctx = resolveContext(threadId);
         log.info("-> POST /turns thread={} ws={} camp={}", threadId,
                 ctx.workspaceId(), ctx.campaignId());
         try {
@@ -162,15 +157,8 @@ public class AgentStreamRelayService {
      * import's context, then to the configured demo defaults, so the agent
      * always receives a workspace/campaign to scope its evidence queries.
      */
-    private AgentThreadRegistry.RunContext resolveContext(String threadId) {
-        var existing = threads.get(threadId);
-        if (existing.isPresent()) {
-            return existing.get();
-        }
-        AgentThreadRegistry.RunContext ctx = threads.last().orElseGet(
-            () -> new AgentThreadRegistry.RunContext(demoWorkspaceId, demoCampaignId));
-        threads.put(threadId, ctx);
-        return ctx;
+    private RunContext resolveContext(String threadId) {
+        return threads.resolveOrCreate(threadId);
     }
 
     private List<Map<String, Object>> internalAttachments(List<Map<String, Object>> attachments) {

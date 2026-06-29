@@ -1,5 +1,7 @@
 package com.launchpilot.service;
 
+import com.launchpilot.conversation.RunContext;
+import com.launchpilot.conversation.ThreadContextStore;
 import com.launchpilot.dto.common.AgentResultPayload;
 import com.launchpilot.dto.common.ExperimentItem;
 import com.launchpilot.dto.common.Hypothesis;
@@ -25,7 +27,7 @@ import org.springframework.stereotype.Service;
 public class BusinessDataService {
 
     private final ApprovalDocumentRepository documents;
-    private final AgentThreadRegistry registry;
+    private final ThreadContextStore registry;
     private final IdGenerator ids;
 
     /**
@@ -34,7 +36,7 @@ public class BusinessDataService {
      */
     public BusinessDataService(
             ApprovalDocumentRepository documents,
-            AgentThreadRegistry registry,
+            ThreadContextStore registry,
             IdGenerator ids) {
         this.documents = documents;
         this.registry = registry;
@@ -68,7 +70,7 @@ public class BusinessDataService {
             throw new ApiException(409, "CONFLICT", "thread already approved");
         }
 
-        AgentThreadRegistry.RunContext ctx = registry.get(threadId)
+        RunContext ctx = registry.get(threadId)
                 .orElseThrow(() -> ApiException.internal(
                         "missing thread context for " + threadId));
 
