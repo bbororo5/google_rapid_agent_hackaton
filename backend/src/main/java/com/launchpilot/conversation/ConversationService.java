@@ -8,6 +8,12 @@ import com.launchpilot.approval.ApproveCommand;
 import com.launchpilot.contracts.shared.ApprovalCommitResult;
 import com.launchpilot.contracts.shared.MessageSendAction;
 import com.launchpilot.contracts.shared.StreamMessage;
+import com.launchpilot.observability.CorrelationContext;
+import com.launchpilot.observability.ObservabilityGateway;
+import com.launchpilot.observability.ObservationScope;
+import com.launchpilot.observability.ObservedOperation;
+import com.launchpilot.observability.OperationKind;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -31,6 +37,7 @@ public class ConversationService implements ConversationCommandUseCase, Conversa
     private final ApprovalGateStore gates;
     private final ThreadContextStore threads;
     private final DuplicateCommandGuard duplicateCommands;
+    private final ObservabilityGateway observability;
 
     private final Set<String> startedThreads = ConcurrentHashMap.newKeySet();
 
@@ -42,7 +49,8 @@ public class ConversationService implements ConversationCommandUseCase, Conversa
             ApprovalUseCase approvals,
             ApprovalGateStore gates,
             ThreadContextStore threads,
-            DuplicateCommandGuard duplicateCommands) {
+            DuplicateCommandGuard duplicateCommands,
+            ObservabilityGateway observability) {
         this.timeline = timeline;
         this.publisher = publisher;
         this.pythonStream = pythonStream;
@@ -51,6 +59,7 @@ public class ConversationService implements ConversationCommandUseCase, Conversa
         this.gates = gates;
         this.threads = threads;
         this.duplicateCommands = duplicateCommands;
+        this.observability = observability;
     }
 
     @Override
@@ -84,6 +93,20 @@ public class ConversationService implements ConversationCommandUseCase, Conversa
             return;
         }
 
+        try (ObservationScope scope = observability.startOperation(
+                new ObservedOperation("conversation.command", OperationKind.WEBSOCKET_MESSAGE, commandAttributes(command)),
+                correlation(command.threadId(), requestId(command), "conversation", "handle_command"))) {
+            try {
+                handleCommand(command);
+                scope.markSuccess(Map.of("handled", true));
+            } catch (RuntimeException e) {
+                scope.markFailure(e, commandAttributes(command));
+                throw e;
+            }
+        }
+    }
+
+    private void handleCommand(ClientCommandEnvelope command) {
         String content = command.content().trim();
         MessageSendAction action = command.action();
         log.info("command thread={} action={} content=\"{}\"", command.threadId(),
@@ -158,10 +181,20 @@ public class ConversationService implements ConversationCommandUseCase, Conversa
         if (blocks.isEmpty()) {
             return;
         }
-        log.info("<- python block thread={} seq={} kinds={}", threadId, message.sequence(),
-                blocks.stream().map(block -> String.valueOf(block.get("kind"))).toList());
-        gates.captureIfPresent(threadId, blocks);
-        commitAndPublish(threadId, message.role() == null ? "assistant" : message.role(), blocks);
+        try (ObservationScope scope = observability.startOperation(
+                new ObservedOperation("agent.stream.relay", OperationKind.AGENT_STREAM_RELAY, streamAttributes(message, blocks)),
+                correlation(threadId, message.id(), "conversation", "relay_agent_stream"))) {
+            try {
+                log.info("<- python block thread={} seq={} kinds={}", threadId, message.sequence(),
+                        blocks.stream().map(block -> String.valueOf(block.get("kind"))).toList());
+                gates.captureIfPresent(threadId, blocks);
+                commitAndPublish(threadId, message.role() == null ? "assistant" : message.role(), blocks);
+                scope.markSuccess(Map.of("block_count", blocks.size()));
+            } catch (RuntimeException e) {
+                scope.markFailure(e, streamAttributes(message, blocks));
+                throw e;
+            }
+        }
     }
 
     private void approve(String threadId, MessageSendAction action) {
@@ -218,5 +251,49 @@ public class ConversationService implements ConversationCommandUseCase, Conversa
 
     private Map<String, Object> errorBlock(String title, String detail) {
         return Map.of("kind", "error", "title", title, "detail", detail, "retryable", true);
+    }
+
+    private CorrelationContext correlation(String threadId, String requestId, String component, String operation) {
+        RunContext context = threads.get(threadId).orElse(null);
+        String resolvedRequestId = requestId == null || requestId.isBlank() ? threadId : requestId;
+        return new CorrelationContext(
+                resolvedRequestId,
+                resolvedRequestId,
+                threadId,
+                context == null ? null : context.workspaceId(),
+                context == null ? null : context.campaignId(),
+                component,
+                operation);
+    }
+
+    private String requestId(ClientCommandEnvelope command) {
+        return command.commandId() == null || command.commandId().isBlank()
+                ? command.threadId()
+                : command.commandId();
+    }
+
+    private Map<String, Object> commandAttributes(ClientCommandEnvelope command) {
+        Map<String, Object> attributes = new LinkedHashMap<>();
+        putIfPresent(attributes, "thread_id", command.threadId());
+        putIfPresent(attributes, "command_id", command.commandId());
+        putIfPresent(attributes, "action", command.action() == null ? null : command.action().name());
+        attributes.put("attachment_count", command.attachments().size());
+        return attributes;
+    }
+
+    private Map<String, Object> streamAttributes(StreamMessage message, List<Map<String, Object>> blocks) {
+        Map<String, Object> attributes = new LinkedHashMap<>();
+        putIfPresent(attributes, "thread_id", message.threadId());
+        putIfPresent(attributes, "message_id", message.id());
+        putIfPresent(attributes, "sequence", message.sequence());
+        putIfPresent(attributes, "role", message.role());
+        attributes.put("block_count", blocks.size());
+        return attributes;
+    }
+
+    private void putIfPresent(Map<String, Object> attributes, String name, Object value) {
+        if (value != null) {
+            attributes.put(name, value);
+        }
     }
 }
