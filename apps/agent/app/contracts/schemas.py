@@ -196,9 +196,8 @@ class AttachmentRef(_Strict):
 
 
 class InternalAgentTurn(_Strict):
-    # Inbound is intentionally lenient: Java currently sends trace_context=null
-    # and may send null workspace/campaign on a registry miss. Only thread_id +
-    # content are hard requirements so a valid turn is never rejected at 422.
+    # Inbound remains lenient so a registry miss or local smoke request never
+    # rejects a valid turn before the orchestrator can respond.
     thread_id: str = Field(pattern=_THREAD)
     workspace_id: Optional[str] = None
     campaign_id: Optional[str] = None
