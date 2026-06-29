@@ -183,6 +183,7 @@ function assertJavaPythonTraceContract() {
     "InternalAgentTurn required fields changed without updating verifier",
   );
   assert(traceContext.properties.request_id.pattern === "^req_[A-Za-z0-9_]+$", "TraceContext request_id pattern must remain req_*");
+  assert(traceContext.properties.otel_trace_id.pattern === "^[a-f0-9]{32}$", "TraceContext otel_trace_id must be a 32-char lowercase hex trace id when present");
   assert(example.trace_context?.source === "java-backend", "Internal agent turn example must identify java-backend as trace source");
   assert(
     /^req_[A-Za-z0-9_]+$/.test(example.trace_context?.request_id ?? ""),

@@ -187,7 +187,7 @@ class ValidationReport(_Strict):
 class TraceContext(_Strict):
     request_id: str = Field(pattern=_REQ)
     source: str = Field(pattern=r"^java-backend$")
-    otel_trace_id: Optional[str] = None
+    otel_trace_id: Optional[str] = Field(default=None, pattern=r"^[a-f0-9]{32}$")
 
 
 class AttachmentRef(_Strict):
