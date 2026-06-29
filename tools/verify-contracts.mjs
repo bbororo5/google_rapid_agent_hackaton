@@ -113,16 +113,8 @@ function openApiSchema(openApiPath, schemaName) {
   return schema;
 }
 
-function assertStatusEnumsMatch() {
-  const publicStatuses = openApiSchema("contracts/01-frontend-java/openapi.yaml", "AgentRunStatus").enum;
-  const internalStatuses = openApiSchema("contracts/02-java-python-agent/openapi.yaml", "AgentRunStatus").enum;
-
-  assert(Array.isArray(publicStatuses), "Public AgentRunStatus enum missing");
-  assert(Array.isArray(internalStatuses), "Internal AgentRunStatus enum missing");
-  assert(
-    JSON.stringify(publicStatuses) === JSON.stringify(internalStatuses),
-    `AgentRunStatus enum mismatch\npublic: ${publicStatuses.join(", ")}\ninternal: ${internalStatuses.join(", ")}`,
-  );
+function openApiDoc(openApiPath) {
+  return YAML.parse(readText(openApiPath));
 }
 
 function evidenceRefIds() {
@@ -181,6 +173,37 @@ function assertElasticApprovalRefs() {
   assert(
     brief.final_experiments.some((experiment) => experiment.id === event.experiment_id),
     "Calendar event experiment_id must exist in growth brief final_experiments",
+  );
+}
+
+function assertJavaPythonTraceContract() {
+  const doc = openApiDoc("contracts/02-java-python-agent/openapi.yaml");
+  const traceContext = doc.components.schemas.TraceContext;
+  const turn = doc.components.schemas.InternalAgentTurn;
+  const example = readJson("contracts/02-java-python-agent/examples/internal-agent-turn.json");
+  const pythonSchemas = readText("apps/agent/app/contracts/schemas.py");
+  const headerRefs = (doc.paths["/turns"].post.parameters ?? []).map((parameter) => parameter.$ref);
+
+  assert(
+    JSON.stringify(turn.required) === JSON.stringify(["thread_id", "workspace_id", "campaign_id", "content", "client_created_at", "trace_context"]),
+    "InternalAgentTurn required fields changed without updating verifier",
+  );
+  assert(traceContext.properties.request_id.pattern === "^req_[A-Za-z0-9_]+$", "TraceContext request_id pattern must remain req_*");
+  assert(traceContext.properties.otel_trace_id.pattern === "^[a-f0-9]{32}$", "TraceContext otel_trace_id must be a 32-char lowercase hex trace id when present");
+  assert(example.trace_context?.source === "java-backend", "Internal agent turn example must identify java-backend as trace source");
+  assert(
+    /^req_[A-Za-z0-9_]+$/.test(example.trace_context?.request_id ?? ""),
+    "Internal agent turn example trace_context.request_id must match req_*",
+  );
+  assert(
+    pythonSchemas.includes("_REQ = r\"^req_[A-Za-z0-9_]+$\""),
+    "Python Agent Core TraceContext request_id pattern must match contract 02",
+  );
+  assert(headerRefs.includes("#/components/parameters/TraceparentHeader"), "Contract 02 must document traceparent propagation");
+  assert(headerRefs.includes("#/components/parameters/LaunchPilotRequestIdHeader"), "Contract 02 must document x-launchpilot-request-id propagation");
+  assert(
+    doc.components.parameters.TraceparentHeader.schema.pattern === "^00-[a-f0-9]{32}-[a-f0-9]{16}-[0-9a-f]{2}$",
+    "traceparent header pattern must follow W3C trace context",
   );
 }
 
@@ -263,6 +286,7 @@ function main() {
   const counts = parseAllStructuredFiles(files);
 
   validateSchemaExamples();
+  assertJavaPythonTraceContract();
   assertEvidenceRefsAreGrounded();
   assertAgentOutputInternalRefs();
   assertElasticApprovalRefs();

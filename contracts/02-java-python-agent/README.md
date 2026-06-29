@@ -65,6 +65,18 @@ act. (Not yet implemented; reserved.)
 
 `POST /internal/agent/turns`
 
+Java also propagates correlation headers:
+
+- `traceparent`: W3C trace context, `00-{32 hex trace id}-{16 hex span id}-01`
+- `x-launchpilot-request-id`: Java request id, `req_*`
+- `x-launchpilot-trace-id`: LaunchPilot correlation trace alias
+- `x-launchpilot-thread-id`: conversation thread id
+- `x-launchpilot-workspace-id`: workspace id
+- `x-launchpilot-campaign-id`: campaign id
+
+The JSON body carries the same turn data plus `trace_context`, which Python
+uses for log correlation and OpenTelemetry/OpenInference linkage.
+
 ```json
 {
   "thread_id": "thread_20260601_001",
@@ -81,7 +93,7 @@ act. (Not yet implemented; reserved.)
   "trace_context": {
     "request_id": "req_20260601_001",
     "source": "java-backend",
-    "otel_trace_id": null
+    "otel_trace_id": "0123456789abcdef0123456789abcdef"
   }
 }
 ```
