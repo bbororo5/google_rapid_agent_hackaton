@@ -113,18 +113,6 @@ function openApiSchema(openApiPath, schemaName) {
   return schema;
 }
 
-function assertStatusEnumsMatch() {
-  const publicStatuses = openApiSchema("contracts/01-frontend-java/openapi.yaml", "AgentRunStatus").enum;
-  const internalStatuses = openApiSchema("contracts/02-java-python-agent/openapi.yaml", "AgentRunStatus").enum;
-
-  assert(Array.isArray(publicStatuses), "Public AgentRunStatus enum missing");
-  assert(Array.isArray(internalStatuses), "Internal AgentRunStatus enum missing");
-  assert(
-    JSON.stringify(publicStatuses) === JSON.stringify(internalStatuses),
-    `AgentRunStatus enum mismatch\npublic: ${publicStatuses.join(", ")}\ninternal: ${internalStatuses.join(", ")}`,
-  );
-}
-
 function evidenceRefIds() {
   const evidenceDir = path.join(root, "contracts/04-agent-elastic-mcp/examples");
   return unique(
@@ -181,6 +169,28 @@ function assertElasticApprovalRefs() {
   assert(
     brief.final_experiments.some((experiment) => experiment.id === event.experiment_id),
     "Calendar event experiment_id must exist in growth brief final_experiments",
+  );
+}
+
+function assertJavaPythonTraceContract() {
+  const traceContext = openApiSchema("contracts/02-java-python-agent/openapi.yaml", "TraceContext");
+  const turn = openApiSchema("contracts/02-java-python-agent/openapi.yaml", "InternalAgentTurn");
+  const example = readJson("contracts/02-java-python-agent/examples/internal-agent-turn.json");
+  const pythonSchemas = readText("apps/agent/app/contracts/schemas.py");
+
+  assert(
+    JSON.stringify(turn.required) === JSON.stringify(["thread_id", "workspace_id", "campaign_id", "content", "client_created_at", "trace_context"]),
+    "InternalAgentTurn required fields changed without updating verifier",
+  );
+  assert(traceContext.properties.request_id.pattern === "^req_[A-Za-z0-9_]+$", "TraceContext request_id pattern must remain req_*");
+  assert(example.trace_context?.source === "java-backend", "Internal agent turn example must identify java-backend as trace source");
+  assert(
+    /^req_[A-Za-z0-9_]+$/.test(example.trace_context?.request_id ?? ""),
+    "Internal agent turn example trace_context.request_id must match req_*",
+  );
+  assert(
+    pythonSchemas.includes("_REQ = r\"^req_[A-Za-z0-9_]+$\""),
+    "Python Agent Core TraceContext request_id pattern must match contract 02",
   );
 }
 
@@ -263,6 +273,7 @@ function main() {
   const counts = parseAllStructuredFiles(files);
 
   validateSchemaExamples();
+  assertJavaPythonTraceContract();
   assertEvidenceRefsAreGrounded();
   assertAgentOutputInternalRefs();
   assertElasticApprovalRefs();
