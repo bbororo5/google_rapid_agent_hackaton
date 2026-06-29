@@ -1,5 +1,6 @@
 package com.launchpilot.conversation;
 
+import com.launchpilot.importing.ImportThreadRegistry;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -12,7 +13,7 @@ import org.springframework.stereotype.Component;
  * transient workspace/campaign routing for Java-owned live threads.
  */
 @Component
-public class InMemoryThreadContextStore implements ThreadContextStore {
+public class InMemoryThreadContextStore implements ThreadContextStore, ImportThreadRegistry {
 
     private final Map<String, RunContext> store = new ConcurrentHashMap<>();
     private volatile RunContext last;
@@ -30,6 +31,11 @@ public class InMemoryThreadContextStore implements ThreadContextStore {
     public void register(String threadId, RunContext context) {
         store.put(threadId, context);
         last = context;
+    }
+
+    @Override
+    public void registerImportedThread(String threadId, String workspaceId, String campaignId) {
+        register(threadId, new RunContext(workspaceId, campaignId));
     }
 
     @Override

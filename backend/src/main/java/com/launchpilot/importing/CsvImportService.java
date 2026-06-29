@@ -1,7 +1,5 @@
 package com.launchpilot.importing;
 
-import com.launchpilot.conversation.RunContext;
-import com.launchpilot.conversation.ThreadContextStore;
 import com.launchpilot.contracts.shared.Channel;
 import com.launchpilot.contracts.elastic.CampaignDoc;
 import com.launchpilot.contracts.elastic.ContentPostDoc;
@@ -35,7 +33,7 @@ public class CsvImportService implements ImportUseCase {
     private final CampaignRepository campaigns;
     private final ContentPostRepository contentPosts;
     private final IdGenerator ids;
-    private final ThreadContextStore threadContexts;
+    private final ImportThreadRegistry threadRegistry;
     private final ObservabilityGateway observability;
 
     public CsvImportService(
@@ -43,13 +41,13 @@ public class CsvImportService implements ImportUseCase {
             CampaignRepository campaigns,
             ContentPostRepository contentPosts,
             IdGenerator ids,
-            ThreadContextStore threadContexts,
+            ImportThreadRegistry threadRegistry,
             ObservabilityGateway observability) {
         this.parser = parser;
         this.campaigns = campaigns;
         this.contentPosts = contentPosts;
         this.ids = ids;
-        this.threadContexts = threadContexts;
+        this.threadRegistry = threadRegistry;
         this.observability = observability;
     }
 
@@ -83,7 +81,7 @@ public class CsvImportService implements ImportUseCase {
     }
 
     private ImportCsvResponse importCsv(CsvImportCommand command, String importId, String threadId) {
-        threadContexts.register(threadId, new RunContext(command.workspaceId(), command.campaignId()));
+        threadRegistry.registerImportedThread(threadId, command.workspaceId(), command.campaignId());
         String ingestedAt = OffsetDateTime.now().toString();
         List<ContentPostDoc> docs = new ArrayList<>();
 
