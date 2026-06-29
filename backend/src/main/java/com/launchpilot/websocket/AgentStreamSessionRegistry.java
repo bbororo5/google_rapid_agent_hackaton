@@ -1,4 +1,4 @@
-package com.launchpilot.ws;
+package com.launchpilot.websocket;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.launchpilot.conversation.ConversationMessagePublisher;
