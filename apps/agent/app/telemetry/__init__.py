@@ -19,3 +19,4 @@ from app.telemetry.service import (  # noqa: F401
     record_turn_outcome,
     turn_span,
 )
+from app.telemetry.trace_context import AgentTraceContext  # noqa: F401
