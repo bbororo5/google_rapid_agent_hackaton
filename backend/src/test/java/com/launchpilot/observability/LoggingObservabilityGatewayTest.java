@@ -19,13 +19,14 @@ class LoggingObservabilityGatewayTest {
     @Test
     void bindsAndRestoresMdcForOperationScope() {
         MDC.put("request_id", "req_existing");
+        MDC.put("trace_id", "trace_existing");
 
         ObservationScope scope = gateway.startOperation(
                 ObservedOperation.of("conversation.command", OperationKind.WEBSOCKET_MESSAGE),
                 correlation());
 
         assertThat(MDC.get("request_id")).isEqualTo("req_1");
-        assertThat(MDC.get("trace_id")).isEqualTo("trace_1");
+        assertThat(MDC.get("trace_id")).isNull();
         assertThat(MDC.get("thread_id")).isEqualTo("thread_1");
         assertThat(MDC.get("workspace_id")).isEqualTo("workspace_1");
         assertThat(MDC.get("campaign_id")).isEqualTo("campaign_1");
@@ -36,7 +37,7 @@ class LoggingObservabilityGatewayTest {
         scope.close();
 
         assertThat(MDC.get("request_id")).isEqualTo("req_existing");
-        assertThat(MDC.get("trace_id")).isNull();
+        assertThat(MDC.get("trace_id")).isEqualTo("trace_existing");
     }
 
     @Test
@@ -47,7 +48,7 @@ class LoggingObservabilityGatewayTest {
         assertThat(downstream.source()).isEqualTo(DownstreamTraceContext.JAVA_BACKEND_SOURCE);
         assertThat(downstream.otelTraceId()).matches("^[a-f0-9]{32}$");
         assertThat(downstream.headers()).containsEntry("x-launchpilot-request-id", "req_1");
-        assertThat(downstream.headers()).containsEntry("x-launchpilot-trace-id", "trace_1");
+        assertThat(downstream.headers()).doesNotContainKey("x-launchpilot-trace-id");
         assertThat(downstream.headers()).containsEntry("x-launchpilot-thread-id", "thread_1");
         assertThat(downstream.headers()).containsEntry("x-launchpilot-workspace-id", "workspace_1");
         assertThat(downstream.headers()).containsEntry("x-launchpilot-campaign-id", "campaign_1");
@@ -59,7 +60,6 @@ class LoggingObservabilityGatewayTest {
     private CorrelationContext correlation() {
         return new CorrelationContext(
                 "req_1",
-                "trace_1",
                 "thread_1",
                 "workspace_1",
                 "campaign_1",

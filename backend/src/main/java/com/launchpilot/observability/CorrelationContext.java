@@ -6,7 +6,6 @@ package com.launchpilot.observability;
  */
 public record CorrelationContext(
         String requestId,
-        String traceId,
         String threadId,
         String workspaceId,
         String campaignId,
@@ -16,7 +15,6 @@ public record CorrelationContext(
     public CorrelationContext withComponent(String nextComponent) {
         return new CorrelationContext(
                 requestId,
-                traceId,
                 threadId,
                 workspaceId,
                 campaignId,
@@ -27,7 +25,6 @@ public record CorrelationContext(
     public CorrelationContext withOperation(String nextOperation) {
         return new CorrelationContext(
                 requestId,
-                traceId,
                 threadId,
                 workspaceId,
                 campaignId,

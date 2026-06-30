@@ -56,7 +56,6 @@ public class ElasticCampaignRepository implements CampaignRepository {
             String requestId, String threadId, String workspaceId, String campaignId, String operation) {
         return new CorrelationContext(
                 requestId,
-                requestId,
                 threadId,
                 workspaceId,
                 campaignId,

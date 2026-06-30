@@ -18,17 +18,17 @@ It records:
   and Elastic read/write adapters
 - WebSocket session open/close/reject and parse-failure events
 - MDC correlation fields on Java logs:
-  `request_id`, `trace_id`, `thread_id`, `workspace_id`, `campaign_id`,
+  `request_id`, `thread_id`, `workspace_id`, `campaign_id`,
   `component`, `operation`
 - downstream correlation headers for Python Agent Core:
-  `x-launchpilot-request-id`, `x-launchpilot-trace-id`,
-  `x-launchpilot-thread-id`, `x-launchpilot-workspace-id`,
-  `x-launchpilot-campaign-id`, plus W3C `traceparent`
+  `x-launchpilot-request-id`, `x-launchpilot-thread-id`,
+  `x-launchpilot-workspace-id`, `x-launchpilot-campaign-id`, plus W3C
+  `traceparent`
 - `trace_context` in the Java -> Python turn request body
 
 On Google Cloud runtimes, stdout/stderr logs are collected by Cloud Logging.
 The configured console log pattern includes the correlation fields above, so
-Cloud Logging queries can group Java events by `trace_id`, `thread_id`, or
+Cloud Logging queries can group Java events by `request_id`, `thread_id`, or
 component operation.
 
 ## Component Boundaries
@@ -70,5 +70,5 @@ Java components
 ```
 
 Python Agent Core should continue receiving the downstream correlation payload
-from Java so both containers can be queried together by the same `trace_id` and
-`thread_id`.
+from Java so both containers can be queried together by the same `traceparent`,
+`request_id`, and `thread_id`.

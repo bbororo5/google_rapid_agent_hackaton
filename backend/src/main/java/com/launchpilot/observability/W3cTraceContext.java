@@ -11,7 +11,6 @@ final class W3cTraceContext {
 
     static String traceId(CorrelationContext correlation) {
         String seed = String.join(":",
-                value(correlation.traceId()),
                 value(correlation.requestId()),
                 value(correlation.threadId()),
                 value(correlation.workspaceId()),

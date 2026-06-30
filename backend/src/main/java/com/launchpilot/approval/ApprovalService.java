@@ -53,7 +53,6 @@ public class ApprovalService implements ApprovalUseCase {
     public ApprovalCommitResult approve(ApproveCommand command) {
         CorrelationContext correlation = new CorrelationContext(
                 requestId(command),
-                requestId(command),
                 command.threadId(),
                 null,
                 null,

@@ -30,7 +30,6 @@ public class LoggingObservabilityGateway implements ObservabilityGateway {
         String spanId = W3cTraceContext.spanId(correlation);
         Map<String, String> headers = new LinkedHashMap<>();
         putIfPresent(headers, "x-launchpilot-request-id", correlation.requestId());
-        putIfPresent(headers, "x-launchpilot-trace-id", correlation.traceId());
         putIfPresent(headers, "x-launchpilot-thread-id", correlation.threadId());
         putIfPresent(headers, "x-launchpilot-workspace-id", correlation.workspaceId());
         putIfPresent(headers, "x-launchpilot-campaign-id", correlation.campaignId());
@@ -74,7 +73,7 @@ public class LoggingObservabilityGateway implements ObservabilityGateway {
 
     private static void bind(CorrelationContext correlation) {
         putMdc("request_id", correlation.requestId());
-        putMdc("trace_id", correlation.traceId());
+        MDC.remove("trace_id");
         putMdc("thread_id", correlation.threadId());
         putMdc("workspace_id", correlation.workspaceId());
         putMdc("campaign_id", correlation.campaignId());

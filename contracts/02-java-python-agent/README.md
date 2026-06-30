@@ -69,7 +69,6 @@ Java also propagates correlation headers:
 
 - `traceparent`: W3C trace context, `00-{32 hex trace id}-{16 hex span id}-01`
 - `x-launchpilot-request-id`: Java request id, `req_*`
-- `x-launchpilot-trace-id`: LaunchPilot correlation trace alias
 - `x-launchpilot-thread-id`: conversation thread id
 - `x-launchpilot-workspace-id`: workspace id
 - `x-launchpilot-campaign-id`: campaign id

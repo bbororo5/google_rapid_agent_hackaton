@@ -130,7 +130,6 @@ public class AgentStreamHandler extends TextWebSocketHandler {
         String resolvedRequestId = requestId == null || requestId.isBlank() ? threadId : requestId;
         return new CorrelationContext(
                 resolvedRequestId,
-                resolvedRequestId,
                 threadId,
                 null,
                 null,

@@ -264,7 +264,6 @@ public class ConversationService implements ConversationCommandUseCase, Conversa
         String resolvedRequestId = requestId == null || requestId.isBlank() ? threadId : requestId;
         return new CorrelationContext(
                 resolvedRequestId,
-                resolvedRequestId,
                 threadId,
                 context == null ? null : context.workspaceId(),
                 context == null ? null : context.campaignId(),

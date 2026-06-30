@@ -57,7 +57,6 @@ public class CsvImportService implements ImportUseCase {
         String threadId = "thread_" + importId.substring("imp_".length());
         CorrelationContext correlation = new CorrelationContext(
                 importId,
-                importId,
                 threadId,
                 command.workspaceId(),
                 command.campaignId(),

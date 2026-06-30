@@ -10,7 +10,6 @@ class W3cTraceContextTest {
     void createsStableW3cTraceContextValues() {
         CorrelationContext correlation = new CorrelationContext(
                 "req_1",
-                "trace_1",
                 "thread_1",
                 "workspace_1",
                 "campaign_1",

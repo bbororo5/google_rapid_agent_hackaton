@@ -71,7 +71,6 @@ public class PythonAgentTurnClient implements AgentTurnPort {
         String requestId = requestId(command);
         return new CorrelationContext(
                 requestId,
-                requestId,
                 command.threadId(),
                 command.workspaceId(),
                 command.campaignId(),
