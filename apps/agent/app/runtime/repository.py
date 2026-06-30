@@ -205,9 +205,9 @@ class ElasticAgentRuntimeRepository:
     episode_index = "agent_episodes"
     campaign_index = "campaigns"
 
-    def __init__(self, url: str, api_key: str) -> None:
+    def __init__(self, url: str, api_key: str | None = None) -> None:
         self._url = url.rstrip("/")
-        self._headers = {"Authorization": f"ApiKey {api_key}"}
+        self._headers = {"Authorization": f"ApiKey {api_key}"} if api_key else {}
 
     async def load_state(self, thread_id: str) -> ConversationState | None:
         async with httpx.AsyncClient(timeout=10.0) as client:
@@ -444,6 +444,6 @@ _memory_repository = InMemoryAgentRuntimeRepository()
 
 def get_runtime_repository() -> AgentRuntimeRepository:
     settings = get_settings()
-    if settings.use_real_elastic and settings.elastic_url and settings.elastic_api_key:
+    if settings.use_real_elastic and settings.elastic_url:
         return ElasticAgentRuntimeRepository(settings.elastic_url, settings.elastic_api_key)
     return _memory_repository

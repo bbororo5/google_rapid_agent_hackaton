@@ -8,12 +8,14 @@ orchestration loop.
 The service is intentionally real-integration first:
 
 - LLM: Gemini through Google ADK, via Vertex ADC or `GEMINI_API_KEY`.
-- Evidence: Elastic-backed campaign data through direct ES or Elastic MCP.
+- Evidence: Elastic-backed campaign data through local/remote direct ES or Elastic MCP.
 - Runtime state: Elastic runtime repository when configured, with in-memory only
   as a local contract implementation for tests.
 
-There is no local worker or evidence fallback. Missing Gemini or Elastic config
-must surface as an explicit error instead of silently producing synthetic output.
+There is no local worker or synthetic evidence fallback. Missing Gemini or
+Elastic config must surface as an explicit error instead of silently producing
+synthetic output. Docker Compose provides local Elasticsearch and Redis; Gemini
+still requires AI Studio API key or Vertex credentials.
 
 ## What Maps To What
 

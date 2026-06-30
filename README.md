@@ -273,10 +273,13 @@ tools/                Contract and scenario verification scripts
 
 ## Running Locally
 
-Create a `.env` file with real Gemini or Vertex credentials and Elastic
-credentials, then run the full stack:
+Create a `.env` file with real Gemini or Vertex credentials, then run the full
+stack. Compose starts local Elasticsearch and Redis, so no GCP runtime services
+are required for the app containers:
 
 ```sh
+cp .env.example .env
+# Fill GEMINI_API_KEY, or configure Vertex AI credentials.
 docker compose up --build
 ```
 
@@ -287,6 +290,7 @@ Default ports:
 | Frontend | `http://localhost:3000` |
 | Backend | `http://localhost:8080` |
 | Agent | `http://localhost:8000` |
+| Elasticsearch | `http://localhost:9200` |
 
 For frontend-only development:
 

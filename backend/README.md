@@ -31,8 +31,8 @@ sh ./gradlew bootRun
 
 | Variable | Purpose | Default |
 | --- | --- | --- |
-| `ELASTIC_URL` | Elastic Cloud endpoint | Required for real persistence |
-| `ELASTIC_API_KEY` | Elastic API key | Optional but recommended |
+| `ELASTIC_URL` | Elasticsearch endpoint | `http://localhost:9200` |
+| `ELASTIC_API_KEY` | Elastic API key | Optional; blank for local compose |
 | `AGENT_SERVICE_URL` | Python Agent Core base URL | `http://localhost:8000` |
 
 ## Persistence Rule

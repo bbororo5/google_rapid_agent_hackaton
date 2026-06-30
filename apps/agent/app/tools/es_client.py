@@ -1,8 +1,8 @@
 """Real Elastic evidence via direct ES queries (httpx).
 
 Reads the same data Java writes (contract 03): the `content_posts` index in
-Elastic Cloud, authenticated with ELASTIC_API_KEY. Returns normalized evidence
-dicts consumed by the analyst/strategist tools.
+Elastic, authenticated with ELASTIC_API_KEY when provided. Returns normalized
+evidence dicts consumed by the analyst/strategist tools.
 
 Only ~tens of campaign posts per thread, so each call fetches the campaign's
 posts once (size 500) and computes in Python — no reliance on field mappings or
@@ -32,9 +32,10 @@ def _err(tool_name: str, code: str, message: str) -> dict:
 
 def _client() -> httpx.Client:
     s = get_settings()
+    headers = {"Authorization": f"ApiKey {s.elastic_api_key}"} if s.elastic_api_key else {}
     return httpx.Client(
         base_url=s.elastic_url.rstrip("/"),
-        headers={"Authorization": f"ApiKey {s.elastic_api_key}"},
+        headers=headers,
         timeout=15.0,
     )
 

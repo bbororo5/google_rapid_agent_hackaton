@@ -53,7 +53,8 @@ class Settings(BaseModel):
     google_cloud_location: str = "global"
 
     # --- Evidence (Elastic) ---
-    # Direct ES read of the same cluster Java writes (contract 03).
+    # Direct ES read of the same cluster Java writes (contract 03). API key is
+    # optional for local Docker Elasticsearch with security disabled.
     elastic_url: str | None = None
     elastic_api_key: str | None = None
     elastic_mcp_url: str | None = None
@@ -98,7 +99,7 @@ class Settings(BaseModel):
 
     @property
     def use_real_elastic(self) -> bool:
-        return bool(self.elastic_url and self.elastic_api_key)
+        return bool(self.elastic_url)
 
     @property
     def use_redis(self) -> bool:
