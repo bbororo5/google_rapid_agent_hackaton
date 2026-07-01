@@ -79,6 +79,9 @@ class Settings(BaseModel):
     # Elastic; Redis is a volatile cache. Unset => in-process fallback store.
     redis_url: str | None = None
 
+    # --- Traditional observability (local Alloy -> Grafana Cloud) ---
+    otel_endpoint: str | None = None
+
     # --- Server ---
     port: int = 8000
 
@@ -141,6 +144,7 @@ def get_settings() -> Settings:
         phoenix_project=os.environ.get("PHOENIX_PROJECT_NAME") or "launchpilot-agent",
         phoenix_use_mcp=(os.environ.get("PHOENIX_USE_MCP", "").upper() in ("TRUE", "1")),
         redis_url=os.environ.get("REDIS_URL") or None,
+        otel_endpoint=os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT") or None,
         port=_int("PORT", 8000),
         signal_threshold_high=_float("SIGNAL_THRESHOLD_HIGH", 2.0),
         signal_threshold_low=_float("SIGNAL_THRESHOLD_LOW", 1.3),

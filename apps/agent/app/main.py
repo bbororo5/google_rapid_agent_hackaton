@@ -15,7 +15,8 @@ from fastapi import FastAPI
 
 from app.api import thread_stream, turns
 from app.config import get_settings
-from app.observability import CorrelationLogFilter, init_tracing
+from app.infra_observability import CorrelationLogFilter, init_infra_observability
+from app.phoenix_export import init_phoenix_export
 
 # Dedicated app logger to stdout so per-stage pipeline logs show in `docker logs`
 # regardless of uvicorn's own logging config. Children: launchpilot.orchestrator,
@@ -51,8 +52,9 @@ for _name in ("google_genai", "google.adk", "google.genai", "httpx", "httpcore")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: wire tracing if configured (no-op otherwise). Nothing to tear down.
-    init_tracing()
+    # Startup: wire telemetry if configured (no-op otherwise).
+    trace_provider = init_phoenix_export()
+    init_infra_observability(trace_provider)
     yield
 
 

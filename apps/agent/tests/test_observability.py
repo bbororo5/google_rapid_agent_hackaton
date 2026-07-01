@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 
-from app.observability import CorrelationLogFilter, bind_correlation
+from app.infra_observability import CorrelationLogFilter, bind_correlation
 
 
 def _record() -> logging.LogRecord:

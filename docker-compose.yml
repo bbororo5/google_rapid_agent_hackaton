@@ -59,12 +59,18 @@ services:
       GRAFANA_CLOUD_OTLP_ENDPOINT: ""
       GRAFANA_CLOUD_OTLP_INSTANCE_ID: ""
       GRAFANA_CLOUD_ACCESS_TOKEN: ""
+      OTEL_SERVICE_NAME: launchpilot-agent
+      OTEL_RESOURCE_ATTRIBUTES: service.namespace=launchpilot,deployment.environment=local
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://alloy:4318
+      OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
       # Redis hot tier for live SharedStateVector (ADR-005). Service hostname on
       # the compose network. Overrides any REDIS_URL leaking from .env.
       REDIS_URL: redis://redis:6379/0
     ports:
       - "${AGENT_HOST_PORT:-8000}:8000"
     depends_on:
+      alloy:
+        condition: service_started
       elasticsearch:
         condition: service_healthy
       redis:

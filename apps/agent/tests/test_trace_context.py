@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from types import SimpleNamespace
 
-from app.observability import CorrelationLogFilter
+from app.infra_observability import CorrelationLogFilter
 from app.telemetry import AgentTraceContext
 
 

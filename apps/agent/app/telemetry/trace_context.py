@@ -6,7 +6,7 @@ from contextlib import AbstractContextManager
 from dataclasses import dataclass
 from typing import Any
 
-from app.observability import bind_correlation
+from app.infra_observability import bind_correlation
 from app.telemetry.metadata import trace_metadata
 
 

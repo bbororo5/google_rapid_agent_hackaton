@@ -20,7 +20,7 @@ from app import orchestrator, tracing
 from app.agents import reviewer
 from app.config import get_settings
 from app.contracts import AgentResultPayload
-from app.observability import init_tracing
+from app.phoenix_export import init_phoenix_export
 from app.runtime.thread_store import ThreadStore
 
 _HERE = Path(__file__).resolve().parent
@@ -174,7 +174,7 @@ def _write_report(results: list[dict]) -> None:
 
 
 async def main() -> None:
-    init_tracing()  # turn on Phoenix export if PHOENIX_API_KEY is set (else no-op)
+    init_phoenix_export()  # turn on Phoenix export if PHOENIX_API_KEY is set (else no-op)
     s = get_settings()
     use_judge = s.use_real_llm
     scenarios = json.loads(_DATASET.read_text(encoding="utf-8"))
