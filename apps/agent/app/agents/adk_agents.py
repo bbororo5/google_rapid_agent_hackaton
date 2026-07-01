@@ -10,7 +10,6 @@ use SequentialAgent because the product workflow is HITL and non-linear.
 from __future__ import annotations
 
 import asyncio
-from functools import cached_property
 import json
 import logging
 import os
@@ -25,6 +24,7 @@ from app.agents.output_schemas import (
     SignalDraftOut,
     TurnInterpreterOut,
 )
+from app.agents.model_factory import build_model, build_planner
 from app.config import get_settings
 from app.tools import evidence
 
@@ -44,42 +44,10 @@ def _build_agents():
     # Imported here (not at module top) so importing this module never requires
     # google-adk unless we actually run in real-LLM mode.
     from google.adk.agents import LlmAgent
-    from google.adk.models import Gemini
-    from google.adk.planners import BuiltInPlanner
-    from google.genai import Client
-    from google.genai import types
 
     settings = get_settings()
-    model_id = settings.gemini_model
-    model = model_id
-    if settings.use_enterpriseai:
-        class EnterpriseGemini(Gemini):
-            @cached_property
-            def api_client(self) -> Client:
-                return Client(
-                    enterprise=True,
-                    project=settings.google_cloud_project,
-                    location=settings.google_cloud_location,
-                )
-
-        model = EnterpriseGemini(model=model_id)
-
-    planner = None
-    if settings.gemini_thinking_budget is not None:
-        planner = BuiltInPlanner(
-            thinking_config=types.ThinkingConfig(
-                thinking_budget=settings.gemini_thinking_budget,
-                include_thoughts=False,
-            )
-        )
-    elif settings.gemini_thinking_level:
-        thinking_level = getattr(types.ThinkingLevel, settings.gemini_thinking_level.upper())
-        planner = BuiltInPlanner(
-            thinking_config=types.ThinkingConfig(
-                thinking_level=thinking_level,
-                include_thoughts=False,
-            )
-        )
+    model = build_model(settings)
+    planner = build_planner(settings)
     # Analyst: has the two evidence tools AND an output schema. In ADK 2.x tools
     # and output_schema compose (tools run during reasoning, schema shapes the
     # final reply). output_key writes the result into shared session state.
@@ -154,17 +122,18 @@ async def _run_with_timeout(kind: str, shape: str, collect):
     Makes each worker's Gemini call visible in the logs and prevents a hung
     connection from stalling the pipeline indefinitely.
     """
-    model = get_settings().gemini_model
+    settings = get_settings()
+    model = settings.local_llm_model if settings.llm_provider in ("ollama", "local") else settings.gemini_model
     t0 = time.monotonic()
-    _log.info("worker %s: gemini call start (model=%s shape=%s timeout=%.0fs)",
-              kind, model, shape, _LLM_TIMEOUT_S)
+    _log.info("worker %s: llm call start (provider=%s model=%s shape=%s timeout=%.0fs)",
+              kind, settings.llm_label, model, shape, _LLM_TIMEOUT_S)
     try:
         result = await asyncio.wait_for(collect(), timeout=_LLM_TIMEOUT_S)
     except asyncio.TimeoutError:
-        _log.error("worker %s: gemini call TIMED OUT after %.0fs (model=%s)",
-                   kind, _LLM_TIMEOUT_S, model)
-        raise RuntimeError(f"{kind}: gemini call timed out after {_LLM_TIMEOUT_S:.0f}s")
-    _log.info("worker %s: gemini call done in %dms", kind, int((time.monotonic() - t0) * 1000))
+        _log.error("worker %s: llm call TIMED OUT after %.0fs (provider=%s model=%s)",
+                   kind, _LLM_TIMEOUT_S, settings.llm_label, model)
+        raise RuntimeError(f"{kind}: llm call timed out after {_LLM_TIMEOUT_S:.0f}s")
+    _log.info("worker %s: llm call done in %dms", kind, int((time.monotonic() - t0) * 1000))
     return result
 
 

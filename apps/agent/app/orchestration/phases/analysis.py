@@ -37,7 +37,7 @@ class AnalysisRoundRunner(BasePhaseRunner):
             turn.record,
             "Comparing the campaign metrics against the recent baseline to find signals.",
         )
-        log.info("[analysis] analyst start (llm=gemini)")
+        log.info("[analysis] analyst start")
         date_range = analysis_window()
         await self.emitter.progress(
             turn.record,
@@ -65,7 +65,7 @@ class AnalysisRoundRunner(BasePhaseRunner):
             async with self.emitter.activity(
                 turn.record,
                 "analysis.draft",
-                "Drafting signal analysis with Gemini",
+                "Drafting signal analysis with LLM",
                 "Drafted signal analysis",
             ):
                 signal_out = await workers.run_analyst(turn.content, analysis_window(), memory_context)

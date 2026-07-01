@@ -63,7 +63,7 @@ class PlanRoundRunner(BasePhaseRunner):
         async with self.emitter.activity(
             turn.record,
             "plan.draft",
-            "Drafting experiment plan with Gemini",
+            "Drafting experiment plan with LLM",
             "Drafted experiment plan",
         ):
             plan = (

@@ -54,7 +54,7 @@ class HypothesisRoundRunner(BasePhaseRunner):
         async with self.emitter.activity(
             turn.record,
             "hypothesis.draft",
-            "Drafting hypotheses with Gemini",
+            "Drafting hypotheses with LLM",
             "Drafted hypotheses",
         ):
             hyp_out = await workers.run_strategist(turn.content, signals, memory_context)

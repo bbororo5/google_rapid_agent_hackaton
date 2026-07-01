@@ -79,7 +79,7 @@ async function expectLiveProgress(page: Page): Promise<void> {
   const thread = page.getByRole("region", { name: /campaign agent thread/i });
   await expect(thread.getByText(/tool check/i).first()).toBeVisible({ timeout: 45_000 });
   await expect(
-    thread.getByText(/Interpreting user request|Applying workflow guardrails|Drafting signal analysis with Gemini|Checking metric baseline/i).first(),
+    thread.getByText(/Interpreting user request|Applying workflow guardrails|Drafting signal analysis with (Gemini|LLM)|Checking metric baseline/i).first(),
   ).toBeVisible({ timeout: 45_000 });
 }
 

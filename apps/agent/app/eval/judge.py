@@ -16,6 +16,7 @@ import uuid
 
 from pydantic import BaseModel, Field
 
+from app.agents.model_factory import build_model
 from app.config import get_settings
 from app.contracts import AgentResultPayload
 
@@ -61,7 +62,7 @@ Be specific in each rationale (name ids, numbers). Return the QualityScore schem
 async def judge(payload: AgentResultPayload) -> QualityScore:
     """Score one analysis payload. Requires Gemini/ADK configuration."""
     if not get_settings().use_real_llm:
-        raise RuntimeError("judge requires Gemini configuration (set GEMINI_API_KEY or Vertex ADC)")
+        raise RuntimeError("judge requires LLM configuration (set Gemini credentials or LLM_PROVIDER=ollama)")
 
     from google.adk.agents import LlmAgent
     from google.adk.runners import Runner
@@ -70,7 +71,7 @@ async def judge(payload: AgentResultPayload) -> QualityScore:
 
     agent = LlmAgent(
         name="quality_judge",
-        model=get_settings().gemini_model,
+        model=build_model(get_settings()),
         description="Scores analysis quality on three axes.",
         instruction=_INSTRUCTION,
         output_schema=QualityScore,

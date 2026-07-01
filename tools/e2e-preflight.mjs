@@ -31,12 +31,14 @@ function value(name) {
 
 const hasAiStudio = Boolean(value("GEMINI_API_KEY"));
 const hasVertex = value("GOOGLE_GENAI_USE_VERTEXAI").toUpperCase() === "TRUE" && Boolean(value("GOOGLE_CLOUD_PROJECT"));
-if (!hasAiStudio && !hasVertex) {
-  fail("real Gemini/ADK credentials are required. Set GEMINI_API_KEY or GOOGLE_GENAI_USE_VERTEXAI=TRUE + GOOGLE_CLOUD_PROJECT.");
+const llmProvider = value("LLM_PROVIDER") || "gemini";
+const hasLocalLlm = ["ollama", "local"].includes(llmProvider.toLowerCase()) && Boolean(value("LOCAL_LLM_MODEL"));
+if (!hasLocalLlm && !hasAiStudio && !hasVertex) {
+  fail("LLM configuration is required. Set LLM_PROVIDER=ollama + LOCAL_LLM_MODEL, GEMINI_API_KEY, or GOOGLE_GENAI_USE_VERTEXAI=TRUE + GOOGLE_CLOUD_PROJECT.");
 }
 
-if (!value("ELASTIC_URL") || !value("ELASTIC_API_KEY")) {
-  fail("real Elastic credentials are required. Set ELASTIC_URL and ELASTIC_API_KEY.");
+if (!value("ELASTIC_URL")) {
+  fail("Elastic URL is required. Set ELASTIC_URL.");
 }
 
 if (hasVertex) {
@@ -50,4 +52,6 @@ if (process.env.E2E_REQUIRE_PHOENIX === "true" && !value("PHOENIX_API_KEY")) {
   fail("E2E_REQUIRE_PHOENIX=true requires PHOENIX_API_KEY.");
 }
 
-console.log(`E2E preflight passed using ${envFile}. Gemini=${hasAiStudio ? "ai-studio" : "vertex"} Elastic=real Phoenix=${value("PHOENIX_API_KEY") ? "enabled" : "optional-off"}`);
+const llmLabel = hasLocalLlm ? `${llmProvider}:${value("LOCAL_LLM_MODEL")}` : `gemini:${hasAiStudio ? "ai-studio" : "vertex"}`;
+const elasticLabel = value("ELASTIC_API_KEY") ? "cloud" : "local";
+console.log(`E2E preflight passed using ${envFile}. LLM=${llmLabel} Elastic=${elasticLabel} Phoenix=${value("PHOENIX_API_KEY") ? "enabled" : "optional-off"}`);

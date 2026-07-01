@@ -42,7 +42,10 @@ def _optional_int(name: str, default: int | None = None) -> int | None:
 
 class Settings(BaseModel):
     # --- LLM ---
-    # Two auth paths: AI Studio (gemini_api_key) OR Vertex AI (ADC + project).
+    # Provider paths:
+    # - gemini: AI Studio (gemini_api_key) OR Vertex AI (ADC + project)
+    # - ollama: local OpenAI-compatible inference via LiteLLM
+    llm_provider: str = "gemini"
     gemini_api_key: str | None = None
     gemini_model: str = "gemini-3.5-flash"  # plain model string ADK accepts
     gemini_thinking_budget: int | None = None
@@ -51,6 +54,7 @@ class Settings(BaseModel):
     use_vertexai: bool = False
     google_cloud_project: str | None = None
     google_cloud_location: str = "global"
+    local_llm_model: str = "ollama_chat/gemma4:e2b"
 
     # --- Evidence (Elastic) ---
     # Direct ES read of the same cluster Java writes (contract 03). API key is
@@ -92,10 +96,20 @@ class Settings(BaseModel):
 
     @property
     def use_real_llm(self) -> bool:
+        if self.llm_provider in ("ollama", "local"):
+            return bool(self.local_llm_model)
         return (
             bool(self.gemini_api_key)
             or ((self.use_vertexai or self.use_enterpriseai) and bool(self.google_cloud_project))
         )
+
+    @property
+    def llm_label(self) -> str:
+        if not self.use_real_llm:
+            return "missing"
+        if self.llm_provider in ("ollama", "local"):
+            return "ollama"
+        return "gemini"
 
     @property
     def use_real_elastic(self) -> bool:
@@ -122,6 +136,7 @@ class Settings(BaseModel):
 def get_settings() -> Settings:
     # Cached so every module reads one immutable Settings instance per process.
     return Settings(
+        llm_provider=(os.environ.get("LLM_PROVIDER") or "gemini").lower(),
         gemini_api_key=os.environ.get("GEMINI_API_KEY") or None,
         gemini_model=os.environ.get("GEMINI_MODEL") or "gemini-3.5-flash",
         gemini_thinking_budget=_optional_int("GEMINI_THINKING_BUDGET"),
@@ -130,6 +145,7 @@ def get_settings() -> Settings:
         use_vertexai=(os.environ.get("GOOGLE_GENAI_USE_VERTEXAI", "").upper() in ("TRUE", "1")),
         google_cloud_project=os.environ.get("GOOGLE_CLOUD_PROJECT") or None,
         google_cloud_location=os.environ.get("GOOGLE_CLOUD_LOCATION") or "global",
+        local_llm_model=os.environ.get("LOCAL_LLM_MODEL") or "ollama_chat/gemma4:e2b",
         elastic_url=os.environ.get("ELASTIC_URL") or None,
         elastic_api_key=os.environ.get("ELASTIC_API_KEY") or None,
         elastic_mcp_url=os.environ.get("ELASTIC_MCP_URL") or None,

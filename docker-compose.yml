@@ -31,6 +31,9 @@ services:
     build: ./apps/agent
     env_file: ${COMPOSE_ENV_FILE:-.env}
     environment:
+      LLM_PROVIDER: ${LLM_PROVIDER:-ollama}
+      LOCAL_LLM_MODEL: ${LOCAL_LLM_MODEL:-ollama_chat/gemma4:e2b}
+      OLLAMA_API_BASE: ${OLLAMA_API_BASE:-http://host.docker.internal:11434}
       GOOGLE_GENAI_USE_VERTEXAI: ""
       GOOGLE_GENAI_USE_ENTERPRISE: ""
       GOOGLE_CLOUD_PROJECT: ""

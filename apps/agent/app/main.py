@@ -66,7 +66,7 @@ async def health() -> dict:
     s = get_settings()
     return {
         "ok": True,
-        "llm": "gemini" if s.use_real_llm else "missing",
+        "llm": s.llm_label,
         "evidence": "elastic" if s.use_real_elastic else "missing",
     }
 
