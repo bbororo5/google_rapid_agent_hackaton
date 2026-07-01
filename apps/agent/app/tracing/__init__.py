@@ -1,8 +1,9 @@
-"""Domain span helpers (contract 06-observability).
+"""Domain span helpers for the Observability component.
 
-`app/observability.py` registers the Phoenix exporter + ADK auto-instrumentation
-(LLM/TOOL spans). This package adds the LaunchPilot *domain* spans the contract
-requires on top of that: AGENT / CHAIN / RETRIEVER / GUARDRAIL / EVALUATOR.
+`app.phoenix_export` registers Phoenix/OpenInference tracing and
+`app.infra_observability` wires service telemetry to Alloy. This package adds
+the LaunchPilot domain spans on top: AGENT / CHAIN / RETRIEVER / GUARDRAIL /
+EVALUATOR.
 
 All helpers are no-ops when tracing is off (no provider registered).
 """

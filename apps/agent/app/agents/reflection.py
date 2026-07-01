@@ -1,7 +1,7 @@
 """Reflection read side via the Phoenix MCP server (contract 06 §Reflection).
 
-The WRITE half (app/observability.py) exports run spans to Phoenix. This is the
-READ half: at session start, query Phoenix for past reviewer/validation spans and
+`app.phoenix_export` exports run spans to Phoenix. This module is the read side:
+at session start, query Phoenix for past reviewer/validation spans and
 summarize recurring failure patterns. The summary is ADVISORY context only -- it
 can inform but NEVER override the deterministic reviewer (ADR-0006 / contract 06
 line169). It is emitted as an EVALUATOR span so it shows in the same trace tree.

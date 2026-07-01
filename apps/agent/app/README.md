@@ -38,11 +38,14 @@ orchestration/ ── 턴 처리 오케스트레이션
 | [orchestration/](orchestration/) | 한 턴을 어떤 순서로 처리할지 지휘 | 지휘자 |
 | [orchestration/phases/](orchestration/phases/) | 한 단계(분석/가설/계획)를 실제로 실행 | 실무 라운드 |
 | [agents/](agents/) | LLM(Gemini) 일꾼들 — 분석가/전략가/작성자 | 전문가 팀 |
-| [runtime/](runtime/) | 대화 상태 + 저장소 + 과거 기록 | 기억 창고 |
+| [runtime/](runtime/) | State / Memory 컴포넌트: 대화 상태 + 저장소 + 과거 기록 | 기억 창고 |
 | [tools/](tools/) | 근거 데이터 조회 (Elastic) | 자료 조사원 |
 | [contracts/](contracts/) | 주고받는 데이터의 모양(스키마) 정의 | 표준 양식 |
-| [tracing/](tracing/) | 무슨 일이 있었는지 추적 기록(관측) | CCTV |
-| [eval/](eval/) | 결과 품질 측정 (LLM 심사) | 품질검사 |
+| [infra_observability/](infra_observability/) | Observability 컴포넌트: logs/metrics/traces + Alloy export | CCTV |
+| [telemetry/](telemetry/) | Observability 내부 facade: 도메인 이벤트 metadata/span 변환 | 기록 양식 |
+| [tracing/](tracing/) | Observability 내부 모듈: OpenInference span helper | 추적 기록 |
+| [eval/](eval/) | Evaluation 컴포넌트: 결과 품질 측정 실행 | 품질검사 |
+| [phoenix_export/](phoenix_export/) | Evaluation/Phoenix export 컴포넌트 | 외부 계측 |
 
 ## 루트 파일
 
@@ -52,7 +55,6 @@ orchestration/ ── 턴 처리 오케스트레이션
 | [orchestrator.py](orchestrator.py) | 턴 1개 처리 진입점 (얇은 껍데기) |
 | [config.py](config.py) | 환경설정 (Gemini/Elastic/Redis 키 등) |
 | [ids.py](ids.py) | id/시간 생성 헬퍼 |
-| [observability.py](observability.py) | 추적(Phoenix) 켜기 |
 | [GLOSSARY.md](GLOSSARY.md) | 코드 단어 → 일상어 사전 (읽다 막히면 여기) |
 
 > 처음 읽는다면: 이 표 → [orchestration/README.md](orchestration/README.md) 순서를 권한다.
