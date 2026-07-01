@@ -35,8 +35,8 @@ if (!hasAiStudio && !hasVertex) {
   fail("real Gemini/ADK credentials are required. Set GEMINI_API_KEY or GOOGLE_GENAI_USE_VERTEXAI=TRUE + GOOGLE_CLOUD_PROJECT.");
 }
 
-if (!value("ELASTIC_URL") || !value("ELASTIC_API_KEY")) {
-  fail("real Elastic credentials are required. Set ELASTIC_URL and ELASTIC_API_KEY.");
+if (!value("ELASTIC_URL")) {
+  fail("Elastic endpoint is required. Set ELASTIC_URL for the local Docker Elasticsearch service.");
 }
 
 if (hasVertex) {
@@ -50,4 +50,4 @@ if (process.env.E2E_REQUIRE_PHOENIX === "true" && !value("PHOENIX_API_KEY")) {
   fail("E2E_REQUIRE_PHOENIX=true requires PHOENIX_API_KEY.");
 }
 
-console.log(`E2E preflight passed using ${envFile}. Gemini=${hasAiStudio ? "ai-studio" : "vertex"} Elastic=real Phoenix=${value("PHOENIX_API_KEY") ? "enabled" : "optional-off"}`);
+console.log(`E2E preflight passed using ${envFile}. Gemini=${hasAiStudio ? "ai-studio" : "vertex"} Elastic=configured Phoenix=${value("PHOENIX_API_KEY") ? "enabled" : "optional-off"}`);
