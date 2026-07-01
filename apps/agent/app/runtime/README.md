@@ -1,7 +1,21 @@
-# runtime — 대화 상태와 기억 창고
+# runtime — State / Memory 컴포넌트
 
 "지금 이 대화가 어느 단계이고 무엇을 만들어 냈는지"를 들고 있고, 그것을
 저장·복원한다. LLM 호출은 여기 없다 — 순수하게 상태와 저장이 일이다.
+
+인프라 레이어의 **State / Memory** 컴포넌트다.
+
+## 공개 진입점
+
+| API | 역할 |
+|---|---|
+| `ConversationState` | 한 대화 스레드의 현재 상태 |
+| `ProposedChange` | 자연어에서 추출된 상태 변경 제안 |
+| `apply_proposed_change` | 변경 제안을 실제 상태 변화로 확정하는 reducer |
+| `AgentRuntimeRepository` | 상태, 메시지, artifact, episode 저장소 계약 |
+| `get_runtime_repository` | 설정에 따른 runtime repository 선택 |
+| `StateCache`, `get_state_cache` | Redis/InMemory state cache |
+| `Episode`, `recent_episode_context`, `restore_from_episode` | 장기 기억 조회와 복원 |
 
 ## 저장 구조 (2단)
 
@@ -34,7 +48,7 @@ ConversationState 갱신 (state.py)
 | [state.py](state.py) | 대화 상태(ConversationState) + 변경안/판정 정의 + `apply_proposed_change`(리듀서) |
 | [transitions.py](transitions.py) | 제안을 실제 상태 변화로 확정하는 규칙 그래프 (리듀서의 판정부) |
 | [repository.py](repository.py) | 권위 저장소 (메모리/Elastic 두 구현). 상태·결과물·에피소드 읽고 씀 |
-| [state_cache.py](state_cache.py) | 빠른 캐시 (Redis). 매 턴 Elastic 왕복을 줄임 (구 hot_store) |
+| [state_cache.py](state_cache.py) | 빠른 상태 캐시 (Redis/InMemory). 매 턴 Elastic 왕복을 줄임 |
 | [thread_store.py](thread_store.py) | 프로세스 안의 살아있는 스레드 핸들 + 화면 블록 타임라인 |
 | [blocks.py](blocks.py) | 화면에 보낼 블록(텍스트/활동/아티팩트/승인…) 만들기 |
 | [episode.py](episode.py) | 에피소드 = 한 라운드 기록 + 상태 스냅샷 (되돌리기 단위) |
