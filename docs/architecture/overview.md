@@ -64,6 +64,7 @@ graph LR
 | 대상 | 문서 |
 |---|---|
 | 컨테이너·컴포넌트·시퀀스 구조 | [launchpilot-c4.md](launchpilot-c4.md) |
+| 인프라 레이어 관찰 대상 정리 | [infra-observability-inventory.md](infra-observability-inventory.md) |
 | 자율 agent loop 개선 계획 | [agent-loop-autonomy-plan.md](agent-loop-autonomy-plan.md) |
 | 제품 포지셔닝·사용자·시나리오 | [PRD](../product/LaunchPilot_PRD.md) |
 | 결정의 맥락과 대안 | [ADR](adr/) |

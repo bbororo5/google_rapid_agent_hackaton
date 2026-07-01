@@ -65,13 +65,13 @@ async function expectNoApprovalGate(page: Page): Promise<void> {
 
 async function expectAnalysisRoundComplete(page: Page): Promise<void> {
   const thread = page.getByRole("region", { name: /campaign agent thread/i });
-  await expect(thread.getByText("분석 결과를 확인했습니다").first()).toBeVisible({ timeout: ROUND_TIMEOUT });
+  await expect(thread.getByText("Analysis is complete").first()).toBeVisible({ timeout: ROUND_TIMEOUT });
   await expectNoApprovalGate(page);
 }
 
 async function expectHypothesisRoundComplete(page: Page): Promise<void> {
   const thread = page.getByRole("region", { name: /campaign agent thread/i });
-  await expect(thread.getByText("가설을 정리했습니다").first()).toBeVisible({ timeout: ROUND_TIMEOUT });
+  await expect(thread.getByText("Hypotheses are ready").first()).toBeVisible({ timeout: ROUND_TIMEOUT });
   await expectNoApprovalGate(page);
 }
 

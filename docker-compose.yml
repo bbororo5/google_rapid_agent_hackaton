@@ -9,7 +9,26 @@
 # Host ports are overridable (defaults in parens) so they don't clash with a
 # local `next dev` / `uvicorn` you already run:
 #   AGENT_HOST_PORT (8000) · BACKEND_HOST_PORT (8080) · FRONTEND_HOST_PORT (3000)
+#   ALLOY_HOST_PORT (12345) · OTLP_GRPC_HOST_PORT (4317) · OTLP_HTTP_HOST_PORT (4318)
 services:
+  alloy:
+    image: grafana/alloy:v1.11.0
+    environment:
+      GRAFANA_CLOUD_OTLP_ENDPOINT: ${GRAFANA_CLOUD_OTLP_ENDPOINT}
+      GRAFANA_CLOUD_OTLP_INSTANCE_ID: ${GRAFANA_CLOUD_OTLP_INSTANCE_ID}
+      GRAFANA_CLOUD_ACCESS_TOKEN: ${GRAFANA_CLOUD_ACCESS_TOKEN}
+    command:
+      - run
+      - --server.http.listen-addr=0.0.0.0:12345
+      - --storage.path=/var/lib/alloy/data
+      - /etc/alloy/config.alloy
+    ports:
+      - "${ALLOY_HOST_PORT:-12345}:12345"
+      - "${OTLP_GRPC_HOST_PORT:-4317}:4317"
+      - "${OTLP_HTTP_HOST_PORT:-4318}:4318"
+    volumes:
+      - ./observability/grafana-cloud.alloy:/etc/alloy/config.alloy:ro
+
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.15.3
     environment:
@@ -37,12 +56,21 @@ services:
       ELASTIC_URL: http://elasticsearch:9200
       ELASTIC_API_KEY: ""
       ELASTIC_USE_MCP: ""
+      GRAFANA_CLOUD_OTLP_ENDPOINT: ""
+      GRAFANA_CLOUD_OTLP_INSTANCE_ID: ""
+      GRAFANA_CLOUD_ACCESS_TOKEN: ""
+      OTEL_SERVICE_NAME: launchpilot-agent
+      OTEL_RESOURCE_ATTRIBUTES: service.namespace=launchpilot,deployment.environment=local
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://alloy:4318
+      OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
       # Redis hot tier for live SharedStateVector (ADR-005). Service hostname on
       # the compose network. Overrides any REDIS_URL leaking from .env.
       REDIS_URL: redis://redis:6379/0
     ports:
       - "${AGENT_HOST_PORT:-8000}:8000"
     depends_on:
+      alloy:
+        condition: service_started
       elasticsearch:
         condition: service_healthy
       redis:
@@ -73,12 +101,22 @@ services:
   backend:
     build: ./backend
     environment:
+      JAVA_TOOL_OPTIONS: "-javaagent:/otel/opentelemetry-javaagent.jar"
+      OTEL_SERVICE_NAME: launchpilot-backend
+      OTEL_RESOURCE_ATTRIBUTES: service.namespace=launchpilot,deployment.environment=local
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://alloy:4318
+      OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+      OTEL_TRACES_EXPORTER: otlp
+      OTEL_METRICS_EXPORTER: otlp
+      OTEL_LOGS_EXPORTER: otlp
       AGENT_SERVICE_URL: http://agent:8000
       ELASTIC_URL: http://elasticsearch:9200
       ELASTIC_API_KEY: ""
     ports:
       - "${BACKEND_HOST_PORT:-8080}:8080"
     depends_on:
+      alloy:
+        condition: service_started
       elasticsearch:
         condition: service_healthy
       agent:
