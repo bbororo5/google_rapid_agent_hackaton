@@ -21,5 +21,6 @@
 | 0015 | Java Backend와 Python Agent Core 통합 4축 관찰성 baseline | [통합 관찰성](07-unified-observability.md) |
 | 0016 | GCP 제거 이후 관찰성 3축 기준 | [GCP 이후 관찰성 3축](08-observability-after-gcp.md) |
 | 0017 | GCP 이후 로컬/무료 관찰성 스택 후보 선정 | [GCP 이후 관찰성 스택 후보](09-observability-stack-selection.md) |
+| 0018 | 복합 실무 에이전트를 위한 Collaborative workflow 선정 | [에이전트 workflow 모델](10-agent-workflow-model.md) |
 
 상위 요약: [아키텍처 개요](../overview.md) · 구조 그림: [C4](../launchpilot-c4.md) · 제품 맥락: [PRD](../../product/LaunchPilot_PRD.md)
