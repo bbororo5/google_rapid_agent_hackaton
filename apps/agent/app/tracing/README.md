@@ -1,4 +1,4 @@
-# tracing — 관측 기록 (CCTV)
+# tracing — Observability 내부 span helper
 
 턴이 처리되는 동안 "무슨 단계에서 무엇이 있었는지"를 추적 기록으로 남긴다.
 Phoenix/Arize 같은 도구가 이 기록을 트리로 보여준다.
@@ -7,7 +7,7 @@ Phoenix/Arize 같은 도구가 이 기록을 트리로 보여준다.
 턴 처리 ──▶ tracing.*_span(...)  ── 단계마다 span(구간) 기록
                   │
                   ▼
-        OpenTelemetry ──▶ Phoenix/Arize (관측 화면)
+        OpenTelemetry ──▶ Phoenix/Arize 또는 Grafana Cloud
         (관측 키 없으면 자동으로 아무것도 안 함 = no-op)
 ```
 
@@ -16,7 +16,14 @@ Phoenix/Arize 같은 도구가 이 기록을 트리로 보여준다.
 | 파일 | 한 줄 역할 |
 |---|---|
 | [spans.py](spans.py) | 도메인 span 만들기 (체인/에이전트/가드레일/검색 구간) |
-| [../observability.py](../observability.py) | 시작 시 추적 켜기 (Phoenix로 내보내기 설정) |
+
+## 컴포넌트 경계
+
+`tracing/`은 독립 컴포넌트가 아니라 Observability 컴포넌트의 내부 모듈이다.
+
+- Phoenix provider 등록: [../phoenix_export/](../phoenix_export/)
+- Grafana Alloy OTLP export: [../infra_observability/](../infra_observability/)
+- 도메인 이벤트 facade: [../telemetry/](../telemetry/)
 
 ## 핵심 원칙
 

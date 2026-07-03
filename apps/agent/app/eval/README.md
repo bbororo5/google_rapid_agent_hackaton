@@ -1,7 +1,9 @@
-# eval — 결과 품질 측정
+# eval — Evaluation 실행 컴포넌트
 
 "에이전트가 낸 결과가 형식만 맞나"가 아니라 "실제로 쓸만한가"를 따로 측정한다.
 운영 흐름과 분리된 오프라인 도구다(사용자 응답 경로에 끼지 않음).
+
+인프라 레이어의 **Evaluation** 컴포넌트 중 실행부다. Phoenix export는 `app/phoenix_export/`가 맡는다.
 
 ```
 시나리오 입력 ──▶ 오케스트레이터를 턴처럼 구동 ──▶ 나온 블록 수집
@@ -18,6 +20,13 @@
 |---|---|
 | [run_eval.py](run_eval.py) | 시나리오들을 돌려 블록을 모으고 지표·점수 산출 |
 | [judge.py](judge.py) | LLM 심사관 — 분석 품질을 점수로. 측정만, 차단 못 함 |
+
+## 공개 진입점
+
+| API | 역할 |
+|---|---|
+| `python -m app.eval.run_eval` | 시나리오 evaluation 실행 |
+| `judge(payload)` | LLM-as-judge 품질 점수 산출 |
 
 ## 핵심 원칙
 
