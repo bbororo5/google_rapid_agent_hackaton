@@ -7,7 +7,7 @@ from app.orchestration.models import TurnContext, TurnOutcome
 from app.orchestration.phases.base import BasePhaseRunner, log
 from app.runtime import blocks
 from app.runtime.episode_query import recent_episode_context
-from app.runtime.state import PhaseType
+from app.runtime.state import PhaseType, hypothesis_context_coverage_note
 
 
 class HypothesisRoundRunner(BasePhaseRunner):
@@ -51,13 +51,17 @@ class HypothesisRoundRunner(BasePhaseRunner):
         memory_context = await recent_episode_context(
             turn.repository, turn.record.state.scope, self.phase
         )
+        content = turn.content
+        hunch = turn.record.state.hypothesis_context.user_hunch
+        if hunch:
+            content = f"{content}\nUser-provided hint to ground the hypothesis in: {hunch}"
         async with self.emitter.activity(
             turn.record,
             "hypothesis.draft",
             "Drafting hypotheses with Gemini",
             "Drafted hypotheses",
         ):
-            hyp_out = await workers.run_strategist(turn.content, signals, memory_context)
+            hyp_out = await workers.run_strategist(content, signals, memory_context)
         return hyp_out.hypotheses
 
     async def _save_hypotheses(self, turn: TurnContext, hypotheses: list[Hypothesis]) -> None:
@@ -89,3 +93,6 @@ class HypothesisRoundRunner(BasePhaseRunner):
             turn.record,
             "Hypotheses are ready. Choose one when you want to turn it into an experiment plan.",
         )
+        note = hypothesis_context_coverage_note(turn.record.state.hypothesis_context)
+        if note:
+            await self.emitter.assistant_text(turn.record, note)

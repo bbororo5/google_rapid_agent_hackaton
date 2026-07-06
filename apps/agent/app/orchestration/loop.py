@@ -14,7 +14,13 @@ from app.orchestration.emitter import StreamEmitter
 from app.orchestration.goals import GoalKind, TurnGoal
 from app.orchestration.models import TurnContext, TurnDecision, TurnOutcome
 from app.orchestration.router import TurnRouter
-from app.runtime.state import DelegationMode
+from app.runtime.state import DelegationMode, PendingProposal, PhaseType
+
+_SUGGESTIBLE_PHASES = {PhaseType.DATA_ANALYSIS, PhaseType.HYPOTHESIS_GEN}
+_SUGGESTED_PHASE_BY_NAME = {
+    "HYPOTHESIS_GEN": PhaseType.HYPOTHESIS_GEN,
+    "EXPERIMENT_PLAN": PhaseType.EXPERIMENT_PLAN,
+}
 
 log = logging.getLogger("launchpilot.orchestration.loop")
 
@@ -162,4 +168,32 @@ class AgentLoop:
             "done",
         )
         state.observe("advisor", {"reply_preview": reply[:160]})
+        await self._scout_for_suggestion(turn, state)
         return reply
+
+    async def _scout_for_suggestion(self, turn: TurnContext, state: LoopState) -> None:
+        # advisor가 자연어로 다음 단계를 제안했는지 별도로 확인한다 (스트리밍은
+        # advisor 응답 그대로 두고, 이 판정만 뒤따라 붙는다). 이미 대기중인
+        # 제안이 있거나, 제안할 만한 단계가 아니면 부르지 않는다.
+        conv_state = turn.record.state
+        if conv_state.pending_gate is not None:
+            return
+        if conv_state.current_phase not in _SUGGESTIBLE_PHASES:
+            return
+        if state.llm_calls >= state.goal.budgets.max_llm_calls:
+            return
+        last_reply = next(
+            (m["content"] for m in reversed(conv_state.active_chat_history) if m["role"] == "assistant"),
+            None,
+        )
+        if not last_reply:
+            return
+        state.llm_calls += 1
+        scouted = await workers.run_suggestion_scout(last_reply)
+        target = _SUGGESTED_PHASE_BY_NAME.get(scouted.get("target_phase") or "")
+        if scouted.get("suggests_entry") and target is not None:
+            conv_state.pending_gate = PendingProposal(
+                target_phase=target,
+                payload=scouted.get("payload") or last_reply[:200],
+                created_turn=conv_state.revision,
+            )

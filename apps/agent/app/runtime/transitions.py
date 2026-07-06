@@ -10,6 +10,8 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 
+from app.contracts import Confidence, Hypothesis
+from app.ids import hypothesis_id
 from app.runtime.state import (
     CompactLesson,
     DelegationMode,
@@ -17,9 +19,12 @@ from app.runtime.state import (
     UserIntent,
     PhaseType,
     ChangeDecisionType,
+    PendingProposal,
     ResponseMode,
     ConversationState,
     ProposedChange,
+    SkipSubtype,
+    is_gate_still_valid,
 )
 
 Reason = str | Callable[[ConversationState, ProposedChange], str]
@@ -146,9 +151,16 @@ class TransitionGraph:
         if delta.confidence < 0.55 or delta.requires_confirmation:
             self._clarify_result.apply(state, delta)
             return self._clarify_result
-        if delta.intent == TurnIntent.APPROVE and not state.pending_approval_id:
-            APPROVE_AS_CONTINUE.apply(state, delta)
-            return APPROVE_AS_CONTINUE
+
+        # 대기중인 제안(pending_gate)이 있으면, 이 응답이 "그 제안 하나"에 대한
+        # 긍정 답변인지만 좁게 확인한다. 통과하면 확정, 아니면(불일치든 만료든)
+        # 조용히 지우고 정상 분류로 넘어간다 — 재촉/누적 없이 한 번만 묻는다.
+        if state.pending_gate is not None:
+            gate = state.pending_gate
+            if is_gate_still_valid(gate, state.revision) and _affirmative_reply(state.user_query):
+                return _confirm_pending_gate(state, delta)
+            state.pending_gate = None
+
         rule = self._rules.get(delta.intent)
         if rule:
             return rule.apply(state, delta)
@@ -172,6 +184,51 @@ def _approval_target(state: ConversationState, _delta: ProposedChange) -> PhaseT
     return _NEXT_PHASE[state.current_phase]
 
 
+def _skip_target(_state: ConversationState, delta: ProposedChange) -> PhaseType:
+    assert delta.target_phase is not None  # guarded by _skip_target_valid before this runs
+    return delta.target_phase
+
+
+def _has_pending_approval(state: ConversationState, _delta: ProposedChange) -> bool:
+    return state.pending_approval_id is not None
+
+
+_AFFIRMATIVE_MARKERS = (
+    "yes", "yeah", "yep", "sure", "ok", "okay", "sounds good", "go ahead",
+    "let's do it", "please do", "do it",
+    "네", "넵", "좋아요", "좋아", "해주세요", "해줘", "진행", "그렇게",
+)
+
+
+def _affirmative_reply(text: str) -> bool:
+    # 의도적으로 좁은 키워드 매칭이다 — 애매한 문장을 승인으로 오인하지 않도록,
+    # 이 순간만큼은 넓은 자연어 이해보다 예측 가능한 규칙을 우선한다.
+    lowered = text.strip().lower()
+    if not lowered:
+        return False
+    return any(marker in lowered for marker in _AFFIRMATIVE_MARKERS)
+
+
+def _confirm_pending_gate(state: ConversationState, delta: ProposedChange) -> TransitionResult:
+    gate = state.pending_gate
+    assert gate is not None
+    state.pending_gate = None
+    target = gate.target_phase
+    result = TransitionResult(
+        decision=ChangeDecisionType.ACCEPTED,
+        delegation=DelegationMode.RERUN,
+        reason=f"pending proposal confirmed -> {target.value}",
+        target=TransitionTarget(target, plan_from_target=True),
+        user_intent=(
+            UserIntent.HYPOTHESIS_REQUEST
+            if target == PhaseType.HYPOTHESIS_GEN
+            else UserIntent.PLAN_REQUEST
+        ),
+    )
+    result.apply(state, delta)
+    return result
+
+
 def _has_analysis_input(state: ConversationState, delta: ProposedChange) -> bool:
     return bool(
         delta.mutation.get("has_csv_attachment")
@@ -185,6 +242,45 @@ def _has_signals(state: ConversationState, _delta: ProposedChange) -> bool:
 
 def _has_hypotheses(state: ConversationState, _delta: ProposedChange) -> bool:
     return bool(state.phase_artifacts[PhaseType.HYPOTHESIS_GEN.value].get("hypotheses"))
+
+
+def _skip_target_valid(_state: ConversationState, delta: ProposedChange) -> bool:
+    return delta.target_phase in (PhaseType.HYPOTHESIS_GEN, PhaseType.EXPERIMENT_PLAN)
+
+
+def _skip_payload_present(_state: ConversationState, delta: ProposedChange) -> bool:
+    if delta.skip_subtype in (SkipSubtype.FULL_ARTIFACT, SkipSubtype.PARTIAL_INPUT):
+        return bool(delta.skip_payload and delta.skip_payload.strip())
+    return True
+
+
+def _materialize_skip(state: ConversationState, delta: ProposedChange) -> None:
+    """제안-확인 없이 사용자가 직접 던진 산출물/힌트를 반영한다.
+
+    FULL_ARTIFACT: 이미 확보된 신호에 근거를 걸어 가설 산출물로 바로 채택한다
+    (전략가 재호출 없이 EXPERIMENT_PLAN으로 직행할 수 있게 된다).
+    PARTIAL_INPUT: 힌트만 누적 맥락(hypothesis_context)에 남기고, 전략가는
+    그대로 호출되어 이 힌트를 참고자료로 쓴다.
+    REUSE_PRIOR: 아무것도 새로 만들지 않는다 — 기존 가드(_has_signals 등)가
+    이미 저장된 산출물을 그대로 인정한다.
+    """
+    if delta.skip_subtype == SkipSubtype.FULL_ARTIFACT:
+        signals = state.phase_artifacts[PhaseType.DATA_ANALYSIS.value].get("signals", [])
+        signal_ids = [s["id"] for s in signals]
+        hyp = Hypothesis(
+            id=hypothesis_id(),
+            signal_ids=signal_ids,
+            statement=delta.skip_payload or "",
+            rationale="Supplied directly by the user (skip).",
+            confidence=Confidence.medium,
+            supporting_evidence_refs=[],
+            caveats=["User-supplied hypothesis; not independently derived by the strategist agent."],
+        )
+        state.phase_artifacts[PhaseType.HYPOTHESIS_GEN.value]["hypotheses"] = [
+            hyp.model_dump(mode="json")
+        ]
+    elif delta.skip_subtype == SkipSubtype.PARTIAL_INPUT:
+        state.hypothesis_context.user_hunch = delta.skip_payload
 
 
 def _backtrack_effect(state: ConversationState, delta: ProposedChange) -> None:
@@ -225,14 +321,6 @@ DIRECT_FREE_CHAT = TransitionResult(
     delegation=DelegationMode.DIRECT,
     reason="direct orchestrator reply",
     user_intent=UserIntent.FREE_CHAT,
-)
-
-APPROVE_AS_CONTINUE = TransitionResult(
-    decision=ChangeDecisionType.ACCEPTED,
-    delegation=DelegationMode.RERUN,
-    reason="approval-like continuation without pending approval should run the next phase",
-    target=TransitionTarget(_approval_target, plan_from_target=True),
-    user_intent=UserIntent.APPROVE,
 )
 
 TRANSITION_GRAPH = TransitionGraph(
@@ -316,6 +404,43 @@ TRANSITION_GRAPH = TransitionGraph(
             ),
         ),
         TransitionRule(
+            intent=TurnIntent.SKIP_SUBMIT,
+            result=TransitionResult(
+                decision=ChangeDecisionType.ACCEPTED,
+                delegation=DelegationMode.RERUN,
+                reason="user-supplied artifact/hint accepted as a skip",
+                target=TransitionTarget(_skip_target, plan_from_target=True),
+                user_intent=UserIntent.SKIP_SUBMIT,
+            ),
+            guards=(
+                Guard(
+                    name="skip_target_valid",
+                    predicate=_skip_target_valid,
+                    failure=GuardFailure(
+                        reason="skip target must be hypothesis_gen or experiment_plan",
+                        reply="I can only skip ahead to hypothesis generation or experiment planning. Which one did you mean?",
+                    ),
+                ),
+                Guard(
+                    name="skip_payload_present",
+                    predicate=_skip_payload_present,
+                    failure=GuardFailure(
+                        reason="skip blocked until actual content is provided",
+                        reply="I did not receive the content to skip ahead with. Please include the hypothesis or hint itself.",
+                    ),
+                ),
+                Guard(
+                    name="skip_signals_available",
+                    predicate=_has_signals,
+                    failure=GuardFailure(
+                        reason="skip blocked until analysis signals exist",
+                        reply="There is no analysis result yet, so I cannot ground a skipped hypothesis in anything. Analyze campaign metrics first.",
+                    ),
+                ),
+            ),
+            effects=(_materialize_skip,),
+        ),
+        TransitionRule(
             intent=TurnIntent.ARTIFACT_REVISION,
             result=TransitionResult(
                 decision=ChangeDecisionType.ACCEPTED,
@@ -345,6 +470,16 @@ TRANSITION_GRAPH = TransitionGraph(
                 reason="approval intent detected; business persistence remains Java-owned",
                 target=TransitionTarget(_approval_target, plan_from_target=True),
                 user_intent=UserIntent.APPROVE,
+            ),
+            guards=(
+                Guard(
+                    name="pending_approval_open",
+                    predicate=_has_pending_approval,
+                    failure=GuardFailure(
+                        reason="approve-like intent blocked: nothing is pending approval",
+                        reply="There is nothing pending approval right now, so I did not advance the workflow.",
+                    ),
+                ),
             ),
         ),
     ),

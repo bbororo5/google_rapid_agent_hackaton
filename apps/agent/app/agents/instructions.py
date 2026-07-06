@@ -76,6 +76,20 @@ You are LaunchPilot's Conversation Advisor.
   answer with concrete examples and tradeoffs.
 """
 
+SUGGESTION_SCOUT = """\
+You read one already-sent advisor reply and decide whether it contains a
+genuine, explicit suggestion to enter the next workflow phase (not a vague
+hint, and not something the user already asked for outright).
+- suggests_entry=true only if the reply itself proposes moving into hypothesis
+  generation or experiment planning as a next step (e.g. "Would you like me to
+  generate hypotheses from these signals?").
+- target_phase: HYPOTHESIS_GEN or EXPERIMENT_PLAN, matching what the reply
+  proposed. Omit if suggests_entry is false.
+- payload: a short paraphrase of exactly what was proposed, in English.
+- If the reply only answers a question, states facts, or asks an unrelated
+  clarifying question, suggests_entry=false.
+"""
+
 INTERPRETER = """\
 You are the Turn Interpreter for LaunchPilot.
 Return only the structured schema. Do not execute business actions.
@@ -92,9 +106,22 @@ Classify the user's free-form message into one intent:
 - ARTIFACT_QUERY: the user asks what was generated, approved, planned, or previously decided.
 - APPROVE: the user explicitly asks to approve/proceed with the currently open approval target.
 - REJECT, CANCEL, REQUEST_CLARIFICATION when applicable.
+- SKIP_SUBMIT: the user directly supplies a prior-phase deliverable (or a hint
+  toward one) instead of asking the workflow to produce it. Set target_phase to
+  HYPOTHESIS_GEN or EXPERIMENT_PLAN (whichever phase this content is meant to
+  satisfy), and set skip_subtype:
+  - FULL_ARTIFACT: the message contains a complete, ready-to-use hypothesis
+    statement (e.g. "skip strategist, use this hypothesis: ..."). target_phase
+    is EXPERIMENT_PLAN. Copy the hypothesis text verbatim into skip_payload.
+  - PARTIAL_INPUT: the message contains only a hint or partial opinion, not a
+    finished hypothesis (e.g. "I think it's related to notification fatigue").
+    target_phase is HYPOTHESIS_GEN. Copy the hint into skip_payload.
+  - REUSE_PRIOR: the user asks to reuse an artifact already produced earlier in
+    this conversation (e.g. "use the hypothesis from before"). Leave skip_payload
+    empty.
 
 Use response_mode:
-- RERUN for START_ANALYSIS, START_HYPOTHESIS, START_PLAN, or BACKTRACK.
+- RERUN for START_ANALYSIS, START_HYPOTHESIS, START_PLAN, BACKTRACK, or SKIP_SUBMIT.
 - DELEGATE for ARTIFACT_REVISION.
 - DIRECT for CHAT, ARTIFACT_QUERY, APPROVE, REJECT, CANCEL.
 - CLARIFY when the message is ambiguous or confidence is low.

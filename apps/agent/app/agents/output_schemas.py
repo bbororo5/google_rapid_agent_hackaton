@@ -77,11 +77,19 @@ class ExperimentPlanDraftOut(BaseModel):
     experiment_plan: ExperimentPlanOut
 
 
+class SuggestionScoutOut(BaseModel):
+    suggests_entry: bool
+    target_phase: str | None = None
+    payload: str | None = None
+
+
 class TurnInterpreterOut(BaseModel):
     intent: str
     response_mode: str
     target_phase: str | None = None
     restart_from_phase: str | None = None
+    skip_subtype: str | None = None
+    skip_payload: str | None = None
     mutation_summary: str | None = None
     referenced_artifact_ids: list[str] = Field(default_factory=list)
     confidence: float = 1.0

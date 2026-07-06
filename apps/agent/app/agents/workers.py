@@ -125,6 +125,18 @@ async def run_advisor(
     return await adk_agents.run_text("advisor", prompt, on_delta=on_delta)
 
 
+async def run_suggestion_scout(reply: str) -> dict:
+    """Detect whether an already-sent advisor reply proposed entering a phase.
+
+    Runs after the advisor reply, not instead of it, so free-text streaming is
+    untouched. The reducer is the one that decides whether a later user reply
+    actually confirms this; this call only proposes.
+    """
+    from app.agents import adk_agents
+
+    return await adk_agents.run_structured("suggestion_scout", f"[Advisor reply]\n{reply}")
+
+
 async def run_writer(
     content: str,
     date_range: DateRange,

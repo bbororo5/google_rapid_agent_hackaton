@@ -23,6 +23,7 @@ from app.agents.output_schemas import (
     ExperimentPlanDraftOut,
     HypothesisDraftOut,
     SignalDraftOut,
+    SuggestionScoutOut,
     TurnInterpreterOut,
 )
 from app.config import get_settings
@@ -114,12 +115,15 @@ def _build_agents():
         output_schema=ExperimentPlanDraftOut,
         output_key="experiment_plan",
     )
-    # Chat: free conversation. No tools, no output_schema -> plain text reply.
+    # Chat/Advisor: Quick-Lookup — read-only access to the same evidence tools
+    # the analyst uses, so a simple question can be answered from real data
+    # without opening a phase (no state change, no output_schema).
     chat = LlmAgent(
         name="chat",
         model=model,
         description="Conversational replies about campaign growth work.",
         instruction=instructions.CHAT,
+        tools=[evidence.query_metric_baseline, evidence.search_content_posts],
         planner=planner,
     )
     advisor = LlmAgent(
@@ -127,6 +131,7 @@ def _build_agents():
         model=model,
         description="Context-rich user-facing reasoning and follow-up.",
         instruction=instructions.ADVISOR,
+        tools=[evidence.query_metric_baseline, evidence.search_content_posts],
         planner=planner,
     )
     interpreter = LlmAgent(
@@ -138,6 +143,18 @@ def _build_agents():
         output_schema=TurnInterpreterOut,
         output_key="state_delta",
     )
+    # Suggestion scout: reads an already-generated advisor reply and decides
+    # whether it contains a real phase-entry suggestion. No tools; runs after
+    # the advisor, not instead of it, so streaming stays untouched.
+    suggestion_scout = LlmAgent(
+        name="suggestion_scout",
+        model=model,
+        description="Detects whether an advisor reply proposed entering the next phase.",
+        instruction=instructions.SUGGESTION_SCOUT,
+        planner=planner,
+        output_schema=SuggestionScoutOut,
+        output_key="suggestion",
+    )
     return {
         "analyst": analyst,
         "strategist": strategist,
@@ -145,6 +162,7 @@ def _build_agents():
         "chat": chat,
         "advisor": advisor,
         "interpreter": interpreter,
+        "suggestion_scout": suggestion_scout,
     }
 
 

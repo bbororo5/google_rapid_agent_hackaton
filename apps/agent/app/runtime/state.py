@@ -30,6 +30,73 @@ class UserIntent(str, Enum):
     ARTIFACT_REVISION = "ARTIFACT_REVISION"
     ARTIFACT_QUERY = "ARTIFACT_QUERY"
     APPROVE = "APPROVE"
+    SKIP_SUBMIT = "SKIP_SUBMIT"
+
+
+class SkipSubtype(str, Enum):
+    """사용자가 앞선 단계 산출물을 직접 제공할 때, 그 제공 방식.
+
+    FULL_ARTIFACT: 완성된 가설을 통째로 제공 -> 워커 호출 없이 그대로 채택.
+    PARTIAL_INPUT: 힌트/의견만 제공 -> 워커는 그대로 돌리되 이 내용을 컨텍스트로 주입.
+    REUSE_PRIOR: 이미 만들어둔 산출물을 재사용 지시 -> 기존 가드/저장소를 그대로 재사용.
+    """
+
+    FULL_ARTIFACT = "FULL_ARTIFACT"
+    PARTIAL_INPUT = "PARTIAL_INPUT"
+    REUSE_PRIOR = "REUSE_PRIOR"
+
+
+class PendingProposal(BaseModel):
+    """Advisor가 자연어로 던진, 아직 확정되지 않은 다음 단계 제안 한 장.
+
+    다음 사용자 응답이 이 제안과 일치하는지(그리고 아직 유효한지)만 코드가
+    좁게 확인한다 — 그 좁은 확인 하나가 "제안은 LLM, 확정은 코드"라는 원칙이
+    이 지점에 적용된 형태다.
+    """
+
+    target_phase: PhaseType
+    payload: str
+    created_turn: int
+
+
+def is_gate_still_valid(gate: PendingProposal | None, current_revision: int) -> bool:
+    return gate is not None and current_revision - gate.created_turn <= 1
+
+
+class HypothesisContext(BaseModel):
+    """가설 도출에 도움이 되는, 대화 전체에 걸쳐 누적되는 정성적 맥락.
+
+    빈 칸이 있어도 다음 단계 진입을 막지 않는다 — 결과물 커버리지 표시에만 반영된다.
+    """
+
+    business_goal: Optional[str] = None
+    target_segment: Optional[str] = None
+    seasonal_context: Optional[str] = None
+    prior_attempts: Optional[str] = None
+    constraints: Optional[str] = None
+    user_hunch: Optional[str] = None
+    market_context: Optional[str] = None
+
+
+_HYPOTHESIS_CONTEXT_LABELS = {
+    "business_goal": "business goal",
+    "target_segment": "target segment",
+    "seasonal_context": "seasonal context",
+    "prior_attempts": "prior attempts",
+    "constraints": "constraints",
+    "user_hunch": "user-provided hunch",
+    "market_context": "market context",
+}
+
+
+def hypothesis_context_coverage_note(context: HypothesisContext) -> Optional[str]:
+    """빈 칸이 있어도 막지 않되, 뭐가 가정으로 처리됐는지 한 줄로 알린다."""
+    missing = [
+        label for field, label in _HYPOTHESIS_CONTEXT_LABELS.items() if not getattr(context, field)
+    ]
+    if not missing:
+        return None
+    return f"Generated without: {', '.join(missing)}. Treat those aspects as assumptions."
 
 
 DEFAULT_WORKSPACE_ID = "demo_workspace"
@@ -87,6 +154,8 @@ class ConversationState(BaseModel):
     active_run_id: Optional[str] = None
     active_artifact_id: Optional[str] = None
     pending_approval_id: Optional[str] = None
+    pending_gate: Optional[PendingProposal] = None
+    hypothesis_context: HypothesisContext = Field(default_factory=HypothesisContext)
 
 
 class TurnIntent(str, Enum):
@@ -101,6 +170,7 @@ class TurnIntent(str, Enum):
     REJECT = "REJECT"
     CANCEL = "CANCEL"
     REQUEST_CLARIFICATION = "REQUEST_CLARIFICATION"
+    SKIP_SUBMIT = "SKIP_SUBMIT"
 
 
 class ResponseMode(str, Enum):
@@ -117,6 +187,8 @@ class ProposedChange(BaseModel):
     response_mode: ResponseMode = ResponseMode.DIRECT
     target_phase: Optional[PhaseType] = None
     restart_from_phase: Optional[PhaseType] = None
+    skip_subtype: Optional[SkipSubtype] = None
+    skip_payload: Optional[str] = None
     mutation: dict[str, Any] = Field(default_factory=dict)
     referenced_artifact_ids: list[str] = Field(default_factory=list)
     confidence: float = Field(default=1.0, ge=0.0, le=1.0)
