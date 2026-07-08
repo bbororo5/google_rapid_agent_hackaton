@@ -11,6 +11,7 @@ aggregation quirks. Baseline is a recency split: latest-half vs earlier-half.
 from __future__ import annotations
 
 import logging
+from datetime import date, timedelta
 
 import httpx
 
@@ -86,6 +87,17 @@ def _day(post: dict) -> str:
     return str(post.get("published_at") or "")[:10]
 
 
+def _window_means(rows, metric_name, cur_start, cur_end, base_start, base_end):
+    """Mean over each date window; (None, None) when either side is too sparse."""
+    cur = [float(_metric_value(p, metric_name)) for p in rows
+           if cur_start <= _day(p) <= cur_end]
+    base = [float(_metric_value(p, metric_name)) for p in rows
+            if base_start <= _day(p) <= base_end]
+    if len(cur) >= 2 and len(base) >= 2:
+        return sum(cur) / len(cur), sum(base) / len(base)
+    return None, None
+
+
 def _recency_split(rows: list[dict], posts: list[dict], metric_name: str):
     """Latest-half vs earlier-half over the channel's posts (fallback path)."""
     values = [float(_metric_value(p, metric_name)) for p in rows]
@@ -127,15 +139,23 @@ def compute_baseline(
 
     current = baseline = None
     if current_start and baseline_start:
-        cur = [float(_metric_value(p, metric_name)) for p in rows
-               if current_start <= _day(p) <= (current_end or current_start)]
-        base = [float(_metric_value(p, metric_name)) for p in rows
-                if baseline_start <= _day(p) <= (baseline_end or baseline_start)]
-        if len(cur) >= 2 and len(base) >= 2:
-            current = sum(cur) / len(cur)
-            baseline = sum(base) / len(base)
+        current, baseline = _window_means(
+            rows, metric_name,
+            current_start, current_end or current_start,
+            baseline_start, baseline_end or baseline_start)
 
-    if current is None:  # no windows, or too sparse -> recency split
+    if current is None:
+        # Imported CSVs often end days/weeks before today, leaving the
+        # requested current window empty. Re-anchor the same 7d/28d shape
+        # (contract 04 / windows.py) to the latest post day before giving up.
+        latest = date.fromisoformat(_day(rows[-1]))
+        current, baseline = _window_means(
+            rows, metric_name,
+            (latest - timedelta(days=6)).isoformat(), latest.isoformat(),
+            (latest - timedelta(days=34)).isoformat(),
+            (latest - timedelta(days=7)).isoformat())
+
+    if current is None:  # still too sparse -> recency split
         current, baseline = _recency_split(rows, posts, metric_name)
 
     lift = round(current / baseline, 3) if baseline else 0.0
@@ -160,6 +180,81 @@ def top_content_refs(posts: list[dict], channels: list[str], metric_name: str) -
     rows.sort(key=lambda p: float(_metric_value(p, metric_name)), reverse=True)
     refs = [p.get("post_id") for p in rows[:5] if p.get("post_id")]
     return _ok("search_content_posts", "search", evidence_refs=refs)
+
+
+def top_posts(metric_name: str, channel=None, scope=None, size: int = 5) -> dict:
+    """Quick-Lookup: 지표 기준 상위 게시물을 제목과 함께 돌려준다 (no metric math).
+
+    "어떤 게시물이 제일 잘됐어?"류 채팅 질문에 분석 라운드 없이 실제 제목으로
+    답하기 위한 조회. search_content_posts와 달리 post id뿐 아니라 title·수치를
+    포함한다.
+    """
+    ws, camp, _cs, _ce, _bs, _be = _scope_parts(scope)
+    try:
+        posts = _fetch_posts(ws, camp)
+    except Exception as exc:  # noqa: BLE001 - network/auth failures are tool errors
+        log.warning("ES top_posts failed: %s", exc)
+        return _err("top_posts", "SEARCH_FAILED", str(exc))
+    rows = [
+        p for p in posts
+        if (not channel or p.get("channel") == channel)
+        and _metric_value(p, metric_name) is not None
+    ]
+    if not rows:
+        return _err("top_posts", "NO_EVIDENCE_FOUND", f"no {metric_name} posts")
+    rows.sort(key=lambda p: float(_metric_value(p, metric_name)), reverse=True)
+    top = [
+        {
+            "post_id": p.get("post_id"),
+            "title": p.get("title"),
+            "channel": p.get("channel"),
+            "published_at": _day(p),
+            "value": float(_metric_value(p, metric_name)),
+        }
+        for p in rows[:size]
+    ]
+    return _ok(
+        "top_posts", "search",
+        metric_name=metric_name,
+        posts=top,
+        evidence_refs=[p["post_id"] for p in top if p["post_id"]],
+    )
+
+
+def data_inventory(workspace_id=None, campaign_id=None) -> dict:
+    """Quick-Lookup: what stored data exists for a campaign (no metric math).
+
+    Summarizes the campaign's content_posts — per-channel counts, available
+    metric keys, and the covered date span. Feeds the chat path ("what data do
+    you have") and the analysis-start guard, which accepts stored data as
+    analysis input rather than demanding a fresh CSV attachment.
+    """
+    try:
+        posts = _fetch_posts(workspace_id, campaign_id)
+    except Exception as exc:  # noqa: BLE001 - network/auth failures are tool errors
+        log.warning("ES data_inventory failed: %s", exc)
+        return _err("data_inventory", "SEARCH_FAILED", str(exc))
+    if not posts:
+        return _err("data_inventory", "NO_EVIDENCE_FOUND", "no stored posts for this campaign")
+
+    channels: dict[str, int] = {}
+    metrics: set[str] = set()
+    days: list[str] = []
+    for post in posts:
+        channel = post.get("channel") or "unknown"
+        channels[channel] = channels.get(channel, 0) + 1
+        metrics.update(k for k, v in (post.get("metrics") or {}).items() if v is not None)
+        day = _day(post)
+        if day:
+            days.append(day)
+    return _ok(
+        "data_inventory", "search",
+        post_count=len(posts),
+        channels=dict(sorted(channels.items())),
+        metrics=sorted(metrics),
+        date_start=min(days) if days else None,
+        date_end=max(days) if days else None,
+    )
 
 
 def query_metric_baseline(metric_name: str, channel: str, scope=None) -> dict:

@@ -313,6 +313,34 @@ flowchart TB
 4. "이거 어떻게 접근하면 좋을까"
 5. "이 데이터 보고 어떤 인사이트 뽑을 수 있어?"
 
+---
+
+## 구현 현황 (2026-07-06 최신화)
+
+이 설계가 실제 코드에 어떻게 안착했는지, 그리고 설계와 의도적으로 다르게 구현한 지점을 기록한다.
+코드 기준: `apps/agent/app/runtime/{state,transitions}.py`, `apps/agent/app/orchestration/`, `apps/agent/app/tools/evidence.py`.
+
+### 구현 완료
+
+| 설계 요소 | 구현 위치 | 비고 |
+| --- | --- | --- |
+| TurnGate (proposal_pending) | `state.PendingProposal` + `transitions.reduce` | 1턴 만료(`is_gate_still_valid`), 불일치·만료 시 조용히 리셋 후 재분류. **2026-07-06: 에이전트가 단계 진입을 먼저 제안하던 suggestion_scout는 제거** — phase_entry 카드는 더 이상 생성되지 않으며, 단계 전환은 사용자가 명시적으로 요청할 때만 일어난다. 게이트는 backtrack 확인 용도로 유지 |
+| TurnGate (backtrack 확인) | `PendingProposal(kind="backtrack")` | 되돌리기가 이후 산출물을 폐기할 때만 1턴 확인 카드. 체크포인트 복원(restore)은 확인 생략 |
+| 긍정 확정 규칙 | `transitions._affirmative_reply` | 잔여물(residue) 방식: 긍정 마커·추임새를 걷어낸 뒤 내용이 남으면 확정 아님("상위 포스트 확인해줘"의 "해줘"는 확정이 아니라 새 요청). 부정어·질문(?) 거부. 확정은 해당 의도의 정식 규칙을 경유하므로 재료 가드를 우회할 수 없음 |
+| SkipSubtype 3종 | `SkipSubtype` + `_materialize_skip` | FULL_ARTIFACT / PARTIAL_INPUT / REUSE_PRIOR. 가드 3종(대상 유효·내용 존재·신호 존재) |
+| HypothesisContext 7필드 + 커버리지 표시 | `state.HypothesisContext` | 빈칸 허용, "다음 정보 없이 생성했어요: ..." 노트 |
+| Quick-Lookup (케이스 A) | `evidence.data_inventory` / `evidence.top_posts` / `query_metric_baseline` / `search_content_posts` | data_inventory는 매 DIRECT 턴 advisor 프롬프트에 주입, 나머지는 chat·advisor의 ADK 도구. DIRECT 경로도 evidence scope를 바인딩해 캠페인 단위로 격리 |
+| 검수(리뷰어) | `agents/reviewer.py` | LLM 아닌 결정론 규칙표. id 무결성·필수 필드·저신뢰 caveat 강제. 계획 승인 게이트에서 일괄 검사 |
+| 분류 깔때기(4.9) | `TurnIntent` × `TRANSITION_GRAPH` 규칙표 | 복수 요청은 SPLIT 대신 "가장 실행 가능한 요청 하나로 분류 + 나머지는 답변에서 언급"(인터프리터 지시문). 검수 생략 요청은 CHAT으로 거절 |
+
+### 설계와 의도적으로 다른 지점
+
+1. **skip_pending은 별도 상태가 아니다.** 설계는 SkipPending을 TurnGate 값으로 모델링했지만, 구현은 같은 턴 안에서 가드 검사 후 즉시 처리한다(`SKIP_SUBMIT` 규칙). 대기 상태가 필요한 시나리오가 없어 기능적으로 동등하고 더 단순하다.
+2. **검수는 단계 경계마다가 아니라 계획 게이트에서 일괄.** 신호·가설·계획의 교차 무결성을 한 payload로 검사한다. 단계별 재료 부재는 각 규칙의 가드(신호 없으면 가설 차단 등)가 담당한다.
+3. **분석 시작 입력 인정 범위 확대.** CSV 첨부 외에 저장소(ES)에 이미 적재된 캠페인 데이터도 분석 입력으로 인정한다. CSV 첨부는 의도 강제가 아니며(빈 텍스트 + CSV만 원클릭 분석 유지), "저장해줘"류 턴은 CHAT으로 남는다.
+4. **게시물 단위 질문은 라운드가 아니라 조회로 답한다.** "어떤 게시물이 제일 잘됐어?"는 START_ANALYSIS가 아니라 CHAT이고, advisor가 `top_posts`(제목 포함)로 실제 데이터 기반 답변을 한다. 도구가 돌려주지 않은 게시물 특징을 지어내지 않는다.
+5. **FE 신호 카드에 보조 액션 추가.** 분석 결과 카드가 "가설 생성" 단일 CTA로 사용자를 레일에 태우던 것을, "나중에 — 채팅으로 더 살펴보기"(카드 닫기, 메시지 전송 없음)와 병행하도록 바꿨다. 케이스 A(자유 질문)와 케이스 B(제안-확정)가 UI에서도 분리된다.
+
 ### 4.2 제안에 대한 애매한 응답 (5개)
 6. "음... 글쎄요"
 7. "그럴까요?"

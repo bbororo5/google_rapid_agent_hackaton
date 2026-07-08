@@ -458,7 +458,10 @@ export function experimentPlannerReducer(state: ExperimentPlannerState, event: E
       };
     }
 
+    // SIGNAL_DEFERRED: 카드만 닫고 대화로 복귀 (가설 진행 강제 안 함).
+    // confirmedSignalId를 같이 기록해 같은 신호로 카드가 다시 뜨지 않게 한다.
     case "SIGNAL_CONFIRMED":
+    case "SIGNAL_DEFERRED":
       if (state.phase !== "signal_review") return state;
       return {
         ...state,
@@ -554,7 +557,7 @@ export function experimentPlannerReducer(state: ExperimentPlannerState, event: E
         ...state,
         phase: "cancelled",
         thread: { ...state.thread, connection: "closed" },
-        error: { message: "message" in event ? event.message : event.reason ?? "Agent session cancelled.", recoverable: true },
+        error: { message: "message" in event ? event.message : event.reason ?? "에이전트 세션이 취소되었어요.", recoverable: true },
       };
 
     case "RESET":

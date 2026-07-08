@@ -51,11 +51,11 @@ async function attachCsvAndAsk(page: Page, text: string): Promise<void> {
 }
 
 function approvalButton(page: Page): Locator {
-  return page.getByRole("button", { name: /approve experiments/i });
+  return page.getByRole("button", { name: /실험 승인/ });
 }
 
 function thread(page: Page): Locator {
-  return page.getByRole("region", { name: /campaign agent thread/i });
+  return page.getByRole("region", { name: /캠페인 에이전트 스레드/ });
 }
 
 function analysisCompletions(page: Page): Locator {
@@ -87,7 +87,7 @@ async function expectCoherentTurn(page: Page, beforeArticles: number): Promise<v
   await expect
     .poll(async () => await thread(page).getByRole("article").count(), { timeout: ROUND_TIMEOUT })
     .toBeGreaterThan(beforeArticles);
-  await expect(thread(page).getByText("Agent error")).toHaveCount(0);
+  await expect(thread(page).getByText(/Agent error|에이전트 오류/)).toHaveCount(0);
 }
 
 test.describe("ADR-005 episodic memory continuity", () => {

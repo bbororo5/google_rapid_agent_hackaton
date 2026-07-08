@@ -35,14 +35,14 @@ class AnalysisRoundRunner(BasePhaseRunner):
         # 무엇을 할지 사용자에게 알리고, 분석 기간을 준비 완료로 표시한다.
         await self.emitter.assistant_text(
             turn.record,
-            "Comparing the campaign metrics against the recent baseline to find signals.",
+            "캠페인 지표를 최근 베이스라인과 비교해 신호를 찾고 있어요.",
         )
         log.info("[analysis] analyst start (llm=gemini)")
         date_range = analysis_window()
         await self.emitter.progress(
             turn.record,
             "analysis.prepare",
-            "Preparing analysis window",
+            "분석 기간 준비 완료",
             "done",
             f"{date_range.start}..{date_range.end}",
         )
@@ -55,7 +55,7 @@ class AnalysisRoundRunner(BasePhaseRunner):
         await self.emitter.progress(
             turn.record,
             "analysis.evidence",
-            "Checking metric baseline and campaign evidence",
+            "지표 베이스라인과 캠페인 근거 확인 중",
             "running",
         )
         memory_context = await recent_episode_context(
@@ -65,8 +65,8 @@ class AnalysisRoundRunner(BasePhaseRunner):
             async with self.emitter.activity(
                 turn.record,
                 "analysis.draft",
-                "Drafting signal analysis with Gemini",
-                "Drafted signal analysis",
+                "Gemini 신호 분석 작성 중",
+                "Gemini 신호 분석 작성 완료",
             ):
                 signal_out = await workers.run_analyst(turn.content, analysis_window(), memory_context)
             return signal_out.signals
@@ -77,7 +77,7 @@ class AnalysisRoundRunner(BasePhaseRunner):
         # 신호가 없으면 다른 기준을 제안하며 라운드를 깔끔히 끝낸다.
         await self.emitter.assistant_text(
             turn.record,
-            "I did not find a strong signal with this criterion. Try a different metric or date range.",
+            "이 기준으로는 뚜렷한 신호를 찾지 못했어요. 다른 지표나 기간으로 다시 시도해 보세요.",
         )
         return TurnOutcome({"phase": self.phase.value, "signals": 0, "status": "no_signals"})
 
@@ -89,15 +89,15 @@ class AnalysisRoundRunner(BasePhaseRunner):
             key="signals",
             payload=signal_payload,
             progress_id="artifact.save.analysis",
-            saving_title="Saving analysis artifacts",
-            saved_title="Saved analysis artifacts",
+            saving_title="분석 아티팩트 저장 중",
+            saved_title="분석 아티팩트 저장 완료",
             detail=f"{len(signals)} signal(s)",
         )
         log.info("[analysis] analyst done: %d signal(s)", len(signals))
         await self.emitter.progress(
             turn.record,
             "analysis.evidence",
-            "Checked metric baseline and campaign evidence",
+            "지표 베이스라인과 캠페인 근거 확인 완료",
             "done",
         )
 
@@ -115,5 +115,5 @@ class AnalysisRoundRunner(BasePhaseRunner):
             )
         await self.emitter.assistant_text(
             turn.record,
-            "Analysis is complete. You can use these signals to generate hypotheses next.",
+            "분석을 마쳤어요. 신호 카드에서 자세한 내용을 확인할 수 있어요.",
         )

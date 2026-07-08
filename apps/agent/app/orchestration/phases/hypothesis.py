@@ -32,8 +32,8 @@ class HypothesisRoundRunner(BasePhaseRunner):
         # 신호가 없으면 분석 라운드를 먼저 하라고 안내하고 끝낸다.
         await self.emitter.system_error(
             turn.record,
-            "Analysis required",
-            "Run the data analysis round before generating hypotheses.",
+            "분석 필요",
+            "가설을 만들기 전에 데이터 분석 라운드를 먼저 실행해 주세요.",
         )
         return TurnOutcome({"phase": self.phase.value, "status": "missing_analysis"})
 
@@ -43,11 +43,11 @@ class HypothesisRoundRunner(BasePhaseRunner):
         await self.emitter.progress(
             turn.record,
             "hypothesis.load_signals",
-            "Loaded prior signal artifacts",
+            "이전 신호 아티팩트 로드 완료",
             "done",
             f"{len(signals)} signal(s)",
         )
-        await self.emitter.progress(turn.record, "hypothesis.evidence", "Checking team context", "running")
+        await self.emitter.progress(turn.record, "hypothesis.evidence", "팀 컨텍스트 확인 중", "running")
         memory_context = await recent_episode_context(
             turn.repository, turn.record.state.scope, self.phase
         )
@@ -58,8 +58,8 @@ class HypothesisRoundRunner(BasePhaseRunner):
         async with self.emitter.activity(
             turn.record,
             "hypothesis.draft",
-            "Drafting hypotheses with Gemini",
-            "Drafted hypotheses",
+            "Gemini 가설 작성 중",
+            "Gemini 가설 작성 완료",
         ):
             hyp_out = await workers.run_strategist(content, signals, memory_context)
         return hyp_out.hypotheses
@@ -72,12 +72,12 @@ class HypothesisRoundRunner(BasePhaseRunner):
             key="hypotheses",
             payload=hypothesis_payload,
             progress_id="artifact.save.hypothesis",
-            saving_title="Saving hypothesis artifacts",
-            saved_title="Saved hypothesis artifacts",
+            saving_title="가설 아티팩트 저장 중",
+            saved_title="가설 아티팩트 저장 완료",
             detail=f"{len(hypotheses)} hypothesis(es)",
         )
         log.info("[hypothesis] strategist done: %d hypothesis(es)", len(hypotheses))
-        await self.emitter.progress(turn.record, "hypothesis.evidence", "Checked team context", "done")
+        await self.emitter.progress(turn.record, "hypothesis.evidence", "팀 컨텍스트 확인 완료", "done")
 
     async def _show_hypotheses(self, turn: TurnContext, hypotheses: list[Hypothesis]) -> None:
         # 가설 하나하나를 근거 + 아티팩트 블록으로 화면에 흘려보낸다.
@@ -91,7 +91,7 @@ class HypothesisRoundRunner(BasePhaseRunner):
             )
         await self.emitter.assistant_text(
             turn.record,
-            "Hypotheses are ready. Choose one when you want to turn it into an experiment plan.",
+            "가설을 정리했습니다. 실험 계획으로 만들고 싶은 가설을 선택해 주세요.",
         )
         note = hypothesis_context_coverage_note(turn.record.state.hypothesis_context)
         if note:

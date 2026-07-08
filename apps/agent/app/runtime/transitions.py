@@ -146,26 +146,76 @@ class TransitionGraph:
         self._rules = {rule.intent: rule for rule in rules}
         self._clarify_result = clarify_result
         self._default_result = default_result
+        self._backtrack_confirm_result = TransitionResult(
+            decision=ChangeDecisionType.CLARIFY,
+            delegation=DelegationMode.CLARIFY,
+            reason="backtrack requires confirmation before discarding downstream artifacts",
+            user_intent=UserIntent.FREE_CHAT,
+        )
 
     def reduce(self, state: ConversationState, delta: ProposedChange) -> TransitionResult:
         if delta.confidence < 0.55 or delta.requires_confirmation:
             self._clarify_result.apply(state, delta)
             return self._clarify_result
 
-        # 대기중인 제안(pending_gate)이 있으면, 이 응답이 "그 제안 하나"에 대한
+        # 대기중인 카드(pending_gate)가 있으면, 이 응답이 "그 카드 하나"에 대한
         # 긍정 답변인지만 좁게 확인한다. 통과하면 확정, 아니면(불일치든 만료든)
         # 조용히 지우고 정상 분류로 넘어간다 — 재촉/누적 없이 한 번만 묻는다.
         if state.pending_gate is not None:
             gate = state.pending_gate
-            if is_gate_still_valid(gate, state.revision) and _affirmative_reply(state.user_query):
-                return _confirm_pending_gate(state, delta)
             state.pending_gate = None
+            if is_gate_still_valid(gate, state.revision) and _affirmative_reply(state.user_query):
+                return self._confirm_gate(state, delta, gate)
+
+        # 되돌리기가 이미 만들어 둔 이후 산출물을 폐기하게 되면, 실행 전에
+        # 한 턴짜리 확인 카드를 세운다 (설계 문서 4.9 BACKTRACK 재확인).
+        if _needs_backtrack_confirmation(state, delta):
+            return self._request_backtrack_confirmation(state, delta)
 
         rule = self._rules.get(delta.intent)
         if rule:
             return rule.apply(state, delta)
         self._default_result.apply(state, delta)
         return self._default_result
+
+    def _confirm_gate(
+        self, state: ConversationState, delta: ProposedChange, gate: PendingProposal
+    ) -> TransitionResult:
+        # 확정도 해당 의도의 정식 규칙으로 위임한다 — 가드(재료 존재 등)를
+        # 우회하는 뒷문을 만들지 않기 위해서다. 가드에 막히면 그 규칙의
+        # 안내 문구가 그대로 나간다.
+        if gate.kind == "backtrack":
+            delta.intent = TurnIntent.BACKTRACK
+            delta.target_phase = gate.target_phase
+            delta.mutation["backtrack_confirmed"] = True
+        else:
+            delta.intent = (
+                TurnIntent.START_HYPOTHESIS
+                if gate.target_phase == PhaseType.HYPOTHESIS_GEN
+                else TurnIntent.START_PLAN
+            )
+            delta.target_phase = gate.target_phase
+        return self._rules[delta.intent].apply(state, delta)
+
+    def _request_backtrack_confirmation(
+        self, state: ConversationState, delta: ProposedChange
+    ) -> TransitionResult:
+        target = _backtrack_target(state, delta)
+        state.pending_gate = PendingProposal(
+            kind="backtrack",
+            target_phase=target,
+            payload=state.user_query[:200],
+            created_turn=state.revision,
+        )
+        question = (
+            f"{_PHASE_LABELS[target]} 단계로 되돌리면 그 이후에 만들어 둔 산출물이 "
+            "폐기돼요. 계속할까요? '네'라고 답하시면 진행할게요."
+        )
+        # LLM이 미리 채운 reply("되돌렸어요" 등)는 아직 사실이 아니므로 덮어쓴다.
+        delta.reply = question
+        delta.clarification_question = question
+        self._backtrack_confirm_result.apply(state, delta)
+        return self._backtrack_confirm_result
 
 
 def _current_phase(state: ConversationState, _delta: ProposedChange) -> PhaseType:
@@ -199,41 +249,78 @@ _AFFIRMATIVE_MARKERS = (
     "네", "넵", "좋아요", "좋아", "해주세요", "해줘", "진행", "그렇게",
 )
 
+_NEGATION_MARKERS = (
+    "말고", "하지 마", "하지마", "말자", "그만", "취소", "아니", "나중에", "보류", "잠깐",
+    "don't", "do not", "not now", "later", "hold", "cancel", "stop", "no,",
+)
+
+# 마커를 걷어낸 뒤 남아도 되는 감탄사/추임새. 이 밖의 내용이 남으면
+# "확인해줘"처럼 새 요청이 섞인 문장이므로 확정으로 보지 않는다.
+_AFFIRMATIVE_FILLERS = (
+    "오", "아", "와", "제발", "좀", "빨리", "그럼", "그러면", "우선", "일단",
+    "바로", "지금", "응", "요", "이거", "그거", "부탁",
+    "oh", "wow", "please", "then", "now", "just",
+)
+
 
 def _affirmative_reply(text: str) -> bool:
-    # 의도적으로 좁은 키워드 매칭이다 — 애매한 문장을 승인으로 오인하지 않도록,
+    # 의도적으로 좁은 규칙 매칭이다 — 애매한 문장을 승인으로 오인하지 않도록,
     # 이 순간만큼은 넓은 자연어 이해보다 예측 가능한 규칙을 우선한다.
+    # 판정 방식: 긍정 마커와 추임새를 전부 걷어낸 잔여물이 사실상 비어야
+    # "순수 긍정"이다. "상위 포스트 확인해줘"는 "해줘"를 떼도 요청 본문이
+    # 남으므로 확정이 아니라 새 요청으로 흘러간다(다음 분류가 받는다).
     lowered = text.strip().lower()
-    if not lowered:
+    if not lowered or "?" in lowered:
         return False
-    return any(marker in lowered for marker in _AFFIRMATIVE_MARKERS)
+    if any(marker in lowered for marker in _NEGATION_MARKERS):
+        return False
+    if not any(marker in lowered for marker in _AFFIRMATIVE_MARKERS):
+        return False
+    residue = lowered
+    for token in _AFFIRMATIVE_MARKERS + _AFFIRMATIVE_FILLERS:
+        residue = residue.replace(token, " ")
+    residue = "".join(ch for ch in residue if ch.isalnum())
+    return len(residue) <= 2
 
 
-def _confirm_pending_gate(state: ConversationState, delta: ProposedChange) -> TransitionResult:
-    gate = state.pending_gate
-    assert gate is not None
-    state.pending_gate = None
-    target = gate.target_phase
-    result = TransitionResult(
-        decision=ChangeDecisionType.ACCEPTED,
-        delegation=DelegationMode.RERUN,
-        reason=f"pending proposal confirmed -> {target.value}",
-        target=TransitionTarget(target, plan_from_target=True),
-        user_intent=(
-            UserIntent.HYPOTHESIS_REQUEST
-            if target == PhaseType.HYPOTHESIS_GEN
-            else UserIntent.PLAN_REQUEST
-        ),
-    )
-    result.apply(state, delta)
-    return result
+_PHASE_LABELS = {
+    PhaseType.DATA_ANALYSIS: "데이터 분석",
+    PhaseType.HYPOTHESIS_GEN: "가설 수립",
+    PhaseType.EXPERIMENT_PLAN: "실험 계획",
+    PhaseType.EXPERIMENT_EVAL: "실험 평가",
+}
+
+
+def _has_downstream_artifacts(state: ConversationState, target: PhaseType) -> bool:
+    phases = list(PhaseType)
+    return any(state.phase_artifacts[p.value] for p in phases[phases.index(target):])
+
+
+def _needs_backtrack_confirmation(state: ConversationState, delta: ProposedChange) -> bool:
+    if delta.intent != TurnIntent.BACKTRACK:
+        return False
+    # 체크포인트 복원(restore)은 파괴가 아니라 복구라 확인 없이 진행한다.
+    if delta.mutation.get("restore_episode_id") or delta.mutation.get("backtrack_confirmed"):
+        return False
+    return _has_downstream_artifacts(state, _backtrack_target(state, delta))
 
 
 def _has_analysis_input(state: ConversationState, delta: ProposedChange) -> bool:
-    return bool(
-        delta.mutation.get("has_csv_attachment")
-        or state.phase_artifacts[PhaseType.DATA_ANALYSIS.value].get("signals")
+    if delta.mutation.get("has_csv_attachment") or state.phase_artifacts[
+        PhaseType.DATA_ANALYSIS.value
+    ].get("signals"):
+        return True
+    # 저장소(ES)에 이미 적재된 캠페인 데이터도 분석 입력으로 인정한다 — CSV를
+    # 다시 요구하지 않는다. 지역 import: 이 모듈은 순수 리듀서라 도구 계층을
+    # 최상단에서 끌어오지 않는다.
+    from app.tools import evidence
+
+    scope = state.scope
+    inventory = evidence.data_inventory(
+        scope.workspace_id if scope else None,
+        scope.campaign_id if scope else None,
     )
+    return bool(inventory.get("ok"))
 
 
 def _has_signals(state: ConversationState, _delta: ProposedChange) -> bool:
@@ -357,8 +444,8 @@ TRANSITION_GRAPH = TransitionGraph(
                     name="analysis_input_available",
                     predicate=_has_analysis_input,
                     failure=GuardFailure(
-                        reason="analysis request blocked until csv attachment or prior analysis exists",
-                        reply="Attach a campaign metrics CSV to start analysis. For now, I can help clarify which metric or window to inspect first.",
+                        reason="analysis request blocked: no csv attachment, prior analysis, or stored campaign data",
+                        reply="이 캠페인에 저장된 데이터를 찾지 못해 분석을 시작하지 않았어요. 캠페인 지표 CSV를 첨부하거나 데이터를 먼저 적재해 주세요. 그동안 어떤 지표나 기간을 볼지 정하는 건 도와드릴 수 있어요.",
                     ),
                 ),
             ),
@@ -378,7 +465,7 @@ TRANSITION_GRAPH = TransitionGraph(
                     predicate=_has_signals,
                     failure=GuardFailure(
                         reason="hypothesis request blocked until analysis artifact exists",
-                        reply="There is no analysis result yet, so I did not generate hypotheses. Analyze campaign metrics first, then I can build hypotheses from those signals.",
+                        reply="아직 분석 결과가 없어서 가설을 만들지 않았어요. 먼저 캠페인 지표를 분석하면 그 신호로 가설을 세울 수 있어요.",
                     ),
                 ),
             ),
@@ -398,7 +485,7 @@ TRANSITION_GRAPH = TransitionGraph(
                     predicate=_has_hypotheses,
                     failure=GuardFailure(
                         reason="plan request blocked until hypothesis artifact exists",
-                        reply="There is no confirmed hypothesis yet, so I did not draft an experiment plan. Generate hypotheses from the analysis signals first, then continue to planning.",
+                        reply="아직 확정된 가설이 없어서 실험 계획을 작성하지 않았어요. 분석 신호로 가설을 먼저 만든 뒤 계획으로 넘어갈게요.",
                     ),
                 ),
             ),
@@ -418,7 +505,7 @@ TRANSITION_GRAPH = TransitionGraph(
                     predicate=_skip_target_valid,
                     failure=GuardFailure(
                         reason="skip target must be hypothesis_gen or experiment_plan",
-                        reply="I can only skip ahead to hypothesis generation or experiment planning. Which one did you mean?",
+                        reply="건너뛰기는 가설 수립 또는 실험 계획 단계로만 가능해요. 어느 단계를 의도하셨나요?",
                     ),
                 ),
                 Guard(
@@ -426,7 +513,7 @@ TRANSITION_GRAPH = TransitionGraph(
                     predicate=_skip_payload_present,
                     failure=GuardFailure(
                         reason="skip blocked until actual content is provided",
-                        reply="I did not receive the content to skip ahead with. Please include the hypothesis or hint itself.",
+                        reply="건너뛰기에 쓸 내용을 받지 못했어요. 가설이나 힌트 내용을 함께 보내 주세요.",
                     ),
                 ),
                 Guard(
@@ -434,7 +521,7 @@ TRANSITION_GRAPH = TransitionGraph(
                     predicate=_has_signals,
                     failure=GuardFailure(
                         reason="skip blocked until analysis signals exist",
-                        reply="There is no analysis result yet, so I cannot ground a skipped hypothesis in anything. Analyze campaign metrics first.",
+                        reply="아직 분석 결과가 없어서, 건너뛴 가설을 뒷받침할 근거가 없어요. 먼저 캠페인 지표를 분석해 주세요.",
                     ),
                 ),
             ),
@@ -477,7 +564,7 @@ TRANSITION_GRAPH = TransitionGraph(
                     predicate=_has_pending_approval,
                     failure=GuardFailure(
                         reason="approve-like intent blocked: nothing is pending approval",
-                        reply="There is nothing pending approval right now, so I did not advance the workflow.",
+                        reply="지금 승인 대기 중인 항목이 없어서 워크플로를 진행하지 않았어요.",
                     ),
                 ),
             ),

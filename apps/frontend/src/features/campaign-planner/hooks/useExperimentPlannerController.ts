@@ -36,14 +36,14 @@ type ThreadLocalUserMessage = AgentMessage & { clientSequence: number; phaseAtSe
 export type GateReview =
   | {
       id: "signal";
-      title: "Signal Review";
+      title: "신호 검토";
       status: "active" | "complete";
       signal: Signal;
       actionLabel: string;
     }
   | {
       id: "approval";
-      title: "Experiment Approval";
+      title: "실험 승인";
       status: "active" | "complete";
       hypothesis: Hypothesis | null;
       hypotheses: Hypothesis[];
@@ -84,11 +84,11 @@ export interface PlannerScreenView {
 export type ComposerMode = "prepare_session" | "session_in_progress" | "review_gate" | "approval_gate" | "completed" | "error";
 
 export type ComposerPrimaryAction =
-  | { kind: "analyze"; label: "Send"; disabled: boolean; title?: string }
-  | { kind: "send"; label: "Send"; disabled: boolean; title?: string }
-  | { kind: "stop"; label: "Stop"; disabled: boolean; title?: string }
-  | { kind: "retry"; label: "Retry"; disabled: boolean; title?: string }
-  | { kind: "new_session"; label: "New session"; disabled: boolean; title?: string }
+  | { kind: "analyze"; label: "보내기"; disabled: boolean; title?: string }
+  | { kind: "send"; label: "보내기"; disabled: boolean; title?: string }
+  | { kind: "stop"; label: "중지"; disabled: boolean; title?: string }
+  | { kind: "retry"; label: "다시 시도"; disabled: boolean; title?: string }
+  | { kind: "new_session"; label: "새 세션"; disabled: boolean; title?: string }
   | { kind: "none" };
 
 export interface PlannerComposerView {
@@ -201,6 +201,7 @@ export interface ExperimentPlannerViewModel {
     sendMessage: () => Promise<void>;
     analyze: () => Promise<void>;
     continueSignalReview: () => void;
+    deferSignalReview: () => void;
     editExperiment: (experimentId: string, title: string) => void;
     toggleExperiment: (experimentId: string) => void;
     selectHypothesis: (hypothesisId: string) => void;
@@ -261,7 +262,8 @@ function hasCompletedAnalysisRound(state: ExperimentPlannerState) {
       const title = item.tool.display_title ?? item.tool.tool_name;
       return (
         item.tool.status === "SUCCESS" &&
-        (/Finished DATA_ANALYSIS round/i.test(title) || /Saved analysis artifacts/i.test(title) || /Saved thread state/i.test(title))
+        (/Finished DATA_ANALYSIS round/i.test(title) || /Saved analysis artifacts/i.test(title) || /Saved thread state/i.test(title) ||
+          /DATA_ANALYSIS 라운드 완료/.test(title) || /분석 아티팩트 저장 완료/.test(title) || /스레드 상태 저장 완료/.test(title))
       );
     }
     if (item.kind === "assistant_message") {
@@ -299,12 +301,18 @@ function commandId(prefix: string) {
   return `${prefix}_${crypto.randomUUID().replaceAll("-", "_")}`;
 }
 
-function formatPercent(value: number) {
-  return `${(value * 100).toFixed(1)}%`;
+// Contract 01 Signal has no unit field: rate-style metrics (0..1) render as
+// percentages, count metrics (views, shares, ...) as plain numbers.
+function formatMetricValue(metricName: string, value: number) {
+  if (/(_rate|_ratio|_pct)$/.test(metricName)) {
+    return `${(value * 100).toFixed(1)}%`;
+  }
+  return value.toLocaleString("en-US", { maximumFractionDigits: 1 });
 }
 
 function confidenceLabel(value: string) {
-  return value.replace("_", " ");
+  const labels: Record<string, string> = { high: "높음", medium: "중간", low: "낮음" };
+  return labels[value] ?? value.replace("_", " ");
 }
 
 function agentThreadStreamUrl(threadId: string) {
@@ -314,7 +322,7 @@ function agentThreadStreamUrl(threadId: string) {
 
 function csvPrompt(text: string) {
   const trimmed = text.trim();
-  return trimmed || "Analyze this campaign data and return the results in English.";
+  return trimmed || "이 캠페인 데이터를 분석해줘.";
 }
 
 function csvAttachment(importResult: ImportCsvResponse, fileName: string): MessageAttachment {
@@ -330,7 +338,7 @@ function attachmentBlocks(attachments: MessageAttachment[] | undefined): StreamM
   return (attachments ?? []).map((attachment) => ({
     kind: "attachment" as const,
     fileName: attachment.filename ?? attachment.title ?? attachment.id,
-    label: attachment.kind === "csv_import" ? "CSV attached" : attachment.title,
+    label: attachment.kind === "csv_import" ? "CSV 첨부됨" : attachment.title,
   }));
 }
 
@@ -385,9 +393,9 @@ function toolBlock(tool: ToolCallLog): StreamMessageBlock {
 
 function toolStatusLabel(tool: ToolCallLog) {
   const labels: Record<string, string> = {
-    query_metric_baseline: "metric baseline",
-    search_content_posts: "supporting posts",
-    search_team_notes: "team context",
+    query_metric_baseline: "지표 베이스라인",
+    search_content_posts: "관련 게시물",
+    search_team_notes: "팀 노트",
   };
   const displayName =
     labels[tool.tool_name] ??
@@ -397,12 +405,12 @@ function toolStatusLabel(tool: ToolCallLog) {
       .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
       .join(" ");
 
-  if (tool.status === "FAILED" && tool.error_message) return `Could not check ${displayName}: ${tool.error_message}`;
-  if (tool.status === "FAILED") return `Could not check ${displayName}`;
-  if (tool.status === "SUCCESS" && tool.duration_ms !== null) return `Checked ${displayName} in ${tool.duration_ms}ms`;
-  if (tool.status === "SUCCESS") return `Checked ${displayName}`;
-  if (tool.status === "RUNNING") return `Checking ${displayName}`;
-  return `Queued ${displayName}`;
+  if (tool.status === "FAILED" && tool.error_message) return `${displayName} 확인 실패: ${tool.error_message}`;
+  if (tool.status === "FAILED") return `${displayName} 확인 실패`;
+  if (tool.status === "SUCCESS" && tool.duration_ms !== null) return `${displayName} 확인 완료 (${tool.duration_ms}ms)`;
+  if (tool.status === "SUCCESS") return `${displayName} 확인 완료`;
+  if (tool.status === "RUNNING") return `${displayName} 확인 중`;
+  return `${displayName} 대기 중`;
 }
 
 function streamMessagesFromState(input: {
@@ -562,8 +570,8 @@ function streamMessagesFromState(input: {
       blocks: [
         {
           kind: "result",
-          title: "Approval complete",
-          detail: `Growth brief ${input.approval.growth_brief_id} and ${input.calendarEvents.length} calendar event${input.calendarEvents.length === 1 ? "" : "s"} are ready.`,
+          title: "승인 완료",
+          detail: `그로스 브리프 ${input.approval.growth_brief_id}와 캘린더 이벤트 ${input.calendarEvents.length}건이 준비되었습니다.`,
         },
       ],
     });
@@ -575,7 +583,7 @@ function streamMessagesFromState(input: {
       sequence: 30_000,
       role: "system",
       createdAt: null,
-      blocks: [{ kind: "error", title: `Agent session · ${input.stateLabel}`, detail: input.errorMessage, retryable: true }],
+      blocks: [{ kind: "error", title: `에이전트 세션 · ${input.stateLabel}`, detail: input.errorMessage, retryable: true }],
     });
   }
 
@@ -663,8 +671,8 @@ function threadDisplayItemsFromProjection(input: { groups: ThreadMessageGroup[];
 function documentPanelItem(document: AgentDocument, index: number): OutputPanelItem {
   return {
     id: `document:${document.document_id}`,
-    title: document.kind === "evidence_scan" ? "Evidence notes" : document.title,
-    eyebrow: "Markdown document",
+    title: document.kind === "evidence_scan" ? "근거 노트" : document.title,
+    eyebrow: "마크다운 문서",
     kind: "document",
     summary: document.summary,
     markdown: document.content,
@@ -676,46 +684,46 @@ function signalMarkdown(signal: Signal) {
   return [
     `# ${signal.title}`,
     "",
-    `**Signal:** ${signal.metric_name} · ${signal.lift_ratio.toFixed(1)}x · ${confidenceLabel(signal.confidence)}`,
+    `**신호:** ${signal.metric_name} · ${signal.lift_ratio.toFixed(1)}x · ${confidenceLabel(signal.confidence)}`,
     "",
     signal.description,
     "",
-    `- Current: ${formatPercent(signal.current_value)}`,
-    `- Baseline: ${formatPercent(signal.baseline_value)}`,
-    `- Evidence refs: ${signal.evidence_refs.join(", ")}`,
+    `- 현재: ${formatMetricValue(signal.metric_name, signal.current_value)}`,
+    `- 베이스라인: ${formatMetricValue(signal.metric_name, signal.baseline_value)}`,
+    `- 근거 레퍼런스: ${signal.evidence_refs.join(", ")}`,
   ].join("\n");
 }
 
 function analysisMarkdown(signals: Signal[]) {
-  const lines = ["# Analysis result", ""];
+  const lines = ["# 분석 결과", ""];
   if (signals.length === 0) {
-    lines.push("Analysis completed. No structured signal artifact was available in the client stream.");
+    lines.push("분석이 완료되었지만 구조화된 신호 아티팩트가 스트림에 없습니다.");
     return lines.join("\n");
   }
 
-  lines.push(`${signals.length} signal${signals.length === 1 ? "" : "s"} found.`, "");
+  lines.push(`신호 ${signals.length}건을 찾았습니다.`, "");
   signals.forEach((signal, index) => {
     lines.push(`## ${index + 1}. ${signal.title}`, "");
-    lines.push(`**Signal:** ${signal.metric_name} · ${signal.lift_ratio.toFixed(1)}x · ${confidenceLabel(signal.confidence)}`, "");
+    lines.push(`**신호:** ${signal.metric_name} · ${signal.lift_ratio.toFixed(1)}x · ${confidenceLabel(signal.confidence)}`, "");
     lines.push(signal.description, "");
-    lines.push(`- Current: ${formatPercent(signal.current_value)}`);
-    lines.push(`- Baseline: ${formatPercent(signal.baseline_value)}`);
-    lines.push(`- Evidence refs: ${signal.evidence_refs.join(", ")}`);
+    lines.push(`- 현재: ${formatMetricValue(signal.metric_name, signal.current_value)}`);
+    lines.push(`- 베이스라인: ${formatMetricValue(signal.metric_name, signal.baseline_value)}`);
+    lines.push(`- 근거 레퍼런스: ${signal.evidence_refs.join(", ")}`);
     lines.push("");
   });
   return lines.join("\n");
 }
 
 function hypothesesMarkdown(hypotheses: Hypothesis[]) {
-  const lines = ["# Hypotheses", "", `${hypotheses.length} ${hypotheses.length === 1 ? "hypothesis" : "hypotheses"} ready.`, ""];
+  const lines = ["# 가설", "", `가설 ${hypotheses.length}건이 준비되었습니다.`, ""];
   hypotheses.forEach((hypothesis, index) => {
     lines.push(`## ${index + 1}. ${hypothesis.statement}`, "");
     lines.push(hypothesis.rationale, "");
-    lines.push(`- Confidence: ${confidenceLabel(hypothesis.confidence)}`);
-    lines.push(`- Signal refs: ${hypothesis.signal_ids.join(", ")}`);
-    lines.push(`- Evidence refs: ${hypothesis.supporting_evidence_refs.join(", ")}`);
+    lines.push(`- 확신도: ${confidenceLabel(hypothesis.confidence)}`);
+    lines.push(`- 신호 레퍼런스: ${hypothesis.signal_ids.join(", ")}`);
+    lines.push(`- 근거 레퍼런스: ${hypothesis.supporting_evidence_refs.join(", ")}`);
     if (hypothesis.caveats.length > 0) {
-      lines.push(`- Caveats: ${hypothesis.caveats.join("; ")}`);
+      lines.push(`- 주의사항: ${hypothesis.caveats.join("; ")}`);
     }
     lines.push("");
   });
@@ -734,13 +742,17 @@ function analysisFallbackOutputFromTimeline(items: AgentTimelineItem[]): OutputP
         sawAnalysisCompletion = true;
         return;
       }
-      if (/showed .*lift compared to its baseline/i.test(content) || /observed .*lift/i.test(content)) {
+      if (/showed .*lift compared to its baseline/i.test(content) || /observed .*lift/i.test(content) || /베이스라인\s*대비/.test(content) || /상승했/.test(content)) {
         signalTexts.push(content);
       }
     }
     if (item.kind === "tool") {
       const title = item.tool.display_title ?? item.tool.tool_name;
-      if (item.tool.status === "SUCCESS" && (/Finished DATA_ANALYSIS round/i.test(title) || /Saved analysis artifacts/i.test(title))) {
+      if (
+        item.tool.status === "SUCCESS" &&
+        (/Finished DATA_ANALYSIS round/i.test(title) || /Saved analysis artifacts/i.test(title) ||
+          /DATA_ANALYSIS 라운드 완료/.test(title) || /분석 아티팩트 저장 완료/.test(title))
+      ) {
         sawAnalysisCompletion = true;
       }
     }
@@ -748,37 +760,37 @@ function analysisFallbackOutputFromTimeline(items: AgentTimelineItem[]): OutputP
 
   if (!sawAnalysisCompletion && signalTexts.length === 0) return null;
 
-  const lines = ["# Analysis result", ""];
+  const lines = ["# 분석 결과", ""];
   if (signalTexts.length > 0) {
-    lines.push("## Signals", "", ...signalTexts.map((text) => `- ${text}`));
+    lines.push("## 신호", "", ...signalTexts.map((text) => `- ${text}`));
   } else {
-    lines.push("Analysis completed. The structured signal artifact was not available in the client stream.");
+    lines.push("분석이 완료되었지만 구조화된 신호 아티팩트가 스트림에 없습니다.");
   }
 
   return {
     id: "analysis:fallback",
-    title: "Analysis result",
-    eyebrow: "Analysis output",
+    title: "분석 결과",
+    eyebrow: "분석 산출물",
     kind: "document",
-    summary: signalTexts.length > 0 ? `${signalTexts.length} signal${signalTexts.length === 1 ? "" : "s"} found` : "Analysis completed",
+    summary: signalTexts.length > 0 ? `신호 ${signalTexts.length}건 발견` : "분석 완료",
     markdown: lines.join("\n"),
     sequence: 0,
   };
 }
 
 function experimentPlanMarkdown(experiments: ExperimentItem[], hypothesis: Hypothesis | null) {
-  const lines = ["# Experiment plan", ""];
+  const lines = ["# 실험 계획", ""];
   if (hypothesis) {
-    lines.push("## Hypothesis", "", hypothesis.statement, "", hypothesis.rationale, "");
+    lines.push("## 가설", "", hypothesis.statement, "", hypothesis.rationale, "");
   }
 
   experiments.forEach((experiment, index) => {
     lines.push(`## ${index + 1}. ${experiment.title}`, "");
-    lines.push(`- Channel: ${experiment.channel}`);
-    lines.push(`- Scheduled: ${experiment.scheduled_at}`);
-    lines.push(`- Hook: ${experiment.hook}`);
+    lines.push(`- 채널: ${experiment.channel}`);
+    lines.push(`- 예정일: ${experiment.scheduled_at}`);
+    lines.push(`- 훅: ${experiment.hook}`);
     lines.push(`- CTA: ${experiment.cta}`);
-    lines.push(`- Success criteria: ${experiment.success_criteria}`);
+    lines.push(`- 성공 기준: ${experiment.success_criteria}`);
     lines.push("", experiment.production_brief, "");
   });
 
@@ -787,11 +799,11 @@ function experimentPlanMarkdown(experiments: ExperimentItem[], hypothesis: Hypot
 
 function approvalMarkdown(input: { approval: ApproveExperimentPlanResponse; experiments: ExperimentItem[]; calendarEvents: CalendarEventRef[] }) {
   const lines = [
-    "# Approval complete",
+    "# 승인 완료",
     "",
-    `Growth brief ${input.approval.growth_brief_id} was created.`,
+    `그로스 브리프 ${input.approval.growth_brief_id}가 생성되었습니다.`,
     "",
-    "## Approved experiments",
+    "## 승인된 실험",
     "",
   ];
 
@@ -799,7 +811,7 @@ function approvalMarkdown(input: { approval: ApproveExperimentPlanResponse; expe
     lines.push(`- ${experiment.title} (${experiment.channel}, ${experiment.scheduled_at})`);
   });
 
-  lines.push("", "## Calendar events", "");
+  lines.push("", "## 캘린더 이벤트", "");
   input.calendarEvents.forEach((event) => {
     lines.push(`- ${event.title} · ${event.scheduled_at}`);
   });
@@ -825,10 +837,10 @@ function outputPanelItemsFromState(input: {
   if (input.signals.length > 0) {
     items.push({
       id: `analysis:${input.signals.map((signal) => signal.id).join(":")}`,
-      title: "Analysis result",
-      eyebrow: "Analysis output",
+      title: "분석 결과",
+      eyebrow: "분석 산출물",
       kind: "signal",
-      summary: `${input.signals.length} signal${input.signals.length === 1 ? "" : "s"} found`,
+      summary: `신호 ${input.signals.length}건 발견`,
       markdown: analysisMarkdown(input.signals),
       sequence: sequence++,
     });
@@ -836,7 +848,7 @@ function outputPanelItemsFromState(input: {
     items.push({
       id: `signal:${input.signalGate.signal.id}`,
       title: input.signalGate.signal.title,
-      eyebrow: input.signalGate.status === "complete" ? "Confirmed signal" : "Analysis result",
+      eyebrow: input.signalGate.status === "complete" ? "확정 신호" : "분석 결과",
       kind: "signal",
       summary: `${input.signalGate.signal.metric_name} · ${input.signalGate.signal.lift_ratio.toFixed(1)}x`,
       markdown: signalMarkdown(input.signalGate.signal),
@@ -852,10 +864,10 @@ function outputPanelItemsFromState(input: {
   if (input.hypotheses.length > 0) {
     items.push({
       id: `hypotheses:${input.hypotheses.map((hypothesis) => hypothesis.id).join(":")}`,
-      title: "Hypotheses",
-      eyebrow: "Hypothesis output",
+      title: "가설",
+      eyebrow: "가설 산출물",
       kind: "hypothesis",
-      summary: `${input.hypotheses.length} ${input.hypotheses.length === 1 ? "hypothesis" : "hypotheses"} ready`,
+      summary: `가설 ${input.hypotheses.length}건 준비됨`,
       markdown: hypothesesMarkdown(input.hypotheses),
       sequence: sequence++,
     });
@@ -864,10 +876,10 @@ function outputPanelItemsFromState(input: {
   if (input.approvalGate?.id === "approval" && input.draftExperiments.length > 0) {
     items.push({
       id: `experiment-plan:${input.draftExperiments.map((experiment) => experiment.id).join(":")}`,
-      title: "Experiment plan",
-      eyebrow: input.approvalGate.status === "complete" ? "Approved draft" : "Draft artifact",
+      title: "실험 계획",
+      eyebrow: input.approvalGate.status === "complete" ? "승인된 초안" : "초안 아티팩트",
       kind: "experiment_plan",
-      summary: `${input.draftExperiments.length} experiment${input.draftExperiments.length === 1 ? "" : "s"} ready`,
+      summary: `실험 ${input.draftExperiments.length}건 준비됨`,
       markdown: experimentPlanMarkdown(input.draftExperiments, input.approvalGate.hypothesis),
       sequence: sequence++,
     });
@@ -876,10 +888,10 @@ function outputPanelItemsFromState(input: {
   if (input.approval) {
     items.push({
       id: `approval:${input.approval.growth_brief_id}`,
-      title: "Approval complete",
-      eyebrow: "Approved output",
+      title: "승인 완료",
+      eyebrow: "승인 산출물",
       kind: "approval",
-      summary: `${input.calendarEvents.length} calendar event${input.calendarEvents.length === 1 ? "" : "s"} ready`,
+      summary: `캘린더 이벤트 ${input.calendarEvents.length}건 준비됨`,
       markdown: approvalMarkdown({
         approval: input.approval,
         experiments: input.finalExperiments.length > 0 ? input.finalExperiments : input.draftExperiments,
@@ -912,23 +924,23 @@ function buildChecklist(state: ExperimentPlannerState): ChecklistStep[] {
   const approved = state.phase === "approved";
 
   const setupSteps: ChecklistStep[] = [
-    ...(csvRun ? [{ label: "Import metrics", status: state.phase === "importing" ? active : complete } satisfies ChecklistStep] : []),
-    { label: "Start agent session", status: state.phase === "starting" ? active : started ? complete : pending },
-    { label: "Connect stream", status: state.phase === "connecting" ? active : connected ? complete : started ? active : pending },
+    ...(csvRun ? [{ label: "지표 임포트", status: state.phase === "importing" ? active : complete } satisfies ChecklistStep] : []),
+    { label: "에이전트 세션 시작", status: state.phase === "starting" ? active : started ? complete : pending },
+    { label: "스트림 연결", status: state.phase === "connecting" ? active : connected ? complete : started ? active : pending },
   ];
 
   if (approved || needsApproval || hasPlan) {
     return [
       ...setupSteps,
-      { label: "Draft experiment plan", status: hasPlan ? complete : connected ? active : pending },
-      { label: "Review approval", status: approved ? complete : needsApproval ? active : pending },
+      { label: "실험 계획 작성", status: hasPlan ? complete : connected ? active : pending },
+      { label: "승인 검토", status: approved ? complete : needsApproval ? active : pending },
     ];
   }
 
   return [
     ...setupSteps,
-    { label: "Analyze signals", status: hasSignal ? complete : connected ? active : pending },
-    { label: "Discuss next step", status: hasSignal ? active : pending },
+    { label: "신호 분석", status: hasSignal ? complete : connected ? active : pending },
+    { label: "다음 단계 논의", status: hasSignal ? active : pending },
   ];
 }
 
@@ -950,35 +962,35 @@ function runShortId(state: ExperimentPlannerState) {
 function readableWorkflowState(state: ExperimentPlannerState, displayState: AgentDisplayState) {
   switch (state.phase) {
     case "input_ready":
-      return state.importResult ? "Ready to start" : "Ready";
+      return state.importResult ? "시작 준비 완료" : "준비됨";
     case "starting":
-      return "Starting";
+      return "시작 중";
     case "connecting":
-      return "Connecting stream";
+      return "스트림 연결 중";
     case "live":
-      return hasCompletedAnalysisRound(state) ? "Ready to discuss" : "Agent responding";
+      return hasCompletedAnalysisRound(state) ? "논의 준비 완료" : "에이전트 응답 중";
     case "signal_review":
     case "awaiting_approval":
-      return "Review needed";
+      return "검토 필요";
     default:
       break;
   }
 
   switch (displayState) {
     case "selected":
-      return "Ready to analyze";
+      return "분석 준비 완료";
     case "importing":
-      return "Importing metrics";
+      return "지표 임포트 중";
     case "processing":
-      return "Analyzing";
+      return "분석 중";
     case "ready":
-      return "Review needed";
+      return "검토 필요";
     case "approved":
-      return "Approved";
+      return "승인됨";
     case "error":
-      return "Needs attention";
+      return "주의 필요";
     default:
-      return "Waiting for evidence";
+      return "근거 대기 중";
   }
 }
 
@@ -1000,7 +1012,7 @@ function composerFromState(state: ExperimentPlannerState, displayState: AgentDis
   const base = {
     value,
     fileName,
-    placeholder: "Add context or instructions for the agent...",
+    placeholder: "에이전트에게 컨텍스트나 지시를 입력하세요...",
   };
 
   switch (state.phase) {
@@ -1012,9 +1024,9 @@ function composerFromState(state: ExperimentPlannerState, displayState: AgentDis
         canAttachCsv: true,
         primaryAction: {
           kind: "send",
-          label: "Send",
+          label: "보내기",
           disabled: !value.trim(),
-          title: "Send a message to the thread, or attach campaign metrics CSV to start analysis",
+          title: "스레드에 메시지를 보내거나, 캠페인 지표 CSV를 첨부해 분석을 시작하세요",
         },
       };
     case "input_ready":
@@ -1025,9 +1037,9 @@ function composerFromState(state: ExperimentPlannerState, displayState: AgentDis
         canAttachCsv: true,
         primaryAction: {
           kind: "analyze",
-          label: "Send",
+          label: "보내기",
           disabled: !value.trim() && !fileName,
-          title: fileName ? "Send instructions and start analysis" : "Attach campaign metrics CSV to start analysis, or send a message to the thread",
+          title: fileName ? "지시를 보내고 분석을 시작합니다" : "캠페인 지표 CSV를 첨부해 분석을 시작하거나, 스레드에 메시지를 보내세요",
         },
       };
     case "import_failed":
@@ -1038,9 +1050,9 @@ function composerFromState(state: ExperimentPlannerState, displayState: AgentDis
         canAttachCsv: true,
         primaryAction: {
           kind: "retry",
-          label: "Retry",
+          label: "다시 시도",
           disabled: !fileName,
-          title: fileName ? undefined : "Attach campaign metrics CSV to enable Analyze",
+          title: fileName ? undefined : "캠페인 지표 CSV를 첨부하면 분석할 수 있어요",
         },
       };
     case "importing":
@@ -1053,9 +1065,9 @@ function composerFromState(state: ExperimentPlannerState, displayState: AgentDis
         canAttachCsv: false,
         primaryAction: {
           kind: "stop",
-          label: "Stop",
+          label: "중지",
           disabled: !state.thread.threadId,
-          title: "Stop this analysis",
+          title: "이 분석을 중지합니다",
         },
       };
     case "live": {
@@ -1073,11 +1085,11 @@ function composerFromState(state: ExperimentPlannerState, displayState: AgentDis
         primaryAction: analysisInProgress
           ? {
               kind: "stop",
-              label: "Stop",
+              label: "중지",
               disabled: !state.thread.threadId,
-              title: "Stop this analysis",
+              title: "이 분석을 중지합니다",
             }
-          : { kind: "send", label: "Send", disabled: !value.trim() && !fileName, title: "Send a message to the thread" },
+          : { kind: "send", label: "보내기", disabled: !value.trim() && !fileName, title: "스레드에 메시지를 보냅니다" },
       };
     }
     case "signal_review":
@@ -1086,7 +1098,7 @@ function composerFromState(state: ExperimentPlannerState, displayState: AgentDis
         mode: "review_gate",
         inputDisabled: false,
         canAttachCsv: true,
-        primaryAction: { kind: "send", label: "Send", disabled: !value.trim() && !fileName, title: "Send a message to the thread" },
+        primaryAction: { kind: "send", label: "보내기", disabled: !value.trim() && !fileName, title: "스레드에 메시지를 보냅니다" },
       };
     case "awaiting_approval":
       return {
@@ -1094,7 +1106,7 @@ function composerFromState(state: ExperimentPlannerState, displayState: AgentDis
         mode: "approval_gate",
         inputDisabled: false,
         canAttachCsv: true,
-        primaryAction: { kind: "send", label: "Send", disabled: !value.trim() && !fileName, title: "Send a message to the thread" },
+        primaryAction: { kind: "send", label: "보내기", disabled: !value.trim() && !fileName, title: "스레드에 메시지를 보냅니다" },
       };
     case "approved":
       return {
@@ -1102,7 +1114,7 @@ function composerFromState(state: ExperimentPlannerState, displayState: AgentDis
         mode: "completed",
         inputDisabled: false,
         canAttachCsv: true,
-        primaryAction: { kind: "send", label: "Send", disabled: !value.trim() && !fileName, title: "Send a message to the thread" },
+        primaryAction: { kind: "send", label: "보내기", disabled: !value.trim() && !fileName, title: "스레드에 메시지를 보냅니다" },
       };
     case "failed":
     case "cancelled":
@@ -1112,7 +1124,7 @@ function composerFromState(state: ExperimentPlannerState, displayState: AgentDis
         mode: "error",
         inputDisabled: false,
         canAttachCsv: true,
-        primaryAction: { kind: "send", label: "Send", disabled: !value.trim() && !fileName, title: "Send a message to the thread" },
+        primaryAction: { kind: "send", label: "보내기", disabled: !value.trim() && !fileName, title: "스레드에 메시지를 보냅니다" },
       };
     default:
       return {
@@ -1120,7 +1132,7 @@ function composerFromState(state: ExperimentPlannerState, displayState: AgentDis
         mode: displayState === "processing" ? "session_in_progress" : "prepare_session",
         inputDisabled: false,
         canAttachCsv: displayState !== "processing",
-        primaryAction: displayState === "processing" ? { kind: "stop", label: "Stop", disabled: true } : { kind: "send", label: "Send", disabled: !value.trim() && !fileName },
+        primaryAction: displayState === "processing" ? { kind: "stop", label: "중지", disabled: true } : { kind: "send", label: "보내기", disabled: !value.trim() && !fileName },
       };
   }
 }
@@ -1128,21 +1140,21 @@ function composerFromState(state: ExperimentPlannerState, displayState: AgentDis
 function buildStatusRows(state: ExperimentPlannerState, importResult: ImportCsvResponse | null, hasLiveThreadActivity: boolean): StatusRow[] {
   switch (state.phase) {
     case "importing":
-      return [{ title: "Importing campaign metrics...", detail: "Preparing the evidence store before signal detection." }];
+      return [{ title: "캠페인 지표 임포트 중...", detail: "신호 탐지 전에 근거 저장소를 준비하고 있어요." }];
     case "input_ready":
       if (!importResult) return [];
-      return [{ title: "Campaign metrics are ready.", detail: `${importResult.indexed_count} rows indexed · ${importResult.failed_count} failed` }];
+      return [{ title: "캠페인 지표가 준비되었어요.", detail: `${importResult.indexed_count}행 색인 · ${importResult.failed_count}행 실패` }];
     case "starting":
       return [
         {
-          title: "Starting the agent session...",
-          detail: importResult ? `${importResult.indexed_count} rows indexed · ${importResult.failed_count} failed` : "Campaign metrics are indexed.",
+          title: "에이전트 세션 시작 중...",
+          detail: importResult ? `${importResult.indexed_count}행 색인 · ${importResult.failed_count}행 실패` : "캠페인 지표가 색인되었어요.",
         },
       ];
     case "connecting":
-      return [{ title: "Connecting live agent stream...", detail: "Signal and evidence events will appear here as they arrive." }];
+      return [{ title: "실시간 에이전트 스트림 연결 중...", detail: "신호와 근거 이벤트가 도착하는 대로 여기에 표시됩니다." }];
     case "live":
-      return hasLiveThreadActivity ? [] : [{ title: "Listening for agent events...", detail: "The stream is open and waiting for the first signal update." }];
+      return hasLiveThreadActivity ? [] : [{ title: "에이전트 이벤트 수신 대기 중...", detail: "스트림이 열려 첫 신호 업데이트를 기다리고 있어요." }];
     default:
       return [];
   }
@@ -1333,7 +1345,7 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
     } catch (error) {
       dispatch({
         type: requestPhase === "import" ? "IMPORT_FAILED" : "AGENT_SESSION_FAILED",
-        message: error instanceof Error ? error.message : requestPhase === "import" ? "Import failed." : "Analysis failed.",
+        message: error instanceof Error ? error.message : requestPhase === "import" ? "임포트에 실패했어요." : "분석에 실패했어요.",
       });
     }
   }
@@ -1475,9 +1487,16 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
       command_id: commandId("cmd_continue"),
       type: "message.send",
       thread_id: current.thread.threadId,
-      content: "Use this signal to generate hypotheses.",
+      content: "이 신호로 가설을 만들어줘.",
       client_created_at: new Date().toISOString(),
     });
+  }
+
+  function deferSignalReview() {
+    // 카드만 닫는다 — 메시지 전송 없음. 사용자는 채팅으로 신호를 더 파보다가
+    // 준비되면 "가설 만들어줘"라고 말하면 된다 (강제 레일 제거).
+    if (stateRef.current.phase !== "signal_review") return;
+    dispatch({ type: "SIGNAL_DEFERRED" });
   }
 
   async function approvePlan() {
@@ -1498,7 +1517,7 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
         command_id: commandId("cmd_approve"),
         type: "message.send",
         thread_id: approvingState.thread.threadId ?? current.thread.threadId,
-        content: "Approve this experiment plan.",
+        content: "이 실험 계획을 승인할게.",
         action: {
           name: "approve",
           target_id: approvingState.review.approvalId,
@@ -1507,11 +1526,11 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
         client_created_at: new Date().toISOString(),
       });
     } catch (error) {
-      dispatch({ type: "APPROVE_FAILED", message: error instanceof Error ? error.message : "Approval failed." });
+      dispatch({ type: "APPROVE_FAILED", message: error instanceof Error ? error.message : "승인에 실패했어요." });
     }
   }
 
-  function rejectApproval(reason = "User rejected the experiment plan.") {
+  function rejectApproval(reason = "실험 계획을 반려할게.") {
     const current = stateRef.current;
     if (current.phase !== "awaiting_approval" || !current.thread.threadId) return;
 
@@ -1526,7 +1545,7 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
     dispatch({ type: "REJECT_SENT", reason });
   }
 
-  async function cancelSession(reason = "User cancelled the agent session.") {
+  async function cancelSession(reason = "에이전트 세션을 취소할게.") {
     const current = stateRef.current;
     if (!current.thread.threadId) return;
 
@@ -1551,7 +1570,7 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
       command_id: commandId("cmd_update_payload"),
       type: "message.send",
       thread_id: current.thread.threadId,
-      content: `Revise the experiment title to "${title}".`,
+      content: `실험 제목을 "${title}"(으)로 수정해줘.`,
       action: {
         name: "revise_artifact",
         target_id: current.review.payload.experiment_plan.id,
@@ -1595,23 +1614,23 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
   const signalGate: GateReview | null = state.phase === "signal_review" && lastSignalRef.current
     ? {
         id: "signal",
-        title: "Signal Review",
+        title: "신호 검토",
         status: "active",
         signal: lastSignalRef.current,
-        actionLabel: "Use this signal",
+        actionLabel: "이 신호 사용",
       }
     : null;
   const approvalGate: GateReview | null =
     state.phase === "awaiting_approval" || state.phase === "approved"
       ? {
           id: "approval",
-          title: "Experiment Approval",
+          title: "실험 승인",
           status: state.phase === "approved" ? "complete" : "active",
           hypothesis: primaryHypothesis,
           hypotheses: allHypotheses,
           selectedHypothesisId,
           experiment: primaryExperiment,
-          actionLabel: state.phase === "approved" ? "Approved" : "Approve Experiments",
+          actionLabel: state.phase === "approved" ? "승인됨" : "실험 승인",
         }
       : null;
   const gates = [signalGate, approvalGate].filter((gate): gate is GateReview => gate !== null);
@@ -1637,8 +1656,8 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
       liveThreadActivity || statusRows.length > 0 || primaryExperiment || currentApproval || stateMessage(state)
         ? null
         : {
-            title: "Find the signal in this campaign.",
-            description: "Attach campaign metrics and add context to start the analysis session.",
+            title: "이 캠페인의 신호를 찾아보세요.",
+            description: "캠페인 지표를 첨부하고 컨텍스트를 입력해 분석 세션을 시작하세요.",
           },
     statusRows,
     errorMessage: stateMessage(state),
@@ -1651,7 +1670,7 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
     steps: buildChecklist(state),
   };
   const shell: PlannerShellView = {
-    campaignName: "Comeback Teaser",
+    campaignName: "컴백 티저",
     campaignStatus: displayState === "approved" ? "approved" : displayState === "ready" ? "needs_review" : displayState === "error" ? "error" : "active",
   };
   const streamMessages = streamMessagesFromState({
@@ -1732,6 +1751,7 @@ export function useExperimentPlannerController(apiOverride?: ExperimentPlannerAp
       sendMessage: sendComposerMessage,
       analyze,
       continueSignalReview,
+      deferSignalReview,
       editExperiment,
       toggleExperiment,
       selectHypothesis,

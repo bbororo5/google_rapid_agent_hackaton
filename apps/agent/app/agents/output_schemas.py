@@ -77,12 +77,6 @@ class ExperimentPlanDraftOut(BaseModel):
     experiment_plan: ExperimentPlanOut
 
 
-class SuggestionScoutOut(BaseModel):
-    suggests_entry: bool
-    target_phase: str | None = None
-    payload: str | None = None
-
-
 class TurnInterpreterOut(BaseModel):
     intent: str
     response_mode: str

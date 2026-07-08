@@ -40,7 +40,7 @@ class TurnRouter:
         reply = (
             decision.delta.clarification_question
             or decision.delta.reply
-            or "I can do that, but please confirm the change first."
+            or "진행할 수 있어요. 다만 변경 내용을 먼저 확인해 주세요."
         )
         await self._emitter.assistant_text(turn.record, reply)
         return TurnOutcome({"mode": "clarify", "reply": reply[:500]})
@@ -49,8 +49,8 @@ class TurnRouter:
         if not turn.scope:
             await self._emitter.system_error(
                 turn.record,
-                "Campaign context required",
-                "I could not find a campaign_id, so analysis did not start. Send the request again with a campaign_id in the same thread.",
+                "캠페인 컨텍스트 필요",
+                "campaign_id를 찾지 못해 분석을 시작하지 못했어요. 같은 스레드에서 campaign_id와 함께 다시 요청해 주세요.",
             )
             return TurnOutcome({"mode": "rerun", "status": "missing_campaign"})
 
@@ -62,8 +62,8 @@ class TurnRouter:
         if not turn.campaign_context:
             await self._emitter.system_error(
                 turn.record,
-                "Campaign context not found",
-                f"I could not find context for campaign_id={turn.scope.campaign_id}, so analysis did not start.",
+                "캠페인 컨텍스트를 찾을 수 없음",
+                f"campaign_id={turn.scope.campaign_id}의 컨텍스트를 찾지 못해 분석을 시작하지 못했어요.",
             )
             return TurnOutcome({"mode": "rerun", "status": "campaign_not_found"})
 
@@ -86,7 +86,7 @@ class TurnRouter:
             await self._emitter.progress(
                 turn.record,
                 "round.dispatch",
-                f"Starting {phase.value} round",
+                f"{phase.value} 라운드 시작",
                 "running",
             )
             log.info(
@@ -101,7 +101,7 @@ class TurnRouter:
             await self._emitter.progress(
                 turn.record,
                 "round.dispatch",
-                f"Finished {phase.value} round",
+                f"{phase.value} 라운드 완료",
                 "done",
             )
         return outcome
@@ -111,22 +111,22 @@ class TurnRouter:
         if episode is None:
             await self._emitter.system_error(
                 turn.record,
-                "Checkpoint not found",
-                f"I could not find episode_id={episode_id}, so the state was not restored.",
+                "체크포인트를 찾을 수 없음",
+                f"episode_id={episode_id}를 찾지 못해 상태를 되돌리지 못했어요.",
             )
             return TurnOutcome({"mode": "restore", "status": "episode_not_found"})
         await restore_from_episode(turn.record.state, episode, turn.repository)
         phase = turn.record.state.current_phase
         await self._emitter.assistant_text(
             turn.record,
-            f"State was restored to {phase.value} at episode_id={episode_id}. You can continue from there.",
+            f"상태를 episode_id={episode_id}의 {phase.value} 단계로 되돌렸어요. 이어서 진행하실 수 있어요.",
         )
         return TurnOutcome({"mode": "restore", "phase": phase.value, "episode_id": episode_id})
 
     async def _delegate(self, turn: TurnContext, decision: TurnDecision) -> TurnOutcome:
         reply = (
-            "I classified this as an artifact revision for the current phase. "
-            "Detailed phase-level editing is not implemented yet, so I recorded the requested change safely for now."
+            "현재 단계 산출물에 대한 수정 요청으로 분류했어요. "
+            "단계별 세부 편집은 아직 지원하지 않아, 요청하신 변경 내용을 우선 안전하게 기록해 두었어요."
         )
         turn.record.state.active_chat_history.append({"role": "assistant", "content": reply})
         await self._emitter.assistant_text(turn.record, reply)
@@ -136,7 +136,7 @@ class TurnRouter:
         reply = (
             self._artifact_lookup_reply(turn, decision.delta.intent)
             or decision.delta.reply
-            or "How can I help with your campaign analysis?"
+            or "캠페인 분석과 관련해 무엇을 도와드릴까요?"
         )
         turn.record.state.active_chat_history.append({"role": "assistant", "content": reply})
         log.info("chat reply thread=%s context=%s", turn.record.thread_id, turn.state_hint)
@@ -151,24 +151,24 @@ class TurnRouter:
             "experiment_plan"
         )
         if not isinstance(raw_plan, dict):
-            return "There is no approved experiment plan available in this thread yet."
+            return "이 스레드에는 아직 승인된 실험 계획이 없어요."
 
-        title = raw_plan.get("summary") or raw_plan.get("id") or "approved experiment plan"
+        title = raw_plan.get("summary") or raw_plan.get("id") or "승인된 실험 계획"
         items = raw_plan.get("items") if isinstance(raw_plan.get("items"), list) else []
         if not items:
-            return f"The approved item is the `{title}` experiment plan. Detailed experiment items are not available in the runtime artifact."
+            return f"승인된 항목은 `{title}` 실험 계획이에요. 세부 실험 항목은 런타임 아티팩트에서 확인할 수 없어요."
 
-        lines = [f"The approved output is the `{title}` experiment plan."]
+        lines = [f"승인된 산출물은 `{title}` 실험 계획이에요."]
         for index, item in enumerate(items[:3], start=1):
             if not isinstance(item, dict):
                 continue
-            item_title = item.get("title") or item.get("id") or f"Experiment {index}"
+            item_title = item.get("title") or item.get("id") or f"실험 {index}"
             detail = f"{index}. {item_title}"
             if item.get("channel"):
                 detail += f" ({item['channel']})"
             if item.get("scheduled_at"):
-                detail += f", scheduled_at={item['scheduled_at']}"
+                detail += f", 예정일: {item['scheduled_at']}"
             if item.get("success_criteria"):
-                detail += f", success={item['success_criteria']}"
+                detail += f", 성공 기준: {item['success_criteria']}"
             lines.append(detail)
         return "\n".join(lines)

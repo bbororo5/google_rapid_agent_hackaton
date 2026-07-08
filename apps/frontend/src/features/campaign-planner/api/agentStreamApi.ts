@@ -88,13 +88,13 @@ export function createWebSocketAgentStreamApi(): AgentStreamApi {
             const streamMessage = JSON.parse(message.data as string) as StreamMessage;
             onEvent(normalizeStreamMessage(streamMessage));
           } catch {
-            onError("Agent stream sent an invalid event.");
+            onError("에이전트 스트림이 잘못된 이벤트를 보냈어요.");
           }
         });
 
         socket.addEventListener("error", () => {
           if (socket?.readyState === WebSocket.OPEN) {
-            onError("Agent stream connection failed.");
+            onError("에이전트 스트림 연결에 실패했어요.");
           }
         });
 
@@ -103,7 +103,7 @@ export function createWebSocketAgentStreamApi(): AgentStreamApi {
           if (closedByClient) return;
           reconnectAttempts += 1;
           if (reconnectAttempts > MAX_RECONNECT_ATTEMPTS) {
-            onError("Agent stream reconnection failed.");
+            onError("에이전트 스트림 재연결에 실패했어요.");
             return;
           }
           reconnectTimer = window.setTimeout(connectSocket, reconnectDelay(reconnectAttempts));

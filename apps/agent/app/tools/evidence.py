@@ -195,6 +195,72 @@ def search_team_notes(query: str) -> dict:
         return result
 
 
+def top_posts(metric_name: str, channel: str = "") -> dict:
+    """Find the top posts by one metric, including their titles.
+
+    Args:
+        metric_name: e.g. "save_rate", "views", "shares".
+        channel: youtube | tiktok | instagram | x, or "" for all channels.
+
+    Returns the top 5 posts as {post_id, title, channel, published_at, value}
+    plus evidence_refs. Caller: Chat/Advisor (Quick-Lookup) — answers questions
+    like "which posts performed best and what are they about" from real titles,
+    without opening an analysis round. Direct-ES only: the MCP tier requires
+    the same ES credentials anyway (config.elastic_mcp_enabled).
+    """
+    sc = _current_scope()
+    with telemetry.evidence_span(
+        "launchpilot.evidence.top_posts",
+        tool_name="top_posts",
+        input_value={"metric_name": metric_name, "channel": channel},
+    ) as span:
+        s = get_settings()
+        if not s.use_real_elastic:
+            result = _err(
+                "top_posts",
+                "ELASTIC_UNCONFIGURED",
+                "Elastic evidence is not configured.",
+                retryable=False,
+            )
+        else:
+            from app.tools import es_client
+
+            result = es_client.top_posts(metric_name, channel or None, sc)
+        _stamp(span, result)
+        return result
+
+
+def data_inventory(workspace_id: Optional[str] = None, campaign_id: Optional[str] = None) -> dict:
+    """Quick-Lookup: summarize what stored campaign data exists.
+
+    Caller: Orchestrator (chat path + analysis-start guard). Unlike the four
+    contract-04 tools this takes explicit tenancy instead of the pipeline
+    scope contextvar, because it runs outside a pipeline round. Direct-ES
+    only: the MCP tier requires the same ES credentials anyway
+    (config.elastic_mcp_enabled), so direct ES is always reachable when
+    evidence is configured at all.
+    """
+    with telemetry.evidence_span(
+        "launchpilot.evidence.data_inventory",
+        tool_name="data_inventory",
+        input_value={"workspace_id": workspace_id, "campaign_id": campaign_id},
+    ) as span:
+        s = get_settings()
+        if not s.use_real_elastic:
+            result = _err(
+                "data_inventory",
+                "ELASTIC_UNCONFIGURED",
+                "Elastic evidence is not configured.",
+                retryable=False,
+            )
+        else:
+            from app.tools import es_client
+
+            result = es_client.data_inventory(workspace_id, campaign_id)
+        _stamp(span, result)
+        return result
+
+
 def load_growth_brief_context(parent_brief_id: str) -> dict:
     """Load a prior approved brief for continuity (parent_brief_id).
 

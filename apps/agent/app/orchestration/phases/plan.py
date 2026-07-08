@@ -42,8 +42,8 @@ class PlanRoundRunner(BasePhaseRunner):
         # 신호나 가설이 없으면 앞 라운드를 먼저 하라고 안내하고 끝낸다.
         await self.emitter.system_error(
             turn.record,
-            "Hypotheses required",
-            "Complete the analysis and hypothesis rounds before drafting an experiment plan.",
+            "가설 필요",
+            "실험 계획을 작성하기 전에 분석과 가설 라운드를 먼저 완료해 주세요.",
         )
         return TurnOutcome({"phase": self.phase.value, "status": "missing_hypotheses"})
 
@@ -53,7 +53,7 @@ class PlanRoundRunner(BasePhaseRunner):
         await self.emitter.progress(
             turn.record,
             "plan.load_context",
-            "Loaded signals and hypotheses for planning",
+            "계획에 쓸 신호와 가설 로드 완료",
             "done",
             f"{len(signals)} signal(s), {len(hypotheses)} hypothesis(es)",
         )
@@ -63,8 +63,8 @@ class PlanRoundRunner(BasePhaseRunner):
         async with self.emitter.activity(
             turn.record,
             "plan.draft",
-            "Drafting experiment plan with Gemini",
-            "Drafted experiment plan",
+            "Gemini 실험 계획 작성 중",
+            "Gemini 실험 계획 작성 완료",
         ):
             plan = (
                 await workers.run_writer(turn.content, analysis_window(), hypotheses, memory_context)
@@ -79,15 +79,15 @@ class PlanRoundRunner(BasePhaseRunner):
             key="experiment_plan",
             payload=plan.model_dump(mode="json"),
             progress_id="artifact.save.plan",
-            saving_title="Saving experiment plan artifact",
-            saved_title="Saved experiment plan artifact",
+            saving_title="실험 계획 아티팩트 저장 중",
+            saved_title="실험 계획 아티팩트 저장 완료",
             detail=plan.id,
         )
         log.info("[plan] writer done: %d item(s)", len(plan.items))
 
     async def _review_plan(self, turn: TurnContext, signals, hypotheses, plan, review_payload):
         # 승인 가드레일을 통과하는지 검사한다 (트레이스 span으로 감쌈).
-        await self.emitter.progress(turn.record, "plan.review", "Checking approval guardrails", "running")
+        await self.emitter.progress(turn.record, "plan.review", "승인 가드레일 검사 중", "running")
         guardrail_metadata = telemetry.guardrail_metadata(
             thread_id=turn.record.thread_id,
             workspace_id=turn.record.workspace_id,
@@ -109,26 +109,26 @@ class PlanRoundRunner(BasePhaseRunner):
         await self.emitter.progress(
             turn.record,
             "plan.review",
-            "Approval guardrails failed",
+            "승인 가드레일 실패",
             "failed",
             f"{len(report.issues)} issue(s)",
         )
         await self.emitter.system_error(
             turn.record,
-            "Validation failed",
+            "검증 실패",
             "; ".join(issue.message for issue in report.issues),
         )
         return TurnOutcome({"phase": self.phase.value, "validator_passed": False})
 
     async def _request_approval(self, turn: TurnContext, plan, review_payload) -> TurnOutcome:
         # 가드레일 통과: 계획 초안과 승인 버튼을 사용자에게 보낸다.
-        await self.emitter.progress(turn.record, "plan.review", "Approval guardrails passed", "done")
+        await self.emitter.progress(turn.record, "plan.review", "승인 가드레일 통과", "done")
         pending_approval_id = approval_id()
         turn.record.state.pending_approval_id = pending_approval_id
         await self.emitter.assistant_blocks(
             turn.record,
             [
-                blocks.text_block("The experiment plan draft is ready. Please review and approve."),
+                blocks.text_block("실험 계획 초안이 준비됐어요. 검토 후 승인해 주세요."),
                 blocks.artifact_block(
                     plan.id, "experiment_plan", plan.summary, plan.model_dump(mode="json")
                 ),
@@ -139,7 +139,7 @@ class PlanRoundRunner(BasePhaseRunner):
             [
                 blocks.approval_block(
                     pending_approval_id,
-                    "Approve experiment plan",
+                    "실험 계획 승인",
                     plan.id,
                     review_payload.model_dump(mode="json"),
                 )

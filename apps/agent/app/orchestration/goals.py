@@ -149,7 +149,7 @@ class GoalController:
             return [
                 f"Run the {decision.delegation.target_phase.value} phase.",
                 "Persist generated artifacts in runtime state.",
-                "Explain the result and next useful action from the full thread context.",
+                "Explain the result from the full thread context. Do not propose the next phase — wait for the user to ask.",
             ]
         if decision.delegation.mode == DelegationMode.DIRECT:
             return [

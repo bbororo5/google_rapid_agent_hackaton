@@ -101,7 +101,7 @@ def test_full_artifact_skip_blocked_without_signals():
 
     assert not state.phase_artifacts[PhaseType.HYPOTHESIS_GEN.value].get("hypotheses")
     assert state.current_phase == PhaseType.DATA_ANALYSIS
-    assert delta.reply is not None and "analysis" in delta.reply.lower()
+    assert delta.reply is not None and "분석" in delta.reply
 
 
 def test_partial_input_skip_seeds_hypothesis_context_without_materializing():
@@ -132,7 +132,7 @@ def test_skip_missing_payload_is_rejected():
     apply_proposed_change(state, delta, "skip")
 
     assert not state.phase_artifacts[PhaseType.HYPOTHESIS_GEN.value].get("hypotheses")
-    assert delta.reply is not None and "did not receive" in delta.reply.lower()
+    assert delta.reply is not None and "받지 못했어요" in delta.reply
 
 
 def test_skip_target_must_be_hypothesis_or_plan():
@@ -147,7 +147,7 @@ def test_skip_target_must_be_hypothesis_or_plan():
     apply_proposed_change(state, delta, "skip")
 
     assert not state.phase_artifacts[PhaseType.HYPOTHESIS_GEN.value].get("hypotheses")
-    assert delta.reply is not None and "hypothesis generation or experiment planning" in delta.reply
+    assert delta.reply is not None and "가설 수립 또는 실험 계획" in delta.reply
 
 
 async def test_full_artifact_skip_flows_into_plan_round_without_strategist(

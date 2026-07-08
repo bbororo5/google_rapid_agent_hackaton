@@ -134,6 +134,7 @@ export type ExperimentPlannerEvent =
   | { type: "STREAM_CONNECTED" }
   | { type: "STREAM_EVENT_RECEIVED"; message: StreamMessage }
   | { type: "SIGNAL_CONFIRMED" }
+  | { type: "SIGNAL_DEFERRED" }
   | { type: "STREAM_FAILED"; threadId?: string; message: string }
   | { type: "EDIT_EXPERIMENT"; experimentId: string; patch: Partial<ExperimentItem> }
   | { type: "TOGGLE_EXPERIMENT"; experimentId: string }

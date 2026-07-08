@@ -17,7 +17,7 @@ class StateCommitter:
         #       (스코프가 없으면 저장할 게 없으니 그냥 끝낸다.)
         if not turn.scope:
             return
-        await self._emitter.progress(turn.record, "state.commit", "Saving thread state", "running")
+        await self._emitter.progress(turn.record, "state.commit", "스레드 상태 저장 중", "running")
         # 1) 변경 이력 한 건(누가/무엇을/왜 바꿨는지)을 만든다.
         event = ChangeLogEntry(
             scope=turn.scope,
@@ -37,13 +37,13 @@ class StateCommitter:
             #    권위는 여전히 Elastic (ADR-005).
             await turn.state_cache.put_state(turn.record.thread_id, turn.record.state)
             telemetry.record_state_delta(span, event.delta_id)
-            await self._emitter.progress(turn.record, "state.commit", "Saved thread state", "done", event.delta_id)
+            await self._emitter.progress(turn.record, "state.commit", "스레드 상태 저장 완료", "done", event.delta_id)
         except RepositoryConflict:
             # 4) 그 사이 다른 턴이 먼저 상태를 바꿨음 -> 저장 중단하고 재시도 안내.
             telemetry.record_repository_conflict(span)
-            await self._emitter.progress(turn.record, "state.commit", "Thread state changed elsewhere", "failed")
+            await self._emitter.progress(turn.record, "state.commit", "다른 턴이 먼저 상태를 변경함", "failed")
             await self._emitter.system_error(
                 turn.record,
-                "Agent busy",
-                "This thread was updated by another turn first, so this turn was not saved. Please try again shortly.",
+                "에이전트 사용 중",
+                "다른 턴이 먼저 이 스레드를 업데이트해서 이번 턴은 저장되지 않았어요. 잠시 후 다시 시도해 주세요.",
             )

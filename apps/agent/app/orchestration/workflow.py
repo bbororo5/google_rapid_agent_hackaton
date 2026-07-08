@@ -78,7 +78,7 @@ class TurnWorkflow:
                     await self.checkpointer.maybe_checkpoint(turn, decision, outcome, turn_span)
             except CancelledTurn:
                 log.info("turn cancelled thread=%s", record.thread_id)
-                await self.emitter.system_result(record, "Run cancelled", "The analysis was cancelled.")
+                await self.emitter.system_result(record, "실행 취소됨", "분석이 취소되었어요.")
             except Exception as exc:  # noqa: BLE001 - user-safe error boundary
                 log.exception("turn failed thread=%s", record.thread_id)
-                await self.emitter.system_error(record, "Agent error", f"{type(exc).__name__}: {exc}")
+                await self.emitter.system_error(record, "에이전트 오류", f"{type(exc).__name__}: {exc}")

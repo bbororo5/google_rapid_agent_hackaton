@@ -52,11 +52,11 @@ async function attachCsvAndAsk(page: Page, text: string): Promise<void> {
 }
 
 function approvalButton(page: Page): Locator {
-  return page.getByRole("button", { name: /approve experiments/i });
+  return page.getByRole("button", { name: /실험 승인/ });
 }
 
 function threadArticles(page: Page): Locator {
-  return page.getByRole("region", { name: /campaign agent thread/i }).getByRole("article");
+  return page.getByRole("region", { name: /캠페인 에이전트 스레드/ }).getByRole("article");
 }
 
 async function expectNoApprovalGate(page: Page): Promise<void> {
@@ -64,22 +64,22 @@ async function expectNoApprovalGate(page: Page): Promise<void> {
 }
 
 async function expectAnalysisRoundComplete(page: Page): Promise<void> {
-  const thread = page.getByRole("region", { name: /campaign agent thread/i });
-  await expect(thread.getByText("Analysis is complete").first()).toBeVisible({ timeout: ROUND_TIMEOUT });
+  const thread = page.getByRole("region", { name: /캠페인 에이전트 스레드/ });
+  await expect(thread.getByText("분석 결과를 확인했습니다").first()).toBeVisible({ timeout: ROUND_TIMEOUT });
   await expectNoApprovalGate(page);
 }
 
 async function expectHypothesisRoundComplete(page: Page): Promise<void> {
-  const thread = page.getByRole("region", { name: /campaign agent thread/i });
-  await expect(thread.getByText("Hypotheses are ready").first()).toBeVisible({ timeout: ROUND_TIMEOUT });
+  const thread = page.getByRole("region", { name: /캠페인 에이전트 스레드/ });
+  await expect(thread.getByText("가설을 정리했습니다").first()).toBeVisible({ timeout: ROUND_TIMEOUT });
   await expectNoApprovalGate(page);
 }
 
 async function expectLiveProgress(page: Page): Promise<void> {
-  const thread = page.getByRole("region", { name: /campaign agent thread/i });
-  await expect(thread.getByText(/tool check/i).first()).toBeVisible({ timeout: 45_000 });
+  const thread = page.getByRole("region", { name: /캠페인 에이전트 스레드/ });
+  await expect(thread.getByText(/도구 확인/).first()).toBeVisible({ timeout: 45_000 });
   await expect(
-    thread.getByText(/Interpreting user request|Applying workflow guardrails|Drafting signal analysis with Gemini|Checking metric baseline/i).first(),
+    thread.getByText(/사용자 요청 해석|워크플로 가드레일 적용|Gemini 신호 분석 작성|지표 베이스라인/).first(),
   ).toBeVisible({ timeout: 45_000 });
 }
 
@@ -139,7 +139,7 @@ test.describe("real round-based workflow", () => {
     await expect(approvalButton(page)).toBeEnabled();
     await approvalButton(page).click();
     const receipt = page.locator(".approval-receipt");
-    await expect(receipt.getByText("Human approval processed")).toBeVisible({ timeout: ROUND_TIMEOUT });
+    await expect(receipt.getByText("승인 처리 완료")).toBeVisible({ timeout: ROUND_TIMEOUT });
 
     // Round 9. During execution, marketer conversation should be ordinary chat
     // grounded in the approved plan, not a new automatic analysis run.

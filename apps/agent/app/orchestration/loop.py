@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import time
@@ -13,14 +14,14 @@ from app.orchestration.context import PromptContextBuilder
 from app.orchestration.emitter import StreamEmitter
 from app.orchestration.goals import GoalKind, TurnGoal
 from app.orchestration.models import TurnContext, TurnDecision, TurnOutcome
+from app.orchestration.phases import analysis_window, baseline_window
 from app.orchestration.router import TurnRouter
-from app.runtime.state import DelegationMode, PendingProposal, PhaseType
+from app.runtime.state import DelegationMode
+from app.tools import evidence
 
-_SUGGESTIBLE_PHASES = {PhaseType.DATA_ANALYSIS, PhaseType.HYPOTHESIS_GEN}
-_SUGGESTED_PHASE_BY_NAME = {
-    "HYPOTHESIS_GEN": PhaseType.HYPOTHESIS_GEN,
-    "EXPERIMENT_PLAN": PhaseType.EXPERIMENT_PLAN,
-}
+# 에이전트가 다음 단계(가설·계획)를 먼저 제안하던 suggestion_scout는 제거됨 —
+# 단계 전환은 사용자가 명시적으로 요청할 때만 일어난다 (2026-07-06 결정).
+# pending_gate는 이제 backtrack 확인 카드 용도로만 쓰인다.
 
 log = logging.getLogger("launchpilot.orchestration.loop")
 
@@ -68,7 +69,7 @@ class AgentLoop:
         await self._emitter.progress(
             turn.record,
             "goal.plan",
-            "Planning agent goal",
+            "에이전트 목표 수립 완료",
             "done",
             f"{goal.kind.value} / {goal.budget_profile.value}",
         )
@@ -129,14 +130,16 @@ class AgentLoop:
         await self._emitter.progress(
             turn.record,
             "advisor.respond",
-            "Thinking through the response",
+            "응답 작성 중",
             "running",
             f"budget {state.llm_calls + 1}/{state.goal.budgets.max_llm_calls}",
         )
         context = self._prompts.build_interpreter_context(turn)
+        inventory = await self._quick_lookup(turn)
         prompt = (
             "[output_language]\n"
-            "English only. Do not answer in French, Korean, or any other non-English language."
+            "Korean only. Always answer in Korean, regardless of the user's language "
+            "or any language found in the transcript."
             "\n\n"
             "[goal]\n"
             + json.dumps(state.goal.model_dump(mode="json"), ensure_ascii=False, sort_keys=True)
@@ -144,6 +147,12 @@ class AgentLoop:
             + json.dumps(decision.trace_metadata, ensure_ascii=False, sort_keys=True)
             + "\n\n[route_outcome]\n"
             + json.dumps(outcome.trace_output if outcome else {}, ensure_ascii=False, sort_keys=True)
+            + "\n\n[data_inventory]\n"
+            "Summary of this campaign's stored data (channels, post counts, metric keys, "
+            "date span). Ground any data-availability answer in it. If ok is true, do NOT "
+            "tell the user there is no data or ask them to upload; offer to analyze what is "
+            "stored. If ok is false, data is genuinely absent.\n"
+            + json.dumps(inventory, ensure_ascii=False, sort_keys=True)
             + "\n\n[full_runtime_context]\n"
             + context
             + "\n\n[user]\n"
@@ -157,43 +166,57 @@ class AgentLoop:
             emitted_delta = True
             await self._emitter.assistant_text(turn.record, delta)
 
-        reply = await workers.run_advisor(turn.content, prompt, on_delta=emit_delta)
+        # advisor의 Quick-Lookup 도구(top_posts 등)가 이 캠페인 데이터만 보도록
+        # evidence scope를 바인딩한다 — RERUN 경로(router)와 같은 규칙.
+        current = analysis_window()
+        baseline = baseline_window(current)
+        with evidence.scope(
+            turn.record.workspace_id,
+            turn.record.campaign_id,
+            current.start,
+            current.end,
+            baseline.start,
+            baseline.end,
+        ):
+            reply = await workers.run_advisor(turn.content, prompt, on_delta=emit_delta)
         turn.record.state.active_chat_history.append({"role": "assistant", "content": reply})
         if not emitted_delta:
             await self._emitter.assistant_text(turn.record, reply)
         await self._emitter.progress(
             turn.record,
             "advisor.respond",
-            "Responded from full context",
+            "응답 작성 완료",
             "done",
         )
         state.observe("advisor", {"reply_preview": reply[:160]})
-        await self._scout_for_suggestion(turn, state)
         return reply
 
-    async def _scout_for_suggestion(self, turn: TurnContext, state: LoopState) -> None:
-        # advisor가 자연어로 다음 단계를 제안했는지 별도로 확인한다 (스트리밍은
-        # advisor 응답 그대로 두고, 이 판정만 뒤따라 붙는다). 이미 대기중인
-        # 제안이 있거나, 제안할 만한 단계가 아니면 부르지 않는다.
-        conv_state = turn.record.state
-        if conv_state.pending_gate is not None:
-            return
-        if conv_state.current_phase not in _SUGGESTIBLE_PHASES:
-            return
-        if state.llm_calls >= state.goal.budgets.max_llm_calls:
-            return
-        last_reply = next(
-            (m["content"] for m in reversed(conv_state.active_chat_history) if m["role"] == "assistant"),
-            None,
+    async def _quick_lookup(self, turn: TurnContext) -> dict[str, Any]:
+        # Quick-Lookup(설계 문서 케이스 A): 상태를 건드리지 않는 저장소 요약 조회.
+        # 이걸 advisor 컨텍스트에 넣어야 "무슨 데이터 있어?"류 질문에 되묻지 않고
+        # 근거 있는 답을 한다. es_client는 동기 httpx라 스레드로 내린다.
+        await self._emitter.progress(
+            turn.record,
+            "advisor.lookup",
+            "저장된 캠페인 데이터 확인 중",
+            "running",
         )
-        if not last_reply:
-            return
-        state.llm_calls += 1
-        scouted = await workers.run_suggestion_scout(last_reply)
-        target = _SUGGESTED_PHASE_BY_NAME.get(scouted.get("target_phase") or "")
-        if scouted.get("suggests_entry") and target is not None:
-            conv_state.pending_gate = PendingProposal(
-                target_phase=target,
-                payload=scouted.get("payload") or last_reply[:200],
-                created_turn=conv_state.revision,
-            )
+        inventory = await asyncio.to_thread(
+            evidence.data_inventory,
+            turn.record.workspace_id,
+            turn.record.campaign_id,
+        )
+        detail = (
+            f"{inventory.get('post_count', 0)} post(s)"
+            if inventory.get("ok")
+            else "none available"
+        )
+        await self._emitter.progress(
+            turn.record,
+            "advisor.lookup",
+            "저장된 캠페인 데이터 확인 완료",
+            "done",
+            detail,
+        )
+        return inventory
+

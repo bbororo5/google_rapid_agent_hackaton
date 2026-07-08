@@ -69,7 +69,7 @@ class Checkpointer:
         await self._emitter.progress(
             turn.record,
             "episode.checkpoint",
-            "Saved episode checkpoint",
+            "에피소드 체크포인트 저장 완료",
             "done",
             f"{outcome.value}:{episode_id}",
         )

@@ -55,7 +55,7 @@ class LoadPersistedState:
 
     async def apply(self, turn: TurnContext) -> None:
         record = turn.record
-        await self.emitter.progress(record, "turn.load_state", "Loading thread state", "running")
+        await self.emitter.progress(record, "turn.load_state", "스레드 상태 로드 중", "running")
         # Hot tier first (Redis): the live working copy avoids an Elastic read.
         # On a miss, rehydrate from the authoritative runtime repository and
         # repopulate the hot store (ADR-005: ES authoritative, Redis cache).
@@ -71,7 +71,7 @@ class LoadPersistedState:
             if source == "elastic":
                 await turn.state_cache.put_state(record.thread_id, loaded_state)
         turn.expected_revision = record.state.revision
-        await self.emitter.progress(record, "turn.load_state", "Loaded thread state", "done", source)
+        await self.emitter.progress(record, "turn.load_state", "스레드 상태 로드 완료", "done", source)
 
 
 @dataclass(slots=True)
@@ -80,12 +80,12 @@ class ResolveTurnScope:
 
     async def apply(self, turn: TurnContext) -> None:
         record = turn.record
-        await self.emitter.progress(record, "turn.resolve_scope", "Resolving campaign context", "running")
+        await self.emitter.progress(record, "turn.resolve_scope", "캠페인 컨텍스트 확인 중", "running")
         turn.scope = resolve_scope(record.thread_id, record.workspace_id, record.campaign_id, record.state)
         if turn.scope:
             record.set_context(turn.scope.workspace_id, turn.scope.campaign_id)
             return
-        await self.emitter.progress(record, "turn.resolve_scope", "Campaign context missing", "failed")
+        await self.emitter.progress(record, "turn.resolve_scope", "캠페인 컨텍스트 없음", "failed")
 
 
 @dataclass(slots=True)
@@ -108,14 +108,14 @@ class LoadScopedRuntimeContext:
         await self.emitter.progress(
             record,
             "turn.resolve_scope",
-            "Resolved campaign context",
+            "캠페인 컨텍스트 확인 완료",
             "done",
             f"{turn.scope.workspace_id}/{turn.scope.campaign_id}",
         )
         await self.emitter.progress(
             record,
             "turn.load_memory",
-            "Loaded recent conversation memory",
+            "최근 대화 메모리 로드 완료",
             "done",
             f"{len(turn.recent_messages)} message(s)",
         )

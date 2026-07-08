@@ -14,6 +14,6 @@ class UnsupportedPhaseRunner(BasePhaseRunner):
     async def run(self, turn: TurnContext) -> TurnOutcome:
         await self.emitter.assistant_text(
             turn.record,
-            "Experiment evaluation is handled after run results are available in a later analysis round.",
+            "실험 평가는 실행 결과가 준비된 뒤, 이후 분석 라운드에서 다루게 돼요.",
         )
         return TurnOutcome({"mode": "phase_not_implemented", "phase": self.phase.value})

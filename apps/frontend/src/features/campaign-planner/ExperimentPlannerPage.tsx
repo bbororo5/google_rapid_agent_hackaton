@@ -24,8 +24,13 @@ import { useExperimentPlannerController } from "@/features/campaign-planner/hook
 import type { GateReview, OutputPanelItem, PlannerProgressView, StatusRow, StreamMessageBlock, ThreadDisplayItem, ThreadMessageGroup } from "@/features/campaign-planner/hooks/useExperimentPlannerController";
 import type { AgentDocument, ExperimentItem, Hypothesis, Signal } from "@/features/campaign-planner/state/experimentPlannerTypes";
 
-function formatPercent(value: number) {
-  return `${(value * 100).toFixed(1)}%`;
+// Contract 01 Signal has no unit field: rate-style metrics (0..1) render as
+// percentages, count metrics (views, shares, ...) as plain numbers.
+function formatMetricValue(metricName: string, value: number) {
+  if (/(_rate|_ratio|_pct)$/.test(metricName)) {
+    return `${(value * 100).toFixed(1)}%`;
+  }
+  return value.toLocaleString("en-US", { maximumFractionDigits: 1 });
 }
 
 function confidenceLabel(value: string) {
@@ -96,12 +101,17 @@ function activityTarget(title: string) {
     .replace(/^Queued\s+/i, "")
     .replace(/^Could not check\s+/i, "")
     .replace(/\s+in\s+\d+ms$/i, "")
+    // Korean progress titles pair as "<대상> ... 중" (running) / "<대상> ... 완료" (done);
+    // strip the trailing status word so both map to the same dedup key.
+    .replace(/\s*(시작|중|완료|실패|통과|없음)$/, "")
     .trim()
     .toLowerCase();
 }
 
 function compactActivityBlocks(blocks: Extract<StreamMessageBlock, { kind: "activity" }>[]) {
-  return [...blocks.reduce((latest, block) => latest.set(activityTarget(block.title) || block.id, block), new Map<string, Extract<StreamMessageBlock, { kind: "activity" }> >()).values()];
+  // Key by the stable progress id first: running/done pairs always share an id,
+  // so dedup survives title wording changes. Title heuristic is the fallback.
+  return [...blocks.reduce((latest, block) => latest.set(block.id || activityTarget(block.title) || block.title, block), new Map<string, Extract<StreamMessageBlock, { kind: "activity" }> >()).values()];
 }
 
 function toolSummary(blocks: Extract<StreamMessageBlock, { kind: "activity" }>[]) {
@@ -109,9 +119,9 @@ function toolSummary(blocks: Extract<StreamMessageBlock, { kind: "activity" }>[]
   const running = blocks.filter((block) => block.status === "running" || block.status === "queued").length;
   const done = blocks.filter((block) => block.status === "done").length;
 
-  if (failed > 0) return `${failed} tool check${failed === 1 ? "" : "s"} need attention`;
-  if (running > 0) return `${running} tool check${running === 1 ? "" : "s"} running`;
-  return `${done} tool check${done === 1 ? "" : "s"} completed`;
+  if (failed > 0) return `도구 확인 ${failed}건 주의 필요`;
+  if (running > 0) return `도구 확인 ${running}건 실행 중`;
+  return `도구 확인 ${done}건 완료`;
 }
 
 function ActivitySummary({ blocks }: { blocks: Extract<StreamMessageBlock, { kind: "activity" }>[] }) {
@@ -125,7 +135,7 @@ function ActivitySummary({ blocks }: { blocks: Extract<StreamMessageBlock, { kin
         <span className="timeline-glyph" aria-hidden="true" />
         <span>
           {toolSummary(compactedBlocks)}
-          {hasRunning ? <b className="tool-live-label">Live</b> : null}
+          {hasRunning ? <b className="tool-live-label">실시간</b> : null}
         </span>
       </summary>
       <div className="tool-summary-list">
@@ -205,12 +215,12 @@ function StreamMessageGroupCard({
       <article className="thread-message user">
         <div className="message-bubble">
           <div className="message-meta">
-            <strong>You</strong>
-            <span>Message</span>
+            <strong>나</strong>
+            <span>메시지</span>
           </div>
           {text ? <p>{text}</p> : null}
           {attachments.length > 0 ? (
-            <div className="message-attachments" aria-label="Attached files">
+            <div className="message-attachments" aria-label="첨부 파일">
               {attachments.map((attachment) => (
                 <span className="message-attachment-chip" key={attachment.fileName}>
                   <Paperclip size={14} strokeWidth={1.9} />
@@ -228,7 +238,7 @@ function StreamMessageGroupCard({
     <article className="thread-message assistant-flow-message">
       <div className="message-avatar">{group.role === "system" ? "!" : "LP"}</div>
       <div className="assistant-flow">
-        <div className="assistant-flow-label">{group.role === "system" ? "System" : "LaunchPilot"}</div>
+        <div className="assistant-flow-label">{group.role === "system" ? "시스템" : "LaunchPilot"}</div>
         <div className="assistant-timeline">
           <StreamBlockSequence groupId={group.id} blocks={group.blocks} onOpenDocument={onOpenDocument} />
         </div>
@@ -253,11 +263,11 @@ function StreamBlockRow({
       return <TimelineTextRow text={block.title} tone={block.status === "failed" ? "failed" : block.status === "done" ? "done" : "active"} />;
     case "markdown_document":
       return (
-        <button className="timeline-chain-row document done" type="button" onClick={() => onOpenDocument(block.document)} aria-label={`Open ${block.title}`}>
+        <button className="timeline-chain-row document done" type="button" onClick={() => onOpenDocument(block.document)} aria-label={`${block.title} 열기`}>
           <span className="timeline-glyph" aria-hidden="true" />
           <span className="timeline-document-card">
             <FileText size={15} strokeWidth={1.8} />
-            <span>Prepared {block.title.toLowerCase()}</span>
+            <span>{block.title} 준비 완료</span>
           </span>
         </button>
       );
@@ -275,15 +285,15 @@ function StreamBlockRow({
 function artifactKindLabel(kind: Extract<StreamMessageBlock, { kind: "artifact" }>["artifactKind"]) {
   switch (kind) {
     case "signal":
-      return "Signal artifact";
+      return "신호 아티팩트";
     case "hypothesis":
-      return "Hypothesis artifact";
+      return "가설 아티팩트";
     case "experiment_plan":
-      return "Experiment plan";
+      return "실험 계획";
     case "growth_brief":
-      return "Growth brief";
+      return "그로스 브리프";
     default:
-      return "Artifact";
+      return "아티팩트";
   }
 }
 
@@ -313,7 +323,7 @@ function ThreadDisplayItemRow({
 }) {
   if (item.kind === "decision_gate") {
     return (
-      <section className="thread-gate-inline" aria-label="Current decision">
+      <section className="thread-gate-inline" aria-label="현재 결정">
         <GateCard gate={item.gate} view={view} canApprove={view.approval.canApprove} current />
       </section>
     );
@@ -326,7 +336,7 @@ function SystemStatusRows({ statuses }: { statuses: StatusRow[] }) {
   if (statuses.length === 0) return null;
 
   return (
-    <div className="system-status-list" aria-label="System progress">
+    <div className="system-status-list" aria-label="시스템 진행 상황">
       {statuses.map((status) => (
         <div className="system-status-row" key={status.title}>
           <span className="status-pulse" aria-hidden="true" />
@@ -355,28 +365,28 @@ function Topbar({
 }) {
   return (
     <header className={`topbar${progress.visible ? "" : " no-progress"}`}>
-      <div className="topbar-context" aria-label="Current workspace">
+      <div className="topbar-context" aria-label="현재 워크스페이스">
         <span>{campaignName}</span>
       </div>
       {progress.visible ? <AgentSessionProgress progress={progress} /> : null}
       <div className="account-tools">
-        <button className="round-button" aria-label="Notifications">
+        <button className="round-button" aria-label="알림">
           <Bell size={17} strokeWidth={1.8} />
         </button>
         {progress.threadLabel ? (
           <button className="credit-pill" type="button">
-            <span>Thread</span>
+            <span>스레드</span>
             <b>{progress.threadLabel}</b>
           </button>
         ) : null}
-        <button className="avatar" aria-label="Profile">S</button>
+        <button className="avatar" aria-label="프로필">S</button>
         {canToggleInspector ? (
           <button
             className={`round-button view-toggle${inspectorOpen ? " active" : ""}`}
             type="button"
-            aria-label={inspectorOpen ? "Hide details panel" : "Show details panel"}
+            aria-label={inspectorOpen ? "상세 패널 숨기기" : "상세 패널 열기"}
             aria-pressed={inspectorOpen}
-            title={inspectorOpen ? "Hide details" : "Show details"}
+            title={inspectorOpen ? "상세 숨기기" : "상세 보기"}
             onClick={onToggleInspector}
           >
             {inspectorOpen ? <PanelRightClose size={17} strokeWidth={1.8} /> : <PanelRightOpen size={17} strokeWidth={1.8} />}
@@ -394,17 +404,17 @@ function AgentSessionProgress({ progress }: { progress: PlannerProgressView }) {
   const currentStep = steps[activeIndex >= 0 ? activeIndex : Math.min(completedCount, steps.length - 1)];
 
   return (
-    <section className="agent-session-progress" aria-label="Agent session status">
+    <section className="agent-session-progress" aria-label="에이전트 세션 상태">
       <div className="agent-run-summary">
         <div>
-          <strong>{currentStep?.label ?? "Agent session"}</strong>
+          <strong>{currentStep?.label ?? "에이전트 세션"}</strong>
           <span>{progress.stateLabel}</span>
         </div>
         <span className="run-progress-count">
           {Math.min(completedCount + (activeIndex >= 0 ? 1 : 0), steps.length)} / {steps.length}
         </span>
       </div>
-      <div className="run-step-strip" aria-label="Agent reasoning progress">
+      <div className="run-step-strip" aria-label="에이전트 진행 단계">
         {steps.map((step) => (
           <span key={step.label} className={step.status} title={`${step.label}: ${step.status}`}>
             {step.label}
@@ -428,16 +438,16 @@ function SignalCard({ signal, primary = false }: { signal: Signal; primary?: boo
       <p>{signal.description}</p>
       <div className="metric-row">
         <span>
-          <b>{formatPercent(signal.current_value)}</b>
-          current
+          <b>{formatMetricValue(signal.metric_name, signal.current_value)}</b>
+          현재
         </span>
         <span>
-          <b>{formatPercent(signal.baseline_value)}</b>
-          baseline
+          <b>{formatMetricValue(signal.metric_name, signal.baseline_value)}</b>
+          베이스라인
         </span>
         <span>
-          <b>{signal.evidence_refs.length} refs</b>
-          grounded
+          <b>근거 {signal.evidence_refs.length}건</b>
+          확보됨
         </span>
       </div>
     </article>
@@ -448,15 +458,15 @@ function HypothesisCard({ hypothesis }: { hypothesis: Hypothesis }) {
   return (
     <article className="hypothesis-card">
       <div className="section-title compact">
-        <span>Hypothesis</span>
-        <small>Generated from signal and evidence refs</small>
+        <span>가설</span>
+        <small>신호와 근거 레퍼런스 기반 생성</small>
       </div>
       <blockquote>{hypothesis.statement}</blockquote>
       <p>{hypothesis.rationale}</p>
       <ul>
-        <li>Evidence: {hypothesis.supporting_evidence_refs.join(", ")}</li>
+        <li>근거: {hypothesis.supporting_evidence_refs.join(", ")}</li>
         {hypothesis.caveats.map((caveat) => (
-          <li key={caveat}>Caveat: {caveat}</li>
+          <li key={caveat}>주의: {caveat}</li>
         ))}
       </ul>
     </article>
@@ -478,18 +488,18 @@ function ExperimentEditor({
     <article className={`experiment-card${selected ? " selected" : " excluded"}`}>
       <div className="card-topline">
         <label className="experiment-include">
-          <input type="checkbox" checked={selected} onChange={() => onToggle(experiment.id)} aria-label={`Include experiment ${experiment.title}`} />
-          <span>{selected ? "Included" : "Excluded"}</span>
+          <input type="checkbox" checked={selected} onChange={() => onToggle(experiment.id)} aria-label={`실험 포함: ${experiment.title}`} />
+          <span>{selected ? "포함" : "제외"}</span>
         </label>
         <span className={`channel ${experiment.channel}`}>{experiment.channel}</span>
         <span>{experiment.scheduled_at}</span>
       </div>
       <h3>{experiment.title}</h3>
-      <label htmlFor="experiment-title">Experiment title</label>
+      <label htmlFor="experiment-title">실험 제목</label>
       <input id="experiment-title" type="text" value={experiment.title} onChange={(event) => onEdit(experiment.id, event.target.value)} />
       <dl>
         <div>
-          <dt>Hook</dt>
+          <dt>훅</dt>
           <dd>{experiment.hook}</dd>
         </div>
         <div>
@@ -497,7 +507,7 @@ function ExperimentEditor({
           <dd>{experiment.cta}</dd>
         </div>
         <div>
-          <dt>Success criteria</dt>
+          <dt>성공 기준</dt>
           <dd>{experiment.success_criteria}</dd>
         </div>
       </dl>
@@ -614,10 +624,10 @@ function ThreadPanel({
   };
 
   return (
-    <section className={`thread-panel${view.thread.hasActivity ? "" : " empty-thread"}`} aria-label="Campaign agent thread" tabIndex={-1}>
+    <section className={`thread-panel${view.thread.hasActivity ? "" : " empty-thread"}`} aria-label="캠페인 에이전트 스레드" tabIndex={-1}>
       <div className="thread-scroll" ref={threadScrollRef}>
         {view.screen.intro ? (
-          <div className="thread-empty-intro" aria-label="LaunchPilot prompt">
+          <div className="thread-empty-intro" aria-label="LaunchPilot 안내">
             <h1>{view.screen.intro.title}</h1>
             <p>{view.screen.intro.description}</p>
           </div>
@@ -632,12 +642,12 @@ function ThreadPanel({
       </div>
 
       <div className="thread-composer">
-        <input ref={csvInputRef} id="csv-input" type="file" accept=".csv,text/csv" aria-label="CSV file" disabled={!view.composer.canAttachCsv} onChange={onFileChange} />
+        <input ref={csvInputRef} id="csv-input" type="file" accept=".csv,text/csv" aria-label="CSV 파일" disabled={!view.composer.canAttachCsv} onChange={onFileChange} />
         <textarea
           ref={composerInputRef}
           id="agent-question"
           className="composer-input"
-          aria-label="Message"
+          aria-label="메시지"
           value={view.composer.value}
           placeholder={view.composer.placeholder}
           rows={1}
@@ -651,11 +661,11 @@ function ThreadPanel({
             className={`composer-attach${view.composer.fileName ? "" : " empty"}${view.composer.canAttachCsv ? "" : " disabled"}`}
             disabled={!view.composer.canAttachCsv}
             onClick={handleCsvAttachClick}
-            title={view.composer.fileName ? "Replace CSV" : "Attach CSV"}
-            aria-label={view.composer.fileName ? "Replace CSV campaign metrics" : "Attach CSV campaign metrics"}
+            title={view.composer.fileName ? "CSV 교체" : "CSV 첨부"}
+            aria-label={view.composer.fileName ? "캠페인 지표 CSV 교체" : "캠페인 지표 CSV 첨부"}
           >
             <Paperclip size={18} strokeWidth={1.8} />
-            {view.composer.fileName ? null : <span>Attach campaign metrics CSV</span>}
+            {view.composer.fileName ? null : <span>캠페인 지표 CSV 첨부</span>}
           </button>
           {view.composer.fileName ? (
             <span className="file-chip" id="file-name">{view.composer.fileName}</span>
@@ -687,7 +697,7 @@ function GateSummary({ gate }: { gate: GateReview }) {
     );
   }
 
-  return <span>{gate.experiment ? gate.experiment.title : "Experiment plan"}</span>;
+  return <span>{gate.experiment ? gate.experiment.title : "실험 계획"}</span>;
 }
 
 function GateContent({
@@ -705,26 +715,31 @@ function GateContent({
         <SignalCard signal={gate.signal} primary />
         <dl className="gate-metrics">
           <div>
-            <dt>Metric</dt>
+            <dt>지표</dt>
             <dd>{gate.signal.metric_name}</dd>
           </div>
           <div>
-            <dt>Current</dt>
-            <dd>{formatPercent(gate.signal.current_value)}</dd>
+            <dt>현재</dt>
+            <dd>{formatMetricValue(gate.signal.metric_name, gate.signal.current_value)}</dd>
           </div>
           <div>
-            <dt>Baseline</dt>
-            <dd>{formatPercent(gate.signal.baseline_value)}</dd>
+            <dt>베이스라인</dt>
+            <dd>{formatMetricValue(gate.signal.metric_name, gate.signal.baseline_value)}</dd>
           </div>
           <div>
-            <dt>Lift</dt>
+            <dt>상승률</dt>
             <dd>{gate.signal.lift_ratio.toFixed(1)}x</dd>
           </div>
         </dl>
         {gate.status === "active" ? (
-          <button className="approve-button" type="button" onClick={view.commands.continueSignalReview}>
-            {gate.actionLabel}
-          </button>
+          <div className="gate-actions">
+            <button className="approve-button" type="button" onClick={view.commands.continueSignalReview}>
+              {gate.actionLabel}
+            </button>
+            <button className="secondary-button" type="button" onClick={view.commands.deferSignalReview}>
+              나중에 — 채팅으로 더 살펴보기
+            </button>
+          </div>
         ) : null}
       </div>
     );
@@ -734,8 +749,8 @@ function GateContent({
   return (
     <div className="gate-body">
       {gate.hypotheses.length > 1 ? (
-        <div className="hypothesis-selector" role="group" aria-label="Focus one hypothesis">
-          <span className="hypothesis-selector-label">Focus hypothesis (approves only its experiments)</span>
+        <div className="hypothesis-selector" role="group" aria-label="집중할 가설 선택">
+          <span className="hypothesis-selector-label">집중할 가설 선택 (해당 실험만 승인)</span>
           <div className="hypothesis-chips">
             {gate.hypotheses.map((hypothesis, index) => (
               <button
@@ -754,7 +769,7 @@ function GateContent({
                 className="hypothesis-chip clear"
                 onClick={() => view.commands.selectHypothesis(selectedHypothesisId)}
               >
-                Show all
+                전체 보기
               </button>
             ) : null}
           </div>
@@ -775,8 +790,8 @@ function GateContent({
           <article className={`experiment-card${selected ? "" : " excluded"}`} key={experiment.id}>
             <div className="card-topline">
               <label className="experiment-include">
-                <input type="checkbox" checked={selected} onChange={() => view.commands.toggleExperiment(experiment.id)} aria-label={`Include experiment ${experiment.title}`} />
-                <span>{selected ? "Included" : "Excluded"}</span>
+                <input type="checkbox" checked={selected} onChange={() => view.commands.toggleExperiment(experiment.id)} aria-label={`실험 포함: ${experiment.title}`} />
+                <span>{selected ? "포함" : "제외"}</span>
               </label>
               <span className={`channel ${experiment.channel}`}>{experiment.channel}</span>
               <span>{experiment.scheduled_at}</span>
@@ -788,19 +803,19 @@ function GateContent({
       })}
       {view.approval.receipt ? (
         <div className="approval-receipt" tabIndex={-1}>
-          <strong>Human approval processed</strong>
+          <strong>승인 처리 완료</strong>
           <span>
-            Approved: {view.approval.finalExperiments[0]?.title ?? "experiment plan"}. Growth brief {view.approval.receipt.growth_brief_id} and{" "}
-            {view.approval.calendarEvents.length} calendar event{view.approval.calendarEvents.length === 1 ? "" : "s"} created.
+            승인됨: {view.approval.finalExperiments[0]?.title ?? "실험 계획"}. 그로스 브리프 {view.approval.receipt.growth_brief_id}와 캘린더 이벤트{" "}
+            {view.approval.calendarEvents.length}건이 생성되었습니다.
           </span>
         </div>
       ) : null}
       {gate.status === "active" ? (
         <button className={`approve-button${view.shell.campaignStatus === "approved" ? " approved" : ""}`} type="button" disabled={!canApprove} onClick={view.commands.approve}>
           {view.approval.isApproving
-            ? "Approving"
+            ? "승인 중"
             : view.approval.selectedExperimentIds.length === 0
-              ? "Select at least one experiment"
+              ? "실험을 1개 이상 선택하세요"
               : `${gate.actionLabel} (${view.approval.selectedExperimentIds.length})`}
         </button>
       ) : null}
@@ -826,7 +841,7 @@ function GateCard({
           <strong>{gate.title}</strong>
           <GateSummary gate={gate} />
         </div>
-        <small>{gate.status === "active" ? "Current gate" : "Completed"}</small>
+        <small>{gate.status === "active" ? "현재 게이트" : "완료"}</small>
       </summary>
       <GateContent gate={gate} view={view} canApprove={canApprove} />
     </details>
@@ -852,20 +867,20 @@ function InspectorPanel({
   const activeOutput = openOutputs.find((output) => output.id === activeOutputId) ?? openOutputs.at(-1) ?? null;
 
   return (
-    <aside className="inspector-panel output-panel" aria-label="Output panel" aria-hidden={!open} tabIndex={open ? -1 : undefined}>
+    <aside className="inspector-panel output-panel" aria-label="산출물 패널" aria-hidden={!open} tabIndex={open ? -1 : undefined}>
       <div className="inspector-top">
         <div>
-          <strong>Outputs</strong>
-          <span>{outputs.length > 0 ? `${outputs.length} saved output${outputs.length === 1 ? "" : "s"}` : "No outputs yet"}</span>
+          <strong>산출물</strong>
+          <span>{outputs.length > 0 ? `저장된 산출물 ${outputs.length}건` : "아직 산출물 없음"}</span>
         </div>
       </div>
 
       <div className="inspector-content">
         {outputs.length > 0 ? (
           <>
-            <section className="output-library" aria-label="Saved outputs">
+            <section className="output-library" aria-label="저장된 산출물">
               <div className="output-library-heading">
-                <strong>Saved</strong>
+                <strong>저장됨</strong>
                 <span>{outputs.length}</span>
               </div>
               {outputs.map((output) => (
@@ -887,20 +902,20 @@ function InspectorPanel({
               ))}
             </section>
 
-            <nav className="output-browser-tabs" aria-label="Open output tabs">
+            <nav className="output-browser-tabs" aria-label="열린 산출물 탭">
               {openOutputs.map((output) => (
                 <div className={`output-browser-tab${output.id === activeOutput?.id ? " active" : ""}`} key={output.id}>
                   <button type="button" onClick={() => onSelectOutput(output.id)} aria-pressed={output.id === activeOutput?.id}>
                     <span>{output.title}</span>
                   </button>
-                  <button className="output-tab-close" type="button" aria-label={`Close ${output.title}`} onClick={() => onCloseOutput(output.id)}>
+                  <button className="output-tab-close" type="button" aria-label={`${output.title} 닫기`} onClick={() => onCloseOutput(output.id)}>
                     <X size={13} strokeWidth={2} />
                   </button>
                 </div>
               ))}
             </nav>
 
-            <section className="inspector-section document-viewer" aria-label={activeOutput?.title ?? "Selected output"}>
+            <section className="inspector-section document-viewer" aria-label={activeOutput?.title ?? "선택된 산출물"}>
               <article className="markdown-document">
                 <MarkdownContent markdown={activeOutput?.markdown ?? ""} />
               </article>
@@ -908,7 +923,7 @@ function InspectorPanel({
           </>
         ) : (
           <article className="markdown-empty">
-            <p>No saved outputs yet.</p>
+            <p>아직 저장된 산출물이 없어요.</p>
           </article>
         )}
       </div>
@@ -1035,7 +1050,7 @@ function CampaignAgentWorkspace({
   onOpenDocument: (document: StreamDocument) => void;
 }) {
   return (
-    <section className="campaign-agent-workspace" aria-label="Campaign agent workspace">
+    <section className="campaign-agent-workspace" aria-label="캠페인 에이전트 워크스페이스">
       <ThreadPanel view={view} onFileChange={onFileChange} onOpenDocument={onOpenDocument} />
     </section>
   );
@@ -1049,7 +1064,7 @@ export function ExperimentPlannerPage() {
   const [activeOutputId, setActiveOutputId] = useState<string | null>(null);
   const [openOutputIds, setOpenOutputIds] = useState<string[]>([]);
   const previousOutputCountRef = useRef(0);
-  const campaignStatus = view.shell.campaignStatus === "approved" ? "Approved" : view.shell.campaignStatus === "needs_review" ? "Needs approval" : view.shell.campaignStatus === "error" ? "Needs attention" : "Active";
+  const campaignStatus = view.shell.campaignStatus === "approved" ? "승인됨" : view.shell.campaignStatus === "needs_review" ? "승인 필요" : view.shell.campaignStatus === "error" ? "주의 필요" : "진행 중";
   const canToggleInspector = true;
 
   useEffect(() => {
@@ -1092,7 +1107,7 @@ export function ExperimentPlannerPage() {
 
   return (
     <div className={`app-shell${sidebarCollapsed ? " sidebar-collapsed" : ""}`}>
-      <aside className="sidebar-shell" aria-label="LaunchPilot navigation">
+      <aside className="sidebar-shell" aria-label="LaunchPilot 내비게이션">
         <header className="sidebar-top">
           <div className="brand">
             <span className="brand-mark">LP</span>
@@ -1101,9 +1116,9 @@ export function ExperimentPlannerPage() {
           <div className="top-actions">
             <button
               className="icon-button"
-              aria-label="Toggle sidebar"
+              aria-label="사이드바 토글"
               aria-pressed={sidebarCollapsed}
-              title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+              title={sidebarCollapsed ? "사이드바 펼치기" : "사이드바 접기"}
               onClick={() => setSidebarCollapsed((collapsed) => !collapsed)}
             >
               {sidebarCollapsed ? <PanelLeftOpen size={18} strokeWidth={1.8} /> : <PanelLeftClose size={18} strokeWidth={1.8} />}
@@ -1111,13 +1126,13 @@ export function ExperimentPlannerPage() {
           </div>
         </header>
 
-        <nav className="nav-list" aria-label="Workspace navigation">
+        <nav className="nav-list" aria-label="워크스페이스 내비게이션">
           <button className="nav-item parent" type="button" onClick={() => router.push("/")}>
             <FolderOpen size={18} strokeWidth={1.8} />
-            <span>Campaigns</span>
+            <span>캠페인</span>
           </button>
 
-          <section className="project-section" aria-label="Current campaign">
+          <section className="project-section" aria-label="현재 캠페인">
             <button className="campaign-card" type="button" onClick={() => focusWorkspace(".thread-panel")}>
               <div className="side-icon">
                 <Target size={18} strokeWidth={1.8} />
@@ -1127,18 +1142,18 @@ export function ExperimentPlannerPage() {
                 <small>{campaignStatus}</small>
               </div>
             </button>
-            <div className="campaign-subnav" aria-label="Comeback Teaser views">
+            <div className="campaign-subnav" aria-label="캠페인 하위 메뉴">
               <button className="nav-item child active" type="button" onClick={() => focusWorkspace(".thread-panel")}>
                 <FlaskConical size={18} strokeWidth={1.8} />
-                <span>Experiment Planner</span>
+                <span>실험 플래너</span>
               </button>
-              <button className="nav-item child" type="button" data-locked={!view.approval.receipt} title={view.approval.receipt ? "View created calendar events" : "Approve experiments to create calendar events"} onClick={handleOutputClick}>
+              <button className="nav-item child" type="button" data-locked={!view.approval.receipt} title={view.approval.receipt ? "생성된 캘린더 이벤트 보기" : "실험을 승인하면 캘린더 이벤트가 생성됩니다"} onClick={handleOutputClick}>
                 <CalendarDays size={18} strokeWidth={1.8} />
-                <span>Calendar</span>
+                <span>캘린더</span>
               </button>
-              <button className="nav-item child" type="button" data-locked={!view.approval.receipt} title={view.approval.receipt ? "View created Growth Brief" : "Approve experiments to create a Growth Brief"} onClick={handleOutputClick}>
+              <button className="nav-item child" type="button" data-locked={!view.approval.receipt} title={view.approval.receipt ? "생성된 그로스 브리프 보기" : "실험을 승인하면 그로스 브리프가 생성됩니다"} onClick={handleOutputClick}>
                 <FileText size={18} strokeWidth={1.8} />
-                <span>Briefs</span>
+                <span>브리프</span>
               </button>
             </div>
           </section>
@@ -1147,12 +1162,12 @@ export function ExperimentPlannerPage() {
         <div className="sidebar-spacer" />
 
         <footer className="sidebar-footer">
-          <button className="icon-button" aria-label="Back to campaigns" title="Back to campaigns" onClick={() => router.push("/")}>
+          <button className="icon-button" aria-label="캠페인 목록으로" title="캠페인 목록으로" onClick={() => router.push("/")}>
             <House size={18} strokeWidth={1.8} />
           </button>
-          <button className="icon-button reset-button" aria-label="Reset demo" title="Reset demo" onClick={view.commands.reset}>
+          <button className="icon-button reset-button" aria-label="데모 초기화" title="데모 초기화" onClick={view.commands.reset}>
             <RotateCcw size={18} strokeWidth={1.8} />
-            <span>Reset demo</span>
+            <span>데모 초기화</span>
           </button>
         </footer>
       </aside>

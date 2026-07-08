@@ -47,16 +47,18 @@ class SkipSubtype(str, Enum):
 
 
 class PendingProposal(BaseModel):
-    """Advisor가 자연어로 던진, 아직 확정되지 않은 다음 단계 제안 한 장.
+    """아직 확정되지 않은, 다음 턴 하나짜리 제안/확인 카드.
 
-    다음 사용자 응답이 이 제안과 일치하는지(그리고 아직 유효한지)만 코드가
-    좁게 확인한다 — 그 좁은 확인 하나가 "제안은 LLM, 확정은 코드"라는 원칙이
-    이 지점에 적용된 형태다.
+    kind="phase_entry": advisor가 자연어로 던진 다음 단계 제안.
+    kind="backtrack": 되돌리기가 이후 산출물을 폐기하기 전에 묻는 확인.
+    다음 사용자 응답이 이 카드에 대한 긍정인지(그리고 아직 유효한지)만 코드가
+    좁게 확인한다 — "제안은 LLM, 확정은 코드" 원칙이 이 지점에 적용된 형태다.
     """
 
     target_phase: PhaseType
     payload: str
     created_turn: int
+    kind: str = "phase_entry"
 
 
 def is_gate_still_valid(gate: PendingProposal | None, current_revision: int) -> bool:
@@ -79,13 +81,13 @@ class HypothesisContext(BaseModel):
 
 
 _HYPOTHESIS_CONTEXT_LABELS = {
-    "business_goal": "business goal",
-    "target_segment": "target segment",
-    "seasonal_context": "seasonal context",
-    "prior_attempts": "prior attempts",
-    "constraints": "constraints",
-    "user_hunch": "user-provided hunch",
-    "market_context": "market context",
+    "business_goal": "비즈니스 목표",
+    "target_segment": "타깃 세그먼트",
+    "seasonal_context": "시즌 맥락",
+    "prior_attempts": "이전 시도",
+    "constraints": "제약 조건",
+    "user_hunch": "사용자 가설 힌트",
+    "market_context": "시장 맥락",
 }
 
 
@@ -96,7 +98,7 @@ def hypothesis_context_coverage_note(context: HypothesisContext) -> Optional[str
     ]
     if not missing:
         return None
-    return f"Generated without: {', '.join(missing)}. Treat those aspects as assumptions."
+    return f"다음 정보 없이 생성했어요: {', '.join(missing)}. 해당 부분은 가정으로 봐 주세요."
 
 
 DEFAULT_WORKSPACE_ID = "demo_workspace"

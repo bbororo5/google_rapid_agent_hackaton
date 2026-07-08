@@ -39,6 +39,17 @@ Raw MCP tools that inspect cluster metadata, such as `list_indices` and `get_map
 
 > Caller ownership: `search_content_posts` / `query_metric_baseline` are called by the Data Analyst worker, `search_team_notes` by the Data Strategist worker, and `load_growth_brief_context` is orchestrator-owned context loading. Orchestrator v2 state and memory setup are defined in `docs/architecture/agent-core-v2-design.md`.
 
+## Quick-Lookup Helpers (agent-internal, outside this contract)
+
+Two additional read-only lookups live in the same evidence wrapper but are **not** part of the MCP contract surface — they go direct-ES only (the MCP tier requires the same ES credentials anyway, so direct ES is always reachable when evidence is configured at all):
+
+| Helper | Indices | Caller | Purpose |
+| --- | --- | --- | --- |
+| `data_inventory` | `content_posts` | Orchestrator (chat path + analysis-start guard) | Per-channel post counts, metric keys, date span. Grounds "what data do you have" answers and lets the guard accept stored data as analysis input. |
+| `top_posts` | `content_posts` | Chat/Advisor workers (ADK tool) | Top posts by one metric **including titles**, so post-level questions ("which posts performed best?") are answered from real data without opening an analysis round. |
+
+Both return the standard evidence envelope (`ok` / `tool_name` / `evidence_refs` / error codes) and emit contract-06 retriever spans. The chat/advisor tool calls run inside the same per-campaign `evidence.scope` binding as pipeline rounds.
+
 ## Common Request Fields
 
 All wrapper requests include:

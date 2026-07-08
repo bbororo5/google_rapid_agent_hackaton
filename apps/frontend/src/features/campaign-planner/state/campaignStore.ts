@@ -46,7 +46,7 @@ export function addCampaign(name: string, now: number): CampaignEntry {
   const entries = readAll();
   const entry: CampaignEntry = {
     id: `camp_${now}_${Math.floor((now % 1000) + entries.length)}`,
-    name: name.trim().slice(0, 80) || "New campaign",
+    name: name.trim().slice(0, 80) || "새 캠페인",
     threadId: null,
     streamUrl: null,
     createdAt: now,

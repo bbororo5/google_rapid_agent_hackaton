@@ -38,9 +38,9 @@ def review(payload: AgentResultPayload) -> ValidationReport:
                 issues.append(
                     ValidationIssue(
                         code=ValidationIssueCode.UNKNOWN_SIGNAL_ID,
-                        message=f"hypothesis {h.id} references unknown signal {sid}",
+                        message=f"가설 {h.id}가 존재하지 않는 신호 {sid}를 참조합니다",
                         path=f"hypotheses[{h.id}].signal_ids",
-                        suggested_fix="Reference a signal id produced by the analyst.",
+                        suggested_fix="분석가가 생성한 신호 id를 참조하세요.",
                     )
                 )
         # Low/medium confidence claims must be hedged with a caveat.
@@ -48,9 +48,9 @@ def review(payload: AgentResultPayload) -> ValidationReport:
             issues.append(
                 ValidationIssue(
                     code=ValidationIssueCode.LOW_CONFIDENCE_WITHOUT_CAVEAT,
-                    message=f"hypothesis {h.id} is low-confidence but has no caveat",
+                    message=f"가설 {h.id}는 확신도가 낮은데 주의사항(caveat)이 없습니다",
                     path=f"hypotheses[{h.id}].caveats",
-                    suggested_fix="Add at least one caveat for low/medium confidence.",
+                    suggested_fix="낮음/중간 확신도에는 주의사항을 1개 이상 추가하세요.",
                 )
             )
 
@@ -60,9 +60,9 @@ def review(payload: AgentResultPayload) -> ValidationReport:
         issues.append(
             ValidationIssue(
                 code=ValidationIssueCode.EMPTY_EXPERIMENT_PLAN,
-                message="experiment plan has no items",
+                message="실험 계획에 항목이 없습니다",
                 path="experiment_plan.items",
-                suggested_fix="Add at least one experiment item.",
+                suggested_fix="실험 항목을 1개 이상 추가하세요.",
             )
         )
     for item in plan.items:
@@ -71,9 +71,9 @@ def review(payload: AgentResultPayload) -> ValidationReport:
             issues.append(
                 ValidationIssue(
                     code=ValidationIssueCode.UNKNOWN_HYPOTHESIS_ID,
-                    message=f"experiment {item.id} references unknown hypothesis {item.hypothesis_id}",
+                    message=f"실험 {item.id}가 존재하지 않는 가설 {item.hypothesis_id}를 참조합니다",
                     path=f"experiment_plan.items[{item.id}].hypothesis_id",
-                    suggested_fix="Reference a hypothesis id produced by the strategist.",
+                    suggested_fix="전략가가 생성한 가설 id를 참조하세요.",
                 )
             )
         # Required operational fields must be non-empty.
@@ -81,18 +81,18 @@ def review(payload: AgentResultPayload) -> ValidationReport:
             issues.append(
                 ValidationIssue(
                     code=ValidationIssueCode.MISSING_SUCCESS_CRITERIA,
-                    message=f"experiment {item.id} missing success_criteria",
+                    message=f"실험 {item.id}에 success_criteria가 없습니다",
                     path=f"experiment_plan.items[{item.id}].success_criteria",
-                    suggested_fix="Add measurable success criteria.",
+                    suggested_fix="측정 가능한 성공 기준을 추가하세요.",
                 )
             )
         if not item.scheduled_at.strip():
             issues.append(
                 ValidationIssue(
                     code=ValidationIssueCode.MISSING_SCHEDULE,
-                    message=f"experiment {item.id} missing scheduled_at",
+                    message=f"실험 {item.id}에 scheduled_at이 없습니다",
                     path=f"experiment_plan.items[{item.id}].scheduled_at",
-                    suggested_fix="Add a scheduled datetime.",
+                    suggested_fix="실행 예정 일시를 추가하세요.",
                 )
             )
         # "unknown" channel is not actionable for scheduling.
@@ -100,9 +100,9 @@ def review(payload: AgentResultPayload) -> ValidationReport:
             issues.append(
                 ValidationIssue(
                     code=ValidationIssueCode.UNSUPPORTED_CHANNEL,
-                    message=f"experiment {item.id} has unsupported channel",
+                    message=f"실험 {item.id}의 채널이 지원되지 않습니다",
                     path=f"experiment_plan.items[{item.id}].channel",
-                    suggested_fix="Use a concrete channel (youtube/tiktok/instagram/x).",
+                    suggested_fix="구체적인 채널(youtube/tiktok/instagram/x)을 사용하세요.",
                 )
             )
 
