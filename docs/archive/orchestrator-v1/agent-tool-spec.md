@@ -395,9 +395,9 @@ flowchart TD
 ## 9. 원본 링크
 
 ### 설계 계약
-- 도구 스키마: [`contracts/04-agent-elastic-mcp/evidence-tools.schema.json`](../contracts/04-agent-elastic-mcp/evidence-tools.schema.json)
-- 출력 스키마: [`contracts/05-agent-output/`](../contracts/05-agent-output/README.md)
-- 시스템 전체: [`docs/report.md`](report.md) · PRD §6: [`LaunchPilot_PRD.md`](product/LaunchPilot_PRD.md)
+- 도구 스키마: [`contracts/04-agent-elastic-mcp/evidence-tools.schema.json`](../../../contracts/04-agent-elastic-mcp/evidence-tools.schema.json)
+- 출력 스키마: [`contracts/05-agent-output/`](../../../contracts/05-agent-output/README.md)
+- 시스템 전체: 과거 경로 `docs/report.md`(현재 미보존) · PRD §6: [`LaunchPilot_PRD.md`](../hackathon-prototype/product/LaunchPilot_PRD.md)
 
 ### 백트래킹 효율 연구 근거 (§4-C)
 - P1: [Path-Consistency with Prefix Enhancement](https://arxiv.org/pdf/2409.01281), [Path of Least Resistance](https://arxiv.org/pdf/2601.21494)
