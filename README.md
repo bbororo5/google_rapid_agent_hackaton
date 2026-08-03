@@ -9,11 +9,12 @@ LaunchPilot은 광고·콘텐츠 성과 데이터를 근거로 **신호를 찾�
 | 항목 | 상태 |
 | --- | --- |
 | Phase 0 — Product & Evaluation Charter | 확정 |
+| Phase 1 — Domain, Data & Evidence Design | 도메인 모델 논의 중 |
 | 신규 구현 | 시작 전 |
 | 해커톤 프로토타입 | 아카이브·참고 자료 |
 | 프로덕션 운영 인프라 | 포트폴리오 범위에서 제외 |
 
-현재 기준 문서: [`docs/rebuild/phase-0-decision-charter.md`](docs/rebuild/phase-0-decision-charter.md)
+현재 문서 인덱스: [`docs/rebuild/README.md`](docs/rebuild/README.md)
 
 ## Roadmap
 
