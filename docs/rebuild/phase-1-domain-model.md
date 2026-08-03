@@ -108,3 +108,153 @@ RawRecord
 - Evidence는 별도 원본이 아니라 특정 주장과 관측값 사이의 추적 가능한 관계다.
 - 원인 추정과 다음 행동 제안은 해석 계층이다.
 - 모든 주요 해석은 원본까지 역추적 가능한 참조를 가져야 한다.
+
+## 5. CampaignObservation working model
+
+대표 품질 시나리오인 “A 캠페인 분석해 줘”에서는 하나의 캠페인 범위에 여러 플랫폼의 관측 데이터를 묶는다.
+
+```text
+Campaign 1 ── N CampaignObservation
+
+CampaignObservation
+└── PlatformSlice[]
+    └── MetricObservation[]
+```
+
+`CampaignObservation`은 캠페인의 현재 상태를 계속 덮어쓰는 객체가 아니다. 특정 분석 기간과 수집 기준 시각을 가진 불변 스냅샷이다.
+
+```text
+CampaignObservation
+├── observation_id
+├── campaign_id
+├── period
+├── captured_at
+├── platform_slices[]
+└── completeness
+```
+
+분석, 가설 재검토, 실험 결과 확인이 서로 다른 시점에 실행되면 각각 새로운 `CampaignObservation`을 만든다.
+
+```text
+Campaign
+├── CampaignObservation v1: 최초 분석
+├── CampaignObservation v2: 가설 재검토
+└── CampaignObservation v3: 실험 결과 관측
+```
+
+### 5.1 PlatformSlice
+
+플랫폼별 배열은 사용자에게 보이는 채널명만으로 구분하지 않는다. 동일한 노출면도 서로 다른 API와 계정에서 데이터를 가져올 수 있기 때문이다.
+
+```text
+PlatformSlice
+├── surface
+├── provider
+├── connector
+├── account_ref
+├── fetch_run_ref
+├── fetch_status
+├── observed_subjects[]
+└── observed_metrics[]
+```
+
+예를 들어 YouTube 일반 콘텐츠와 YouTube 광고는 `surface=youtube`를 공유하지만 connector와 account가 다르다.
+
+```text
+YouTube 일반 콘텐츠
+→ connector: youtube_analytics
+→ account: youtube_channel
+
+YouTube 광고
+→ connector: google_ads
+→ account: google_ads_customer
+```
+
+따라서 slice의 실질적인 출처 식별자는 다음 조합이다.
+
+```text
+surface + connector + account_ref + fetch_run_ref
+```
+
+### 5.2 MetricObservation
+
+상위 분석 단위는 `CampaignObservation`이지만, 개별 수치는 독립적으로 참조할 수 있어야 한다.
+
+```text
+MetricObservation
+├── metric_observation_id
+├── subject_ref
+├── subject_level
+├── metric_key
+├── value
+├── unit
+├── period
+├── dimensions
+├── calculation
+└── provenance_ref
+```
+
+`subject_level`은 지표의 측정 대상을 구분한다.
+
+```text
+ACCOUNT
+CAMPAIGN
+AD_GROUP
+DELIVERY_ITEM
+CONTENT
+```
+
+예를 들어 구독자 증가는 계정 수준 관측이고, 영상 조회수는 콘텐츠 수준 관측이다. 계정 수준 수치를 편의를 위해 게시물 속성으로 복제하지 않는다.
+
+`calculation`은 플랫폼 원본인지 결정적 파생값인지 구분한다.
+
+```text
+RAW
+SUM
+AVERAGE
+RATE
+DELTA
+LIFT
+```
+
+계산된 값은 공식, 입력 observation 참조와 반올림 규칙을 함께 보존한다.
+
+### 5.3 Completeness
+
+다중 플랫폼 분석에서는 일부 API만 성공할 수 있다. `CampaignObservation`은 성공한 데이터만 조용히 반환하지 않고 전체 요청 범위와 플랫폼별 상태를 보존한다.
+
+```text
+Completeness
+├── requested_sources[]
+├── succeeded_sources[]
+├── failed_sources[]
+├── missing_periods[]
+└── limitations[]
+```
+
+이 정보는 Phase 0에서 정의한 Partial Failure Disclosure와 Transparency Gate의 결정적 입력이 된다.
+
+### 5.4 Invariants
+
+1. 모든 `CampaignObservation`은 하나의 `campaign_id`, 분석 기간과 수집 기준 시각을 가진다.
+2. 생성된 `CampaignObservation`은 수정하지 않는다. 최신 데이터가 필요하면 새 스냅샷을 만든다.
+3. 모든 `PlatformSlice`는 connector, account와 fetch run을 식별할 수 있어야 한다.
+4. 모든 `MetricObservation`은 측정 대상, 기간, 단위와 provenance를 가져야 한다.
+5. 파생 수치는 입력 observation과 계산 공식을 역추적할 수 있어야 한다.
+6. 계정·캠페인·콘텐츠 수준 지표를 같은 grain으로 취급하지 않는다.
+7. 플랫폼 부분 실패와 데이터 누락을 스냅샷에 명시한다.
+8. `CampaignObservation`에는 원인 가설이나 다음 행동 같은 LLM 해석을 저장하지 않는다.
+
+### 5.5 Evidence relationship
+
+`CampaignObservation` 자체가 특정 주장의 Evidence인 것은 아니다. 분석 과정에서 특정 `MetricObservation`이나 문서가 주장과 연결될 때 `EvidenceLink`가 생성된다.
+
+```text
+EvidenceLink
+├── claim_ref
+├── source_ref
+├── relation
+└── created_by
+```
+
+`source_ref`는 `MetricObservation` 또는 출처가 검증된 문서를 가리킨다. `relation`은 `supports`, `contradicts`, `contextualizes` 중 하나다. 에이전트가 이 관계를 제안할 수 있지만 참조 존재 여부와 수치 일치는 결정적 Validator가 검사한다.
