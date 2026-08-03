@@ -2,7 +2,7 @@
 
 Phase 1의 도메인 모델을 HTTP 경계로 검증하는 FastAPI 서비스다.
 
-현재 제공하는 기능은 Campaign 생성, Campaign별 Conversation 생성, Observation 조회와 YouTube 읽기 연결이다. 에이전트 실행은 Phase 3에서 연결한다.
+현재 제공하는 기능은 Campaign 생성, Campaign별 Conversation 생성, Observation 조회와 YouTube 읽기 연결이다. 에이전트 실행은 Phase 4에서 연결한다.
 
 ## Run
 
@@ -14,7 +14,7 @@ python -m venv .venv
 
 OpenAPI UI: `http://127.0.0.1:8000/docs`
 
-## Phase 1.5: local OAuth setup
+## Phase 2: local OAuth setup
 
 Google Cloud Console에서 **YouTube Data API v3**와 **YouTube Analytics API**를 활성화하고 Web OAuth redirect URI를 아래와 같이 등록한다.
 

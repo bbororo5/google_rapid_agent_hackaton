@@ -8,7 +8,7 @@
 | --- | --- | --- |
 | Phase 0 | [`phase-0-decision-charter.md`](phase-0-decision-charter.md) | 확정 |
 | Phase 1 | [`phase-1-domain-model.md`](phase-1-domain-model.md) | 도메인 모델 · FastAPI vertical slice 완료 |
-| Phase 1.5 | [`../../services/launchpilot-api/README.md`](../../services/launchpilot-api/README.md) | Google 로그인 · YouTube 읽기 연결 · 요청 기반 수집 완료 |
+| Phase 2 | [`../../services/launchpilot-api/README.md`](../../services/launchpilot-api/README.md) | Google 로그인 · YouTube 읽기 연결 · 요청 기반 수집 완료 |
 
 ## Status rule
 
