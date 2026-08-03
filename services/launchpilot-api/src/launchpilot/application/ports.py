@@ -1,0 +1,23 @@
+from __future__ import annotations
+
+from typing import Protocol
+from uuid import UUID
+
+from launchpilot.domain.models import Campaign, CampaignObservation, Conversation
+
+
+class CampaignRepository(Protocol):
+    def add(self, campaign: Campaign) -> None: ...
+    def get(self, campaign_id: UUID) -> Campaign | None: ...
+    def list(self) -> list[Campaign]: ...
+
+
+class ConversationRepository(Protocol):
+    def add(self, conversation: Conversation) -> None: ...
+    def list_by_campaign(self, campaign_id: UUID) -> list[Conversation]: ...
+
+
+class ObservationRepository(Protocol):
+    def add(self, observation: CampaignObservation) -> None: ...
+    def list_by_campaign(self, campaign_id: UUID) -> list[CampaignObservation]: ...
+
