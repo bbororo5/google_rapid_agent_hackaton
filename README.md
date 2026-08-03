@@ -9,8 +9,9 @@ LaunchPilot은 광고·콘텐츠 성과 데이터를 근거로 **신호를 찾�
 | 항목 | 상태 |
 | --- | --- |
 | Phase 0 — Product & Evaluation Charter | 확정 |
-| Phase 1 — Domain, Data & Evidence Design | 도메인 모델 확정 · 구현 진행 중 |
-| 신규 구현 | Phase 1 vertical slice 시작 |
+| Phase 1 — Domain, Data & Evidence Design | 도메인 모델 · FastAPI vertical slice 완료 |
+| Phase 1.5 — Identity, Platform Connection & Data Ingestion | Google 로그인 · YouTube 읽기 연결 · 요청 기반 수집 완료 |
+| 신규 구현 | `services/launchpilot-api` |
 | 해커톤 프로토타입 | 아카이브·참고 자료 |
 | 프로덕션 운영 인프라 | 포트폴리오 범위에서 제외 |
 
