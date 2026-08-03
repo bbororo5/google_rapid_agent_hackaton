@@ -1,6 +1,9 @@
 from functools import lru_cache
 
+from launchpilot.config import Settings
 from launchpilot.application.services import CampaignService, ConversationService, ObservationService
+from launchpilot.infrastructure.control_plane import SqliteControlPlane
+from launchpilot.infrastructure.google_oauth import GoogleOAuthClient
 from launchpilot.infrastructure.in_memory import (
     InMemoryConversationRepository,
     InMemoryObservationRepository,
@@ -26,3 +29,28 @@ def observation_service() -> ObservationService:
     store = repository_store()
     return ObservationService(store, InMemoryObservationRepository(store))
 
+
+@lru_cache
+def settings() -> Settings:
+    return Settings.from_environment()
+
+
+@lru_cache
+def control_plane() -> SqliteControlPlane:
+    config = settings()
+    return SqliteControlPlane(config.database_path, config.token_encryption_key)
+
+
+def google_oauth_client() -> GoogleOAuthClient:
+    config = settings()
+    try:
+        config.require_google_oauth()
+    except RuntimeError as error:
+        from fastapi import HTTPException, status
+
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(error)) from error
+    return GoogleOAuthClient(
+        client_id=config.google_client_id or "",
+        client_secret=config.google_client_secret or "",
+        public_base_url=config.public_base_url,
+    )

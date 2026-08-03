@@ -1,13 +1,22 @@
+from datetime import date
 from typing import Annotated
 from uuid import UUID
+from uuid import uuid4
 
+import httpx
 from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel
 
 from launchpilot.application.services import CampaignService, ConversationService, ObservationService
 from launchpilot.domain.errors import NotFoundError
 from launchpilot.domain.models import Conversation
+from launchpilot.domain.models import CampaignObservation, Completeness, CompletenessStatus, DateRange
+from launchpilot.infrastructure.control_plane import ConnectedUser, SqliteControlPlane
+from launchpilot.infrastructure.youtube import YouTubeAnalyticsConnector
 
+from .auth import current_user
 from .dependencies import campaign_service, conversation_service, observation_service
+from .dependencies import control_plane
 from .schemas import (
     CampaignCreateInput,
     CampaignOutput,
@@ -21,6 +30,8 @@ router = APIRouter(prefix="/campaigns", tags=["campaigns"])
 CampaignDependency = Annotated[CampaignService, Depends(campaign_service)]
 ConversationDependency = Annotated[ConversationService, Depends(conversation_service)]
 ObservationDependency = Annotated[ObservationService, Depends(observation_service)]
+ControlPlaneDependency = Annotated[SqliteControlPlane, Depends(control_plane)]
+UserDependency = Annotated[ConnectedUser, Depends(current_user)]
 
 
 def not_found(error: NotFoundError) -> HTTPException:
@@ -83,3 +94,49 @@ def list_observations(campaign_id: UUID, service: ObservationDependency) -> list
     except NotFoundError as error:
         raise not_found(error) from error
 
+
+class YouTubeObservationRequest(BaseModel):
+    connection_id: str
+    start: date
+    end: date
+
+
+@router.post("/{campaign_id}/observations/youtube", response_model=ObservationSummaryOutput, status_code=status.HTTP_201_CREATED)
+def fetch_youtube_observation(
+    campaign_id: UUID,
+    payload: YouTubeObservationRequest,
+    user: UserDependency,
+    store: ControlPlaneDependency,
+    service: ObservationDependency,
+) -> ObservationSummaryOutput:
+    try:
+        period = DateRange(start=payload.start, end=payload.end)
+    except ValueError as error:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(error)) from error
+    try:
+        stored = store.get_connection_token(connection_id=payload.connection_id, user_id=user.id)
+    except RuntimeError as error:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(error)) from error
+    if stored is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="YouTube connection not found.")
+    connection, token = stored
+    if connection.provider != "YOUTUBE" or not isinstance(token.get("access_token"), str):
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Connection cannot provide YouTube read access.")
+    try:
+        fetched = YouTubeAnalyticsConnector().fetch_channel_metrics(
+            access_token=token["access_token"], period=period, fetch_run_ref=f"youtube-{uuid4()}"
+        )
+        observation = CampaignObservation(
+            id=uuid4(), campaign_id=campaign_id, period=period,
+            platform_slices=(fetched.platform_slice,), completeness=Completeness(status=CompletenessStatus.COMPLETE),
+        )
+        service.record(observation)
+    except NotFoundError as error:
+        raise not_found(error) from error
+    except (httpx.HTTPError, RuntimeError) as error:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=f"YouTube fetch failed: {error}") from error
+    return ObservationSummaryOutput(
+        id=observation.id, campaign_id=observation.campaign_id, captured_at=observation.captured_at,
+        period=PeriodInput(start=observation.period.start, end=observation.period.end),
+        completeness=observation.completeness.status, platform_slice_count=len(observation.platform_slices),
+    )

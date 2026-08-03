@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "Portfolio rebuild API for evidence-grounded marketing analysis"
 requires-python = ">=3.11"
 dependencies = [
+    "cryptography>=43,<47",
     "fastapi>=0.115,<1.0",
     "uvicorn[standard]>=0.30,<1.0",
 ]
