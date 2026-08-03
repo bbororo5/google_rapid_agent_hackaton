@@ -7,7 +7,7 @@
 | Phase | 문서 | 상태 |
 | --- | --- | --- |
 | Phase 0 | [`phase-0-decision-charter.md`](phase-0-decision-charter.md) | 확정 |
-| Phase 1 | [`phase-1-domain-model.md`](phase-1-domain-model.md) | 논의 중 |
+| Phase 1 | [`phase-1-domain-model.md`](phase-1-domain-model.md) | 도메인 모델 확정 · 구현 진행 중 |
 
 ## Status rule
 
@@ -17,11 +17,11 @@
 
 ## Phase 1 focus
 
-현재 Phase 1에서는 다음 순서로 도메인 모델을 완성한다.
+Phase 1 도메인 모델은 다음 항목을 확정했다.
 
 1. 플랫폼 원본과 비즈니스 모델의 Context 경계
 2. 캠페인 단위 Observation 구조
-3. `Campaign`의 의미와 생명주기
-4. 핵심 Aggregate Root
-5. `Signal → Hypothesis → Experiment → Outcome`의 관계와 불변 규칙
-6. 전체 도메인 관계도와 면접 방어 논리
+3. `Campaign`과 `Conversation`의 책임 분리
+4. Campaign, Conversation, CampaignObservation, AgentRun Aggregate
+5. Signal·Hypothesis·Recommendation의 Artifact 경계
+6. 전체 관계도·불변 규칙·면접 방어 논리
