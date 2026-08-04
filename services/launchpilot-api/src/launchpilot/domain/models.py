@@ -1,15 +1,16 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from enum import StrEnum
+from math import isfinite
 from uuid import UUID, uuid4
 
 from .errors import DomainError
 
 
 def utc_now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 @dataclass(frozen=True, slots=True)
@@ -36,6 +37,7 @@ class CampaignResourceBinding:
 @dataclass(frozen=True, slots=True)
 class Campaign:
     id: UUID
+    workspace_id: UUID
     name: str
     goal: str
     period: DateRange
@@ -53,6 +55,7 @@ class Campaign:
     def create(
         cls,
         *,
+        workspace_id: UUID,
         name: str,
         goal: str,
         period: DateRange,
@@ -61,6 +64,7 @@ class Campaign:
     ) -> Campaign:
         return cls(
             id=uuid4(),
+            workspace_id=workspace_id,
             name=name,
             goal=goal,
             period=period,
@@ -115,6 +119,8 @@ class Completeness:
     missing_reasons: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
+        if any(not reason.strip() for reason in self.missing_reasons):
+            raise DomainError("missing reason must not be blank")
         if self.status == CompletenessStatus.COMPLETE and self.missing_reasons:
             raise DomainError("complete observation cannot have missing reasons")
         if self.status == CompletenessStatus.PARTIAL and not self.missing_reasons:
@@ -133,11 +139,21 @@ class MetricObservation:
     calculation: str | None = None
 
     def __post_init__(self) -> None:
+        if not isfinite(self.value):
+            raise DomainError("metric observation value must be finite")
         if not all(
             value.strip()
-            for value in (self.subject_ref, self.subject_level, self.metric_key, self.unit, self.provenance_ref)
+            for value in (
+                self.subject_ref,
+                self.subject_level,
+                self.metric_key,
+                self.unit,
+                self.provenance_ref,
+            )
         ):
-            raise DomainError("metric observation identity and provenance must not be blank")
+            raise DomainError(
+                "metric observation identity and provenance must not be blank"
+            )
 
 
 @dataclass(frozen=True, slots=True)
@@ -149,7 +165,15 @@ class PlatformSlice:
     metrics: tuple[MetricObservation, ...]
 
     def __post_init__(self) -> None:
-        if not all(value.strip() for value in (self.surface, self.connector, self.account_ref, self.fetch_run_ref)):
+        if not all(
+            value.strip()
+            for value in (
+                self.surface,
+                self.connector,
+                self.account_ref,
+                self.fetch_run_ref,
+            )
+        ):
             raise DomainError("platform slice source fields must not be blank")
 
 
@@ -169,4 +193,3 @@ class CampaignObservation:
             for metric in slice_.metrics:
                 if metric.period != self.period:
                     raise DomainError("metric period must match its observation period")
-

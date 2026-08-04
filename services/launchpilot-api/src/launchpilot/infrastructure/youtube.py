@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date
-from typing import Any
 
 import httpx
 
@@ -31,7 +29,9 @@ class YouTubeFetchResult:
 class YouTubeAnalyticsConnector:
     """Read-only normalizer for a user's owned YouTube channel metrics."""
 
-    def fetch_channel_metrics(self, *, access_token: str, period: DateRange, fetch_run_ref: str) -> YouTubeFetchResult:
+    def fetch_channel_metrics(
+        self, *, access_token: str, period: DateRange, fetch_run_ref: str
+    ) -> YouTubeFetchResult:
         headers = {"Authorization": f"Bearer {access_token}"}
         channel_response = httpx.get(
             YOUTUBE_CHANNELS_URL,
@@ -42,7 +42,9 @@ class YouTubeAnalyticsConnector:
         channel_response.raise_for_status()
         channels = channel_response.json().get("items", [])
         if not channels:
-            raise RuntimeError("No owned YouTube channel was returned for this connection.")
+            raise RuntimeError(
+                "No owned YouTube channel was returned for this connection."
+            )
         channel = channels[0]
         channel_id = channel["id"]
         analytics_response = httpx.get(
@@ -61,7 +63,9 @@ class YouTubeAnalyticsConnector:
         columns = [column["name"] for column in payload.get("columnHeaders", [])]
         rows = payload.get("rows", [])
         if not rows:
-            raise RuntimeError("YouTube Analytics returned no metrics for the requested period.")
+            raise RuntimeError(
+                "YouTube Analytics returned no metrics for the requested period."
+            )
         values = dict(zip(columns, rows[0], strict=True))
         metrics = tuple(
             MetricObservation(

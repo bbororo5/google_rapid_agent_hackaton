@@ -18,6 +18,7 @@ class PeriodInput(BaseModel):
 
 
 class CampaignCreateInput(BaseModel):
+    workspace_id: UUID
     name: str = Field(min_length=1, max_length=120)
     goal: str = Field(min_length=1, max_length=500)
     period: PeriodInput
@@ -41,6 +42,7 @@ class CampaignCreateInput(BaseModel):
 
     def to_domain(self) -> Campaign:
         return Campaign.create(
+            workspace_id=self.workspace_id,
             name=self.name,
             goal=self.goal,
             period=DateRange(start=self.period.start, end=self.period.end),
@@ -50,6 +52,7 @@ class CampaignCreateInput(BaseModel):
 
 class CampaignOutput(BaseModel):
     id: UUID
+    workspace_id: UUID
     name: str
     goal: str
     period: PeriodInput
@@ -60,6 +63,7 @@ class CampaignOutput(BaseModel):
     def from_domain(cls, campaign: Campaign) -> "CampaignOutput":
         return cls(
             id=campaign.id,
+            workspace_id=campaign.workspace_id,
             name=campaign.name,
             goal=campaign.goal,
             period=PeriodInput(start=campaign.period.start, end=campaign.period.end),
@@ -103,4 +107,3 @@ class ObservationSummaryOutput(BaseModel):
     period: PeriodInput
     completeness: str
     platform_slice_count: int
-

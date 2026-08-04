@@ -4,4 +4,3 @@ class DomainError(ValueError):
 
 class NotFoundError(LookupError):
     """Raised when an entity does not exist in its repository."""
-

@@ -32,12 +32,38 @@ class InMemoryRepositories:
         with self._lock:
             return sorted(self._campaigns.values(), key=lambda item: item.created_at)
 
-    def list_by_campaign(self, campaign_id: UUID) -> list[Conversation] | list[CampaignObservation]:
+    def list_by_workspaces(self, workspace_ids: set[UUID]) -> list[Campaign]:
         with self._lock:
-            conversations = [item for item in self._conversations.values() if item.campaign_id == campaign_id]
-            observations = [item for item in self._observations.values() if item.campaign_id == campaign_id]
+            return sorted(
+                (
+                    item
+                    for item in self._campaigns.values()
+                    if item.workspace_id in workspace_ids
+                ),
+                key=lambda item: item.created_at,
+            )
+
+    def list_by_campaign(
+        self, campaign_id: UUID
+    ) -> list[Conversation] | list[CampaignObservation]:
+        with self._lock:
+            conversations = [
+                item
+                for item in self._conversations.values()
+                if item.campaign_id == campaign_id
+            ]
+            observations = [
+                item
+                for item in self._observations.values()
+                if item.campaign_id == campaign_id
+            ]
             # The port used decides the expected item type. This adapter shares one store deliberately.
-            return sorted(conversations or observations, key=lambda item: item.created_at if hasattr(item, "created_at") else item.captured_at)
+            return sorted(
+                conversations or observations,
+                key=lambda item: (
+                    item.created_at if hasattr(item, "created_at") else item.captured_at
+                ),
+            )
 
 
 class InMemoryConversationRepository:
@@ -50,7 +76,11 @@ class InMemoryConversationRepository:
     def list_by_campaign(self, campaign_id: UUID) -> list[Conversation]:
         with self._store._lock:
             return sorted(
-                (item for item in self._store._conversations.values() if item.campaign_id == campaign_id),
+                (
+                    item
+                    for item in self._store._conversations.values()
+                    if item.campaign_id == campaign_id
+                ),
                 key=lambda item: item.created_at,
             )
 
@@ -65,6 +95,10 @@ class InMemoryObservationRepository:
     def list_by_campaign(self, campaign_id: UUID) -> list[CampaignObservation]:
         with self._store._lock:
             return sorted(
-                (item for item in self._store._observations.values() if item.campaign_id == campaign_id),
+                (
+                    item
+                    for item in self._store._observations.values()
+                    if item.campaign_id == campaign_id
+                ),
                 key=lambda item: item.captured_at,
             )

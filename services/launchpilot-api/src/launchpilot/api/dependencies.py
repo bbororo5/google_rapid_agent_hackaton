@@ -1,13 +1,22 @@
 from functools import lru_cache
 
+from launchpilot.application.services import (
+    CampaignService,
+    ConversationService,
+    ObservationService,
+)
 from launchpilot.config import Settings
-from launchpilot.application.services import CampaignService, ConversationService, ObservationService
 from launchpilot.infrastructure.control_plane import SqliteControlPlane
 from launchpilot.infrastructure.google_oauth import GoogleOAuthClient
 from launchpilot.infrastructure.in_memory import (
     InMemoryConversationRepository,
     InMemoryObservationRepository,
     InMemoryRepositories,
+)
+from launchpilot.infrastructure.security import (
+    BrowserStateManager,
+    SessionManager,
+    SignedTokenCodec,
 )
 
 
@@ -48,9 +57,32 @@ def google_oauth_client() -> GoogleOAuthClient:
     except RuntimeError as error:
         from fastapi import HTTPException, status
 
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(error)) from error
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(error)
+        ) from error
     return GoogleOAuthClient(
         client_id=config.google_client_id or "",
         client_secret=config.google_client_secret or "",
         public_base_url=config.public_base_url,
     )
+
+
+def signed_token_codec() -> SignedTokenCodec:
+    config = settings()
+    try:
+        secret = config.require_session_secret()
+    except RuntimeError as error:
+        from fastapi import HTTPException, status
+
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(error)
+        ) from error
+    return SignedTokenCodec(secret)
+
+
+def browser_state_manager() -> BrowserStateManager:
+    return BrowserStateManager(signed_token_codec())
+
+
+def session_manager() -> SessionManager:
+    return SessionManager(signed_token_codec())

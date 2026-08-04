@@ -25,9 +25,14 @@ class CampaignService:
     def list(self) -> list[Campaign]:
         return self._campaigns.list()
 
+    def list_for_workspaces(self, workspace_ids: set[UUID]) -> list[Campaign]:
+        return self._campaigns.list_by_workspaces(workspace_ids)
+
 
 class ConversationService:
-    def __init__(self, campaigns: CampaignRepository, conversations: ConversationRepository) -> None:
+    def __init__(
+        self, campaigns: CampaignRepository, conversations: ConversationRepository
+    ) -> None:
         self._campaigns = campaigns
         self._conversations = conversations
 
@@ -44,7 +49,9 @@ class ConversationService:
 
 
 class ObservationService:
-    def __init__(self, campaigns: CampaignRepository, observations: ObservationRepository) -> None:
+    def __init__(
+        self, campaigns: CampaignRepository, observations: ObservationRepository
+    ) -> None:
         self._campaigns = campaigns
         self._observations = observations
 
@@ -58,4 +65,3 @@ class ObservationService:
         if self._campaigns.get(campaign_id) is None:
             raise NotFoundError("campaign not found")
         return self._observations.list_by_campaign(campaign_id)
-
