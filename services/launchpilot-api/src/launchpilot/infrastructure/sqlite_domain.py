@@ -30,11 +30,13 @@ class SqliteDomainDatabase:
     def connect(self) -> sqlite3.Connection:
         connection = sqlite3.connect(self.database_path)
         connection.row_factory = sqlite3.Row
+        connection.execute("PRAGMA busy_timeout = 5000")
         connection.execute("PRAGMA foreign_keys = ON")
         return connection
 
     def _initialize(self) -> None:
         with self.connect() as connection:
+            connection.execute("PRAGMA journal_mode = WAL")
             connection.executescript(
                 """
                 CREATE TABLE IF NOT EXISTS campaigns (

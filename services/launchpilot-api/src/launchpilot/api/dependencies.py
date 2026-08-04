@@ -8,36 +8,41 @@ from launchpilot.application.services import (
 from launchpilot.config import Settings
 from launchpilot.infrastructure.control_plane import SqliteControlPlane
 from launchpilot.infrastructure.google_oauth import GoogleOAuthClient
-from launchpilot.infrastructure.in_memory import (
-    InMemoryConversationRepository,
-    InMemoryObservationRepository,
-    InMemoryRepositories,
-)
 from launchpilot.infrastructure.meta_oauth import MetaOAuthClient
 from launchpilot.infrastructure.security import (
     BrowserStateManager,
     SessionManager,
     SignedTokenCodec,
 )
+from launchpilot.infrastructure.sqlite_domain import (
+    SqliteCampaignRepository,
+    SqliteConversationRepository,
+    SqliteDomainDatabase,
+    SqliteObservationRepository,
+)
 
 
 @lru_cache
-def repository_store() -> InMemoryRepositories:
-    return InMemoryRepositories()
+def repository_store() -> SqliteDomainDatabase:
+    return SqliteDomainDatabase(settings().database_path)
 
 
 def campaign_service() -> CampaignService:
-    return CampaignService(repository_store())
+    return CampaignService(SqliteCampaignRepository(repository_store()))
 
 
 def conversation_service() -> ConversationService:
-    store = repository_store()
-    return ConversationService(store, InMemoryConversationRepository(store))
+    database = repository_store()
+    return ConversationService(
+        SqliteCampaignRepository(database), SqliteConversationRepository(database)
+    )
 
 
 def observation_service() -> ObservationService:
-    store = repository_store()
-    return ObservationService(store, InMemoryObservationRepository(store))
+    database = repository_store()
+    return ObservationService(
+        SqliteCampaignRepository(database), SqliteObservationRepository(database)
+    )
 
 
 @lru_cache

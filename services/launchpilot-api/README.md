@@ -90,6 +90,8 @@ POST /campaigns/{campaign_id}/observations/ads
 
 한 플랫폼만 실패하면 성공한 Slice를 `PARTIAL` Observation으로 보존한다. 모든 플랫폼이 실패하면 빈 Observation을 만들지 않는다. 예약 수집은 하지 않으며 사용자의 분석 요청 시점에만 실행한다.
 
+Campaign, Conversation, CampaignObservation은 SQLite에 영속화한다. Observation은 PlatformSlice와 MetricObservation으로 정규화해 저장하므로 서버 재시작 후에도 조회할 수 있고 다음 Retrieval 단계에서 구조화 검색의 기준 데이터가 된다.
+
 ## Verification status
 
 | 범위 | 검증 상태 |
@@ -100,3 +102,4 @@ POST /campaigns/{campaign_id}/observations/ads
 | Google Ads 정규화 | MockTransport fixture 완료, Developer Token 연결 대기 |
 | Meta Ads 정규화 | MockTransport fixture 완료, Meta 앱 연결 대기 |
 | 멀티플랫폼 partial failure | application service fixture 완료 |
+| Campaign·Conversation·Observation 영속화 | repository 재생성·서버 재시작 검증 완료 |

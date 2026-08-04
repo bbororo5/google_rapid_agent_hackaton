@@ -205,3 +205,18 @@ def test_campaign_binding_rejects_blank_external_identity(
     )
 
     assert response.status_code == 422
+
+
+def test_campaign_survives_repository_dependency_recreation(
+    authenticated_client: AuthenticatedClient,
+) -> None:
+    context = authenticated_client
+    campaign = context.client.post(
+        "/campaigns", json=campaign_payload(context.workspace_id)
+    ).json()
+
+    repository_store.cache_clear()
+
+    response = context.client.get(f"/campaigns/{campaign['id']}")
+    assert response.status_code == 200
+    assert response.json()["name"] == "A 캠페인"

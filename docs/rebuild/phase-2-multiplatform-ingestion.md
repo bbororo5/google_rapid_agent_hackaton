@@ -31,6 +31,8 @@
 | 2D | 구현 완료 | Graph API fixture 성공, Meta 앱 기반 실제 계정 검증 대기 |
 | 2E | 구현 완료 | complete·partial·all-failed 조립 테스트 |
 
+수집 결과는 SQLite의 Observation → PlatformSlice → MetricObservation 구조로 영속화한다. 서버를 재시작해도 Campaign, Conversation, Observation과 출처 정보가 유지되며 Phase 3의 구조화 Retrieval 입력으로 사용한다.
+
 ## Connector contract
 
 각 광고 Connector는 다음 기능을 제공한다.

@@ -160,3 +160,9 @@ LLM은 관련성과 해석을 제안할 수 있다. 결정적 Validator는 참�
 | 왜 Evidence Context가 없는가? | Evidence는 데이터 자체가 아니라 특정 주장과 출처 사이의 관계이기 때문이다. |
 
 Elasticsearch index, API DTO와 플랫폼별 필드 매핑은 이 도메인 모델에서 파생하되 별도의 데이터 설계로 다룬다.
+
+## 11. Persistence decision
+
+Campaign, Conversation, CampaignObservation은 SQLite repository에 영속화한다. Observation은 `campaign_observations`, `platform_slices`, `metric_observations`의 관계형 구조로 저장해 다음 Retrieval 단계에서 기간·플랫폼·지표별 결정적 조회가 가능하게 한다.
+
+OAuth 연결과 외부 Campaign binding도 같은 SQLite 파일을 사용하지만 별도 repository 경계로 관리한다. 따라서 인증 control-plane 모델과 분석 domain 모델은 저장 매체를 공유하더라도 코드의 책임은 합치지 않는다.
