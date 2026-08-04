@@ -1,5 +1,7 @@
 # LaunchPilot Contracts
 
+> **아카이브:** 이 문서는 해커톤 프로토타입의 과거 계약과 구현 지침을 보존한다. 신규 리빌드의 현행 계약으로 사용하지 않는다. 현행 결정은 [`docs/rebuild/`](../docs/rebuild/README.md)를 따른다.
+
 This directory contains the contract set for LaunchPilot's hackathon MVP.
 
 Archived architecture reference: [`launchpilot-c4.md`](../docs/archive/hackathon-prototype/architecture/launchpilot-c4.md)

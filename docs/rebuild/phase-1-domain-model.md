@@ -7,6 +7,7 @@
 ## 1. Decisions
 
 - `Campaign`은 목표와 기간을 가진 플랫폼 독립적인 업무 단위다.
+- `Workspace`는 소규모 팀의 소유권 경계이며 Campaign은 정확히 하나의 Workspace에 속한다.
 - Campaign 하나에는 여러 `Conversation`과 `CampaignObservation`이 존재할 수 있다.
 - `CampaignObservation`은 다중 플랫폼 데이터를 묶은 불변 사실 스냅샷이다.
 - 사용자 요청 하나는 하나의 논리적 `AgentRun`으로 처리한다.
@@ -17,6 +18,7 @@
 
 | Context | 책임 | 주요 모델 |
 | --- | --- | --- |
+| Workspace | 팀과 접근 권한의 경계 | `Workspace`, `WorkspaceMembership` |
 | Campaign | 사용자 업무 범위 | `Campaign`, `CampaignResourceBinding` |
 | Platform Integration | 외부 인증·계정·원본 응답 | `PlatformConnection`, `ExternalResource`, `FetchRun` |
 | Campaign Observation | 캠페인별 수치·출처·누락 | `CampaignObservation`, `PlatformSlice`, `MetricObservation` |
@@ -28,7 +30,8 @@
 
 ```mermaid
 flowchart TD
-    C["Campaign"] -->|"1:N"| V["Conversation"]
+    W["Workspace"] -->|"1:N"| C["Campaign"]
+    C -->|"1:N"| V["Conversation"]
     C -->|"1:N"| O["CampaignObservation"]
     V -->|"1:N"| T["Turn"]
     T -->|"1:1"| R["AgentRun"]
@@ -42,7 +45,8 @@ Campaign은 Conversation과 Observation의 소속 범위지만, 이들을 하나
 
 | Aggregate Root | 책임 | 핵심 정보 | 핵심 규칙 |
 | --- | --- | --- | --- |
-| `Campaign` | 목표·기간·분석 대상 관리 | ID, goal, period, target metrics, resource bindings | 외부 리소스는 참조하며 LLM 산출물을 상태로 저장하지 않는다. |
+| `Workspace` | 팀 소유권·접근 경계 | ID, members, roles | 사용자는 membership을 통해 Campaign에 접근한다. |
+| `Campaign` | 목표·기간·분석 대상 관리 | ID, workspace ID, goal, period, target metrics, resource bindings | 한 Workspace에 속하며 LLM 산출물을 상태로 저장하지 않는다. |
 | `Conversation` | 캠페인별 채팅방 | ID, campaign ID, title, turns | 한 Campaign에만 속하며 Turn은 append-only다. |
 | `CampaignObservation` | 캠페인 데이터 스냅샷 | period, captured at, platform slices, completeness | 불변이며 수치의 grain·출처·누락을 보존한다. |
 | `AgentRun` | 한 Turn의 계획·실행·검증 | analysis plan, observations, tool calls, validation, artifacts | 같은 Campaign의 근거만 사용하고 실패를 숨기지 않는다. |
@@ -119,6 +123,8 @@ EvidenceLink
 
 LLM은 관련성과 해석을 제안할 수 있다. 결정적 Validator는 참조 존재 여부, 수치·기간·대상 일치, 문서 출처·시점, 주요 주장의 근거 유무를 검사한다.
 
+`EvidenceLink`는 시점을 복제하지 않는다. `source_ref`가 가리키는 `MetricObservation` 또는 `DocumentExcerpt`에서 관측·발행·조회 시점을 반드시 해석할 수 있어야 하며, Validator는 주장별 근거의 기준 시점을 이 원본에서 확인한다.
+
 ## 8. Main scenario
 
 ```text
@@ -146,6 +152,7 @@ LLM은 관련성과 해석을 제안할 수 있다. 결정적 Validator는 참�
 | 질문 | 답변 근거 |
 | --- | --- |
 | 왜 Campaign 중심인가? | 여러 플랫폼 활동을 하나의 목표·기간으로 분석하는 사용자 업무 단위이기 때문이다. |
+| 왜 User가 아니라 Workspace가 Campaign을 소유하는가? | 소규모 팀이 Campaign과 근거를 공유할 수 있어야 하며, 개인 계정과 업무 데이터의 생명주기를 분리하기 위해서다. |
 | 왜 Conversation을 분리했는가? | 한 Campaign에 여러 채팅이 존재하며 대화 이력이 Campaign Aggregate를 비대하게 만들면 안 되기 때문이다. |
 | 왜 Observation이 불변인가? | 과거 답변을 재현하면서 후속 판단에는 최신 Snapshot을 사용할 수 있어야 하기 때문이다. |
 | 왜 LLM 결과가 Campaign 상태가 아닌가? | 분석과 권장안은 사실이 아니라 특정 시점 근거에 기반한 채팅 산출물이기 때문이다. |
