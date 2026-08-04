@@ -16,6 +16,8 @@ class Settings:
     google_ads_developer_token: str | None
     google_ads_api_version: str
     meta_graph_api_version: str
+    meta_app_id: str | None
+    meta_app_secret: str | None
 
     @classmethod
     def from_environment(cls) -> Settings:
@@ -39,6 +41,8 @@ class Settings:
             google_ads_developer_token=os.getenv("GOOGLE_ADS_DEVELOPER_TOKEN"),
             google_ads_api_version=os.getenv("GOOGLE_ADS_API_VERSION", "v25"),
             meta_graph_api_version=os.getenv("META_GRAPH_API_VERSION", "v24.0"),
+            meta_app_id=os.getenv("META_APP_ID"),
+            meta_app_secret=os.getenv("META_APP_SECRET"),
         )
 
     def require_google_oauth(self) -> None:
@@ -67,3 +71,10 @@ class Settings:
                 "Google Ads is not configured. Set GOOGLE_ADS_DEVELOPER_TOKEN."
             )
         return self.google_ads_developer_token
+
+    def require_meta_oauth(self) -> tuple[str, str]:
+        if not self.meta_app_id or not self.meta_app_secret:
+            raise RuntimeError(
+                "Meta OAuth is not configured. Set META_APP_ID and META_APP_SECRET."
+            )
+        return self.meta_app_id, self.meta_app_secret

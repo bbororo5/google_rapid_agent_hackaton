@@ -13,6 +13,7 @@ from launchpilot.infrastructure.in_memory import (
     InMemoryObservationRepository,
     InMemoryRepositories,
 )
+from launchpilot.infrastructure.meta_oauth import MetaOAuthClient
 from launchpilot.infrastructure.security import (
     BrowserStateManager,
     SessionManager,
@@ -64,6 +65,24 @@ def google_oauth_client() -> GoogleOAuthClient:
         client_id=config.google_client_id or "",
         client_secret=config.google_client_secret or "",
         public_base_url=config.public_base_url,
+    )
+
+
+def meta_oauth_client() -> MetaOAuthClient:
+    config = settings()
+    try:
+        app_id, app_secret = config.require_meta_oauth()
+    except RuntimeError as error:
+        from fastapi import HTTPException, status
+
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(error)
+        ) from error
+    return MetaOAuthClient(
+        app_id=app_id,
+        app_secret=app_secret,
+        public_base_url=config.public_base_url,
+        api_version=config.meta_graph_api_version,
     )
 
 
