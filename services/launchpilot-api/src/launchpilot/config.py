@@ -15,6 +15,7 @@ class Settings:
     cookie_secure: bool
     google_ads_developer_token: str | None
     google_ads_api_version: str
+    meta_graph_api_version: str
 
     @classmethod
     def from_environment(cls) -> Settings:
@@ -37,6 +38,7 @@ class Settings:
             cookie_secure=cookie_secure,
             google_ads_developer_token=os.getenv("GOOGLE_ADS_DEVELOPER_TOKEN"),
             google_ads_api_version=os.getenv("GOOGLE_ADS_API_VERSION", "v25"),
+            meta_graph_api_version=os.getenv("META_GRAPH_API_VERSION", "v24.0"),
         )
 
     def require_google_oauth(self) -> None:
