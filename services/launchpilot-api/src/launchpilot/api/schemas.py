@@ -107,3 +107,4 @@ class ObservationSummaryOutput(BaseModel):
     period: PeriodInput
     completeness: str
     platform_slice_count: int
+    missing_reasons: list[str] = Field(default_factory=list)

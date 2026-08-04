@@ -225,21 +225,24 @@ def finish_meta_ads_connection(
     return ConnectionOutput.from_domain(connection)
 
 
-def _connector(provider: str, config: Settings) -> AdsConnector:
+def connector_for(provider: str, config: Settings) -> AdsConnector:
     if provider == "GOOGLE_ADS":
         return GoogleAdsConnector(
             developer_token=config.require_google_ads(),
             api_version=config.google_ads_api_version,
         )
     if provider == "META_ADS":
-        return MetaAdsConnector(api_version=config.meta_graph_api_version)
+        return MetaAdsConnector(
+            api_version=config.meta_graph_api_version,
+            primary_conversion_action=config.meta_primary_conversion_action,
+        )
     raise HTTPException(
         status_code=status.HTTP_409_CONFLICT,
         detail="Connection does not expose advertising campaigns.",
     )
 
 
-def _active_access_token(
+def active_access_token(
     *,
     connection_id: str,
     user: ConnectedUser,
@@ -292,14 +295,16 @@ def list_ad_accounts(
     google_oauth: GoogleOAuthDependency,
     config: SettingsDependency,
 ) -> list[ExternalAccountOutput]:
-    provider, access_token = _active_access_token(
+    provider, access_token = active_access_token(
         connection_id=connection_id,
         user=user,
         store=store,
         google_oauth=google_oauth,
     )
     try:
-        accounts = _connector(provider, config).list_accounts(access_token=access_token)
+        accounts = connector_for(provider, config).list_accounts(
+            access_token=access_token
+        )
     except (httpx.HTTPError, RuntimeError) as error:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
@@ -317,14 +322,14 @@ def list_ad_campaigns(
     google_oauth: GoogleOAuthDependency,
     config: SettingsDependency,
 ) -> list[ExternalCampaignOutput]:
-    provider, access_token = _active_access_token(
+    provider, access_token = active_access_token(
         connection_id=connection_id,
         user=user,
         store=store,
         google_oauth=google_oauth,
     )
     try:
-        campaigns = _connector(provider, config).list_campaigns(
+        campaigns = connector_for(provider, config).list_campaigns(
             access_token=access_token, account_ref=account_ref
         )
     except (httpx.HTTPError, RuntimeError) as error:

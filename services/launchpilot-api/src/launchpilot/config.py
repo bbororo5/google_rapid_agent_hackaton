@@ -18,6 +18,7 @@ class Settings:
     meta_graph_api_version: str
     meta_app_id: str | None
     meta_app_secret: str | None
+    meta_primary_conversion_action: str | None
 
     @classmethod
     def from_environment(cls) -> Settings:
@@ -43,6 +44,7 @@ class Settings:
             meta_graph_api_version=os.getenv("META_GRAPH_API_VERSION", "v24.0"),
             meta_app_id=os.getenv("META_APP_ID"),
             meta_app_secret=os.getenv("META_APP_SECRET"),
+            meta_primary_conversion_action=os.getenv("META_PRIMARY_CONVERSION_ACTION"),
         )
 
     def require_google_oauth(self) -> None:

@@ -6,11 +6,17 @@ import httpx
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 
+from launchpilot.application.ingestion import (
+    AllSourcesFailedError,
+    IngestionSource,
+    MultiPlatformIngestionService,
+)
 from launchpilot.application.services import (
     CampaignService,
     ConversationService,
     ObservationService,
 )
+from launchpilot.config import Settings
 from launchpilot.domain.errors import NotFoundError
 from launchpilot.domain.integrations import ExternalCampaignBinding, PlatformProvider
 from launchpilot.domain.models import (
@@ -24,6 +30,7 @@ from launchpilot.infrastructure.control_plane import ConnectedUser, SqliteContro
 from launchpilot.infrastructure.google_oauth import GoogleOAuthClient
 from launchpilot.infrastructure.youtube import YouTubeAnalyticsConnector
 
+from .ads_connections import active_access_token, connector_for
 from .auth import current_user
 from .dependencies import (
     campaign_service,
@@ -31,6 +38,7 @@ from .dependencies import (
     conversation_service,
     google_oauth_client,
     observation_service,
+    settings,
 )
 from .schemas import (
     CampaignCreateInput,
@@ -183,6 +191,7 @@ def list_observations(
                 period=PeriodInput(start=item.period.start, end=item.period.end),
                 completeness=item.completeness.status,
                 platform_slice_count=len(item.platform_slices),
+                missing_reasons=list(item.completeness.missing_reasons),
             )
             for item in service.list_for_campaign(campaign_id)
         ]
@@ -194,6 +203,15 @@ class YouTubeObservationRequest(BaseModel):
     connection_id: str
     start: date
     end: date
+
+
+class MultiPlatformObservationRequest(BaseModel):
+    start: date
+    end: date
+
+
+class MultiPlatformObservationOutput(ObservationSummaryOutput):
+    warnings: list[str]
 
 
 class CampaignBindingInput(BaseModel):
@@ -385,4 +403,82 @@ def fetch_youtube_observation(
         period=PeriodInput(start=observation.period.start, end=observation.period.end),
         completeness=observation.completeness.status,
         platform_slice_count=len(observation.platform_slices),
+        missing_reasons=list(observation.completeness.missing_reasons),
+    )
+
+
+@router.post(
+    "/{campaign_id}/observations/ads",
+    response_model=MultiPlatformObservationOutput,
+    status_code=status.HTTP_201_CREATED,
+)
+def fetch_multi_platform_ad_observation(
+    campaign_id: UUID,
+    payload: MultiPlatformObservationRequest,
+    user: UserDependency,
+    store: ControlPlaneDependency,
+    oauth: OAuthDependency,
+    config: Annotated[Settings, Depends(settings)],
+    campaigns: CampaignDependency,
+    observations: ObservationDependency,
+) -> MultiPlatformObservationOutput:
+    require_campaign_access(
+        campaign_id=campaign_id, user=user, store=store, service=campaigns
+    )
+    try:
+        period = DateRange(start=payload.start, end=payload.end)
+    except ValueError as error:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(error)
+        ) from error
+    bindings = store.list_campaign_bindings(
+        user_id=user.id, campaign_id=str(campaign_id)
+    )
+    if not bindings:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Campaign has no bound advertising campaigns.",
+        )
+    sources: list[IngestionSource] = []
+    preflight_failures: list[str] = []
+    for binding in bindings:
+        try:
+            provider, token = active_access_token(
+                connection_id=binding.connection_id,
+                user=user,
+                store=store,
+                google_oauth=oauth,
+            )
+            sources.append(
+                IngestionSource(
+                    binding=binding,
+                    connector=connector_for(provider, config),
+                    access_token=token,
+                )
+            )
+        except (HTTPException, RuntimeError) as error:
+            detail = error.detail if isinstance(error, HTTPException) else str(error)
+            preflight_failures.append(f"{binding.provider.value}: {detail}")
+    try:
+        outcome = MultiPlatformIngestionService(observations).collect(
+            campaign_id=campaign_id,
+            period=period,
+            sources=tuple(sources),
+            preflight_failures=tuple(preflight_failures),
+        )
+    except AllSourcesFailedError as error:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail={"message": str(error), "reasons": list(error.reasons)},
+        ) from error
+    observation = outcome.observation
+    return MultiPlatformObservationOutput(
+        id=observation.id,
+        campaign_id=observation.campaign_id,
+        captured_at=observation.captured_at,
+        period=PeriodInput(start=observation.period.start, end=observation.period.end),
+        completeness=observation.completeness.status,
+        platform_slice_count=len(observation.platform_slices),
+        missing_reasons=list(observation.completeness.missing_reasons),
+        warnings=list(outcome.warnings),
     )
