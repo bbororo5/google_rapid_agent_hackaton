@@ -163,6 +163,10 @@ class PlatformSlice:
     account_ref: str
     fetch_run_ref: str
     metrics: tuple[MetricObservation, ...]
+    external_campaign_ref: str | None = None
+    currency_code: str | None = None
+    timezone: str | None = None
+    attribution_setting: str | None = None
 
     def __post_init__(self) -> None:
         if not all(
@@ -175,6 +179,14 @@ class PlatformSlice:
             )
         ):
             raise DomainError("platform slice source fields must not be blank")
+        optional_context = (
+            self.external_campaign_ref,
+            self.currency_code,
+            self.timezone,
+            self.attribution_setting,
+        )
+        if any(value is not None and not value.strip() for value in optional_context):
+            raise DomainError("platform slice context must not be blank")
 
 
 @dataclass(frozen=True, slots=True)

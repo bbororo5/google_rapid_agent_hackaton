@@ -13,6 +13,8 @@ class Settings:
     token_encryption_key: str | None
     app_session_secret: str | None
     cookie_secure: bool
+    google_ads_developer_token: str | None
+    google_ads_api_version: str
 
     @classmethod
     def from_environment(cls) -> Settings:
@@ -33,6 +35,8 @@ class Settings:
             token_encryption_key=os.getenv("TOKEN_ENCRYPTION_KEY"),
             app_session_secret=os.getenv("APP_SESSION_SECRET"),
             cookie_secure=cookie_secure,
+            google_ads_developer_token=os.getenv("GOOGLE_ADS_DEVELOPER_TOKEN"),
+            google_ads_api_version=os.getenv("GOOGLE_ADS_API_VERSION", "v25"),
         )
 
     def require_google_oauth(self) -> None:
@@ -54,3 +58,10 @@ class Settings:
                 "Session signing is not configured. Set APP_SESSION_SECRET to at least 32 characters."
             )
         return self.app_session_secret
+
+    def require_google_ads(self) -> str:
+        if not self.google_ads_developer_token:
+            raise RuntimeError(
+                "Google Ads is not configured. Set GOOGLE_ADS_DEVELOPER_TOKEN."
+            )
+        return self.google_ads_developer_token
