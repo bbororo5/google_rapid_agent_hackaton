@@ -21,6 +21,16 @@
 | 2D | Meta Ads 계정·Campaign·성과 수집 |
 | 2E | 외부 Campaign 연결과 멀티플랫폼 Observation 조립 |
 
+## Implementation status
+
+| 단계 | 상태 | 검증 |
+| --- | --- | --- |
+| 2A | 완료 | 공통 Connector contract 테스트 |
+| 2B | 완료 | 실제 Google 계정으로 OAuth·채널·Analytics E2E 성공 |
+| 2C | 구현 완료 | REST v25 fixture 성공, Developer Token 기반 실제 계정 검증 대기 |
+| 2D | 구현 완료 | Graph API fixture 성공, Meta 앱 기반 실제 계정 검증 대기 |
+| 2E | 구현 완료 | complete·partial·all-failed 조립 테스트 |
+
 ## Connector contract
 
 각 광고 Connector는 다음 기능을 제공한다.

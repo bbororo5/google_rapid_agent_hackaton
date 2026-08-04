@@ -184,3 +184,24 @@ def test_campaign_can_bind_an_owned_platform_campaign(
     assert response.json()["provider"] == "GOOGLE_ADS"
     listed = context.client.get(f"/campaigns/{campaign['id']}/bindings")
     assert [item["external_campaign_ref"] for item in listed.json()] == ["456"]
+
+
+def test_campaign_binding_rejects_blank_external_identity(
+    authenticated_client: AuthenticatedClient,
+) -> None:
+    context = authenticated_client
+    campaign = context.client.post(
+        "/campaigns", json=campaign_payload(context.workspace_id)
+    ).json()
+
+    response = context.client.post(
+        f"/campaigns/{campaign['id']}/bindings",
+        json={
+            "connection_id": " ",
+            "external_account_ref": "act_123",
+            "external_campaign_ref": "456",
+            "display_name": "Launch",
+        },
+    )
+
+    assert response.status_code == 422

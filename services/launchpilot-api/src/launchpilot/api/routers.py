@@ -4,7 +4,7 @@ from uuid import UUID, uuid4
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 from launchpilot.application.ingestion import (
     AllSourcesFailedError,
@@ -222,6 +222,29 @@ class CampaignBindingInput(BaseModel):
     currency_code: str | None = None
     timezone: str | None = None
     attribution_setting: str | None = None
+
+    @field_validator(
+        "connection_id",
+        "external_account_ref",
+        "external_campaign_ref",
+        "display_name",
+    )
+    @classmethod
+    def strip_required_binding_text(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("must not be blank")
+        return value
+
+    @field_validator("currency_code", "timezone", "attribution_setting")
+    @classmethod
+    def strip_optional_binding_text(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        value = value.strip()
+        if not value:
+            raise ValueError("must not be blank")
+        return value
 
 
 class CampaignBindingOutput(BaseModel):
