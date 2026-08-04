@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from typing import Annotated
 from uuid import UUID, uuid4
 
@@ -12,6 +12,7 @@ from launchpilot.application.services import (
     ObservationService,
 )
 from launchpilot.domain.errors import NotFoundError
+from launchpilot.domain.integrations import ExternalCampaignBinding, PlatformProvider
 from launchpilot.domain.models import (
     CampaignObservation,
     Completeness,
@@ -193,6 +194,98 @@ class YouTubeObservationRequest(BaseModel):
     connection_id: str
     start: date
     end: date
+
+
+class CampaignBindingInput(BaseModel):
+    connection_id: str
+    external_account_ref: str
+    external_campaign_ref: str
+    display_name: str
+    currency_code: str | None = None
+    timezone: str | None = None
+    attribution_setting: str | None = None
+
+
+class CampaignBindingOutput(BaseModel):
+    id: UUID
+    campaign_id: UUID
+    connection_id: str
+    provider: PlatformProvider
+    external_account_ref: str
+    external_campaign_ref: str
+    display_name: str
+    currency_code: str | None
+    timezone: str | None
+    attribution_setting: str | None
+    created_at: datetime
+
+    @classmethod
+    def from_domain(cls, binding: ExternalCampaignBinding) -> "CampaignBindingOutput":
+        return cls(
+            id=binding.id,
+            campaign_id=binding.campaign_id,
+            connection_id=binding.connection_id,
+            provider=binding.provider,
+            external_account_ref=binding.external_account_ref,
+            external_campaign_ref=binding.external_campaign_ref,
+            display_name=binding.display_name,
+            currency_code=binding.currency_code,
+            timezone=binding.timezone,
+            attribution_setting=binding.attribution_setting,
+            created_at=binding.created_at,
+        )
+
+
+@router.post(
+    "/{campaign_id}/bindings",
+    response_model=CampaignBindingOutput,
+    status_code=status.HTTP_201_CREATED,
+)
+def bind_external_campaign(
+    campaign_id: UUID,
+    payload: CampaignBindingInput,
+    user: UserDependency,
+    store: ControlPlaneDependency,
+    campaigns: CampaignDependency,
+) -> CampaignBindingOutput:
+    require_campaign_access(
+        campaign_id=campaign_id, user=user, store=store, service=campaigns
+    )
+    binding = store.upsert_campaign_binding(
+        user_id=user.id,
+        campaign_id=str(campaign_id),
+        connection_id=payload.connection_id,
+        external_account_ref=payload.external_account_ref,
+        external_campaign_ref=payload.external_campaign_ref,
+        display_name=payload.display_name,
+        currency_code=payload.currency_code,
+        timezone=payload.timezone,
+        attribution_setting=payload.attribution_setting,
+    )
+    if binding is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="platform connection not found",
+        )
+    return CampaignBindingOutput.from_domain(binding)
+
+
+@router.get("/{campaign_id}/bindings", response_model=list[CampaignBindingOutput])
+def list_external_campaign_bindings(
+    campaign_id: UUID,
+    user: UserDependency,
+    store: ControlPlaneDependency,
+    campaigns: CampaignDependency,
+) -> list[CampaignBindingOutput]:
+    require_campaign_access(
+        campaign_id=campaign_id, user=user, store=store, service=campaigns
+    )
+    return [
+        CampaignBindingOutput.from_domain(item)
+        for item in store.list_campaign_bindings(
+            user_id=user.id, campaign_id=str(campaign_id)
+        )
+    ]
 
 
 @router.post(

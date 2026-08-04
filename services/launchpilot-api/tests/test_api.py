@@ -151,3 +151,36 @@ def test_conversation_requires_an_existing_campaign(
 
     assert response.status_code == 404
     assert response.json()["detail"] == "campaign not found"
+
+
+def test_campaign_can_bind_an_owned_platform_campaign(
+    authenticated_client: AuthenticatedClient,
+) -> None:
+    context = authenticated_client
+    campaign = context.client.post(
+        "/campaigns", json=campaign_payload(context.workspace_id)
+    ).json()
+    connection = context.store.upsert_connection(
+        user_id=context.user.id,
+        provider="GOOGLE_ADS",
+        token={"access_token": "encrypted-at-rest"},
+        granted_scopes=("https://www.googleapis.com/auth/adwords",),
+    )
+
+    response = context.client.post(
+        f"/campaigns/{campaign['id']}/bindings",
+        json={
+            "connection_id": connection.id,
+            "external_account_ref": "customers/123",
+            "external_campaign_ref": "456",
+            "display_name": "Launch Search",
+            "currency_code": "KRW",
+            "timezone": "Asia/Seoul",
+            "attribution_setting": "last-click",
+        },
+    )
+
+    assert response.status_code == 201
+    assert response.json()["provider"] == "GOOGLE_ADS"
+    listed = context.client.get(f"/campaigns/{campaign['id']}/bindings")
+    assert [item["external_campaign_ref"] for item in listed.json()] == ["456"]

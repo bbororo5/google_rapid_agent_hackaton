@@ -5,9 +5,14 @@ import sqlite3
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from cryptography.fernet import Fernet
+
+from launchpilot.domain.integrations import (
+    ExternalCampaignBinding,
+    PlatformProvider,
+)
 
 
 def utc_now() -> datetime:
@@ -87,6 +92,20 @@ class SqliteControlPlane:
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL,
                     UNIQUE(user_id, provider)
+                );
+                CREATE TABLE IF NOT EXISTS external_campaign_bindings (
+                    id TEXT PRIMARY KEY,
+                    campaign_id TEXT NOT NULL,
+                    connection_id TEXT NOT NULL,
+                    provider TEXT NOT NULL,
+                    external_account_ref TEXT NOT NULL,
+                    external_campaign_ref TEXT NOT NULL,
+                    display_name TEXT NOT NULL,
+                    currency_code TEXT,
+                    timezone TEXT,
+                    attribution_setting TEXT,
+                    created_at TEXT NOT NULL,
+                    UNIQUE(campaign_id, connection_id, external_campaign_ref)
                 );
                 """
             )
@@ -268,3 +287,101 @@ class SqliteControlPlane:
         return connection, json.loads(
             self._cipher.decrypt(row["encrypted_token"].encode()).decode()
         )
+
+    def upsert_campaign_binding(
+        self,
+        *,
+        user_id: str,
+        campaign_id: str,
+        connection_id: str,
+        external_account_ref: str,
+        external_campaign_ref: str,
+        display_name: str,
+        currency_code: str | None = None,
+        timezone: str | None = None,
+        attribution_setting: str | None = None,
+    ) -> ExternalCampaignBinding | None:
+        with self._connect() as connection:
+            platform_connection = connection.execute(
+                "SELECT provider FROM platform_connections WHERE id = ? AND user_id = ?",
+                (connection_id, user_id),
+            ).fetchone()
+            if platform_connection is None:
+                return None
+            existing = connection.execute(
+                """SELECT id, created_at FROM external_campaign_bindings
+                WHERE campaign_id = ? AND connection_id = ? AND external_campaign_ref = ?""",
+                (campaign_id, connection_id, external_campaign_ref),
+            ).fetchone()
+            binding = ExternalCampaignBinding(
+                id=UUID(existing["id"]) if existing else uuid4(),
+                campaign_id=UUID(campaign_id),
+                connection_id=connection_id,
+                provider=PlatformProvider(platform_connection["provider"]),
+                external_account_ref=external_account_ref,
+                external_campaign_ref=external_campaign_ref,
+                display_name=display_name,
+                currency_code=currency_code,
+                timezone=timezone,
+                attribution_setting=attribution_setting,
+                created_at=(
+                    datetime.fromisoformat(existing["created_at"])
+                    if existing
+                    else utc_now()
+                ),
+            )
+            connection.execute(
+                """INSERT INTO external_campaign_bindings(
+                    id, campaign_id, connection_id, provider, external_account_ref,
+                    external_campaign_ref, display_name, currency_code, timezone,
+                    attribution_setting, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(campaign_id, connection_id, external_campaign_ref) DO UPDATE SET
+                    external_account_ref=excluded.external_account_ref,
+                    display_name=excluded.display_name,
+                    currency_code=excluded.currency_code,
+                    timezone=excluded.timezone,
+                    attribution_setting=excluded.attribution_setting""",
+                (
+                    str(binding.id),
+                    str(binding.campaign_id),
+                    binding.connection_id,
+                    binding.provider,
+                    binding.external_account_ref,
+                    binding.external_campaign_ref,
+                    binding.display_name,
+                    binding.currency_code,
+                    binding.timezone,
+                    binding.attribution_setting,
+                    binding.created_at.isoformat(),
+                ),
+            )
+        return binding
+
+    def list_campaign_bindings(
+        self, *, user_id: str, campaign_id: str
+    ) -> list[ExternalCampaignBinding]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                """SELECT b.* FROM external_campaign_bindings b
+                JOIN platform_connections p ON p.id = b.connection_id
+                WHERE b.campaign_id = ? AND p.user_id = ?
+                ORDER BY b.created_at""",
+                (campaign_id, user_id),
+            ).fetchall()
+        return [
+            ExternalCampaignBinding(
+                id=UUID(row["id"]),
+                campaign_id=UUID(row["campaign_id"]),
+                connection_id=row["connection_id"],
+                provider=PlatformProvider(row["provider"]),
+                external_account_ref=row["external_account_ref"],
+                external_campaign_ref=row["external_campaign_ref"],
+                display_name=row["display_name"],
+                currency_code=row["currency_code"],
+                timezone=row["timezone"],
+                attribution_setting=row["attribution_setting"],
+                created_at=datetime.fromisoformat(row["created_at"]),
+            )
+            for row in rows
+        ]

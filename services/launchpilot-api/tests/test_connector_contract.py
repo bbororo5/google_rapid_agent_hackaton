@@ -1,4 +1,5 @@
 from datetime import date
+from uuid import uuid4
 
 import pytest
 
@@ -8,6 +9,7 @@ from launchpilot.domain.integrations import (
     ConnectorFetchResult,
     ExternalAccount,
     ExternalCampaign,
+    ExternalCampaignBinding,
     PlatformProvider,
 )
 from launchpilot.domain.models import DateRange, PlatformSlice
@@ -58,3 +60,21 @@ def test_connector_result_rejects_blank_warning() -> None:
             ),
             warnings=(" ",),
         )
+
+
+def test_external_campaign_binding_keeps_comparison_context() -> None:
+    binding = ExternalCampaignBinding.create(
+        campaign_id=uuid4(),
+        connection_id="connection-1",
+        provider=PlatformProvider.GOOGLE_ADS,
+        external_account_ref="customers/123",
+        external_campaign_ref="456",
+        display_name="Launch Search",
+        currency_code="KRW",
+        timezone="Asia/Seoul",
+        attribution_setting="last-click",
+    )
+
+    assert binding.currency_code == "KRW"
+    assert binding.timezone == "Asia/Seoul"
+    assert binding.attribution_setting == "last-click"
