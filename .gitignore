@@ -17,3 +17,10 @@ s.env
 
 # Service-account keys / ADC credentials (never commit)
 secrets/
+
+# Python service artifacts
+**/.venv/
+**/__pycache__/
+**/.pytest_cache/
+*.py[cod]
+services/launchpilot-api/data/

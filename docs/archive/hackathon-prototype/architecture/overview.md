@@ -70,5 +70,5 @@ graph LR
 | 자율 agent loop 개선 계획 | [agent-loop-autonomy-plan.md](agent-loop-autonomy-plan.md) |
 | 제품 포지셔닝·사용자·시나리오 | [PRD](../product/LaunchPilot_PRD.md) |
 | 결정의 맥락과 대안 | [ADR](adr/) |
-| 경계별 계약 | [`contracts/`](../../contracts/) |
-| 과거 v1 설계 문서 | [archive](../archive/) |
+| 경계별 계약 | [`contracts/`](../../../../contracts/) |
+| 과거 v1 설계 문서 | [archive](../../) |
