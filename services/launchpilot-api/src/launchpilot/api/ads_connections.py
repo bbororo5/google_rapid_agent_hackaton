@@ -10,7 +10,7 @@ from pydantic import BaseModel
 from launchpilot.application.ports import AdsConnector
 from launchpilot.config import Settings
 from launchpilot.domain.integrations import ExternalAccount, ExternalCampaign
-from launchpilot.infrastructure.control_plane import ConnectedUser, SqliteControlPlane
+from launchpilot.infrastructure.control_plane import ConnectedUser, PostgresControlPlane
 from launchpilot.infrastructure.google_ads import GoogleAdsConnector
 from launchpilot.infrastructure.google_oauth import GoogleOAuthClient
 from launchpilot.infrastructure.meta_ads import MetaAdsConnector
@@ -28,7 +28,7 @@ from .dependencies import (
 )
 
 router = APIRouter(prefix="/connections", tags=["ad connections"])
-ControlPlaneDependency = Annotated[SqliteControlPlane, Depends(control_plane)]
+ControlPlaneDependency = Annotated[PostgresControlPlane, Depends(control_plane)]
 GoogleOAuthDependency = Annotated[GoogleOAuthClient, Depends(google_oauth_client)]
 MetaOAuthDependency = Annotated[MetaOAuthClient, Depends(meta_oauth_client)]
 UserDependency = Annotated[ConnectedUser, Depends(current_user)]
@@ -260,7 +260,7 @@ def active_access_token(
     *,
     connection_id: str,
     user: ConnectedUser,
-    store: SqliteControlPlane,
+    store: PostgresControlPlane,
     google_oauth: GoogleOAuthClient,
 ) -> tuple[str, str]:
     stored = store.get_connection_token(connection_id=connection_id, user_id=user.id)

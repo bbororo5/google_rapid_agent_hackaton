@@ -11,7 +11,7 @@ from launchpilot.config import Settings
 from launchpilot.infrastructure.control_plane import (
     ConnectedUser,
     PlatformConnection,
-    SqliteControlPlane,
+    PostgresControlPlane,
 )
 from launchpilot.infrastructure.google_oauth import GoogleOAuthClient
 from launchpilot.infrastructure.security import BrowserStateManager, InvalidSignedToken
@@ -25,7 +25,7 @@ from .dependencies import (
 )
 
 router = APIRouter(prefix="/connections", tags=["connections"])
-ControlPlaneDependency = Annotated[SqliteControlPlane, Depends(control_plane)]
+ControlPlaneDependency = Annotated[PostgresControlPlane, Depends(control_plane)]
 OAuthDependency = Annotated[GoogleOAuthClient, Depends(google_oauth_client)]
 UserDependency = Annotated[ConnectedUser, Depends(current_user)]
 BrowserStateDependency = Annotated[BrowserStateManager, Depends(browser_state_manager)]

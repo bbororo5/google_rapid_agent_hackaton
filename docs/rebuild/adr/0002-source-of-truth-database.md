@@ -1,6 +1,6 @@
 # ADR-0002: PostgreSQL을 배포 기준 Source of Truth로 사용한다
 
-> 상태: **채택 — Phase 3A 전에 전환**
+> 상태: **채택·구현 완료**
 >
 > 결정일: 2026-08-10
 
@@ -27,6 +27,10 @@ LaunchPilot은 Workspace 기반 다중 사용자, OAuth token 갱신, CampaignOb
 - Elasticsearch에는 검색에 필요한 파생 문서만 Projection하며 원본으로 사용하지 않는다.
 
 이 선택은 예상 트래픽 규모 때문만이 아니다. 서버형 배포, 다중 사용자 데이터의 무결성, 명시적인 DB 접근 제어와 검색 인덱스 재생성 경계를 설명하기 위한 결정이다.
+
+## 구현 결과
+
+애플리케이션 repository와 OAuth control plane을 PostgreSQL로 교체했다. 로컬 개발·테스트 DB는 Docker Compose로 재현하며, 기존 SQLite 데이터는 빈 PostgreSQL로 옮기는 일회성 migration으로 보존한다.
 
 ## 복잡성 제한
 

@@ -6,42 +6,42 @@ from launchpilot.application.services import (
     ObservationService,
 )
 from launchpilot.config import Settings
-from launchpilot.infrastructure.control_plane import SqliteControlPlane
+from launchpilot.infrastructure.control_plane import PostgresControlPlane
 from launchpilot.infrastructure.google_oauth import GoogleOAuthClient
 from launchpilot.infrastructure.meta_oauth import MetaOAuthClient
+from launchpilot.infrastructure.postgres_database import PostgresDatabase
+from launchpilot.infrastructure.postgres_domain import (
+    PostgresCampaignRepository,
+    PostgresConversationRepository,
+    PostgresObservationRepository,
+)
 from launchpilot.infrastructure.security import (
     BrowserStateManager,
     SessionManager,
     SignedTokenCodec,
 )
-from launchpilot.infrastructure.sqlite_domain import (
-    SqliteCampaignRepository,
-    SqliteConversationRepository,
-    SqliteDomainDatabase,
-    SqliteObservationRepository,
-)
 
 
 @lru_cache
-def repository_store() -> SqliteDomainDatabase:
-    return SqliteDomainDatabase(settings().database_path)
+def repository_store() -> PostgresDatabase:
+    return PostgresDatabase(settings().database_url)
 
 
 def campaign_service() -> CampaignService:
-    return CampaignService(SqliteCampaignRepository(repository_store()))
+    return CampaignService(PostgresCampaignRepository(repository_store()))
 
 
 def conversation_service() -> ConversationService:
     database = repository_store()
     return ConversationService(
-        SqliteCampaignRepository(database), SqliteConversationRepository(database)
+        PostgresCampaignRepository(database), PostgresConversationRepository(database)
     )
 
 
 def observation_service() -> ObservationService:
     database = repository_store()
     return ObservationService(
-        SqliteCampaignRepository(database), SqliteObservationRepository(database)
+        PostgresCampaignRepository(database), PostgresObservationRepository(database)
     )
 
 
@@ -51,9 +51,9 @@ def settings() -> Settings:
 
 
 @lru_cache
-def control_plane() -> SqliteControlPlane:
+def control_plane() -> PostgresControlPlane:
     config = settings()
-    return SqliteControlPlane(config.database_path, config.token_encryption_key)
+    return PostgresControlPlane(repository_store(), config.token_encryption_key)
 
 
 def google_oauth_client() -> GoogleOAuthClient:

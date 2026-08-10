@@ -8,7 +8,7 @@ from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 
 from launchpilot.config import Settings
-from launchpilot.infrastructure.control_plane import ConnectedUser, SqliteControlPlane
+from launchpilot.infrastructure.control_plane import ConnectedUser, PostgresControlPlane
 from launchpilot.infrastructure.google_oauth import GoogleOAuthClient
 from launchpilot.infrastructure.security import (
     BrowserStateManager,
@@ -26,7 +26,7 @@ from .dependencies import (
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 SettingsDependency = Annotated[Settings, Depends(settings)]
-ControlPlaneDependency = Annotated[SqliteControlPlane, Depends(control_plane)]
+ControlPlaneDependency = Annotated[PostgresControlPlane, Depends(control_plane)]
 OAuthDependency = Annotated[GoogleOAuthClient, Depends(google_oauth_client)]
 BrowserStateDependency = Annotated[BrowserStateManager, Depends(browser_state_manager)]
 SessionDependency = Annotated[SessionManager, Depends(session_manager)]

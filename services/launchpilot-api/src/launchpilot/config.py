@@ -28,7 +28,7 @@ def _local_mock_base_url(value: str | None) -> str | None:
 
 @dataclass(frozen=True, slots=True)
 class Settings:
-    database_path: str
+    database_url: str
     public_base_url: str
     google_client_id: str | None
     google_client_secret: str | None
@@ -55,7 +55,10 @@ class Settings:
             else public_base_url.startswith("https://")
         )
         return cls(
-            database_path=os.getenv("DATABASE_PATH", "./data/launchpilot.db"),
+            database_url=os.getenv(
+                "DATABASE_URL",
+                "postgresql://launchpilot:launchpilot-local@127.0.0.1:5432/launchpilot",
+            ),
             public_base_url=public_base_url,
             google_client_id=os.getenv("GOOGLE_OAUTH_CLIENT_ID"),
             google_client_secret=os.getenv("GOOGLE_OAUTH_CLIENT_SECRET"),

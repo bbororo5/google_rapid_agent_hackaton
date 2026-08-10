@@ -1,0 +1,20 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: launchpilot
+      POSTGRES_USER: launchpilot
+      POSTGRES_PASSWORD: launchpilot-local
+    ports:
+      - "5432:5432"
+    volumes:
+      - launchpilot-postgres:/var/lib/postgresql/data
+      - ./docker/postgres/init-test-db.sql:/docker-entrypoint-initdb.d/init-test-db.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U launchpilot -d launchpilot"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+
+volumes:
+  launchpilot-postgres:

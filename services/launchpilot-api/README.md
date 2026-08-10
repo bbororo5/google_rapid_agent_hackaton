@@ -7,6 +7,7 @@
 ```bash
 python -m venv .venv
 .venv/bin/python -m pip install -e '.[dev]'
+docker compose up -d postgres
 cp .env.example .env
 .venv/bin/uvicorn launchpilot.main:app --reload --env-file .env
 ```
@@ -90,7 +91,17 @@ POST /campaigns/{campaign_id}/observations/ads
 
 한 플랫폼만 실패하면 성공한 Slice를 `PARTIAL` Observation으로 보존한다. 모든 플랫폼이 실패하면 빈 Observation을 만들지 않는다. 예약 수집은 하지 않으며 사용자의 분석 요청 시점에만 실행한다.
 
-Campaign, Conversation, CampaignObservation은 SQLite에 영속화한다. Observation은 PlatformSlice와 MetricObservation으로 정규화해 저장하므로 서버 재시작 후에도 조회할 수 있고 다음 Retrieval 단계에서 구조화 검색의 기준 데이터가 된다.
+Campaign, Conversation, CampaignObservation은 PostgreSQL에 영속화한다. Observation은 PlatformSlice와 MetricObservation으로 정규화해 저장하므로 서버 재시작 후에도 조회할 수 있고 다음 Retrieval 단계에서 구조화 검색의 기준 데이터가 된다. 애플리케이션 시작 시 버전이 지정된 스키마 migration이 멱등 적용된다.
+
+기존 로컬 SQLite 데이터가 있다면 빈 PostgreSQL에 한 번만 이전한다.
+
+```bash
+.venv/bin/python scripts/migrate_sqlite_to_postgres.py \
+  --sqlite-path ./data/launchpilot.db \
+  --database-url postgresql://launchpilot:launchpilot-local@127.0.0.1:5432/launchpilot
+```
+
+대상 DB에 데이터가 있으면 병합 사고를 막기 위해 migration은 중단된다. 이전이 검증될 때까지 SQLite 파일을 삭제하지 않는다.
 
 ## Local platform mock
 
@@ -141,3 +152,12 @@ cp .env.mock.example .env.mock
 | Meta Ads 정규화 | MockTransport fixture 완료, Meta 앱 연결 대기 |
 | 멀티플랫폼 partial failure | application service fixture 완료 |
 | Campaign·Conversation·Observation 영속화 | repository 재생성·서버 재시작 검증 완료 |
+
+## Test
+
+테스트는 실제 PostgreSQL dialect와 제약조건을 검증하기 위해 별도 `launchpilot_test` DB를 사용한다.
+
+```bash
+docker compose up -d postgres
+.venv/bin/pytest
+```

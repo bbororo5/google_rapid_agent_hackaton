@@ -26,7 +26,7 @@ from launchpilot.domain.models import (
     Conversation,
     DateRange,
 )
-from launchpilot.infrastructure.control_plane import ConnectedUser, SqliteControlPlane
+from launchpilot.infrastructure.control_plane import ConnectedUser, PostgresControlPlane
 from launchpilot.infrastructure.google_oauth import GoogleOAuthClient
 from launchpilot.infrastructure.youtube import YouTubeAnalyticsConnector
 
@@ -53,7 +53,7 @@ router = APIRouter(prefix="/campaigns", tags=["campaigns"])
 CampaignDependency = Annotated[CampaignService, Depends(campaign_service)]
 ConversationDependency = Annotated[ConversationService, Depends(conversation_service)]
 ObservationDependency = Annotated[ObservationService, Depends(observation_service)]
-ControlPlaneDependency = Annotated[SqliteControlPlane, Depends(control_plane)]
+ControlPlaneDependency = Annotated[PostgresControlPlane, Depends(control_plane)]
 UserDependency = Annotated[ConnectedUser, Depends(current_user)]
 OAuthDependency = Annotated[GoogleOAuthClient, Depends(google_oauth_client)]
 SettingsDependency = Annotated[Settings, Depends(settings)]
@@ -67,7 +67,7 @@ def require_campaign_access(
     *,
     campaign_id: UUID,
     user: ConnectedUser,
-    store: SqliteControlPlane,
+    store: PostgresControlPlane,
     service: CampaignService,
 ):
     """Return only campaigns visible to the caller; hide cross-workspace existence."""

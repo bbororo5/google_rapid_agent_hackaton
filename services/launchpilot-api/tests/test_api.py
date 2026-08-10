@@ -13,7 +13,8 @@ from launchpilot.domain.integrations import (
     PlatformProvider,
 )
 from launchpilot.domain.models import MetricObservation, PlatformSlice
-from launchpilot.infrastructure.control_plane import ConnectedUser, SqliteControlPlane
+from launchpilot.infrastructure.control_plane import ConnectedUser, PostgresControlPlane
+from launchpilot.infrastructure.postgres_database import PostgresDatabase
 from launchpilot.infrastructure.security import SessionManager, SignedTokenCodec
 from launchpilot.main import app
 
@@ -21,16 +22,18 @@ from launchpilot.main import app
 @dataclass(frozen=True)
 class AuthenticatedClient:
     client: TestClient
-    store: SqliteControlPlane
+    store: PostgresControlPlane
     user: ConnectedUser
     workspace_id: str
     session_manager: SessionManager
 
 
 @pytest.fixture
-def authenticated_client(tmp_path, monkeypatch) -> AuthenticatedClient:
+def authenticated_client(
+    postgres_database: PostgresDatabase, monkeypatch
+) -> AuthenticatedClient:
     secret = "test-session-secret-with-at-least-32-characters"
-    monkeypatch.setenv("DATABASE_PATH", str(tmp_path / "control-plane.db"))
+    monkeypatch.setenv("DATABASE_URL", postgres_database.database_url)
     monkeypatch.setenv("TOKEN_ENCRYPTION_KEY", Fernet.generate_key().decode())
     monkeypatch.setenv("APP_SESSION_SECRET", secret)
     monkeypatch.setenv("GOOGLE_OAUTH_CLIENT_ID", "test-client")

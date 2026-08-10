@@ -5,7 +5,7 @@ from pydantic import BaseModel
 
 from launchpilot.infrastructure.control_plane import (
     ConnectedUser,
-    SqliteControlPlane,
+    PostgresControlPlane,
     WorkspaceAccess,
 )
 
@@ -14,7 +14,7 @@ from .dependencies import control_plane
 
 router = APIRouter(prefix="/workspaces", tags=["workspaces"])
 UserDependency = Annotated[ConnectedUser, Depends(current_user)]
-ControlPlaneDependency = Annotated[SqliteControlPlane, Depends(control_plane)]
+ControlPlaneDependency = Annotated[PostgresControlPlane, Depends(control_plane)]
 
 
 class WorkspaceOutput(BaseModel):
