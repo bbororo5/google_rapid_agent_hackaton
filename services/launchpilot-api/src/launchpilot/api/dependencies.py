@@ -122,19 +122,23 @@ def control_plane() -> PostgresControlPlane:
     return PostgresControlPlane(repository_store(), config.token_encryption_key)
 
 
+def campaign_access_service(
+    campaigns: Annotated[CampaignService, Depends(campaign_service)],
+    store: Annotated[PostgresControlPlane, Depends(control_plane)],
+) -> CampaignAccessService:
+    return CampaignAccessService(campaigns, ControlPlaneWorkspaceAccessReader(store))
+
+
 def campaign_analysis_service(
     model: Annotated[BaseChatModel, Depends(agent_model)],
     retrieval: Annotated[
         StructuredRetrievalService, Depends(structured_retrieval_service)
     ],
     text_retrieval: Annotated[TextRetrievalService, Depends(text_retrieval_service)],
-    campaigns: Annotated[CampaignService, Depends(campaign_service)],
-    store: Annotated[PostgresControlPlane, Depends(control_plane)],
+    access: Annotated[CampaignAccessService, Depends(campaign_access_service)],
 ) -> CampaignAnalysisService:
     return CampaignAnalysisService(
-        access=CampaignAccessService(
-            campaigns, ControlPlaneWorkspaceAccessReader(store)
-        ),
+        access=access,
         agents=CampaignAgentFactory(
             model=model,
             retrieval=retrieval,

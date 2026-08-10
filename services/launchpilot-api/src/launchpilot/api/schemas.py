@@ -3,7 +3,12 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from launchpilot.domain.models import Campaign, Conversation, DateRange
+from launchpilot.domain.models import (
+    Campaign,
+    CampaignObservation,
+    Conversation,
+    DateRange,
+)
 
 
 class PeriodInput(BaseModel):
@@ -108,3 +113,19 @@ class ObservationSummaryOutput(BaseModel):
     completeness: str
     platform_slice_count: int
     missing_reasons: list[str] = Field(default_factory=list)
+
+    @classmethod
+    def from_domain(
+        cls, observation: CampaignObservation
+    ) -> "ObservationSummaryOutput":
+        return cls(
+            id=observation.id,
+            campaign_id=observation.campaign_id,
+            captured_at=observation.captured_at,
+            period=PeriodInput(
+                start=observation.period.start, end=observation.period.end
+            ),
+            completeness=observation.completeness.status,
+            platform_slice_count=len(observation.platform_slices),
+            missing_reasons=list(observation.completeness.missing_reasons),
+        )

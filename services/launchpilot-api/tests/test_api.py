@@ -356,7 +356,7 @@ def test_multiplatform_api_persists_observation_across_repository_recreation(
         assert binding_response.status_code == 201
 
     monkeypatch.setattr(
-        "launchpilot.api.routers.connector_for",
+        "launchpilot.api.observations.connector_for",
         lambda provider, config: ApiFixtureAdsConnector(PlatformProvider(provider)),
     )
     response = context.client.post(
