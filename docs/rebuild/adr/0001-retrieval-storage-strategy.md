@@ -24,7 +24,7 @@
 
 ## 결정
 
-- 관계형 DB를 수치·도메인 데이터의 source of truth로 유지한다.
+- PostgreSQL을 수치·도메인 데이터의 source of truth로 사용한다.
 - Elasticsearch를 재생성 가능한 검색 Projection의 주요 후보로 시험 채택한다.
 - 관계 탐색은 원본의 명시적 관계로 시작하고, Eval이 필요성을 보일 때만 Neo4j를 검토한다.
 - Elasticsearch 최종 채택과 고급 검색 방식은 동일한 Eval Dataset의 결과로 결정한다.
@@ -34,6 +34,7 @@
 ## 관련 문서
 
 - [Retrieval Evolution Plan](../retrieval-evolution-plan.md)
+- [ADR-0002 — PostgreSQL Source of Truth](0002-source-of-truth-database.md)
 - [Phase 0 — Product & Evaluation Charter](../phase-0-decision-charter.md)
 - [Phase 1 — Domain Model](../phase-1-domain-model.md)
 - [Archived Google ADK prototype — Elasticsearch context](../../../archive/google-adk-hackathon-prototype/apps/agent/README.md)

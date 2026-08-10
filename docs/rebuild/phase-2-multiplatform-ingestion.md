@@ -31,7 +31,7 @@
 | 2D | 구현 완료 | Graph API fixture 성공, Meta 앱 기반 실제 계정 검증 대기 |
 | 2E | 구현 완료 | complete·partial·all-failed 조립 테스트 |
 
-수집 결과는 SQLite의 Observation → PlatformSlice → MetricObservation 구조로 영속화한다. 서버를 재시작해도 Campaign, Conversation, Observation과 출처 정보가 유지되며 Phase 3의 구조화 Retrieval 입력으로 사용한다.
+수집 결과는 Observation → PlatformSlice → MetricObservation의 관계형 구조로 영속화한다. Phase 2 구현은 SQLite로 검증했으며, Phase 3A 전 [ADR-0002](adr/0002-source-of-truth-database.md)에 따라 PostgreSQL로 전환한다. 서버를 재시작해도 Campaign, Conversation, Observation과 출처 정보가 유지되며 구조화 Retrieval 입력으로 사용한다.
 
 ## Connector contract
 

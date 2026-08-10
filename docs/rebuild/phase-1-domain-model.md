@@ -163,6 +163,6 @@ Elasticsearch index, API DTO와 플랫폼별 필드 매핑은 이 도메인 모�
 
 ## 11. Persistence decision
 
-Campaign, Conversation, CampaignObservation은 SQLite repository에 영속화한다. Observation은 `campaign_observations`, `platform_slices`, `metric_observations`의 관계형 구조로 저장해 다음 Retrieval 단계에서 기간·플랫폼·지표별 결정적 조회가 가능하게 한다.
+Campaign, Conversation, CampaignObservation은 관계형 repository에 영속화한다. Observation은 `campaign_observations`, `platform_slices`, `metric_observations`의 관계형 구조로 저장해 다음 Retrieval 단계에서 기간·플랫폼·지표별 결정적 조회가 가능하게 한다. Phase 1 구현은 SQLite로 검증했으며, 배포 기준 저장소는 [ADR-0002](adr/0002-source-of-truth-database.md)에 따라 PostgreSQL로 전환한다.
 
-OAuth 연결과 외부 Campaign binding도 같은 SQLite 파일을 사용하지만 별도 repository 경계로 관리한다. 따라서 인증 control-plane 모델과 분석 domain 모델은 저장 매체를 공유하더라도 코드의 책임은 합치지 않는다.
+OAuth 연결과 외부 Campaign binding도 같은 관계형 DB를 사용하지만 별도 repository 경계로 관리한다. 따라서 인증 control-plane 모델과 분석 domain 모델은 저장 매체를 공유하더라도 코드의 책임은 합치지 않는다.

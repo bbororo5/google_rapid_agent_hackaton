@@ -18,7 +18,7 @@
 
 베이스라인은 다음 범위까지만 구현한다.
 
-- **Structured Retrieval:** 관계형 원본에서 ID 직접 조회, 기간·플랫폼 필터와 metric 집계
+- **Structured Retrieval:** PostgreSQL 원본에서 ID 직접 조회, 기간·플랫폼 필터와 metric 집계
 - **BM25 Retrieval:** 검색 Projection에서 메모·브리프·과거 분석의 lexical 검색
 - **Evidence Resolution:** 검색 결과의 `source_ref`가 가리키는 원본 근거 확인
 
@@ -51,3 +51,4 @@ Dense, learned sparse, hybrid, reranker와 graph expansion은 베이스라인에
 - [Phase 0 — Product & Evaluation Charter](phase-0-decision-charter.md)
 - [Phase 1 — Domain Model](phase-1-domain-model.md)
 - [ADR-0001 — Retrieval 검색 저장소 후보](adr/0001-retrieval-storage-strategy.md)
+- [ADR-0002 — PostgreSQL Source of Truth](adr/0002-source-of-truth-database.md)

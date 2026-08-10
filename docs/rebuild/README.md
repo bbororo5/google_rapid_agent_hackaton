@@ -16,6 +16,7 @@
 | ADR | 결정 | 상태 |
 | --- | --- | --- |
 | ADR-0001 | [`Elasticsearch를 Retrieval 검색 저장소 후보로 둔다`](adr/0001-retrieval-storage-strategy.md) | 시험 채택, Retrieval Eval로 최종 판단 |
+| ADR-0002 | [`PostgreSQL을 배포 기준 Source of Truth로 사용한다`](adr/0002-source-of-truth-database.md) | 채택, Phase 3A 전에 전환 |
 
 ## Status rule
 
