@@ -7,8 +7,8 @@
 | Phase | 문서 | 결정 상태 | 구현 진척도 |
 | --- | --- | --- | --- |
 | Phase 0 | [`phase-0-decision-charter.md`](phase-0-decision-charter.md) | 확정 | 완료 |
-| Phase 1 | [`phase-1-domain-model.md`](phase-1-domain-model.md) | 논의 중 | 핵심 모델·FastAPI vertical slice 구현 |
-| Phase 2 | [`phase-2-multiplatform-ingestion.md`](phase-2-multiplatform-ingestion.md) | 확정 | Google 로그인·YouTube 수집 완료, Ads Connector 확장 중 |
+| Phase 1 | [`phase-1-domain-model.md`](phase-1-domain-model.md) | 확정 | 완료 |
+| Phase 2 | [`phase-2-multiplatform-ingestion.md`](phase-2-multiplatform-ingestion.md) | 확정 | 세 플랫폼 mock E2E 완료, 실제 Ads 성과 검증 대기 |
 
 ## Status rule
 

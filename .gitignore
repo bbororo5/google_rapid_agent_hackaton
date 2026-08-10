@@ -1,16 +1,10 @@
 node_modules/
 .next/
-apps/*/.next/
 test-results/
 playwright-report/
 *.tsbuildinfo
-apps/*/.env*.local
-apps/*/.env.production
-mock/**/.gradle/
-mock/**/build/
-mock/**/bin/
 
-# Secrets: shared env at repo root (never commit)
+# Local environment and secrets (never commit)
 .env
 .env.local
 .env.mock
