@@ -6,13 +6,15 @@
 
 ## 맥락
 
-LaunchPilot에는 정답을 찾는 방식이 다른 세 종류의 Retrieval이 필요하다.
+LaunchPilot은 여러 광고 플랫폼의 성과를 합쳐 보여 주는 대시보드가 아니라, **성과 변화의 근거를 찾고 다음 판단을 돕는 분석 Agent**를 목표로 한다. 예를 들어 “A 캠페인의 성과가 왜 하락했고 무엇을 바꿔야 하는가?”라는 질문에는 다음 과정이 함께 필요하다.
 
-| 구분 | 대상과 방식 |
-| --- | --- |
-| **결정적 정형 조회** (Deterministic Structured Retrieval) | 광고 성과 수치·기간·출처를 조건에 맞게 직접 조회·필터·집계한다. 결과에 검색 순위를 매기지 않는다. |
-| **관련도 기반 텍스트 검색** (Relevance-ranked Text Retrieval) | 메모·브리프·과거 분석을 BM25 lexical, dense·sparse semantic, hybrid 검색으로 순위화한다. |
-| **관계 기반 탐색** (Relationship Traversal) | Claim → Evidence → 가설처럼 명시된 연결을 따라가며 출처와 판단 경로를 확장한다. |
+| 구분 | 필요한 이유 | 처리 방식 |
+| --- | --- | --- |
+| **결정적 정형 조회** (Deterministic Structured Retrieval) | 실제 하락 여부와 플랫폼·기간별 차이를 틀리지 않게 계산해야 한다. | 광고 성과 수치·기간·출처를 직접 조회·필터·집계한다. |
+| **관련도 기반 텍스트 검색** (Relevance-ranked Text Retrieval) | 수치만으로 알 수 없는 과거 메모·브리프·시장 맥락에서 관련 후보를 찾아야 한다. | BM25 lexical, dense·sparse semantic, hybrid 검색으로 문서를 순위화한다. |
+| **관계 기반 탐색** (Relationship Traversal) | 분석 결과가 어떤 Signal과 Evidence에서 나왔는지 설명하고 검증할 수 있어야 한다. | Claim → Evidence → 가설처럼 명시된 연결을 따라간다. |
+
+이 구분은 저장 기술을 늘리기 위한 것이 아니다. 정형 조회만 사용하면 관련 맥락을 놓치고, 텍스트 검색만 사용하면 수치 정확성을 보장할 수 없으며, 관계 탐색만으로는 관련 문서의 우선순위를 정하기 어렵다. Agent는 사용자 질문에 따라 세 Retrieval을 선택하거나 조합하되, 각 결과의 역할을 섞지 않는다.
 
 아카이브한 Google ADK 해커톤 프로젝트도 Elasticsearch를 사용했다. 리빌딩은 그 구현을 그대로 옮기는 작업은 아니지만, 당시 선택을 버리지 않고 현재 데이터와 목표에 맞는지 다시 검증하면 기술적 흐름을 자연스럽게 이어갈 수 있다.
 
