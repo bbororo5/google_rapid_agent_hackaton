@@ -14,7 +14,7 @@
 
 | ADR | 결정 | 상태 |
 | --- | --- | --- |
-| ADR-0001 | [`Retrieval 저장소를 원본 DB와 검색 Projection으로 분리한다`](adr/0001-retrieval-storage-strategy.md) | 승인, Phase 4 Eval 후 재검토 |
+| ADR-0001 | [`Elasticsearch를 Retrieval 진화의 주요 후보로 둔다`](adr/0001-retrieval-storage-strategy.md) | 시험 채택, Retrieval Eval로 최종 판단 |
 
 ## Status rule
 

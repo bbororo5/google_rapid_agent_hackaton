@@ -1,79 +1,53 @@
-# ADR-0001: 원본 DB와 검색 저장소를 분리한다
+# ADR-0001: Elasticsearch를 Retrieval 진화의 주요 후보로 둔다
 
-> 상태: **승인 — Retrieval Eval 후 재검토**
+> 상태: **시험 채택 — Retrieval Eval로 최종 판단**
 >
 > 결정일: 2026-08-10
 
 ## 맥락
 
-LaunchPilot이 다루는 데이터는 성격이 다르다.
+LaunchPilot에는 서로 다른 Retrieval이 필요하다.
 
-| 데이터 | 필요한 처리 |
-| --- | --- |
-| 광고 성과 수치·기간·통화·출처 | 정확한 필터, 직접 조회, 집계 |
-| 캠페인·대화·Observation | ID와 소유권에 따른 관계형 조회 |
-| 메모·브리프·트렌드·과거 분석 | BM25, dense, sparse 검색과 재정렬 |
-| Claim과 Evidence의 관계 | 출처 추적과 제한적인 관계 확장 |
+- 광고 성과 수치·기간·출처: 정확한 직접 조회와 집계
+- 메모·브리프·과거 분석: 관련도 기반 텍스트 검색
+- Claim·Evidence·가설의 관계: 출처 추적과 관계 확장
 
-광고 수치는 유사도로 찾으면 안 되고, 텍스트 근거는 정확 일치만으로 충분하지 않다. 따라서 하나의 저장소가 모든 Retrieval을 담당하게 하지 않는다.
+아카이브한 Google ADK 해커톤 프로젝트도 Elasticsearch를 사용했다. 리빌딩은 그 구현을 그대로 옮기는 작업은 아니지만, 당시 선택을 버리지 않고 현재 데이터와 목표에 맞는지 다시 검증하면 기술적 흐름을 자연스럽게 이어갈 수 있다.
 
 ## 결정
 
-- **관계형 DB를 source of truth로 사용한다.** 포트폴리오 단계에서는 현재 구현된 SQLite를 유지한다.
-- **Elasticsearch는 재생성 가능한 검색 Projection으로만 사용한다.** BM25 기준선과 이후 dense·sparse·hybrid·reranker 실험을 담당한다.
-- Agent는 저장소를 직접 선택하지 않는다. `Structured Retrieval`과 `Evidence Search` 같은 논리적 도구를 선택하고, Retrieval 계층이 실제 저장소를 호출한다.
-- Graph DB는 도입하지 않는다. 관계형 조회로 먼저 검증하고 graph expansion의 개선이 Eval에서 확인될 때 별도로 결정한다.
+- 관계형 DB는 수치와 도메인 데이터의 source of truth로 유지한다.
+- Elasticsearch는 원본이 아니라 재생성 가능한 검색 Projection의 **주요 후보**로 둔다.
+- 최종 채택 여부와 사용할 검색 방식은 같은 Eval Dataset의 결과로 결정한다.
 
-```mermaid
-flowchart LR
-    API["Platform APIs"] --> DB["Relational DB — Source of Truth"]
-    DB --> ES["Elasticsearch — Search Projection"]
-    Q["User Question"] --> R["Retrieval Layer"]
-    R -->|"수치·기간·ID"| DB
-    R -->|"텍스트 근거"| ES
-```
-
-## Elasticsearch를 유지하는 이유
-
-기존 프로젝트에서 사용했다는 사실은 근거가 아니다. Elasticsearch를 선택하는 이유는 이번 포트폴리오가 다음 검색 단계를 **동일한 데이터셋으로 비교**하려 하기 때문이다.
+Elasticsearch가 주요 후보인 이유는 하나의 검색 엔진에서 우리가 계획한 Retrieval 진화 과정을 대부분 이어서 실험할 수 있기 때문이다.
 
 ```text
-Structured Retrieval + BM25
-→ Dense
-→ Learned Sparse
-→ Hybrid/RRF
-→ Reranker
-→ Graph Expansion
+Phase 3A  Structured Retrieval + BM25 Baseline
+Phase 4A  Query Dataset + Ground Truth + Retrieval Eval
+Phase 3B  Dense → Learned Sparse → Hybrid/RRF → Reranker → Graph Expansion
+Phase 4B  같은 Eval Dataset으로 비교 후 유지·제거 결정
 ```
 
-Elasticsearch는 BM25, dense vector, sparse vector와 RRF를 한 검색 엔진에서 실험할 수 있다. 하지만 작은 데이터에 비해 무겁고 이중 저장에 따른 동기화 비용이 있으므로, 비즈니스 원본으로는 사용하지 않는다.
+Graph Expansion은 Elasticsearch가 graph DB라는 뜻이 아니다. 먼저 기존 관계와 검색 결과를 애플리케이션에서 확장하고, 관계 중심 질문에서 한계가 확인될 때 Neo4j 같은 별도 graph projection을 검토한다.
 
-ELSER도 미리 확정하지 않는다. 공식 문서상 영어에 권장되고 구독·ML 자원 조건이 있으므로, 한국어가 포함된 우리 데이터에서는 외부 multilingual sparse 모델과 함께 평가한다.
+## 대안과 판단
 
-## 검토한 대안
+PostgreSQL + pgvector는 작은 서비스를 단순하게 구성하기에 좋은 대안이고, Qdrant·Weaviate는 vector/hybrid 검색에 강하다. 그러나 이번 포트폴리오에서는 BM25부터 dense·sparse·fusion·reranking까지 한 흐름으로 비교하는 경험이 핵심이다. 기존 프로젝트와의 연속성까지 고려하면 Elasticsearch를 먼저 검증할 이유가 충분하다.
 
-| 대안 | 이번에 선택하지 않은 이유 |
-| --- | --- |
-| SQLite만 사용 | Structured Retrieval에는 충분하지만 계획한 고급 검색 비교가 제한된다. |
-| PostgreSQL + pgvector | 실제 소규모 제품이라면 가장 단순한 대안이다. 다만 이번 포트폴리오의 sparse·fusion 비교에는 애플리케이션 조립이 더 필요하다. |
-| Qdrant·Weaviate | vector와 hybrid 검색에는 강하지만 정량 원본 DB가 별도로 필요하다. |
-| Neo4j | 현재 핵심 질문보다 관계 탐색 비중이 커질 때 가치가 생긴다. 지금 도입하면 동기화 비용이 먼저 발생한다. |
+다만 “이전에 사용했다”는 사실만으로 확정하지 않는다. 작은 데이터에 Elasticsearch가 과할 수 있고, 이중 저장과 동기화 비용도 생긴다. 따라서 다음 원칙을 적용한다.
 
-## 검증과 재검토
+- 기능이 있다는 이유만으로 사용하지 않는다.
+- 한 번에 하나의 Retrieval 요소만 추가한다.
+- 동일한 Query Dataset과 Ground Truth로 비교한다.
+- 품질 향상이 비용과 복잡성을 정당화할 때만 유지한다.
 
-Phase 3A에서 관계형 Structured Retrieval과 Elasticsearch BM25를 기준선으로 만든다. Phase 4A에서 Query Dataset과 Ground Truth를 고정한 뒤, Phase 3B의 검색 방식을 하나씩 추가하고 Phase 4B에서 같은 데이터로 비교한다.
+## 결론
 
-다음 경우에는 Elasticsearch 결정을 다시 검토한다.
-
-- 기본 검색만으로 대표 질문을 충분히 해결한다.
-- 품질 개선보다 운영·동기화 비용이 크다.
-- 관계 중심 질문에서 별도 graph projection이 유의미한 개선을 보인다.
-
-기능이 지원된다는 이유만으로 채택하지 않으며, Eval에서 개선된 구성만 남긴다.
+Elasticsearch는 과거 기술을 관성적으로 유지하는 선택이 아니라, **해커톤의 기술적 맥락을 이어가면서 Retrieval을 Eval 기반으로 진화시키는 가설**이다. Phase 4B 결과가 이 가설의 채택 또는 폐기를 결정한다.
 
 ## 근거
 
 - [Elasticsearch ranking and reranking](https://www.elastic.co/docs/solutions/search/ranking)
 - [Elasticsearch sparse vector query](https://www.elastic.co/docs/reference/query-languages/query-dsl/query-dsl-sparse-vector-query)
-- [ELSER requirements](https://www.elastic.co/guide/en/machine-learning/current/ml-nlp-elser.html)
 - [pgvector hybrid search](https://github.com/pgvector/pgvector)
