@@ -6,11 +6,13 @@
 
 ## 맥락
 
-LaunchPilot에는 서로 다른 Retrieval이 필요하다.
+LaunchPilot에는 정답을 찾는 방식이 다른 세 종류의 Retrieval이 필요하다.
 
-- 광고 성과 수치·기간·출처: 정확한 직접 조회와 집계
-- 메모·브리프·과거 분석: 관련도 기반 텍스트 검색
-- Claim·Evidence·가설의 관계: 출처 추적과 관계 확장
+| 구분 | 대상과 방식 |
+| --- | --- |
+| **결정적 정형 조회** (Deterministic Structured Retrieval) | 광고 성과 수치·기간·출처를 조건에 맞게 직접 조회·필터·집계한다. 결과에 검색 순위를 매기지 않는다. |
+| **관련도 기반 텍스트 검색** (Relevance-ranked Text Retrieval) | 메모·브리프·과거 분석을 BM25 lexical, dense·sparse semantic, hybrid 검색으로 순위화한다. |
+| **관계 기반 탐색** (Relationship Traversal) | Claim → Evidence → 가설처럼 명시된 연결을 따라가며 출처와 판단 경로를 확장한다. |
 
 아카이브한 Google ADK 해커톤 프로젝트도 Elasticsearch를 사용했다. 리빌딩은 그 구현을 그대로 옮기는 작업은 아니지만, 당시 선택을 버리지 않고 현재 데이터와 목표에 맞는지 다시 검증하면 기술적 흐름을 자연스럽게 이어갈 수 있다.
 
