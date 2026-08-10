@@ -1,4 +1,4 @@
-# ADR-0001: Elasticsearch를 Retrieval 진화의 주요 후보로 둔다
+# ADR-0001: Elasticsearch를 Retrieval 검색 저장소 후보로 둔다
 
 > 상태: **시험 채택 — Retrieval Eval로 최종 판단**
 >
@@ -6,60 +6,41 @@
 
 ## 맥락
 
-광고 캠페인의 집행·관리·성과 추적은 광고 플랫폼의 수치만 보고 이루어지지 않는다. 실무자는 Google Ads·Meta Ads·YouTube에서 수집한 **성과 사실**, 캠페인 브리프·팀 메모·시장 동향 같은 **해석 맥락**, 그리고 과거 분석·가설·권장안이 어떤 근거에서 나왔는지를 보여 주는 **의사결정 관계**를 함께 사용한다.
+[Retrieval Evolution Plan](../retrieval-evolution-plan.md)은 관계형 Structured Retrieval과 BM25를 기준선으로 삼고, dense·sparse·hybrid·reranker를 Eval로 확장한다.
 
-예를 들어 “A 캠페인의 성과가 왜 하락했고 무엇을 바꿔야 하는가?”라는 질문에 답하려면 다음 세 단계를 거쳐야 한다.
+아카이브한 Google ADK 해커톤 프로젝트도 Elasticsearch를 사용했다. 리빌딩은 기존 구현을 그대로 옮기지 않지만, 당시 선택을 현재 데이터와 평가 계획에 맞춰 다시 검증하면 기술적 흐름을 자연스럽게 이어갈 수 있다.
 
-1. 실제로 어떤 지표가 어느 기간과 플랫폼에서 변했는지 확인한다.
-2. 그 변화와 관련된 내부 기록과 외부 맥락을 찾는다.
-3. 관측한 사실과 해석, 가설과 권장안의 연결을 추적한다.
+## 후보 비교
 
-이 데이터들은 정답을 찾는 기준이 서로 다르다. 수치는 정확해야 하고, 문서는 관련성이 높아야 하며, 판단은 근거까지 추적할 수 있어야 한다. LaunchPilot은 이 세 조건을 한 검색 방식에 억지로 맡기지 않고 다음 Retrieval로 구분한다.
-
-| 구분 | 필요한 이유 | 처리 방식 |
+| 후보 | 강점 | 이번 결정의 한계 |
 | --- | --- | --- |
-| **결정적 정형 조회** (Deterministic Structured Retrieval) | 실제 하락 여부와 플랫폼·기간별 차이를 틀리지 않게 계산해야 한다. | 광고 성과 수치·기간·출처를 직접 조회·필터·집계한다. |
-| **관련도 기반 텍스트 검색** (Relevance-ranked Text Retrieval) | 수치만으로 알 수 없는 과거 메모·브리프·시장 맥락에서 관련 후보를 찾아야 한다. | BM25 lexical, dense·sparse semantic, hybrid 검색으로 문서를 순위화한다. |
-| **관계 기반 탐색** (Relationship Traversal) | 분석 결과가 어떤 Signal과 Evidence에서 나왔는지 설명하고 검증할 수 있어야 한다. | Claim → Evidence → 가설처럼 명시된 연결을 따라간다. |
+| PostgreSQL + pgvector | 정형 조회와 관계를 한 원본에 두기 가장 단순함 | BM25부터 sparse·fusion·reranker까지 더 많은 조립이 필요함 |
+| Elasticsearch | BM25, dense·sparse, RRF, reranker와 rank evaluation을 한 검색 엔진에서 실험 가능 | 작은 데이터에는 무겁고 명시적 관계 탐색에는 약함 |
+| OpenSearch | 유사한 검색 기능, Search Relevance Workbench, Apache 2.0 | 기존 Elasticsearch 경험과의 연속성이 약함 |
+| Neo4j | 명시적 관계와 경로 탐색에 가장 강함 | 현재 텍스트 Retrieval 실험 범위와 정량 원본에 과함 |
+| Qdrant·Weaviate | vector·hybrid 검색에 강함 | 별도 정량 원본이 필요하고 관계 탐색이 제한적임 |
 
-이 구분은 저장 기술을 늘리기 위한 것이 아니다. 정형 조회만 사용하면 관련 맥락을 놓치고, 텍스트 검색만 사용하면 수치 정확성을 보장할 수 없으며, 관계 탐색만으로는 관련 문서의 우선순위를 정하기 어렵다. Agent는 사용자 질문에 따라 세 Retrieval을 선택하거나 조합하되, 각 결과의 역할을 섞지 않는다.
-
-아카이브한 Google ADK 해커톤 프로젝트도 Elasticsearch를 사용했다. 리빌딩은 그 구현을 그대로 옮기는 작업은 아니지만, 당시 선택을 버리지 않고 현재 데이터와 목표에 맞는지 다시 검증하면 기술적 흐름을 자연스럽게 이어갈 수 있다.
+세 Retrieval을 같은 수준으로 잘하는 단일 DB는 없다. 이번 포트폴리오에서는 단일 저장소보다 각 데이터의 정답 조건에 맞는 역할 분리를 선택한다.
 
 ## 결정
 
-- 관계형 DB는 수치와 도메인 데이터의 source of truth로 유지한다.
-- Elasticsearch는 원본이 아니라 재생성 가능한 검색 Projection의 **주요 후보**로 둔다.
-- 최종 채택 여부와 사용할 검색 방식은 같은 Eval Dataset의 결과로 결정한다.
+- 관계형 DB를 수치·도메인 데이터의 source of truth로 유지한다.
+- Elasticsearch를 재생성 가능한 검색 Projection의 주요 후보로 시험 채택한다.
+- 관계 탐색은 원본의 명시적 관계로 시작하고, Eval이 필요성을 보일 때만 Neo4j를 검토한다.
+- Elasticsearch 최종 채택과 고급 검색 방식은 동일한 Eval Dataset의 결과로 결정한다.
 
-Elasticsearch가 주요 후보인 이유는 하나의 검색 엔진에서 우리가 계획한 Retrieval 진화 과정을 대부분 이어서 실험할 수 있기 때문이다.
+이 선택은 “해커톤에서도 사용했다”는 관성이 아니다. 기존 경험을 출발점으로 삼되, Retrieval 품질 개선이 이중 저장과 운영 비용을 정당화하는지 다시 증명하는 결정이다. OpenSearch는 Elasticsearch의 가장 강한 대안으로 남긴다.
 
-```text
-Phase 3A  Structured Retrieval + BM25 Baseline
-Phase 4A  Query Dataset + Ground Truth + Retrieval Eval
-Phase 3B  Dense → Learned Sparse → Hybrid/RRF → Reranker → Graph Expansion
-Phase 4B  같은 Eval Dataset으로 비교 후 유지·제거 결정
-```
+## 관련 문서
 
-Graph Expansion은 Elasticsearch가 graph DB라는 뜻이 아니다. 먼저 기존 관계와 검색 결과를 애플리케이션에서 확장하고, 관계 중심 질문에서 한계가 확인될 때 Neo4j 같은 별도 graph projection을 검토한다.
-
-## 대안과 판단
-
-PostgreSQL + pgvector는 작은 서비스를 단순하게 구성하기에 좋은 대안이고, Qdrant·Weaviate는 vector/hybrid 검색에 강하다. 그러나 이번 포트폴리오에서는 BM25부터 dense·sparse·fusion·reranking까지 한 흐름으로 비교하는 경험이 핵심이다. 기존 프로젝트와의 연속성까지 고려하면 Elasticsearch를 먼저 검증할 이유가 충분하다.
-
-다만 “이전에 사용했다”는 사실만으로 확정하지 않는다. 작은 데이터에 Elasticsearch가 과할 수 있고, 이중 저장과 동기화 비용도 생긴다. 따라서 다음 원칙을 적용한다.
-
-- 기능이 있다는 이유만으로 사용하지 않는다.
-- 한 번에 하나의 Retrieval 요소만 추가한다.
-- 동일한 Query Dataset과 Ground Truth로 비교한다.
-- 품질 향상이 비용과 복잡성을 정당화할 때만 유지한다.
-
-## 결론
-
-Elasticsearch는 과거 기술을 관성적으로 유지하는 선택이 아니라, **해커톤의 기술적 맥락을 이어가면서 Retrieval을 Eval 기반으로 진화시키는 가설**이다. Phase 4B 결과가 이 가설의 채택 또는 폐기를 결정한다.
+- [Retrieval Evolution Plan](../retrieval-evolution-plan.md)
+- [Phase 0 — Product & Evaluation Charter](../phase-0-decision-charter.md)
+- [Phase 1 — Domain Model](../phase-1-domain-model.md)
+- [Archived Google ADK prototype — Elasticsearch context](../../../archive/google-adk-hackathon-prototype/apps/agent/README.md)
 
 ## 근거
 
-- [Elasticsearch ranking and reranking](https://www.elastic.co/docs/solutions/search/ranking)
-- [Elasticsearch sparse vector query](https://www.elastic.co/docs/reference/query-languages/query-dsl/query-dsl-sparse-vector-query)
+- [Elasticsearch ranking evaluation](https://www.elastic.co/docs/reference/elasticsearch/rest-apis/search-rank-eval)
+- [OpenSearch hybrid search optimization](https://docs.opensearch.org/latest/search-plugins/search-relevance/optimize-hybrid-search/)
 - [pgvector hybrid search](https://github.com/pgvector/pgvector)
+- [Neo4j semantic indexes](https://neo4j.com/docs/cypher-manual/current/indexes/semantic-indexes/)

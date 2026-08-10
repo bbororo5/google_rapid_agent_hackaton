@@ -9,12 +9,13 @@
 | Phase 0 | [`phase-0-decision-charter.md`](phase-0-decision-charter.md) | 확정 | 완료 |
 | Phase 1 | [`phase-1-domain-model.md`](phase-1-domain-model.md) | 확정 | 완료 |
 | Phase 2 | [`phase-2-multiplatform-ingestion.md`](phase-2-multiplatform-ingestion.md) | 확정 | 세 플랫폼 mock E2E 완료, 실제 Ads 성과 검증 대기 |
+| Phase 3A~4B | [`retrieval-evolution-plan.md`](retrieval-evolution-plan.md) | 확정 | Baseline 설계 중 |
 
 ## Architecture Decision Records
 
 | ADR | 결정 | 상태 |
 | --- | --- | --- |
-| ADR-0001 | [`Elasticsearch를 Retrieval 진화의 주요 후보로 둔다`](adr/0001-retrieval-storage-strategy.md) | 시험 채택, Retrieval Eval로 최종 판단 |
+| ADR-0001 | [`Elasticsearch를 Retrieval 검색 저장소 후보로 둔다`](adr/0001-retrieval-storage-strategy.md) | 시험 채택, Retrieval Eval로 최종 판단 |
 
 ## Status rule
 
