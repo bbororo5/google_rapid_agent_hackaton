@@ -56,6 +56,7 @@ ObservationDependency = Annotated[ObservationService, Depends(observation_servic
 ControlPlaneDependency = Annotated[SqliteControlPlane, Depends(control_plane)]
 UserDependency = Annotated[ConnectedUser, Depends(current_user)]
 OAuthDependency = Annotated[GoogleOAuthClient, Depends(google_oauth_client)]
+SettingsDependency = Annotated[Settings, Depends(settings)]
 
 
 def not_found(error: NotFoundError) -> HTTPException:
@@ -342,6 +343,7 @@ def fetch_youtube_observation(
     oauth: OAuthDependency,
     campaigns: CampaignDependency,
     service: ObservationDependency,
+    config: SettingsDependency,
 ) -> ObservationSummaryOutput:
     require_campaign_access(
         campaign_id=campaign_id, user=user, store=store, service=campaigns
@@ -399,7 +401,19 @@ def fetch_youtube_observation(
             detail="Connection cannot provide YouTube read access.",
         )
     try:
-        fetched = YouTubeAnalyticsConnector().fetch_channel_metrics(
+        mock_base_url = config.platform_mock_base_url
+        fetched = YouTubeAnalyticsConnector(
+            channels_url=(
+                f"{mock_base_url}/youtube/v3/channels"
+                if mock_base_url
+                else "https://www.googleapis.com/youtube/v3/channels"
+            ),
+            analytics_url=(
+                f"{mock_base_url}/youtube/analytics/v2/reports"
+                if mock_base_url
+                else "https://youtubeanalytics.googleapis.com/v2/reports"
+            ),
+        ).fetch_channel_metrics(
             access_token=token["access_token"],
             period=period,
             fetch_run_ref=f"youtube-{uuid4()}",

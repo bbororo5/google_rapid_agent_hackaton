@@ -58,36 +58,70 @@ def control_plane() -> SqliteControlPlane:
 
 def google_oauth_client() -> GoogleOAuthClient:
     config = settings()
-    try:
-        config.require_google_oauth()
-    except RuntimeError as error:
-        from fastapi import HTTPException, status
+    mock_base_url = config.platform_mock_base_url
+    if not mock_base_url:
+        try:
+            config.require_google_oauth()
+        except RuntimeError as error:
+            from fastapi import HTTPException, status
 
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(error)
-        ) from error
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(error)
+            ) from error
     return GoogleOAuthClient(
-        client_id=config.google_client_id or "",
-        client_secret=config.google_client_secret or "",
+        client_id="mock-google-client"
+        if mock_base_url
+        else config.google_client_id or "",
+        client_secret=(
+            "mock-google-secret" if mock_base_url else config.google_client_secret or ""
+        ),
         public_base_url=config.public_base_url,
+        authorize_url=(
+            f"{mock_base_url}/google/o/oauth2/v2/auth"
+            if mock_base_url
+            else "https://accounts.google.com/o/oauth2/v2/auth"
+        ),
+        token_url=(
+            f"{mock_base_url}/google/token"
+            if mock_base_url
+            else "https://oauth2.googleapis.com/token"
+        ),
+        userinfo_url=(
+            f"{mock_base_url}/google/userinfo"
+            if mock_base_url
+            else "https://openidconnect.googleapis.com/v1/userinfo"
+        ),
     )
 
 
 def meta_oauth_client() -> MetaOAuthClient:
     config = settings()
-    try:
-        app_id, app_secret = config.require_meta_oauth()
-    except RuntimeError as error:
-        from fastapi import HTTPException, status
+    if config.platform_mock_base_url:
+        app_id, app_secret = "mock-meta-app", "mock-meta-secret"
+    else:
+        try:
+            app_id, app_secret = config.require_meta_oauth()
+        except RuntimeError as error:
+            from fastapi import HTTPException, status
 
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(error)
-        ) from error
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(error)
+            ) from error
     return MetaOAuthClient(
         app_id=app_id,
         app_secret=app_secret,
         public_base_url=config.public_base_url,
         api_version=config.meta_graph_api_version,
+        authorize_base_url=(
+            f"{config.platform_mock_base_url}/meta"
+            if config.platform_mock_base_url
+            else "https://www.facebook.com"
+        ),
+        graph_base_url=(
+            f"{config.platform_mock_base_url}/meta"
+            if config.platform_mock_base_url
+            else "https://graph.facebook.com"
+        ),
     )
 
 
