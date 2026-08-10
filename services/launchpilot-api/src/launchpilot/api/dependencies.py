@@ -1,8 +1,15 @@
 from functools import lru_cache
+from typing import Annotated
 
+from fastapi import Depends
 from langchain_core.language_models import BaseChatModel
 from langchain_google_genai import ChatGoogleGenerativeAI
 
+from launchpilot.agent import CampaignAgentFactory
+from launchpilot.application.analysis import (
+    CampaignAccessService,
+    CampaignAnalysisService,
+)
 from launchpilot.application.retrieval import StructuredRetrievalService
 from launchpilot.application.services import (
     CampaignService,
@@ -33,6 +40,9 @@ from launchpilot.infrastructure.security import (
     BrowserStateManager,
     SessionManager,
     SignedTokenCodec,
+)
+from launchpilot.infrastructure.workspace_access import (
+    ControlPlaneWorkspaceAccessReader,
 )
 
 
@@ -110,6 +120,27 @@ def settings() -> Settings:
 def control_plane() -> PostgresControlPlane:
     config = settings()
     return PostgresControlPlane(repository_store(), config.token_encryption_key)
+
+
+def campaign_analysis_service(
+    model: Annotated[BaseChatModel, Depends(agent_model)],
+    retrieval: Annotated[
+        StructuredRetrievalService, Depends(structured_retrieval_service)
+    ],
+    text_retrieval: Annotated[TextRetrievalService, Depends(text_retrieval_service)],
+    campaigns: Annotated[CampaignService, Depends(campaign_service)],
+    store: Annotated[PostgresControlPlane, Depends(control_plane)],
+) -> CampaignAnalysisService:
+    return CampaignAnalysisService(
+        access=CampaignAccessService(
+            campaigns, ControlPlaneWorkspaceAccessReader(store)
+        ),
+        agents=CampaignAgentFactory(
+            model=model,
+            retrieval=retrieval,
+            text_retrieval=text_retrieval,
+        ),
+    )
 
 
 def google_oauth_client() -> GoogleOAuthClient:

@@ -4,20 +4,18 @@ from uuid import UUID, uuid4
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, status
-from langchain_core.language_models import BaseChatModel
 from pydantic import BaseModel, field_validator
 
-from launchpilot.agent import (
-    AnalysisScope,
-    CampaignAgentFactory,
+from launchpilot.application.analysis import (
+    AnalyzeCampaign,
     CampaignAnalysisResult,
+    CampaignAnalysisService,
 )
 from launchpilot.application.ingestion import (
     AllSourcesFailedError,
     IngestionSource,
     MultiPlatformIngestionService,
 )
-from launchpilot.application.retrieval import StructuredRetrievalService
 from launchpilot.application.services import (
     CampaignService,
     ConversationService,
@@ -45,14 +43,13 @@ from launchpilot.infrastructure.youtube import YouTubeAnalyticsConnector
 from .ads_connections import active_access_token, connector_for
 from .auth import current_user
 from .dependencies import (
-    agent_model,
+    campaign_analysis_service,
     campaign_service,
     control_plane,
     conversation_service,
     google_oauth_client,
     observation_service,
     settings,
-    structured_retrieval_service,
     text_retrieval_service,
 )
 from .schemas import (
@@ -72,12 +69,11 @@ ControlPlaneDependency = Annotated[PostgresControlPlane, Depends(control_plane)]
 UserDependency = Annotated[ConnectedUser, Depends(current_user)]
 OAuthDependency = Annotated[GoogleOAuthClient, Depends(google_oauth_client)]
 SettingsDependency = Annotated[Settings, Depends(settings)]
-RetrievalDependency = Annotated[
-    StructuredRetrievalService, Depends(structured_retrieval_service)
-]
-AgentModelDependency = Annotated[BaseChatModel, Depends(agent_model)]
 TextRetrievalDependency = Annotated[
     TextRetrievalService, Depends(text_retrieval_service)
+]
+AnalysisDependency = Annotated[
+    CampaignAnalysisService, Depends(campaign_analysis_service)
 ]
 
 
@@ -180,28 +176,18 @@ def analyze_campaign(
     campaign_id: UUID,
     payload: CampaignAnalysisInput,
     user: UserDependency,
-    store: ControlPlaneDependency,
-    campaigns: CampaignDependency,
-    retrieval: RetrievalDependency,
-    text_retrieval: TextRetrievalDependency,
-    model: AgentModelDependency,
+    analysis: AnalysisDependency,
 ) -> CampaignAnalysisResult:
-    campaign = require_campaign_access(
-        campaign_id=campaign_id, user=user, store=store, service=campaigns
-    )
-    agent = CampaignAgentFactory(
-        model=model,
-        retrieval=retrieval,
-        text_retrieval=text_retrieval,
-    ).create(
-        AnalysisScope(
-            user_id=UUID(user.id),
-            campaign_id=campaign.id,
-            workspace_id=campaign.workspace_id,
-        )
-    )
     try:
-        return agent.answer(payload.question)
+        return analysis.handle(
+            AnalyzeCampaign(
+                user_id=UUID(user.id),
+                campaign_id=campaign_id,
+                question=payload.question,
+            )
+        )
+    except NotFoundError as error:
+        raise not_found(error) from error
     except Exception as error:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,

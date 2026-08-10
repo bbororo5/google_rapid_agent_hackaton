@@ -6,9 +6,9 @@ from langchain_core.runnables import RunnableLambda
 
 from launchpilot.agent.evidence import EvidenceCollector
 from launchpilot.agent.graph import AnalysisGraph
-from launchpilot.agent.models import AnalysisScope
 from launchpilot.agent.service import CampaignAgent
 from launchpilot.agent.tools import CampaignToolset
+from launchpilot.application.analysis import AnalysisScope
 from launchpilot.application.retrieval import (
     CampaignPerformance,
     CampaignSummary,

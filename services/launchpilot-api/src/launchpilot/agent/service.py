@@ -2,12 +2,12 @@ from __future__ import annotations
 
 from langchain_core.language_models import BaseChatModel
 
+from launchpilot.application.analysis import AnalysisScope, CampaignAnalysisResult
 from launchpilot.application.retrieval import StructuredRetrievalService
 from launchpilot.application.text_retrieval import TextRetrievalService
 
 from .evidence import EvidenceCollector
 from .graph import AnalysisGraph
-from .models import AnalysisScope, CampaignAnalysisResult
 from .tools import CampaignToolset
 
 

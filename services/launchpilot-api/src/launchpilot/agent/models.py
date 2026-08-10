@@ -1,20 +1,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Literal
-from uuid import UUID
 
 from langchain_core.messages import AIMessage, BaseMessage
-from pydantic import BaseModel, ConfigDict
 
-
-@dataclass(frozen=True, slots=True)
-class AnalysisScope:
-    """Server-authorized boundary that is never exposed as an LLM tool argument."""
-
-    user_id: UUID
-    workspace_id: UUID
-    campaign_id: UUID
+from launchpilot.application.analysis import AgentEvidenceRef
 
 
 @dataclass(frozen=True, slots=True)
@@ -41,20 +31,4 @@ class AnalysisTranscript:
         )
 
 
-class AgentEvidenceRef(BaseModel):
-    model_config = ConfigDict(frozen=True)
-
-    kind: Literal["METRIC", "DOCUMENT"]
-    source_ref: str
-    captured_at: str
-    observation_id: UUID | None = None
-    document_id: UUID | None = None
-    surface: str | None = None
-    metric_key: str | None = None
-
-
-class CampaignAnalysisResult(BaseModel):
-    model_config = ConfigDict(frozen=True)
-
-    answer: str
-    evidence: tuple[AgentEvidenceRef, ...]
+__all__ = ["AgentEvidenceRef", "AnalysisTranscript"]

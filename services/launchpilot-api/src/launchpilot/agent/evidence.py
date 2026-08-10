@@ -6,7 +6,9 @@ from typing import Any, Protocol
 
 from langchain_core.messages import ToolMessage
 
-from .models import AgentEvidenceRef, AnalysisTranscript
+from launchpilot.application.analysis import AgentEvidenceRef
+
+from .models import AnalysisTranscript
 
 
 class EvidenceDecoder(Protocol):

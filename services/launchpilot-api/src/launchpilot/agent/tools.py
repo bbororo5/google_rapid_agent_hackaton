@@ -6,13 +6,12 @@ from uuid import UUID
 
 from langchain_core.tools import BaseTool, StructuredTool
 
+from launchpilot.application.analysis import AnalysisScope
 from launchpilot.application.retrieval import (
     CampaignMetricQuery,
     StructuredRetrievalService,
 )
 from launchpilot.application.text_retrieval import DocumentType, TextRetrievalService
-
-from .models import AnalysisScope
 
 
 class CampaignToolset:

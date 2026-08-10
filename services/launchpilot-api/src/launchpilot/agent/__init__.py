@@ -1,6 +1,7 @@
 """LangGraph runtime for the LaunchPilot analysis agent."""
 
-from .models import AnalysisScope, CampaignAnalysisResult
+from launchpilot.application.analysis import AnalysisScope, CampaignAnalysisResult
+
 from .service import CampaignAgent, CampaignAgentFactory
 
 __all__ = [
