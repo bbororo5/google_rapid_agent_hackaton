@@ -20,6 +20,7 @@ TABLES = (
     "platform_slices",
     "metric_observations",
     "external_campaign_bindings",
+    "campaign_documents",
 )
 
 
@@ -68,6 +69,7 @@ def main() -> None:
             "platform_slices": _copy_slices(source, connection),
             "metric_observations": _copy_metrics(source, connection),
             "external_campaign_bindings": _copy_bindings(source, connection),
+            "campaign_documents": _copy_documents(source, connection),
         }
 
     source.close()
@@ -197,6 +199,19 @@ def _copy_bindings(source, target) -> int:
                 external_campaign_ref, display_name, currency_code, timezone,
                 attribution_setting, created_at
             ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+            tuple(row),
+        )
+    return len(rows)
+
+
+def _copy_documents(source, target) -> int:
+    rows = _rows(source, "campaign_documents")
+    for row in rows:
+        target.execute(
+            """INSERT INTO campaign_documents(
+                id, campaign_id, workspace_id, document_type, title, content,
+                source_ref, created_at
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
             tuple(row),
         )
     return len(rows)

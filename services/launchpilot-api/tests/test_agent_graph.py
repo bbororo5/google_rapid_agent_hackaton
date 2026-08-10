@@ -14,6 +14,12 @@ from launchpilot.application.retrieval import (
     MetricEvidence,
     StructuredRetrievalService,
 )
+from launchpilot.application.text_retrieval import (
+    CampaignDocument,
+    DocumentType,
+    TextRetrievalService,
+    TextSearchHit,
+)
 
 
 class StubRetrievalRepository:
@@ -65,6 +71,7 @@ def test_agent_calls_scoped_retrieval_and_returns_evidence() -> None:
     )
     tools = campaign_retrieval_tools(
         retrieval=StructuredRetrievalService(repository),
+        text_retrieval=TextRetrievalService(None, None),  # type: ignore[arg-type]
         campaign_id=campaign_id,
         workspace_id=workspace_id,
     )
@@ -101,6 +108,84 @@ def test_agent_calls_scoped_retrieval_and_returns_evidence() -> None:
     assert "120,000 KRW" in result.answer
     assert len(result.evidence) == 1
     assert result.evidence[0].observation_id == observation_id
+    assert result.evidence[0].kind == "METRIC"
+    assert result.evidence[0].source_ref == "google-ads:fetch-1"
     assert repository.queries[0].campaign_id == campaign_id
     assert repository.queries[0].workspace_id == workspace_id
     assert repository.queries[0].start_date == date(2026, 7, 1)
+
+
+def test_agent_searches_then_resolves_document_evidence() -> None:
+    campaign_id = uuid4()
+    workspace_id = uuid4()
+    document = CampaignDocument(
+        campaign_id=campaign_id,
+        workspace_id=workspace_id,
+        document_type=DocumentType.MEMO,
+        title="소재 피로 메모",
+        content="7월 17일부터 CTR이 하락했다.",
+        source_ref="memo:fatigue",
+    )
+
+    class StubTextRetrieval:
+        def search(self, **kwargs):
+            assert kwargs["workspace_id"] == workspace_id
+            return (
+                TextSearchHit(
+                    document_id=document.id,
+                    document_type=document.document_type,
+                    title=document.title,
+                    excerpt=document.content,
+                    source_ref=document.source_ref,
+                    score=2.0,
+                ),
+            )
+
+        def resolve(self, **kwargs):
+            assert kwargs["workspace_id"] == workspace_id
+            return document
+
+    tools = campaign_retrieval_tools(
+        retrieval=StructuredRetrievalService(StubRetrievalRepository(None)),  # type: ignore[arg-type]
+        text_retrieval=StubTextRetrieval(),  # type: ignore[arg-type]
+        campaign_id=campaign_id,
+        workspace_id=workspace_id,
+    )
+
+    def scripted_model(messages):
+        tool_messages = [
+            message for message in messages if isinstance(message, ToolMessage)
+        ]
+        if not tool_messages:
+            return AIMessage(
+                content="",
+                tool_calls=[
+                    {
+                        "name": "search_campaign_documents",
+                        "args": {"query": "소재 피로 CTR"},
+                        "id": "search-1",
+                        "type": "tool_call",
+                    }
+                ],
+            )
+        if len(tool_messages) == 1:
+            return AIMessage(
+                content="",
+                tool_calls=[
+                    {
+                        "name": "resolve_campaign_document",
+                        "args": {"document_id": str(document.id)},
+                        "id": "resolve-1",
+                        "type": "tool_call",
+                    }
+                ],
+            )
+        return AIMessage(content="소재 피로 메모에 CTR 하락이 기록되어 있습니다.")
+
+    result = CampaignAnalysisAgent(
+        model_with_tools=RunnableLambda(scripted_model), tools=tools
+    ).analyze("CTR 하락과 관련된 메모를 찾아줘")
+
+    assert result.evidence[0].kind == "DOCUMENT"
+    assert result.evidence[0].document_id == document.id
+    assert result.evidence[0].source_ref == "memo:fatigue"

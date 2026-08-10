@@ -4,6 +4,7 @@ import os
 
 import psycopg
 import pytest
+from elasticsearch import ApiError, ConnectionError, Elasticsearch
 
 from launchpilot.infrastructure.postgres_database import PostgresDatabase
 
@@ -11,12 +12,15 @@ TEST_DATABASE_URL = os.getenv(
     "TEST_DATABASE_URL",
     "postgresql://launchpilot:launchpilot-local@127.0.0.1:5432/launchpilot_test",
 )
+TEST_ELASTICSEARCH_URL = os.getenv("TEST_ELASTICSEARCH_URL", "http://127.0.0.1:9200")
+TEST_ELASTICSEARCH_INDEX = "launchpilot-documents-test-v1"
 
 
 def _truncate(database: PostgresDatabase) -> None:
     with database.connect() as connection:
         connection.execute(
             """TRUNCATE TABLE
+                campaign_documents,
                 external_campaign_bindings,
                 metric_observations,
                 platform_slices,
@@ -43,3 +47,18 @@ def postgres_database() -> PostgresDatabase:
     _truncate(database)
     yield database
     _truncate(database)
+
+
+@pytest.fixture
+def elasticsearch_test_index() -> tuple[str, str]:
+    client = Elasticsearch(TEST_ELASTICSEARCH_URL, request_timeout=5)
+    try:
+        client.info()
+    except (ApiError, ConnectionError) as error:
+        pytest.fail(
+            "Elasticsearch is unavailable. Run `docker compose up -d elasticsearch`."
+            f" Original error: {error}"
+        )
+    client.indices.delete(index=TEST_ELASTICSEARCH_INDEX, ignore_unavailable=True)
+    yield TEST_ELASTICSEARCH_URL, TEST_ELASTICSEARCH_INDEX
+    client.indices.delete(index=TEST_ELASTICSEARCH_INDEX, ignore_unavailable=True)

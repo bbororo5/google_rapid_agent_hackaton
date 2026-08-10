@@ -22,6 +22,11 @@ from launchpilot.application.services import (
     ConversationService,
     ObservationService,
 )
+from launchpilot.application.text_retrieval import (
+    CampaignDocument,
+    DocumentType,
+    TextRetrievalService,
+)
 from launchpilot.config import Settings
 from launchpilot.domain.errors import NotFoundError
 from launchpilot.domain.integrations import ExternalCampaignBinding, PlatformProvider
@@ -47,6 +52,7 @@ from .dependencies import (
     observation_service,
     settings,
     structured_retrieval_service,
+    text_retrieval_service,
 )
 from .schemas import (
     CampaignCreateInput,
@@ -69,6 +75,9 @@ RetrievalDependency = Annotated[
     StructuredRetrievalService, Depends(structured_retrieval_service)
 ]
 AgentModelDependency = Annotated[BaseChatModel, Depends(agent_model)]
+TextRetrievalDependency = Annotated[
+    TextRetrievalService, Depends(text_retrieval_service)
+]
 
 
 def not_found(error: NotFoundError) -> HTTPException:
@@ -108,6 +117,63 @@ class CampaignAnalysisInput(BaseModel):
         return value
 
 
+class CampaignDocumentInput(BaseModel):
+    document_type: DocumentType
+    title: str
+    content: str
+    source_ref: str
+
+    @field_validator("title", "content", "source_ref")
+    @classmethod
+    def strip_document_text(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("document fields must not be blank")
+        return value
+
+
+@router.post(
+    "/{campaign_id}/documents",
+    response_model=CampaignDocument,
+    status_code=status.HTTP_201_CREATED,
+)
+def add_campaign_document(
+    campaign_id: UUID,
+    payload: CampaignDocumentInput,
+    user: UserDependency,
+    store: ControlPlaneDependency,
+    campaigns: CampaignDependency,
+    text_retrieval: TextRetrievalDependency,
+) -> CampaignDocument:
+    campaign = require_campaign_access(
+        campaign_id=campaign_id, user=user, store=store, service=campaigns
+    )
+    return text_retrieval.add(
+        CampaignDocument(
+            campaign_id=campaign.id,
+            workspace_id=campaign.workspace_id,
+            **payload.model_dump(),
+        )
+    )
+
+
+@router.post("/{campaign_id}/documents/reindex")
+def reindex_campaign_documents(
+    campaign_id: UUID,
+    user: UserDependency,
+    store: ControlPlaneDependency,
+    campaigns: CampaignDependency,
+    text_retrieval: TextRetrievalDependency,
+) -> dict[str, int]:
+    campaign = require_campaign_access(
+        campaign_id=campaign_id, user=user, store=store, service=campaigns
+    )
+    count = text_retrieval.rebuild_projection(
+        workspace_id=campaign.workspace_id, campaign_id=campaign.id
+    )
+    return {"indexed_documents": count}
+
+
 @router.post("/{campaign_id}/analysis", response_model=CampaignAnalysisResult)
 def analyze_campaign(
     campaign_id: UUID,
@@ -116,6 +182,7 @@ def analyze_campaign(
     store: ControlPlaneDependency,
     campaigns: CampaignDependency,
     retrieval: RetrievalDependency,
+    text_retrieval: TextRetrievalDependency,
     model: AgentModelDependency,
 ) -> CampaignAnalysisResult:
     campaign = require_campaign_access(
@@ -124,6 +191,7 @@ def analyze_campaign(
     agent = CampaignAnalysisAgent.from_model(
         model=model,
         retrieval=retrieval,
+        text_retrieval=text_retrieval,
         campaign_id=campaign.id,
         workspace_id=campaign.workspace_id,
     )

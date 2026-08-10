@@ -1,0 +1,110 @@
+from __future__ import annotations
+
+from uuid import UUID
+
+from elasticsearch import Elasticsearch
+
+from launchpilot.application.text_retrieval import (
+    CampaignDocument,
+    DocumentType,
+    TextSearchHit,
+)
+
+
+class ElasticsearchCampaignDocumentSearch:
+    """Rebuildable BM25 projection for campaign text documents."""
+
+    def __init__(self, url: str, index_name: str) -> None:
+        self._client = Elasticsearch(url, request_timeout=5)
+        self._index_name = index_name
+
+    def ensure_index(self) -> None:
+        if self._client.indices.exists(index=self._index_name):
+            return
+        self._client.indices.create(
+            index=self._index_name,
+            mappings={
+                "dynamic": "strict",
+                "properties": {
+                    "document_id": {"type": "keyword"},
+                    "workspace_id": {"type": "keyword"},
+                    "campaign_id": {"type": "keyword"},
+                    "document_type": {"type": "keyword"},
+                    "title": {"type": "text"},
+                    "content": {"type": "text"},
+                    "source_ref": {"type": "keyword"},
+                    "created_at": {"type": "date"},
+                },
+            },
+        )
+
+    def index(self, document: CampaignDocument) -> None:
+        self.ensure_index()
+        self._client.index(
+            index=self._index_name,
+            id=str(document.id),
+            document={
+                "document_id": str(document.id),
+                "workspace_id": str(document.workspace_id),
+                "campaign_id": str(document.campaign_id),
+                "document_type": document.document_type.value,
+                "title": document.title,
+                "content": document.content,
+                "source_ref": document.source_ref,
+                "created_at": document.created_at.isoformat(),
+            },
+            refresh="wait_for",
+        )
+
+    def search(
+        self,
+        *,
+        workspace_id: UUID,
+        campaign_id: UUID,
+        query: str,
+        document_types: tuple[DocumentType, ...] = (),
+        top_k: int = 5,
+    ) -> tuple[TextSearchHit, ...]:
+        self.ensure_index()
+        filters: list[dict[str, object]] = [
+            {"term": {"workspace_id": str(workspace_id)}},
+            {"term": {"campaign_id": str(campaign_id)}},
+        ]
+        if document_types:
+            filters.append(
+                {"terms": {"document_type": [item.value for item in document_types]}}
+            )
+        response = self._client.search(
+            index=self._index_name,
+            size=max(1, min(top_k, 20)),
+            query={
+                "bool": {
+                    "filter": filters,
+                    "must": {
+                        "multi_match": {
+                            "query": query,
+                            "fields": ["title^2", "content"],
+                        }
+                    },
+                }
+            },
+            highlight={
+                "fields": {"content": {"fragment_size": 180, "number_of_fragments": 1}}
+            },
+        )
+        return tuple(self._hit(item) for item in response["hits"]["hits"])
+
+    @staticmethod
+    def _hit(hit: dict[str, object]) -> TextSearchHit:
+        source = hit["_source"]
+        highlight = hit.get("highlight", {})
+        fragments = highlight.get("content", [])
+        excerpt = fragments[0] if fragments else str(source["content"])[:180]
+        return TextSearchHit(
+            document_id=source["document_id"],
+            document_type=source["document_type"],
+            title=source["title"],
+            excerpt=excerpt,
+            source_ref=source["source_ref"],
+            score=hit["_score"],
+        )

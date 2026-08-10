@@ -139,6 +139,25 @@ _MIGRATIONS = (
         );
         """,
     ),
+    (
+        2,
+        """
+        CREATE TABLE campaign_documents (
+            id UUID PRIMARY KEY,
+            campaign_id UUID NOT NULL REFERENCES campaigns(id) ON DELETE CASCADE,
+            workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+            document_type TEXT NOT NULL,
+            title TEXT NOT NULL,
+            content TEXT NOT NULL,
+            source_ref TEXT NOT NULL,
+            created_at TIMESTAMPTZ NOT NULL,
+            UNIQUE(campaign_id, source_ref),
+            CHECK (document_type IN ('MEMO', 'BRIEF', 'ANALYSIS'))
+        );
+        CREATE INDEX campaign_documents_scope_created_idx
+            ON campaign_documents(workspace_id, campaign_id, created_at);
+        """,
+    ),
 )
 
 

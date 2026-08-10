@@ -1,6 +1,6 @@
 # Retrieval Evolution Plan
 
-> 상태: **확정 — 각 고도화 기술은 Eval 후 개별 결정**
+> 상태: **확정 — Phase 3A 구현 완료, 각 고도화 기술은 Eval 후 개별 결정**
 
 ## 목적
 
@@ -21,6 +21,7 @@
 - **Structured Retrieval:** PostgreSQL 원본에서 ID 직접 조회, 기간·플랫폼 필터와 metric 집계
 - **BM25 Retrieval:** 검색 Projection에서 메모·브리프·과거 분석의 lexical 검색
 - **Evidence Resolution:** 검색 결과의 `source_ref`가 가리키는 원본 근거 확인
+- **Agent Baseline:** LangGraph가 사용자 질문에 맞는 Structured·BM25 Tool을 선택하고 근거 기반 답변 생성
 
 Dense, learned sparse, hybrid, reranker와 graph expansion은 베이스라인에 포함하지 않는다. Evidence의 직접 참조를 확인하는 것은 검증이며, 여러 관계를 확장하는 Graph Retrieval과 구분한다.
 
@@ -28,8 +29,8 @@ Dense, learned sparse, hybrid, reranker와 graph expansion은 베이스라인에
 
 | Phase | 작업 | 결정할 것 |
 | --- | --- | --- |
-| 3A | Structured Retrieval + BM25 | 재현 가능한 기준선 확립 |
-| 4A | Query Dataset + Ground Truth | 정형 정확성과 Recall@K·MRR·nDCG@K 측정 기준 확립 |
+| 3A | Structured Retrieval + BM25 + 최소 LangGraph Agent | 재현 가능한 Agentic RAG 기준선 확립 |
+| 4A | LangSmith/OpenInference 관찰환경 + Golden Dataset | 실행 trace와 정형 정확성·Recall@K·MRR·nDCG@K 측정 기준 확립 |
 | 3B | Dense → learned sparse → hybrid/RRF → reranker → graph expansion 실험 | 한 번에 한 요소만 추가 |
 | 4B | 동일 Dataset으로 품질·지연·복잡성 비교 | 개선된 구성만 유지하고 나머지는 제거 |
 

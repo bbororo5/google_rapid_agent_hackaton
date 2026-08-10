@@ -29,6 +29,8 @@ def _local_mock_base_url(value: str | None) -> str | None:
 @dataclass(frozen=True, slots=True)
 class Settings:
     database_url: str
+    elasticsearch_url: str
+    elasticsearch_index: str
     google_api_key: str | None
     google_genai_use_vertexai: bool
     google_cloud_project: str | None
@@ -68,6 +70,10 @@ class Settings:
             database_url=os.getenv(
                 "DATABASE_URL",
                 "postgresql://launchpilot:launchpilot-local@127.0.0.1:5432/launchpilot",
+            ),
+            elasticsearch_url=os.getenv("ELASTICSEARCH_URL", "http://127.0.0.1:9200"),
+            elasticsearch_index=os.getenv(
+                "ELASTICSEARCH_INDEX", "launchpilot-documents-v1"
             ),
             google_api_key=os.getenv("GOOGLE_API_KEY"),
             google_genai_use_vertexai=use_vertexai,

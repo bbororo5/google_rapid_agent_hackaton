@@ -9,11 +9,18 @@ from launchpilot.application.services import (
     ConversationService,
     ObservationService,
 )
+from launchpilot.application.text_retrieval import TextRetrievalService
 from launchpilot.config import Settings
 from launchpilot.infrastructure.control_plane import PostgresControlPlane
+from launchpilot.infrastructure.elasticsearch_documents import (
+    ElasticsearchCampaignDocumentSearch,
+)
 from launchpilot.infrastructure.google_oauth import GoogleOAuthClient
 from launchpilot.infrastructure.meta_oauth import MetaOAuthClient
 from launchpilot.infrastructure.postgres_database import PostgresDatabase
+from launchpilot.infrastructure.postgres_documents import (
+    PostgresCampaignDocumentRepository,
+)
 from launchpilot.infrastructure.postgres_domain import (
     PostgresCampaignRepository,
     PostgresConversationRepository,
@@ -55,6 +62,16 @@ def observation_service() -> ObservationService:
 def structured_retrieval_service() -> StructuredRetrievalService:
     return StructuredRetrievalService(
         PostgresStructuredRetrievalRepository(repository_store())
+    )
+
+
+def text_retrieval_service() -> TextRetrievalService:
+    config = settings()
+    return TextRetrievalService(
+        PostgresCampaignDocumentRepository(repository_store()),
+        ElasticsearchCampaignDocumentSearch(
+            config.elasticsearch_url, config.elasticsearch_index
+        ),
     )
 
 

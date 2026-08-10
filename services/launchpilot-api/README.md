@@ -1,18 +1,20 @@
 # LaunchPilot API
 
-여러 광고 플랫폼의 Campaign 성과를 하나의 불변 Observation으로 수집하는 FastAPI 서비스다. 현재 Agent 실행은 포함하지 않으며 Phase 5에서 LangGraph로 연결한다.
+여러 광고 플랫폼의 Campaign 성과와 문서 근거를 검색해 답하는 FastAPI 기반 Agentic RAG 서비스다. PostgreSQL Structured Retrieval, Elasticsearch BM25와 최소 LangGraph tool loop를 제공한다.
 
 ## Run
 
 ```bash
 python -m venv .venv
 .venv/bin/python -m pip install -e '.[dev]'
-docker compose up -d postgres
+docker compose up -d postgres elasticsearch
 cp .env.example .env
 .venv/bin/uvicorn launchpilot.main:app --reload --env-file .env
 ```
 
 OpenAPI UI: `http://127.0.0.1:8000/docs`
+
+Gemini는 `.env.example`처럼 Vertex AI + ADC를 권장한다. 로컬에서는 `gcloud auth application-default login`이 필요하며, Vertex AI 대신 Google AI Studio의 `GOOGLE_API_KEY`를 사용할 수도 있다.
 
 ## Secret generation
 
@@ -87,6 +89,12 @@ POST /campaigns/{campaign_id}/bindings
 
 POST /campaigns/{campaign_id}/observations/ads
 → 연결된 광고 플랫폼을 함께 수집
+
+POST /campaigns/{campaign_id}/documents
+→ 메모·브리프·과거 분석을 PostgreSQL에 저장하고 Elasticsearch에 Projection
+
+POST /campaigns/{campaign_id}/analysis
+→ LangGraph Agent가 Structured Retrieval·BM25 Tool을 선택해 근거 기반 답변 생성
 ```
 
 한 플랫폼만 실패하면 성공한 Slice를 `PARTIAL` Observation으로 보존한다. 모든 플랫폼이 실패하면 빈 Observation을 만들지 않는다. 예약 수집은 하지 않으며 사용자의 분석 요청 시점에만 실행한다.
@@ -102,6 +110,20 @@ Campaign, Conversation, CampaignObservation은 PostgreSQL에 영속화한다. Ob
 ```
 
 대상 DB에 데이터가 있으면 병합 사고를 막기 위해 migration은 중단된다. 이전이 검증될 때까지 SQLite 파일을 삭제하지 않는다.
+
+## Phase 3A retrieval baseline
+
+- 정량 성과는 PostgreSQL에서 Campaign·기간·플랫폼·지표를 정확히 조회한다.
+- 동일 범위의 중복 수집본은 합산하지 않고 가장 최근 Observation을 사용한다.
+- 메모·브리프·과거 분석의 원본은 PostgreSQL에 두고 Elasticsearch에는 BM25 검색 Projection만 둔다.
+- Agent는 BM25 hit를 그대로 근거로 쓰지 않고 PostgreSQL 원문을 다시 resolve한다.
+- LLM이 조작할 수 없도록 Workspace와 Campaign 범위는 서버가 Tool에 주입한다.
+
+검색 Projection은 원본이 아니므로 다음 API로 재생성할 수 있다.
+
+```text
+POST /campaigns/{campaign_id}/documents/reindex
+```
 
 ## Local platform mock
 
@@ -152,12 +174,15 @@ cp .env.mock.example .env.mock
 | Meta Ads 정규화 | MockTransport fixture 완료, Meta 앱 연결 대기 |
 | 멀티플랫폼 partial failure | application service fixture 완료 |
 | Campaign·Conversation·Observation 영속화 | repository 재생성·서버 재시작 검증 완료 |
+| Structured Retrieval | PostgreSQL 실제 dialect·최신 snapshot·권한 격리 검증 완료 |
+| BM25·Evidence Resolution | Elasticsearch 9.4.2 실제 검색·PostgreSQL 원문 확인 완료 |
+| LangGraph Tool loop | LLM fixture E2E 완료, Vertex AI 결제 연결 후 실모델 검증 대기 |
 
 ## Test
 
 테스트는 실제 PostgreSQL dialect와 제약조건을 검증하기 위해 별도 `launchpilot_test` DB를 사용한다.
 
 ```bash
-docker compose up -d postgres
+docker compose up -d postgres elasticsearch
 .venv/bin/pytest
 ```
