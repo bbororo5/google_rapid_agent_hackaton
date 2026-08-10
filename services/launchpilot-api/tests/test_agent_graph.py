@@ -4,10 +4,11 @@ from uuid import uuid4
 from langchain_core.messages import AIMessage, ToolMessage
 from langchain_core.runnables import RunnableLambda
 
-from launchpilot.agent.campaign_analysis import (
-    CampaignAnalysisAgent,
-    campaign_retrieval_tools,
-)
+from launchpilot.agent.evidence import EvidenceCollector
+from launchpilot.agent.graph import AnalysisGraph
+from launchpilot.agent.models import AnalysisScope
+from launchpilot.agent.service import CampaignAgent
+from launchpilot.agent.tools import CampaignToolset
 from launchpilot.application.retrieval import (
     CampaignPerformance,
     CampaignSummary,
@@ -69,11 +70,14 @@ def test_agent_calls_scoped_retrieval_and_returns_evidence() -> None:
             ),
         )
     )
-    tools = campaign_retrieval_tools(
+    toolset = CampaignToolset(
         retrieval=StructuredRetrievalService(repository),
         text_retrieval=TextRetrievalService(None, None),  # type: ignore[arg-type]
-        campaign_id=campaign_id,
-        workspace_id=workspace_id,
+        scope=AnalysisScope(
+            user_id=uuid4(),
+            campaign_id=campaign_id,
+            workspace_id=workspace_id,
+        ),
     )
 
     def scripted_model(messages):
@@ -101,9 +105,12 @@ def test_agent_calls_scoped_retrieval_and_returns_evidence() -> None:
             ],
         )
 
-    result = CampaignAnalysisAgent(
-        model_with_tools=RunnableLambda(scripted_model), tools=tools
-    ).analyze("7월 Google Ads 지출을 알려줘")
+    result = CampaignAgent(
+        graph=AnalysisGraph(
+            model_with_tools=RunnableLambda(scripted_model), tools=toolset.tools()
+        ),
+        evidence_collector=EvidenceCollector(),
+    ).answer("7월 Google Ads 지출을 알려줘")
 
     assert "120,000 KRW" in result.answer
     assert len(result.evidence) == 1
@@ -145,11 +152,14 @@ def test_agent_searches_then_resolves_document_evidence() -> None:
             assert kwargs["workspace_id"] == workspace_id
             return document
 
-    tools = campaign_retrieval_tools(
+    toolset = CampaignToolset(
         retrieval=StructuredRetrievalService(StubRetrievalRepository(None)),  # type: ignore[arg-type]
         text_retrieval=StubTextRetrieval(),  # type: ignore[arg-type]
-        campaign_id=campaign_id,
-        workspace_id=workspace_id,
+        scope=AnalysisScope(
+            user_id=uuid4(),
+            campaign_id=campaign_id,
+            workspace_id=workspace_id,
+        ),
     )
 
     def scripted_model(messages):
@@ -182,9 +192,12 @@ def test_agent_searches_then_resolves_document_evidence() -> None:
             )
         return AIMessage(content="소재 피로 메모에 CTR 하락이 기록되어 있습니다.")
 
-    result = CampaignAnalysisAgent(
-        model_with_tools=RunnableLambda(scripted_model), tools=tools
-    ).analyze("CTR 하락과 관련된 메모를 찾아줘")
+    result = CampaignAgent(
+        graph=AnalysisGraph(
+            model_with_tools=RunnableLambda(scripted_model), tools=toolset.tools()
+        ),
+        evidence_collector=EvidenceCollector(),
+    ).answer("CTR 하락과 관련된 메모를 찾아줘")
 
     assert result.evidence[0].kind == "DOCUMENT"
     assert result.evidence[0].document_id == document.id

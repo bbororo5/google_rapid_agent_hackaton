@@ -7,8 +7,9 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from langchain_core.language_models import BaseChatModel
 from pydantic import BaseModel, field_validator
 
-from launchpilot.agent.campaign_analysis import (
-    CampaignAnalysisAgent,
+from launchpilot.agent import (
+    AnalysisScope,
+    CampaignAgentFactory,
     CampaignAnalysisResult,
 )
 from launchpilot.application.ingestion import (
@@ -188,15 +189,19 @@ def analyze_campaign(
     campaign = require_campaign_access(
         campaign_id=campaign_id, user=user, store=store, service=campaigns
     )
-    agent = CampaignAnalysisAgent.from_model(
+    agent = CampaignAgentFactory(
         model=model,
         retrieval=retrieval,
         text_retrieval=text_retrieval,
-        campaign_id=campaign.id,
-        workspace_id=campaign.workspace_id,
+    ).create(
+        AnalysisScope(
+            user_id=UUID(user.id),
+            campaign_id=campaign.id,
+            workspace_id=campaign.workspace_id,
+        )
     )
     try:
-        return agent.analyze(payload.question)
+        return agent.answer(payload.question)
     except Exception as error:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
