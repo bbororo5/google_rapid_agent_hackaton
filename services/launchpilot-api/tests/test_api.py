@@ -356,8 +356,8 @@ def test_multiplatform_api_persists_observation_across_repository_recreation(
         assert binding_response.status_code == 201
 
     monkeypatch.setattr(
-        "launchpilot.api.observations.connector_for",
-        lambda provider, config: ApiFixtureAdsConnector(PlatformProvider(provider)),
+        "launchpilot.infrastructure.ads_factory.AdsConnectorFactory.create",
+        lambda self, provider: ApiFixtureAdsConnector(PlatformProvider(provider)),
     )
     response = context.client.post(
         f"/campaigns/{campaign['id']}/observations/ads",

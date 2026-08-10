@@ -10,6 +10,7 @@ from launchpilot.application.analysis import (
     CampaignAccessService,
     CampaignAnalysisService,
 )
+from launchpilot.application.ingestion import AdsIngestionSourcePlanner
 from launchpilot.application.retrieval import StructuredRetrievalService
 from launchpilot.application.services import (
     CampaignService,
@@ -18,12 +19,14 @@ from launchpilot.application.services import (
 )
 from launchpilot.application.text_retrieval import TextRetrievalService
 from launchpilot.config import Settings
+from launchpilot.infrastructure.ads_factory import AdsConnectorFactory
 from launchpilot.infrastructure.control_plane import PostgresControlPlane
 from launchpilot.infrastructure.elasticsearch_documents import (
     ElasticsearchCampaignDocumentSearch,
 )
 from launchpilot.infrastructure.google_oauth import GoogleOAuthClient
 from launchpilot.infrastructure.meta_oauth import MetaOAuthClient
+from launchpilot.infrastructure.platform_access import PlatformAccessTokenProvider
 from launchpilot.infrastructure.postgres_database import PostgresDatabase
 from launchpilot.infrastructure.postgres_documents import (
     PostgresCampaignDocumentRepository,
@@ -183,6 +186,28 @@ def google_oauth_client() -> GoogleOAuthClient:
             else "https://openidconnect.googleapis.com/v1/userinfo"
         ),
     )
+
+
+def platform_access_tokens(
+    store: Annotated[PostgresControlPlane, Depends(control_plane)],
+    oauth: Annotated[GoogleOAuthClient, Depends(google_oauth_client)],
+) -> PlatformAccessTokenProvider:
+    return PlatformAccessTokenProvider(store, oauth)
+
+
+def ads_connector_factory(
+    config: Annotated[Settings, Depends(settings)],
+) -> AdsConnectorFactory:
+    return AdsConnectorFactory(config)
+
+
+def ads_ingestion_source_planner(
+    access_tokens: Annotated[
+        PlatformAccessTokenProvider, Depends(platform_access_tokens)
+    ],
+    connectors: Annotated[AdsConnectorFactory, Depends(ads_connector_factory)],
+) -> AdsIngestionSourcePlanner:
+    return AdsIngestionSourcePlanner(access_tokens, connectors)
 
 
 def meta_oauth_client() -> MetaOAuthClient:

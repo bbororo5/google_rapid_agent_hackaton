@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
+from typing import Protocol
 from uuid import UUID, uuid4
 
 import httpx
@@ -31,6 +32,105 @@ class IngestionSource:
 class IngestionOutcome:
     observation: CampaignObservation
     warnings: tuple[str, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class PlatformAccess:
+    provider: str
+    access_token: str
+
+
+class PlatformAccessError(RuntimeError):
+    pass
+
+
+class PlatformAccessUnavailable(PlatformAccessError):
+    pass
+
+
+class PlatformConnectionNotFound(PlatformAccessError):
+    pass
+
+
+class PlatformProviderMismatch(PlatformAccessError):
+    pass
+
+
+class PlatformAuthorizationExpired(PlatformAccessError):
+    pass
+
+
+class PlatformTokenRefreshFailed(PlatformAccessError):
+    pass
+
+
+class PlatformTokenUnavailable(PlatformAccessError):
+    pass
+
+
+class UnsupportedAdsProvider(PlatformAccessError):
+    pass
+
+
+class AdsConnectorUnavailable(PlatformAccessError):
+    pass
+
+
+class AccessTokenProvider(Protocol):
+    def resolve(
+        self,
+        *,
+        connection_id: str,
+        user_id: str,
+        allowed_providers: frozenset[str],
+    ) -> PlatformAccess: ...
+
+
+class AdsConnectorProvider(Protocol):
+    def create(self, provider: str) -> AdsConnector: ...
+
+
+@dataclass(frozen=True, slots=True)
+class IngestionPlan:
+    sources: tuple[IngestionSource, ...]
+    failures: tuple[str, ...]
+
+
+class AdsIngestionSourcePlanner:
+    """Asks collaborators for tokens and connectors, isolating preflight failures."""
+
+    _advertising_providers = frozenset({"GOOGLE_ADS", "META_ADS"})
+
+    def __init__(
+        self,
+        access_tokens: AccessTokenProvider,
+        connectors: AdsConnectorProvider,
+    ) -> None:
+        self._access_tokens = access_tokens
+        self._connectors = connectors
+
+    def plan(
+        self, *, user_id: str, bindings: tuple[ExternalCampaignBinding, ...]
+    ) -> IngestionPlan:
+        sources: list[IngestionSource] = []
+        failures: list[str] = []
+        for binding in bindings:
+            try:
+                access = self._access_tokens.resolve(
+                    connection_id=binding.connection_id,
+                    user_id=user_id,
+                    allowed_providers=self._advertising_providers,
+                )
+                sources.append(
+                    IngestionSource(
+                        binding=binding,
+                        connector=self._connectors.create(access.provider),
+                        access_token=access.access_token,
+                    )
+                )
+            except PlatformAccessError as error:
+                failures.append(f"{binding.provider.value}: {error}")
+        return IngestionPlan(sources=tuple(sources), failures=tuple(failures))
 
 
 class AllSourcesFailedError(RuntimeError):

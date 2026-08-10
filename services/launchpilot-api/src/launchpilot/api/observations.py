@@ -9,9 +9,10 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 
 from launchpilot.application.ingestion import (
+    AdsIngestionSourcePlanner,
     AllSourcesFailedError,
-    IngestionSource,
     MultiPlatformIngestionService,
+    PlatformAccessError,
 )
 from launchpilot.application.services import ObservationService
 from launchpilot.config import Settings
@@ -23,35 +24,46 @@ from launchpilot.domain.models import (
     DateRange,
 )
 from launchpilot.infrastructure.control_plane import PostgresControlPlane
-from launchpilot.infrastructure.google_oauth import GoogleOAuthClient
+from launchpilot.infrastructure.platform_access import PlatformAccessTokenProvider
 from launchpilot.infrastructure.youtube import YouTubeAnalyticsConnector
 
-from .ads_connections import active_access_token, connector_for
 from .campaign_context import AuthorizedCampaignScope, UserDependency
 from .dependencies import (
+    ads_ingestion_source_planner,
     control_plane,
-    google_oauth_client,
     observation_service,
+    platform_access_tokens,
     settings,
 )
+from .platform_errors import platform_access_http_error
 from .schemas import ObservationSummaryOutput
 
 router = APIRouter(prefix="/campaigns", tags=["campaign-observations"])
 ObservationDependency = Annotated[ObservationService, Depends(observation_service)]
 ControlPlaneDependency = Annotated[PostgresControlPlane, Depends(control_plane)]
-OAuthDependency = Annotated[GoogleOAuthClient, Depends(google_oauth_client)]
 SettingsDependency = Annotated[Settings, Depends(settings)]
+AccessTokensDependency = Annotated[
+    PlatformAccessTokenProvider, Depends(platform_access_tokens)
+]
+SourcePlannerDependency = Annotated[
+    AdsIngestionSourcePlanner, Depends(ads_ingestion_source_planner)
+]
 
 
-class YouTubeObservationRequest(BaseModel):
+class ObservationPeriodRequest(BaseModel):
+    start: date
+    end: date
+
+    def to_domain(self) -> DateRange:
+        return DateRange(start=self.start, end=self.end)
+
+
+class YouTubeObservationRequest(ObservationPeriodRequest):
     connection_id: str
-    start: date
-    end: date
 
 
-class MultiPlatformObservationRequest(BaseModel):
-    start: date
-    end: date
+class MultiPlatformObservationRequest(ObservationPeriodRequest):
+    pass
 
 
 class MultiPlatformObservationOutput(ObservationSummaryOutput):
@@ -85,20 +97,17 @@ def fetch_youtube_observation(
     payload: YouTubeObservationRequest,
     scope: AuthorizedCampaignScope,
     user: UserDependency,
-    store: ControlPlaneDependency,
-    oauth: OAuthDependency,
+    access_tokens: AccessTokensDependency,
     observations: ObservationDependency,
     config: SettingsDependency,
 ) -> ObservationSummaryOutput:
-    period = _period(payload.start, payload.end)
-    stored = _youtube_connection(
-        connection_id=payload.connection_id, user=user, store=store
-    )
-    connection, token = stored
-    token = _fresh_youtube_token(
-        connection=connection, token=token, user=user, store=store, oauth=oauth
-    )
     try:
+        period = payload.to_domain()
+        access = access_tokens.resolve(
+            connection_id=payload.connection_id,
+            user_id=user.id,
+            allowed_providers=frozenset({"YOUTUBE"}),
+        )
         mock_base_url = config.platform_mock_base_url
         fetched = YouTubeAnalyticsConnector(
             channels_url=(
@@ -112,7 +121,7 @@ def fetch_youtube_observation(
                 else "https://youtubeanalytics.googleapis.com/v2/reports"
             ),
         ).fetch_channel_metrics(
-            access_token=token,
+            access_token=access.access_token,
             period=period,
             fetch_run_ref=f"youtube-{uuid4()}",
         )
@@ -125,6 +134,12 @@ def fetch_youtube_observation(
                 completeness=Completeness(status=CompletenessStatus.COMPLETE),
             )
         )
+    except ValueError as error:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(error)
+        ) from error
+    except PlatformAccessError as error:
+        raise platform_access_http_error(error) from error
     except (httpx.HTTPError, RuntimeError) as error:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
@@ -143,11 +158,15 @@ def fetch_multi_platform_ad_observation(
     scope: AuthorizedCampaignScope,
     user: UserDependency,
     store: ControlPlaneDependency,
-    oauth: OAuthDependency,
-    config: SettingsDependency,
+    source_planner: SourcePlannerDependency,
     observations: ObservationDependency,
 ) -> MultiPlatformObservationOutput:
-    period = _period(payload.start, payload.end)
+    try:
+        period = payload.to_domain()
+    except ValueError as error:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(error)
+        ) from error
     bindings = store.list_campaign_bindings(
         user_id=user.id, campaign_id=str(scope.campaign_id)
     )
@@ -156,32 +175,13 @@ def fetch_multi_platform_ad_observation(
             status_code=status.HTTP_409_CONFLICT,
             detail="Campaign has no bound advertising campaigns.",
         )
-    sources: list[IngestionSource] = []
-    preflight_failures: list[str] = []
-    for binding in bindings:
-        try:
-            provider, token = active_access_token(
-                connection_id=binding.connection_id,
-                user=user,
-                store=store,
-                google_oauth=oauth,
-            )
-            sources.append(
-                IngestionSource(
-                    binding=binding,
-                    connector=connector_for(provider, config),
-                    access_token=token,
-                )
-            )
-        except (HTTPException, RuntimeError) as error:
-            detail = error.detail if isinstance(error, HTTPException) else str(error)
-            preflight_failures.append(f"{binding.provider.value}: {detail}")
+    plan = source_planner.plan(user_id=user.id, bindings=tuple(bindings))
     try:
         outcome = MultiPlatformIngestionService(observations).collect(
             campaign_id=scope.campaign_id,
             period=period,
-            sources=tuple(sources),
-            preflight_failures=tuple(preflight_failures),
+            sources=plan.sources,
+            preflight_failures=plan.failures,
         )
     except AllSourcesFailedError as error:
         raise HTTPException(
@@ -192,67 +192,3 @@ def fetch_multi_platform_ad_observation(
         **ObservationSummaryOutput.from_domain(outcome.observation).model_dump(),
         warnings=list(outcome.warnings),
     )
-
-
-def _period(start: date, end: date) -> DateRange:
-    try:
-        return DateRange(start=start, end=end)
-    except ValueError as error:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(error)
-        ) from error
-
-
-def _youtube_connection(*, connection_id, user, store):
-    try:
-        stored = store.get_connection_token(
-            connection_id=connection_id, user_id=user.id
-        )
-    except RuntimeError as error:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(error)
-        ) from error
-    if stored is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="YouTube connection not found.",
-        )
-    connection, _ = stored
-    if connection.provider != "YOUTUBE":
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Connection cannot provide YouTube read access.",
-        )
-    return stored
-
-
-def _fresh_youtube_token(*, connection, token, user, store, oauth) -> str:
-    if oauth.access_token_expired(token):
-        refresh_token = token.get("refresh_token")
-        if not isinstance(refresh_token, str):
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="YouTube authorization expired. Reconnect the account.",
-            )
-        try:
-            refreshed = oauth.refresh_access_token(refresh_token)
-            store.upsert_connection(
-                user_id=user.id,
-                provider=connection.provider,
-                token=refreshed,
-                granted_scopes=connection.granted_scopes,
-                account_ref=connection.account_ref,
-            )
-            token = {**token, **refreshed}
-        except httpx.HTTPError as error:
-            raise HTTPException(
-                status_code=status.HTTP_502_BAD_GATEWAY,
-                detail="YouTube authorization refresh failed.",
-            ) from error
-    access_token = token.get("access_token")
-    if not isinstance(access_token, str):
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Connection cannot provide YouTube read access.",
-        )
-    return access_token

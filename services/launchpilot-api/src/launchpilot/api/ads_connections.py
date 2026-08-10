@@ -7,25 +7,28 @@ from fastapi import APIRouter, Cookie, Depends, HTTPException, Query, Response, 
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 
-from launchpilot.application.ports import AdsConnector
+from launchpilot.application.ingestion import PlatformAccessError
 from launchpilot.config import Settings
 from launchpilot.domain.integrations import ExternalAccount, ExternalCampaign
+from launchpilot.infrastructure.ads_factory import AdsConnectorFactory
 from launchpilot.infrastructure.control_plane import ConnectedUser, PostgresControlPlane
-from launchpilot.infrastructure.google_ads import GoogleAdsConnector
 from launchpilot.infrastructure.google_oauth import GoogleOAuthClient
-from launchpilot.infrastructure.meta_ads import MetaAdsConnector
 from launchpilot.infrastructure.meta_oauth import MetaOAuthClient
+from launchpilot.infrastructure.platform_access import PlatformAccessTokenProvider
 from launchpilot.infrastructure.security import BrowserStateManager, InvalidSignedToken
 
 from .auth import current_user
 from .connections import ConnectionOutput
 from .dependencies import (
+    ads_connector_factory,
     browser_state_manager,
     control_plane,
     google_oauth_client,
     meta_oauth_client,
+    platform_access_tokens,
     settings,
 )
+from .platform_errors import platform_access_http_error
 
 router = APIRouter(prefix="/connections", tags=["ad connections"])
 ControlPlaneDependency = Annotated[PostgresControlPlane, Depends(control_plane)]
@@ -34,6 +37,10 @@ MetaOAuthDependency = Annotated[MetaOAuthClient, Depends(meta_oauth_client)]
 UserDependency = Annotated[ConnectedUser, Depends(current_user)]
 BrowserStateDependency = Annotated[BrowserStateManager, Depends(browser_state_manager)]
 SettingsDependency = Annotated[Settings, Depends(settings)]
+AccessTokensDependency = Annotated[
+    PlatformAccessTokenProvider, Depends(platform_access_tokens)
+]
+AdsConnectorsDependency = Annotated[AdsConnectorFactory, Depends(ads_connector_factory)]
 
 GOOGLE_ADS_STATE_COOKIE = "launchpilot_google_ads_state"
 META_ADS_STATE_COOKIE = "launchpilot_meta_ads_state"
@@ -225,100 +232,24 @@ def finish_meta_ads_connection(
     return ConnectionOutput.from_domain(connection)
 
 
-def connector_for(provider: str, config: Settings) -> AdsConnector:
-    if provider == "GOOGLE_ADS":
-        return GoogleAdsConnector(
-            developer_token=(
-                "mock-developer-token"
-                if config.platform_mock_base_url
-                else config.require_google_ads()
-            ),
-            api_version=config.google_ads_api_version,
-            base_url=(
-                f"{config.platform_mock_base_url}/google"
-                if config.platform_mock_base_url
-                else "https://googleads.googleapis.com"
-            ),
-        )
-    if provider == "META_ADS":
-        return MetaAdsConnector(
-            api_version=config.meta_graph_api_version,
-            primary_conversion_action=config.meta_primary_conversion_action,
-            base_url=(
-                f"{config.platform_mock_base_url}/meta"
-                if config.platform_mock_base_url
-                else "https://graph.facebook.com"
-            ),
-        )
-    raise HTTPException(
-        status_code=status.HTTP_409_CONFLICT,
-        detail="Connection does not expose advertising campaigns.",
-    )
-
-
-def active_access_token(
-    *,
-    connection_id: str,
-    user: ConnectedUser,
-    store: PostgresControlPlane,
-    google_oauth: GoogleOAuthClient,
-) -> tuple[str, str]:
-    stored = store.get_connection_token(connection_id=connection_id, user_id=user.id)
-    if stored is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="platform connection not found",
-        )
-    connection, token = stored
-    if google_oauth.access_token_expired(token):
-        refresh_token = token.get("refresh_token")
-        if connection.provider != "GOOGLE_ADS" or not isinstance(refresh_token, str):
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Platform authorization expired. Reconnect the account.",
-            )
-        try:
-            refreshed = google_oauth.refresh_access_token(refresh_token)
-        except httpx.HTTPError as error:
-            raise HTTPException(
-                status_code=status.HTTP_502_BAD_GATEWAY,
-                detail="Google Ads authorization refresh failed.",
-            ) from error
-        store.upsert_connection(
-            user_id=user.id,
-            provider=connection.provider,
-            token=refreshed,
-            granted_scopes=connection.granted_scopes,
-            account_ref=connection.account_ref,
-        )
-        token = {**token, **refreshed}
-    access_token = token.get("access_token")
-    if not isinstance(access_token, str) or not access_token:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Connection cannot provide advertising read access.",
-        )
-    return connection.provider, access_token
-
-
 @router.get("/{connection_id}/accounts", response_model=list[ExternalAccountOutput])
 def list_ad_accounts(
     connection_id: str,
     user: UserDependency,
-    store: ControlPlaneDependency,
-    google_oauth: GoogleOAuthDependency,
-    config: SettingsDependency,
+    access_tokens: AccessTokensDependency,
+    connectors: AdsConnectorsDependency,
 ) -> list[ExternalAccountOutput]:
-    provider, access_token = active_access_token(
-        connection_id=connection_id,
-        user=user,
-        store=store,
-        google_oauth=google_oauth,
-    )
     try:
-        accounts = connector_for(provider, config).list_accounts(
-            access_token=access_token
+        access = access_tokens.resolve(
+            connection_id=connection_id,
+            user_id=user.id,
+            allowed_providers=frozenset({"GOOGLE_ADS", "META_ADS"}),
         )
+        accounts = connectors.create(access.provider).list_accounts(
+            access_token=access.access_token
+        )
+    except PlatformAccessError as error:
+        raise platform_access_http_error(error) from error
     except (httpx.HTTPError, RuntimeError) as error:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
@@ -332,20 +263,20 @@ def list_ad_campaigns(
     connection_id: str,
     account_ref: Annotated[str, Query(min_length=1)],
     user: UserDependency,
-    store: ControlPlaneDependency,
-    google_oauth: GoogleOAuthDependency,
-    config: SettingsDependency,
+    access_tokens: AccessTokensDependency,
+    connectors: AdsConnectorsDependency,
 ) -> list[ExternalCampaignOutput]:
-    provider, access_token = active_access_token(
-        connection_id=connection_id,
-        user=user,
-        store=store,
-        google_oauth=google_oauth,
-    )
     try:
-        campaigns = connector_for(provider, config).list_campaigns(
-            access_token=access_token, account_ref=account_ref
+        access = access_tokens.resolve(
+            connection_id=connection_id,
+            user_id=user.id,
+            allowed_providers=frozenset({"GOOGLE_ADS", "META_ADS"}),
         )
+        campaigns = connectors.create(access.provider).list_campaigns(
+            access_token=access.access_token, account_ref=account_ref
+        )
+    except PlatformAccessError as error:
+        raise platform_access_http_error(error) from error
     except (httpx.HTTPError, RuntimeError) as error:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
