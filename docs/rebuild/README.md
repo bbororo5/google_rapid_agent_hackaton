@@ -10,6 +10,12 @@
 | Phase 1 | [`phase-1-domain-model.md`](phase-1-domain-model.md) | 확정 | 완료 |
 | Phase 2 | [`phase-2-multiplatform-ingestion.md`](phase-2-multiplatform-ingestion.md) | 확정 | 세 플랫폼 mock E2E 완료, 실제 Ads 성과 검증 대기 |
 
+## Architecture Decision Records
+
+| ADR | 결정 | 상태 |
+| --- | --- | --- |
+| ADR-0001 | [`Retrieval 저장소를 원본 DB와 검색 Projection으로 분리한다`](adr/0001-retrieval-storage-strategy.md) | 승인, Phase 4 Eval 후 재검토 |
+
 ## Status rule
 
 - **논의 중:** 현재 작업 모델이며 사용자와 의미·범위를 조정할 수 있다.

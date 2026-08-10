@@ -146,7 +146,7 @@ Phase 0의 대표 시나리오는 읽기 전용 분석이므로, 정상 경로�
 - 팀 메모, 브리프, 트렌드 문서: lexical·dense·sparse 검색 후보
 - Signal → Hypothesis → Experiment → Outcome 관계: 관계 확장 후보
 
-Elasticsearch를 검색 기반으로 유지하되, 처음부터 모든 고급 패턴을 구현하지 않는다. 구조화 조회와 기본 검색을 기준선으로 만든 뒤, 하이브리드·sparse·graph·reranker를 평가 라운드에서 하나씩 비교한다. **측정 가능한 개선이 있는 구성만 유지한다.**
+Elasticsearch를 비즈니스 원본이 아닌 검색 Projection으로 사용하되, 처음부터 모든 고급 패턴을 구현하지 않는다. 구조화 조회와 BM25를 기준선으로 만든 뒤, dense·sparse·hybrid·reranker·graph를 평가 라운드에서 하나씩 비교한다. **측정 가능한 개선이 있는 구성만 유지한다.** 저장소의 역할과 대안 검토는 [ADR-0001](adr/0001-retrieval-storage-strategy.md)에 기록한다.
 
 ### 4.3 신규 구축 원칙
 
