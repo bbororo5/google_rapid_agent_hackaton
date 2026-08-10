@@ -14,17 +14,21 @@ class MetaOAuthClient:
         app_secret: str,
         public_base_url: str,
         api_version: str = "v24.0",
+        authorize_base_url: str = "https://www.facebook.com",
+        graph_base_url: str = "https://graph.facebook.com",
     ) -> None:
         self._app_id = app_id
         self._app_secret = app_secret
         self._public_base_url = public_base_url.rstrip("/")
         self._api_version = api_version
+        self._authorize_base_url = authorize_base_url.rstrip("/")
+        self._graph_base_url = graph_base_url.rstrip("/")
 
     def authorization_url(
         self, *, state: str, scopes: tuple[str, ...], callback_path: str
     ) -> str:
         return (
-            f"https://www.facebook.com/{self._api_version}/dialog/oauth?"
+            f"{self._authorize_base_url}/{self._api_version}/dialog/oauth?"
             + urlencode(
                 {
                     "client_id": self._app_id,
@@ -38,7 +42,7 @@ class MetaOAuthClient:
 
     def exchange_code(self, *, code: str, callback_path: str) -> dict[str, object]:
         response = httpx.get(
-            f"https://graph.facebook.com/{self._api_version}/oauth/access_token",
+            f"{self._graph_base_url}/{self._api_version}/oauth/access_token",
             params={
                 "client_id": self._app_id,
                 "client_secret": self._app_secret,
@@ -50,7 +54,7 @@ class MetaOAuthClient:
         response.raise_for_status()
         short_lived = response.json()
         extended_response = httpx.get(
-            f"https://graph.facebook.com/{self._api_version}/oauth/access_token",
+            f"{self._graph_base_url}/{self._api_version}/oauth/access_token",
             params={
                 "grant_type": "fb_exchange_token",
                 "client_id": self._app_id,

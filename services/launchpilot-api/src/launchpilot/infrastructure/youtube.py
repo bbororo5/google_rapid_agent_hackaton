@@ -29,15 +29,25 @@ class YouTubeFetchResult:
 class YouTubeAnalyticsConnector:
     """Read-only normalizer for a user's owned YouTube channel metrics."""
 
+    def __init__(
+        self,
+        *,
+        channels_url: str = YOUTUBE_CHANNELS_URL,
+        analytics_url: str = YOUTUBE_ANALYTICS_URL,
+        client: httpx.Client | None = None,
+    ) -> None:
+        self._channels_url = channels_url
+        self._analytics_url = analytics_url
+        self._client = client or httpx.Client(timeout=30)
+
     def fetch_channel_metrics(
         self, *, access_token: str, period: DateRange, fetch_run_ref: str
     ) -> YouTubeFetchResult:
         headers = {"Authorization": f"Bearer {access_token}"}
-        channel_response = httpx.get(
-            YOUTUBE_CHANNELS_URL,
+        channel_response = self._client.get(
+            self._channels_url,
             params={"part": "snippet", "mine": "true"},
             headers=headers,
-            timeout=20,
         )
         channel_response.raise_for_status()
         channels = channel_response.json().get("items", [])
@@ -47,8 +57,8 @@ class YouTubeAnalyticsConnector:
             )
         channel = channels[0]
         channel_id = channel["id"]
-        analytics_response = httpx.get(
-            YOUTUBE_ANALYTICS_URL,
+        analytics_response = self._client.get(
+            self._analytics_url,
             params={
                 "ids": "channel==MINE",
                 "startDate": period.start.isoformat(),
@@ -56,7 +66,6 @@ class YouTubeAnalyticsConnector:
                 "metrics": ",".join(CORE_METRICS),
             },
             headers=headers,
-            timeout=30,
         )
         analytics_response.raise_for_status()
         payload = analytics_response.json()

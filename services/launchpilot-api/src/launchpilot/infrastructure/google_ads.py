@@ -23,6 +23,7 @@ class GoogleAdsConnector:
         developer_token: str,
         api_version: str = "v25",
         login_customer_id: str | None = None,
+        base_url: str = "https://googleads.googleapis.com",
         client: httpx.Client | None = None,
     ) -> None:
         if not developer_token.strip():
@@ -30,6 +31,7 @@ class GoogleAdsConnector:
         self._developer_token = developer_token
         self._api_version = api_version
         self._login_customer_id = login_customer_id
+        self._base_url = base_url.rstrip("/")
         self._client = client or httpx.Client(timeout=30)
 
     @property
@@ -50,7 +52,7 @@ class GoogleAdsConnector:
         self, *, access_token: str, customer_id: str, query: str
     ) -> list[dict[str, Any]]:
         url = (
-            f"https://googleads.googleapis.com/{self._api_version}/customers/"
+            f"{self._base_url}/{self._api_version}/customers/"
             f"{customer_id}/googleAds:search"
         )
         rows: list[dict[str, Any]] = []
@@ -71,7 +73,7 @@ class GoogleAdsConnector:
 
     def list_accounts(self, *, access_token: str) -> tuple[ExternalAccount, ...]:
         response = self._client.get(
-            f"https://googleads.googleapis.com/{self._api_version}/customers:listAccessibleCustomers",
+            f"{self._base_url}/{self._api_version}/customers:listAccessibleCustomers",
             headers=self._headers(access_token),
         )
         response.raise_for_status()

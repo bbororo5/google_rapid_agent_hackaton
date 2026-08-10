@@ -24,11 +24,13 @@ class MetaAdsConnector:
         api_version: str = "v24.0",
         primary_conversion_action: str | None = None,
         attribution_windows: tuple[str, ...] = ("7d_click", "1d_view"),
+        base_url: str = "https://graph.facebook.com",
         client: httpx.Client | None = None,
     ) -> None:
         self._api_version = api_version
         self._primary_conversion_action = primary_conversion_action
         self._attribution_windows = attribution_windows
+        self._base_url = base_url.rstrip("/")
         self._client = client or httpx.Client(timeout=30)
 
     @property
@@ -42,7 +44,7 @@ class MetaAdsConnector:
         path: str,
         params: dict[str, str],
     ) -> list[dict[str, Any]]:
-        url = f"https://graph.facebook.com/{self._api_version}/{path.lstrip('/')}"
+        url = f"{self._base_url}/{self._api_version}/{path.lstrip('/')}"
         headers = {"Authorization": f"Bearer {access_token}"}
         rows: list[dict[str, Any]] = []
         after: str | None = None

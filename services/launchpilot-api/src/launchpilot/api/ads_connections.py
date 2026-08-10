@@ -228,13 +228,27 @@ def finish_meta_ads_connection(
 def connector_for(provider: str, config: Settings) -> AdsConnector:
     if provider == "GOOGLE_ADS":
         return GoogleAdsConnector(
-            developer_token=config.require_google_ads(),
+            developer_token=(
+                "mock-developer-token"
+                if config.platform_mock_base_url
+                else config.require_google_ads()
+            ),
             api_version=config.google_ads_api_version,
+            base_url=(
+                f"{config.platform_mock_base_url}/google"
+                if config.platform_mock_base_url
+                else "https://googleads.googleapis.com"
+            ),
         )
     if provider == "META_ADS":
         return MetaAdsConnector(
             api_version=config.meta_graph_api_version,
             primary_conversion_action=config.meta_primary_conversion_action,
+            base_url=(
+                f"{config.platform_mock_base_url}/meta"
+                if config.platform_mock_base_url
+                else "https://graph.facebook.com"
+            ),
         )
     raise HTTPException(
         status_code=status.HTTP_409_CONFLICT,

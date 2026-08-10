@@ -13,11 +13,21 @@ GOOGLE_USERINFO_URL = "https://openidconnect.googleapis.com/v1/userinfo"
 
 class GoogleOAuthClient:
     def __init__(
-        self, *, client_id: str, client_secret: str, public_base_url: str
+        self,
+        *,
+        client_id: str,
+        client_secret: str,
+        public_base_url: str,
+        authorize_url: str = GOOGLE_AUTHORIZE_URL,
+        token_url: str = GOOGLE_TOKEN_URL,
+        userinfo_url: str = GOOGLE_USERINFO_URL,
     ) -> None:
         self._client_id = client_id
         self._client_secret = client_secret
         self._public_base_url = public_base_url
+        self._authorize_url = authorize_url
+        self._token_url = token_url
+        self._userinfo_url = userinfo_url
 
     def authorization_url(
         self,
@@ -39,13 +49,13 @@ class GoogleOAuthClient:
             "code_challenge": code_challenge,
             "code_challenge_method": "S256",
         }
-        return f"{GOOGLE_AUTHORIZE_URL}?{urlencode(params)}"
+        return f"{self._authorize_url}?{urlencode(params)}"
 
     def exchange_code(
         self, *, code: str, callback_path: str, code_verifier: str
     ) -> dict[str, Any]:
         response = httpx.post(
-            GOOGLE_TOKEN_URL,
+            self._token_url,
             data={
                 "code": code,
                 "client_id": self._client_id,
@@ -61,7 +71,7 @@ class GoogleOAuthClient:
 
     def refresh_access_token(self, refresh_token: str) -> dict[str, Any]:
         response = httpx.post(
-            GOOGLE_TOKEN_URL,
+            self._token_url,
             data={
                 "client_id": self._client_id,
                 "client_secret": self._client_secret,
@@ -96,7 +106,7 @@ class GoogleOAuthClient:
 
     def user_info(self, access_token: str) -> dict[str, Any]:
         response = httpx.get(
-            GOOGLE_USERINFO_URL,
+            self._userinfo_url,
             headers={"Authorization": f"Bearer {access_token}"},
             timeout=15,
         )

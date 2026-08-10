@@ -2,6 +2,28 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+from urllib.parse import urlparse
+
+
+def _local_mock_base_url(value: str | None) -> str | None:
+    if not value:
+        return None
+    normalized = value.rstrip("/")
+    parsed = urlparse(normalized)
+    if (
+        parsed.scheme not in {"http", "https"}
+        or parsed.hostname not in {"127.0.0.1", "localhost", "::1"}
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.query
+        or parsed.fragment
+        or parsed.path not in {"", "/"}
+    ):
+        raise RuntimeError(
+            "PLATFORM_MOCK_BASE_URL must be an origin on localhost. "
+            "Remote mock endpoints could receive OAuth tokens."
+        )
+    return normalized
 
 
 @dataclass(frozen=True, slots=True)
@@ -19,6 +41,7 @@ class Settings:
     meta_app_id: str | None
     meta_app_secret: str | None
     meta_primary_conversion_action: str | None
+    platform_mock_base_url: str | None
 
     @classmethod
     def from_environment(cls) -> Settings:
@@ -45,6 +68,9 @@ class Settings:
             meta_app_id=os.getenv("META_APP_ID"),
             meta_app_secret=os.getenv("META_APP_SECRET"),
             meta_primary_conversion_action=os.getenv("META_PRIMARY_CONVERSION_ACTION"),
+            platform_mock_base_url=_local_mock_base_url(
+                os.getenv("PLATFORM_MOCK_BASE_URL")
+            ),
         )
 
     def require_google_oauth(self) -> None:
