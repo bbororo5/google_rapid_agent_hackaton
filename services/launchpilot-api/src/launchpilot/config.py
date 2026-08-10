@@ -29,6 +29,11 @@ def _local_mock_base_url(value: str | None) -> str | None:
 @dataclass(frozen=True, slots=True)
 class Settings:
     database_url: str
+    google_api_key: str | None
+    google_genai_use_vertexai: bool
+    google_cloud_project: str | None
+    google_cloud_location: str
+    llm_model: str
     public_base_url: str
     google_client_id: str | None
     google_client_secret: str | None
@@ -54,11 +59,21 @@ class Settings:
             if cookie_secure_value is not None
             else public_base_url.startswith("https://")
         )
+        use_vertexai = os.getenv("GOOGLE_GENAI_USE_VERTEXAI", "false").lower() in {
+            "1",
+            "true",
+            "yes",
+        }
         return cls(
             database_url=os.getenv(
                 "DATABASE_URL",
                 "postgresql://launchpilot:launchpilot-local@127.0.0.1:5432/launchpilot",
             ),
+            google_api_key=os.getenv("GOOGLE_API_KEY"),
+            google_genai_use_vertexai=use_vertexai,
+            google_cloud_project=os.getenv("GOOGLE_CLOUD_PROJECT"),
+            google_cloud_location=os.getenv("GOOGLE_CLOUD_LOCATION", "us-central1"),
+            llm_model=os.getenv("LLM_MODEL", "gemini-3.6-flash"),
             public_base_url=public_base_url,
             google_client_id=os.getenv("GOOGLE_OAUTH_CLIENT_ID"),
             google_client_secret=os.getenv("GOOGLE_OAUTH_CLIENT_SECRET"),
@@ -80,6 +95,16 @@ class Settings:
         if not self.google_client_id or not self.google_client_secret:
             raise RuntimeError(
                 "Google OAuth is not configured. Set GOOGLE_OAUTH_CLIENT_ID and GOOGLE_OAUTH_CLIENT_SECRET."
+            )
+
+    def require_google_ai(self) -> None:
+        if self.google_genai_use_vertexai and not self.google_cloud_project:
+            raise RuntimeError(
+                "Vertex AI is enabled. Set GOOGLE_CLOUD_PROJECT and configure ADC."
+            )
+        if not self.google_genai_use_vertexai and not self.google_api_key:
+            raise RuntimeError(
+                "Gemini is not configured. Set GOOGLE_API_KEY, or enable Vertex AI."
             )
 
     def require_token_key(self) -> str:

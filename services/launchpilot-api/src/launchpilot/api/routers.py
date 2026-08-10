@@ -4,13 +4,19 @@ from uuid import UUID, uuid4
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, status
+from langchain_core.language_models import BaseChatModel
 from pydantic import BaseModel, field_validator
 
+from launchpilot.agent.campaign_analysis import (
+    CampaignAnalysisAgent,
+    CampaignAnalysisResult,
+)
 from launchpilot.application.ingestion import (
     AllSourcesFailedError,
     IngestionSource,
     MultiPlatformIngestionService,
 )
+from launchpilot.application.retrieval import StructuredRetrievalService
 from launchpilot.application.services import (
     CampaignService,
     ConversationService,
@@ -33,12 +39,14 @@ from launchpilot.infrastructure.youtube import YouTubeAnalyticsConnector
 from .ads_connections import active_access_token, connector_for
 from .auth import current_user
 from .dependencies import (
+    agent_model,
     campaign_service,
     control_plane,
     conversation_service,
     google_oauth_client,
     observation_service,
     settings,
+    structured_retrieval_service,
 )
 from .schemas import (
     CampaignCreateInput,
@@ -57,6 +65,10 @@ ControlPlaneDependency = Annotated[PostgresControlPlane, Depends(control_plane)]
 UserDependency = Annotated[ConnectedUser, Depends(current_user)]
 OAuthDependency = Annotated[GoogleOAuthClient, Depends(google_oauth_client)]
 SettingsDependency = Annotated[Settings, Depends(settings)]
+RetrievalDependency = Annotated[
+    StructuredRetrievalService, Depends(structured_retrieval_service)
+]
+AgentModelDependency = Annotated[BaseChatModel, Depends(agent_model)]
 
 
 def not_found(error: NotFoundError) -> HTTPException:
@@ -82,6 +94,46 @@ def require_campaign_access(
             status_code=status.HTTP_404_NOT_FOUND, detail="campaign not found"
         )
     return campaign
+
+
+class CampaignAnalysisInput(BaseModel):
+    question: str
+
+    @field_validator("question")
+    @classmethod
+    def strip_question(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("question must not be blank")
+        return value
+
+
+@router.post("/{campaign_id}/analysis", response_model=CampaignAnalysisResult)
+def analyze_campaign(
+    campaign_id: UUID,
+    payload: CampaignAnalysisInput,
+    user: UserDependency,
+    store: ControlPlaneDependency,
+    campaigns: CampaignDependency,
+    retrieval: RetrievalDependency,
+    model: AgentModelDependency,
+) -> CampaignAnalysisResult:
+    campaign = require_campaign_access(
+        campaign_id=campaign_id, user=user, store=store, service=campaigns
+    )
+    agent = CampaignAnalysisAgent.from_model(
+        model=model,
+        retrieval=retrieval,
+        campaign_id=campaign.id,
+        workspace_id=campaign.workspace_id,
+    )
+    try:
+        return agent.analyze(payload.question)
+    except Exception as error:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Campaign analysis failed.",
+        ) from error
 
 
 @router.post("", response_model=CampaignOutput, status_code=status.HTTP_201_CREATED)

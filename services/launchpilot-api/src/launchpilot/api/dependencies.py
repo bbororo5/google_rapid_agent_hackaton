@@ -1,5 +1,9 @@
 from functools import lru_cache
 
+from langchain_core.language_models import BaseChatModel
+from langchain_google_genai import ChatGoogleGenerativeAI
+
+from launchpilot.application.retrieval import StructuredRetrievalService
 from launchpilot.application.services import (
     CampaignService,
     ConversationService,
@@ -14,6 +18,9 @@ from launchpilot.infrastructure.postgres_domain import (
     PostgresCampaignRepository,
     PostgresConversationRepository,
     PostgresObservationRepository,
+)
+from launchpilot.infrastructure.postgres_retrieval import (
+    PostgresStructuredRetrievalRepository,
 )
 from launchpilot.infrastructure.security import (
     BrowserStateManager,
@@ -43,6 +50,38 @@ def observation_service() -> ObservationService:
     return ObservationService(
         PostgresCampaignRepository(database), PostgresObservationRepository(database)
     )
+
+
+def structured_retrieval_service() -> StructuredRetrievalService:
+    return StructuredRetrievalService(
+        PostgresStructuredRetrievalRepository(repository_store())
+    )
+
+
+@lru_cache
+def agent_model() -> BaseChatModel:
+    config = settings()
+    try:
+        config.require_google_ai()
+    except RuntimeError as error:
+        from fastapi import HTTPException, status
+
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(error)
+        ) from error
+    model_options = {
+        "model": config.llm_model,
+        "max_retries": 2,
+        "vertexai": config.google_genai_use_vertexai,
+    }
+    if config.google_genai_use_vertexai:
+        model_options.update(
+            project=config.google_cloud_project,
+            location=config.google_cloud_location,
+        )
+    else:
+        model_options["api_key"] = config.google_api_key
+    return ChatGoogleGenerativeAI(**model_options)
 
 
 @lru_cache

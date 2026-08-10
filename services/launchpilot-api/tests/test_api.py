@@ -4,9 +4,16 @@ from datetime import date
 import pytest
 from cryptography.fernet import Fernet
 from fastapi.testclient import TestClient
+from langchain_core.messages import AIMessage, ToolMessage
+from langchain_core.runnables import RunnableLambda
 
 from launchpilot.api.auth import SESSION_COOKIE
-from launchpilot.api.dependencies import control_plane, repository_store, settings
+from launchpilot.api.dependencies import (
+    agent_model,
+    control_plane,
+    repository_store,
+    settings,
+)
 from launchpilot.domain.integrations import (
     CampaignMetricRequest,
     ConnectorFetchResult,
@@ -230,6 +237,49 @@ def test_campaign_survives_repository_dependency_recreation(
     response = context.client.get(f"/campaigns/{campaign['id']}")
     assert response.status_code == 200
     assert response.json()["name"] == "A 캠페인"
+
+
+def test_campaign_analysis_runs_through_agent_tool_loop(
+    authenticated_client: AuthenticatedClient,
+) -> None:
+    context = authenticated_client
+    campaign = context.client.post(
+        "/campaigns", json=campaign_payload(context.workspace_id)
+    ).json()
+
+    class ScriptedAgentModel:
+        def bind_tools(self, tools):
+            def respond(messages):
+                if any(isinstance(message, ToolMessage) for message in messages):
+                    return AIMessage(content="저장된 성과 데이터가 아직 없습니다.")
+                return AIMessage(
+                    content="",
+                    tool_calls=[
+                        {
+                            "name": "get_campaign_performance",
+                            "args": {},
+                            "id": "api-call-1",
+                            "type": "tool_call",
+                        }
+                    ],
+                )
+
+            return RunnableLambda(respond)
+
+    app.dependency_overrides[agent_model] = ScriptedAgentModel
+    try:
+        response = context.client.post(
+            f"/campaigns/{campaign['id']}/analysis",
+            json={"question": "현재 캠페인 성과를 분석해줘"},
+        )
+    finally:
+        app.dependency_overrides.pop(agent_model, None)
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "answer": "저장된 성과 데이터가 아직 없습니다.",
+        "evidence": [],
+    }
 
 
 class ApiFixtureAdsConnector:
