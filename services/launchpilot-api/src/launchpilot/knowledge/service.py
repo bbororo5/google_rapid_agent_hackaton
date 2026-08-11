@@ -2,9 +2,6 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from opentelemetry import trace
-from opentelemetry.trace import Tracer
-
 from .models import (
     BM25_WHOLE_DOCUMENT_PROFILE,
     CampaignDocument,
@@ -12,7 +9,12 @@ from .models import (
     RetrievalProfile,
     TextSearchHit,
 )
-from .ports import CampaignDocumentRepository, CampaignDocumentSearch
+from .ports import (
+    CampaignDocumentRepository,
+    CampaignDocumentSearch,
+    NullRetrievalObserver,
+    RetrievalObserver,
+)
 
 
 class TextRetrievalService:
@@ -22,12 +24,12 @@ class TextRetrievalService:
         search: CampaignDocumentSearch,
         *,
         profile: RetrievalProfile = BM25_WHOLE_DOCUMENT_PROFILE,
-        tracer: Tracer | None = None,
+        observer: RetrievalObserver | None = None,
     ) -> None:
         self._repository = repository
         self._search = search
         self._profile = getattr(search, "profile", profile)
-        self._tracer = tracer or trace.get_tracer(__name__)
+        self._observer = observer or NullRetrievalObserver()
 
     def add(self, document: CampaignDocument) -> CampaignDocument:
         self._repository.add(document)
@@ -43,26 +45,12 @@ class TextRetrievalService:
         document_types: tuple[DocumentType, ...] = (),
         top_k: int = 5,
     ) -> tuple[TextSearchHit, ...]:
-        with self._tracer.start_as_current_span(
-            "launchpilot.retrieval.text.search"
-        ) as span:
-            span.set_attribute("launchpilot.retrieval.method", self._profile.method)
-            span.set_attribute(
-                "launchpilot.retrieval.index_version", self._profile.index_version
-            )
-            span.set_attribute(
-                "launchpilot.retrieval.chunker_version", self._profile.chunker_version
-            )
-            span.set_attribute(
-                "launchpilot.retrieval.retriever_version",
-                self._profile.retriever_version,
-            )
-            span.set_attribute("launchpilot.retrieval.top_k", top_k)
-            span.set_attribute("launchpilot.retrieval.query_length", len(query))
-            span.set_attribute(
-                "launchpilot.retrieval.document_type_filter_count",
-                len(document_types),
-            )
+        with self._observer.observe_search(
+            profile=self._profile,
+            query_length=len(query),
+            document_type_filter_count=len(document_types),
+            top_k=top_k,
+        ) as observation:
             hits = self._search.search(
                 workspace_id=workspace_id,
                 campaign_id=campaign_id,
@@ -70,7 +58,7 @@ class TextRetrievalService:
                 document_types=document_types,
                 top_k=top_k,
             )
-            span.set_attribute("launchpilot.retrieval.returned_count", len(hits))
+            observation.returned(len(hits))
             return hits
 
     def resolve(

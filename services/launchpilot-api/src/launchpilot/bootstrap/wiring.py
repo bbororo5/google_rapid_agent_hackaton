@@ -38,6 +38,7 @@ from launchpilot.knowledge.elasticsearch import (
 from launchpilot.knowledge.postgres import (
     PostgresCampaignDocumentRepository,
 )
+from launchpilot.observability.retrieval import OpenTelemetryRetrievalObserver
 from launchpilot.performance.factory import AdsConnectorFactory
 from launchpilot.performance.ingestion import AdsIngestionSourcePlanner
 from launchpilot.performance.observation_postgres import PostgresObservationRepository
@@ -85,6 +86,7 @@ def text_retrieval_service() -> TextRetrievalService:
         ElasticsearchCampaignDocumentSearch(
             config.elasticsearch_url, config.elasticsearch_index
         ),
+        observer=OpenTelemetryRetrievalObserver(),
     )
 
 

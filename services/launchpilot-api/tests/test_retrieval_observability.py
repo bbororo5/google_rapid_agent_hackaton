@@ -7,6 +7,7 @@ from opentelemetry.sdk.trace.export.in_memory_span_exporter import (
 )
 
 from launchpilot.knowledge import TextRetrievalService
+from launchpilot.observability.retrieval import OpenTelemetryRetrievalObserver
 
 
 class EmptyDocumentSearch:
@@ -21,7 +22,9 @@ def test_text_retrieval_emits_versioned_span_without_raw_query() -> None:
     service = TextRetrievalService(
         repository=object(),  # type: ignore[arg-type]
         search=EmptyDocumentSearch(),  # type: ignore[arg-type]
-        tracer=provider.get_tracer("test-retrieval"),
+        observer=OpenTelemetryRetrievalObserver(
+            provider.get_tracer("test-retrieval")
+        ),
     )
 
     service.search(
