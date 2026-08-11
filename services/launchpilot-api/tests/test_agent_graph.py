@@ -15,7 +15,7 @@ from launchpilot.application.retrieval import (
     MetricEvidence,
     StructuredRetrievalService,
 )
-from launchpilot.application.text_retrieval import (
+from launchpilot.knowledge import (
     CampaignDocument,
     DocumentType,
     TextRetrievalService,

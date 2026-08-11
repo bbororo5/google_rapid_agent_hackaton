@@ -6,7 +6,7 @@ from opentelemetry.sdk.trace.export.in_memory_span_exporter import (
     InMemorySpanExporter,
 )
 
-from launchpilot.application.text_retrieval import TextRetrievalService
+from launchpilot.knowledge import TextRetrievalService
 
 
 class EmptyDocumentSearch:

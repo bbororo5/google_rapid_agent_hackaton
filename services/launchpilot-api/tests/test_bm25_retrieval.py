@@ -1,20 +1,20 @@
 from datetime import date
 from uuid import uuid4
 
-from launchpilot.application.text_retrieval import (
+from launchpilot.domain.models import Campaign, DateRange
+from launchpilot.infrastructure.postgres_database import PostgresDatabase
+from launchpilot.infrastructure.postgres_domain import PostgresCampaignRepository
+from launchpilot.knowledge import (
     CampaignDocument,
     DocumentType,
     TextRetrievalService,
 )
-from launchpilot.domain.models import Campaign, DateRange
-from launchpilot.infrastructure.elasticsearch_documents import (
+from launchpilot.knowledge.elasticsearch import (
     ElasticsearchCampaignDocumentSearch,
 )
-from launchpilot.infrastructure.postgres_database import PostgresDatabase
-from launchpilot.infrastructure.postgres_documents import (
+from launchpilot.knowledge.postgres import (
     PostgresCampaignDocumentRepository,
 )
-from launchpilot.infrastructure.postgres_domain import PostgresCampaignRepository
 
 
 def test_bm25_search_is_campaign_scoped_and_resolves_postgres_source(

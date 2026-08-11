@@ -4,7 +4,7 @@ from uuid import UUID
 
 from elasticsearch import Elasticsearch
 
-from launchpilot.application.text_retrieval import (
+from .models import (
     BM25_WHOLE_DOCUMENT_PROFILE,
     CampaignDocument,
     DocumentType,

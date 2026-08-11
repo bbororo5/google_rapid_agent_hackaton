@@ -4,7 +4,7 @@ from langchain_core.language_models import BaseChatModel
 
 from launchpilot.application.analysis import AnalysisScope, CampaignAnalysisResult
 from launchpilot.application.retrieval import StructuredRetrievalService
-from launchpilot.application.text_retrieval import TextRetrievalService
+from launchpilot.knowledge import TextRetrievalService
 
 from .evidence import EvidenceCollector
 from .graph import AnalysisGraph

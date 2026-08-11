@@ -5,14 +5,13 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, status
 from pydantic import BaseModel, field_validator
 
-from launchpilot.application.text_retrieval import (
+from launchpilot.api.campaign_context import AuthorizedCampaignScope
+from launchpilot.bootstrap.wiring import text_retrieval_service
+from launchpilot.knowledge import (
     CampaignDocument,
     DocumentType,
     TextRetrievalService,
 )
-from launchpilot.bootstrap.wiring import text_retrieval_service
-
-from .campaign_context import AuthorizedCampaignScope
 
 router = APIRouter(prefix="/campaigns", tags=["campaign-documents"])
 TextRetrievalDependency = Annotated[

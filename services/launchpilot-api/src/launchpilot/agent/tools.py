@@ -11,7 +11,7 @@ from launchpilot.application.retrieval import (
     CampaignMetricQuery,
     StructuredRetrievalService,
 )
-from launchpilot.application.text_retrieval import DocumentType, TextRetrievalService
+from launchpilot.knowledge import DocumentType, TextRetrievalService
 
 
 class CampaignToolset:

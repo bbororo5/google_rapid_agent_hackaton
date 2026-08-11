@@ -17,20 +17,13 @@ from launchpilot.application.services import (
     ConversationService,
     ObservationService,
 )
-from launchpilot.application.text_retrieval import TextRetrievalService
 from launchpilot.bootstrap.config import Settings
 from launchpilot.infrastructure.ads_factory import AdsConnectorFactory
 from launchpilot.infrastructure.control_plane import PostgresControlPlane
-from launchpilot.infrastructure.elasticsearch_documents import (
-    ElasticsearchCampaignDocumentSearch,
-)
 from launchpilot.infrastructure.google_oauth import GoogleOAuthClient
 from launchpilot.infrastructure.meta_oauth import MetaOAuthClient
 from launchpilot.infrastructure.platform_access import PlatformAccessTokenProvider
 from launchpilot.infrastructure.postgres_database import PostgresDatabase
-from launchpilot.infrastructure.postgres_documents import (
-    PostgresCampaignDocumentRepository,
-)
 from launchpilot.infrastructure.postgres_domain import (
     PostgresCampaignRepository,
     PostgresConversationRepository,
@@ -46,6 +39,13 @@ from launchpilot.infrastructure.security import (
 )
 from launchpilot.infrastructure.workspace_access import (
     ControlPlaneWorkspaceAccessReader,
+)
+from launchpilot.knowledge import TextRetrievalService
+from launchpilot.knowledge.elasticsearch import (
+    ElasticsearchCampaignDocumentSearch,
+)
+from launchpilot.knowledge.postgres import (
+    PostgresCampaignDocumentRepository,
 )
 
 

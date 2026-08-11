@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from launchpilot.application.text_retrieval import CampaignDocument, DocumentType
+from launchpilot.infrastructure.postgres_database import PostgresDatabase
 
-from .postgres_database import PostgresDatabase
+from .models import CampaignDocument, DocumentType
 
 
 class PostgresCampaignDocumentRepository:

@@ -1,99 +1,18 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
-from enum import StrEnum
-from typing import Protocol
-from uuid import UUID, uuid4
+from uuid import UUID
 
 from opentelemetry import trace
 from opentelemetry.trace import Tracer
-from pydantic import BaseModel, ConfigDict, Field
 
-
-class DocumentType(StrEnum):
-    MEMO = "MEMO"
-    BRIEF = "BRIEF"
-    ANALYSIS = "ANALYSIS"
-
-
-class RetrievalMethod(StrEnum):
-    BM25 = "bm25"
-
-
-class RetrievalProfile(BaseModel):
-    """Identifies the retrieval configuration that produced a result."""
-
-    model_config = ConfigDict(frozen=True)
-
-    method: RetrievalMethod
-    index_version: str = Field(min_length=1)
-    chunker_version: str = Field(min_length=1)
-    retriever_version: str = Field(min_length=1)
-
-
-BM25_WHOLE_DOCUMENT_PROFILE = RetrievalProfile(
-    method=RetrievalMethod.BM25,
-    index_version="campaign-documents-v1",
-    chunker_version="whole-document-v1",
-    retriever_version="bm25-v1",
+from .models import (
+    BM25_WHOLE_DOCUMENT_PROFILE,
+    CampaignDocument,
+    DocumentType,
+    RetrievalProfile,
+    TextSearchHit,
 )
-
-
-class CampaignDocument(BaseModel):
-    model_config = ConfigDict(frozen=True)
-
-    id: UUID = Field(default_factory=uuid4)
-    campaign_id: UUID
-    workspace_id: UUID
-    document_type: DocumentType
-    title: str = Field(min_length=1)
-    content: str = Field(min_length=1)
-    source_ref: str = Field(min_length=1)
-    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
-
-
-class TextSearchHit(BaseModel):
-    model_config = ConfigDict(frozen=True)
-
-    document_id: UUID
-    campaign_id: UUID
-    chunk_id: str | None = None
-    document_type: DocumentType
-    title: str
-    excerpt: str
-    source_ref: str
-    score: float
-    rank: int = Field(ge=1)
-    retrieval_method: RetrievalMethod
-    index_version: str
-    chunker_version: str
-    retriever_version: str
-
-
-class CampaignDocumentRepository(Protocol):
-    def add(self, document: CampaignDocument) -> None: ...
-    def list_scoped(
-        self, *, workspace_id: UUID, campaign_id: UUID
-    ) -> tuple[CampaignDocument, ...]: ...
-    def get_scoped(
-        self, *, document_id: UUID, workspace_id: UUID, campaign_id: UUID
-    ) -> CampaignDocument | None: ...
-
-
-class CampaignDocumentSearch(Protocol):
-    @property
-    def profile(self) -> RetrievalProfile: ...
-
-    def index(self, document: CampaignDocument) -> None: ...
-    def search(
-        self,
-        *,
-        workspace_id: UUID,
-        campaign_id: UUID,
-        query: str,
-        document_types: tuple[DocumentType, ...] = (),
-        top_k: int = 5,
-    ) -> tuple[TextSearchHit, ...]: ...
+from .ports import CampaignDocumentRepository, CampaignDocumentSearch
 
 
 class TextRetrievalService:
