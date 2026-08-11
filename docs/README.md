@@ -33,6 +33,7 @@
 
 - [ADR-0001 — Elasticsearch를 검색 Projection 후보로 시험 채택](rebuild/adr/0001-retrieval-storage-strategy.md)
 - [ADR-0002 — PostgreSQL을 Source of Truth로 채택](rebuild/adr/0002-source-of-truth-database.md)
+- [ADR-0003 — 기능 중심 모듈러 모놀리스로 재구성](rebuild/adr/0003-feature-oriented-modular-monolith.md)
 
 ## Document rules
 
