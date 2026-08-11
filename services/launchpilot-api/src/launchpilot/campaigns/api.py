@@ -5,7 +5,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from launchpilot.analysis.http_scope import AuthorizedCampaignScope, UserDependency
+from launchpilot.bootstrap.http_scope import AuthorizedCampaignScope, UserDependency
 from launchpilot.bootstrap.wiring import (
     campaign_service,
     conversation_service,
@@ -13,8 +13,8 @@ from launchpilot.bootstrap.wiring import (
 )
 from launchpilot.campaigns.models import Conversation
 from launchpilot.campaigns.service import CampaignService, ConversationService
-from launchpilot.identity.ports import IdentityStore
-from launchpilot.shared.errors import NotFoundError
+from launchpilot.identity.public import WorkspaceDirectory
+from launchpilot.shared import NotFoundError
 
 from .schemas import (
     CampaignCreateInput,
@@ -26,17 +26,19 @@ from .schemas import (
 router = APIRouter(prefix="/campaigns", tags=["campaigns"])
 CampaignDependency = Annotated[CampaignService, Depends(campaign_service)]
 ConversationDependency = Annotated[ConversationService, Depends(conversation_service)]
-IdentityStoreDependency = Annotated[IdentityStore, Depends(identity_store)]
+WorkspaceDirectoryDependency = Annotated[
+    WorkspaceDirectory, Depends(identity_store)
+]
 
 
 @router.post("", response_model=CampaignOutput, status_code=status.HTTP_201_CREATED)
 def create_campaign(
     payload: CampaignCreateInput,
     user: UserDependency,
-    store: IdentityStoreDependency,
+    workspaces: WorkspaceDirectoryDependency,
     campaigns: CampaignDependency,
 ) -> CampaignOutput:
-    if not store.has_workspace_access(
+    if not workspaces.has_workspace_access(
         user_id=user.id, workspace_id=str(payload.workspace_id)
     ):
         raise HTTPException(
@@ -48,10 +50,10 @@ def create_campaign(
 @router.get("", response_model=list[CampaignOutput])
 def list_campaigns(
     user: UserDependency,
-    store: IdentityStoreDependency,
+    workspaces: WorkspaceDirectoryDependency,
     campaigns: CampaignDependency,
 ) -> list[CampaignOutput]:
-    workspace_ids = {UUID(item.id) for item in store.list_workspaces(user.id)}
+    workspace_ids = {UUID(item.id) for item in workspaces.list_workspaces(user.id)}
     return [
         CampaignOutput.from_domain(campaign)
         for campaign in campaigns.list_for_workspaces(workspace_ids)

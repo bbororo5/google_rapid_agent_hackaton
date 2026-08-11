@@ -5,9 +5,9 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, status
 from pydantic import BaseModel, field_validator
 
-from launchpilot.analysis.http_scope import AuthorizedCampaignScope
+from launchpilot.bootstrap.http_scope import AuthorizedCampaignScope
 from launchpilot.bootstrap.wiring import text_retrieval_service
-from launchpilot.knowledge import (
+from launchpilot.knowledge.public import (
     CampaignDocument,
     DocumentType,
     TextRetrievalService,

@@ -21,10 +21,10 @@ from launchpilot.main import app
 from launchpilot.performance.contracts import (
     CampaignMetricRequest,
     ConnectorFetchResult,
-    PlatformProvider,
 )
 from launchpilot.performance.models import MetricObservation, PlatformSlice
 from launchpilot.persistence.postgres import PostgresDatabase
+from launchpilot.shared import PlatformProvider
 
 
 @dataclass(frozen=True)

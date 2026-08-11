@@ -4,6 +4,7 @@ from uuid import uuid4
 import pytest
 
 from launchpilot.campaigns.models import Campaign
+from launchpilot.campaigns.public import ExternalCampaignBinding
 from launchpilot.campaigns.service import CampaignService
 from launchpilot.devtools.in_memory import (
     InMemoryObservationRepository,
@@ -12,8 +13,6 @@ from launchpilot.devtools.in_memory import (
 from launchpilot.performance.contracts import (
     CampaignMetricRequest,
     ConnectorFetchResult,
-    ExternalCampaignBinding,
-    PlatformProvider,
 )
 from launchpilot.performance.ingestion import (
     AllSourcesFailedError,
@@ -22,7 +21,7 @@ from launchpilot.performance.ingestion import (
 )
 from launchpilot.performance.models import MetricObservation, PlatformSlice
 from launchpilot.performance.observation_service import ObservationService
-from launchpilot.shared import DateRange
+from launchpilot.shared import DateRange, PlatformProvider
 
 
 class SuccessfulConnector:

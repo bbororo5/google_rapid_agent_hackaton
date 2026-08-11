@@ -1,6 +1,6 @@
 from typing import Protocol
 
-from launchpilot.performance.contracts import ExternalCampaignBinding
+from launchpilot.campaigns.public import ExternalCampaignBinding
 
 from .models import ConnectedUser, PlatformConnection, WorkspaceAccess
 
@@ -46,3 +46,10 @@ class IdentityStore(Protocol):
     def list_campaign_bindings(
         self, *, user_id: str, campaign_id: str
     ) -> tuple[ExternalCampaignBinding, ...]: ...
+
+
+class WorkspaceDirectory(Protocol):
+    """Narrow collaboration boundary for workspace listing and authorization."""
+
+    def list_workspaces(self, user_id: str) -> list[WorkspaceAccess]: ...
+    def has_workspace_access(self, *, user_id: str, workspace_id: str) -> bool: ...

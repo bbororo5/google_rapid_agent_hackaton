@@ -8,25 +8,28 @@ from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 
 from launchpilot.bootstrap.config import Settings
+from launchpilot.bootstrap.platform_http_errors import platform_access_http_error
 from launchpilot.bootstrap.wiring import (
-    ads_connector_factory,
+    advertising_catalog_service,
     browser_state_manager,
     google_oauth_client,
     identity_store,
     meta_oauth_client,
-    platform_access_tokens,
     settings,
 )
-from launchpilot.identity.access_tokens import PlatformAccessTokenProvider
 from launchpilot.identity.models import ConnectedUser
 from launchpilot.identity.oauth.google import GoogleOAuthClient
 from launchpilot.identity.oauth.meta import MetaOAuthClient
 from launchpilot.identity.ports import IdentityStore
 from launchpilot.identity.security import BrowserStateManager, InvalidSignedToken
-from launchpilot.performance.contracts import ExternalAccount, ExternalCampaign
-from launchpilot.performance.factory import AdsConnectorFactory
-from launchpilot.performance.http_errors import platform_access_http_error
-from launchpilot.performance.ingestion import PlatformAccessError
+from launchpilot.performance.public import (
+    AdvertisingCatalogService,
+    ExternalAccount,
+    ExternalCampaign,
+    ListAdvertisingAccounts,
+    ListAdvertisingCampaigns,
+    PlatformAccessError,
+)
 
 from .auth_api import current_user
 from .connections_api import ConnectionOutput
@@ -38,10 +41,9 @@ MetaOAuthDependency = Annotated[MetaOAuthClient, Depends(meta_oauth_client)]
 UserDependency = Annotated[ConnectedUser, Depends(current_user)]
 BrowserStateDependency = Annotated[BrowserStateManager, Depends(browser_state_manager)]
 SettingsDependency = Annotated[Settings, Depends(settings)]
-AccessTokensDependency = Annotated[
-    PlatformAccessTokenProvider, Depends(platform_access_tokens)
+AdvertisingCatalogDependency = Annotated[
+    AdvertisingCatalogService, Depends(advertising_catalog_service)
 ]
-AdsConnectorsDependency = Annotated[AdsConnectorFactory, Depends(ads_connector_factory)]
 
 GOOGLE_ADS_STATE_COOKIE = "launchpilot_google_ads_state"
 META_ADS_STATE_COOKIE = "launchpilot_meta_ads_state"
@@ -237,17 +239,14 @@ def finish_meta_ads_connection(
 def list_ad_accounts(
     connection_id: str,
     user: UserDependency,
-    access_tokens: AccessTokensDependency,
-    connectors: AdsConnectorsDependency,
+    catalog: AdvertisingCatalogDependency,
 ) -> list[ExternalAccountOutput]:
     try:
-        access = access_tokens.resolve(
-            connection_id=connection_id,
-            user_id=user.id,
-            allowed_providers=frozenset({"GOOGLE_ADS", "META_ADS"}),
-        )
-        accounts = connectors.create(access.provider).list_accounts(
-            access_token=access.access_token
+        accounts = catalog.list_accounts(
+            ListAdvertisingAccounts(
+                connection_id=connection_id,
+                user_id=user.id,
+            )
         )
     except PlatformAccessError as error:
         raise platform_access_http_error(error) from error
@@ -264,17 +263,15 @@ def list_ad_campaigns(
     connection_id: str,
     account_ref: Annotated[str, Query(min_length=1)],
     user: UserDependency,
-    access_tokens: AccessTokensDependency,
-    connectors: AdsConnectorsDependency,
+    catalog: AdvertisingCatalogDependency,
 ) -> list[ExternalCampaignOutput]:
     try:
-        access = access_tokens.resolve(
-            connection_id=connection_id,
-            user_id=user.id,
-            allowed_providers=frozenset({"GOOGLE_ADS", "META_ADS"}),
-        )
-        campaigns = connectors.create(access.provider).list_campaigns(
-            access_token=access.access_token, account_ref=account_ref
+        campaigns = catalog.list_campaigns(
+            ListAdvertisingCampaigns(
+                connection_id=connection_id,
+                user_id=user.id,
+                account_ref=account_ref,
+            )
         )
     except PlatformAccessError as error:
         raise platform_access_http_error(error) from error

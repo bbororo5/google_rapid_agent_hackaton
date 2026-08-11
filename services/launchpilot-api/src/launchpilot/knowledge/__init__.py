@@ -1,11 +1,4 @@
 """Campaign documents and relevance-based retrieval."""
 
-from .models import CampaignDocument, DocumentType, TextSearchHit
-from .service import TextRetrievalService
-
-__all__ = [
-    "CampaignDocument",
-    "DocumentType",
-    "TextRetrievalService",
-    "TextSearchHit",
-]
+from .public import *
+from .public import __all__ as __all__

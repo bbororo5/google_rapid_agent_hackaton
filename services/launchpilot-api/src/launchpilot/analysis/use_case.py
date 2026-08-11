@@ -6,8 +6,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
 
-from launchpilot.campaigns.service import CampaignService
-from launchpilot.shared.errors import NotFoundError
+from launchpilot.campaigns.public import CampaignScope, CampaignScopeResolver
 
 
 @dataclass(frozen=True, slots=True)
@@ -15,13 +14,6 @@ class AnalyzeCampaign:
     user_id: UUID
     campaign_id: UUID
     question: str
-
-
-@dataclass(frozen=True, slots=True)
-class AnalysisScope:
-    user_id: UUID
-    workspace_id: UUID
-    campaign_id: UUID
 
 
 class AgentEvidenceRef(BaseModel):
@@ -43,36 +35,12 @@ class CampaignAnalysisResult(BaseModel):
     evidence: tuple[AgentEvidenceRef, ...]
 
 
-class WorkspaceAccessReader(Protocol):
-    def allows(self, *, user_id: UUID, workspace_id: UUID) -> bool: ...
-
-
 class CampaignAnswerer(Protocol):
     def answer(self, question: str) -> CampaignAnalysisResult: ...
 
 
 class CampaignAnswererFactory(Protocol):
-    def create(self, scope: AnalysisScope) -> CampaignAnswerer: ...
-
-
-class CampaignAccessService:
-    def __init__(
-        self, campaigns: CampaignService, workspace_access: WorkspaceAccessReader
-    ) -> None:
-        self._campaigns = campaigns
-        self._workspace_access = workspace_access
-
-    def authorize(self, *, user_id: UUID, campaign_id: UUID) -> AnalysisScope:
-        campaign = self._campaigns.get(campaign_id)
-        if not self._workspace_access.allows(
-            user_id=user_id, workspace_id=campaign.workspace_id
-        ):
-            raise NotFoundError("campaign not found")
-        return AnalysisScope(
-            user_id=user_id,
-            workspace_id=campaign.workspace_id,
-            campaign_id=campaign.id,
-        )
+    def create(self, scope: CampaignScope) -> CampaignAnswerer: ...
 
 
 class CampaignAnalysisService:
@@ -80,7 +48,7 @@ class CampaignAnalysisService:
 
     def __init__(
         self,
-        access: CampaignAccessService,
+        access: CampaignScopeResolver,
         agents: CampaignAnswererFactory,
     ) -> None:
         self._access = access

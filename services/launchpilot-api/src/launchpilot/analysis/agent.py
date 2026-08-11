@@ -2,13 +2,13 @@ from __future__ import annotations
 
 from langchain_core.language_models import BaseChatModel
 
-from launchpilot.analysis.use_case import AnalysisScope, CampaignAnalysisResult
-from launchpilot.knowledge import TextRetrievalService
-from launchpilot.performance.retrieval import StructuredRetrievalService
+from launchpilot.campaigns.public import CampaignScope
 
 from .evidence import EvidenceCollector
 from .graph import AnalysisGraph
+from .ports import CampaignDocumentReader, CampaignPerformanceReader
 from .tools import CampaignToolset
+from .use_case import CampaignAnalysisResult
 
 
 class CampaignAgent:
@@ -33,14 +33,14 @@ class CampaignAgentFactory:
         self,
         *,
         model: BaseChatModel,
-        retrieval: StructuredRetrievalService,
-        text_retrieval: TextRetrievalService,
+        retrieval: CampaignPerformanceReader,
+        text_retrieval: CampaignDocumentReader,
     ) -> None:
         self._model = model
         self._retrieval = retrieval
         self._text_retrieval = text_retrieval
 
-    def create(self, scope: AnalysisScope) -> CampaignAgent:
+    def create(self, scope: CampaignScope) -> CampaignAgent:
         toolset = CampaignToolset(
             scope=scope,
             retrieval=self._retrieval,

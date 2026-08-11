@@ -8,8 +8,9 @@ import httpx
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 
-from launchpilot.analysis.http_scope import AuthorizedCampaignScope, UserDependency
 from launchpilot.bootstrap.config import Settings
+from launchpilot.bootstrap.http_scope import AuthorizedCampaignScope, UserDependency
+from launchpilot.bootstrap.platform_http_errors import platform_access_http_error
 from launchpilot.bootstrap.wiring import (
     ads_ingestion_source_planner,
     identity_store,
@@ -17,11 +18,10 @@ from launchpilot.bootstrap.wiring import (
     platform_access_tokens,
     settings,
 )
-from launchpilot.identity.access_tokens import PlatformAccessTokenProvider
-from launchpilot.identity.ports import IdentityStore
+from launchpilot.campaigns.public import CampaignBindingDirectory
 from launchpilot.performance.adapters.youtube import YouTubeAnalyticsConnector
-from launchpilot.performance.http_errors import platform_access_http_error
 from launchpilot.performance.ingestion import (
+    AccessTokenProvider,
     AdsIngestionSourcePlanner,
     AllSourcesFailedError,
     MultiPlatformIngestionService,
@@ -34,16 +34,15 @@ from launchpilot.performance.models import (
 )
 from launchpilot.performance.observation_service import ObservationService
 from launchpilot.performance.schemas import ObservationSummaryOutput
-from launchpilot.shared import DateRange
-from launchpilot.shared.errors import NotFoundError
+from launchpilot.shared import DateRange, NotFoundError
 
 router = APIRouter(prefix="/campaigns", tags=["campaign-observations"])
 ObservationDependency = Annotated[ObservationService, Depends(observation_service)]
-IdentityStoreDependency = Annotated[IdentityStore, Depends(identity_store)]
-SettingsDependency = Annotated[Settings, Depends(settings)]
-AccessTokensDependency = Annotated[
-    PlatformAccessTokenProvider, Depends(platform_access_tokens)
+CampaignBindingsDependency = Annotated[
+    CampaignBindingDirectory, Depends(identity_store)
 ]
+SettingsDependency = Annotated[Settings, Depends(settings)]
+AccessTokensDependency = Annotated[AccessTokenProvider, Depends(platform_access_tokens)]
 SourcePlannerDependency = Annotated[
     AdsIngestionSourcePlanner, Depends(ads_ingestion_source_planner)
 ]
@@ -156,7 +155,7 @@ def fetch_multi_platform_ad_observation(
     payload: MultiPlatformObservationRequest,
     scope: AuthorizedCampaignScope,
     user: UserDependency,
-    store: IdentityStoreDependency,
+    bindings: CampaignBindingsDependency,
     source_planner: SourcePlannerDependency,
     observations: ObservationDependency,
 ) -> MultiPlatformObservationOutput:
@@ -166,15 +165,15 @@ def fetch_multi_platform_ad_observation(
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(error)
         ) from error
-    bindings = store.list_campaign_bindings(
+    campaign_bindings = bindings.list_campaign_bindings(
         user_id=user.id, campaign_id=str(scope.campaign_id)
     )
-    if not bindings:
+    if not campaign_bindings:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Campaign has no bound advertising campaigns.",
         )
-    plan = source_planner.plan(user_id=user.id, bindings=tuple(bindings))
+    plan = source_planner.plan(user_id=user.id, bindings=tuple(campaign_bindings))
     try:
         outcome = MultiPlatformIngestionService(observations).collect(
             campaign_id=scope.campaign_id,

@@ -6,12 +6,11 @@ from uuid import UUID
 
 from langchain_core.tools import BaseTool, StructuredTool
 
-from launchpilot.analysis.use_case import AnalysisScope
-from launchpilot.knowledge import DocumentType, TextRetrievalService
-from launchpilot.performance.retrieval import (
-    CampaignMetricQuery,
-    StructuredRetrievalService,
-)
+from launchpilot.campaigns.public import CampaignScope
+from launchpilot.knowledge.public import DocumentType
+from launchpilot.performance.public import CampaignMetricQuery
+
+from .ports import CampaignDocumentReader, CampaignPerformanceReader
 
 
 class CampaignToolset:
@@ -20,9 +19,9 @@ class CampaignToolset:
     def __init__(
         self,
         *,
-        scope: AnalysisScope,
-        retrieval: StructuredRetrievalService,
-        text_retrieval: TextRetrievalService,
+        scope: CampaignScope,
+        retrieval: CampaignPerformanceReader,
+        text_retrieval: CampaignDocumentReader,
     ) -> None:
         self._scope = scope
         self._retrieval = retrieval

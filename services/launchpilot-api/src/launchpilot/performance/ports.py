@@ -8,9 +8,9 @@ from launchpilot.performance.contracts import (
     ConnectorFetchResult,
     ExternalAccount,
     ExternalCampaign,
-    PlatformProvider,
 )
 from launchpilot.performance.models import CampaignObservation
+from launchpilot.shared import PlatformProvider
 
 
 class AdsConnector(Protocol):

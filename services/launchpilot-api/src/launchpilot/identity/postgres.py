@@ -9,11 +9,9 @@ from cryptography.fernet import Fernet
 from psycopg import Connection
 from psycopg.types.json import Jsonb
 
-from launchpilot.performance.contracts import (
-    ExternalCampaignBinding,
-    PlatformProvider,
-)
+from launchpilot.campaigns.public import ExternalCampaignBinding
 from launchpilot.persistence.postgres import PostgresDatabase
+from launchpilot.shared import PlatformProvider
 
 from .models import ConnectedUser, PlatformConnection, WorkspaceAccess
 

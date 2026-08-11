@@ -6,15 +6,14 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, field_validator
 
-from launchpilot.analysis.use_case import (
+from launchpilot.analysis.public import (
     AnalyzeCampaign,
     CampaignAnalysisResult,
     CampaignAnalysisService,
 )
+from launchpilot.bootstrap.http_scope import UserDependency
 from launchpilot.bootstrap.wiring import campaign_analysis_service
-from launchpilot.shared.errors import NotFoundError
-
-from .http_scope import UserDependency
+from launchpilot.shared import NotFoundError
 
 router = APIRouter(prefix="/campaigns", tags=["campaign-analysis"])
 AnalysisDependency = Annotated[

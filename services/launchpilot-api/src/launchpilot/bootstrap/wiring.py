@@ -5,39 +5,36 @@ from fastapi import Depends
 from langchain_core.language_models import BaseChatModel
 from langchain_google_genai import ChatGoogleGenerativeAI
 
-from launchpilot.analysis import CampaignAgentFactory
-from launchpilot.analysis.use_case import (
-    CampaignAccessService,
-    CampaignAnalysisService,
-)
+from launchpilot.analysis.public import CampaignAgentFactory, CampaignAnalysisService
 from launchpilot.bootstrap.config import Settings
 from launchpilot.campaigns.postgres import (
     PostgresCampaignRepository,
     PostgresConversationRepository,
 )
-from launchpilot.campaigns.service import (
+from launchpilot.campaigns.public import (
+    CampaignAccessService,
     CampaignService,
     ConversationService,
 )
-from launchpilot.identity.access_tokens import PlatformAccessTokenProvider
 from launchpilot.identity.oauth.google import GoogleOAuthClient
 from launchpilot.identity.oauth.meta import MetaOAuthClient
 from launchpilot.identity.postgres import PostgresIdentityStore
+from launchpilot.identity.public import (
+    IdentityWorkspaceAccessReader,
+    PlatformAccessTokenProvider,
+)
 from launchpilot.identity.security import (
     BrowserStateManager,
     SessionManager,
     SignedTokenCodec,
 )
-from launchpilot.identity.workspace_access import (
-    IdentityWorkspaceAccessReader,
-)
-from launchpilot.knowledge import TextRetrievalService
 from launchpilot.knowledge.elasticsearch import (
     ElasticsearchCampaignDocumentSearch,
 )
 from launchpilot.knowledge.postgres import (
     PostgresCampaignDocumentRepository,
 )
+from launchpilot.knowledge.public import TextRetrievalService
 from launchpilot.observability.retrieval import OpenTelemetryRetrievalObserver
 from launchpilot.performance.factory import AdsConnectorFactory
 from launchpilot.performance.ingestion import AdsIngestionSourcePlanner
@@ -46,6 +43,7 @@ from launchpilot.performance.observation_service import ObservationService
 from launchpilot.performance.postgres import (
     PostgresStructuredRetrievalRepository,
 )
+from launchpilot.performance.public import AdvertisingCatalogService
 from launchpilot.performance.retrieval import StructuredRetrievalService
 from launchpilot.persistence.postgres import PostgresDatabase
 
@@ -69,7 +67,8 @@ def conversation_service() -> ConversationService:
 def observation_service() -> ObservationService:
     database = repository_store()
     return ObservationService(
-        PostgresCampaignRepository(database), PostgresObservationRepository(database)
+        CampaignService(PostgresCampaignRepository(database)),
+        PostgresObservationRepository(database),
     )
 
 
@@ -210,6 +209,15 @@ def ads_ingestion_source_planner(
     connectors: Annotated[AdsConnectorFactory, Depends(ads_connector_factory)],
 ) -> AdsIngestionSourcePlanner:
     return AdsIngestionSourcePlanner(access_tokens, connectors)
+
+
+def advertising_catalog_service(
+    access_tokens: Annotated[
+        PlatformAccessTokenProvider, Depends(platform_access_tokens)
+    ],
+    connectors: Annotated[AdsConnectorFactory, Depends(ads_connector_factory)],
+) -> AdvertisingCatalogService:
+    return AdvertisingCatalogService(access_tokens, connectors)
 
 
 def meta_oauth_client() -> MetaOAuthClient:

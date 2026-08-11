@@ -8,7 +8,7 @@ from launchpilot.analysis.agent import CampaignAgent
 from launchpilot.analysis.evidence import EvidenceCollector
 from launchpilot.analysis.graph import AnalysisGraph
 from launchpilot.analysis.tools import CampaignToolset
-from launchpilot.analysis.use_case import AnalysisScope
+from launchpilot.campaigns.public import CampaignScope
 from launchpilot.knowledge import (
     CampaignDocument,
     DocumentType,
@@ -73,7 +73,7 @@ def test_agent_calls_scoped_retrieval_and_returns_evidence() -> None:
     toolset = CampaignToolset(
         retrieval=StructuredRetrievalService(repository),
         text_retrieval=TextRetrievalService(None, None),  # type: ignore[arg-type]
-        scope=AnalysisScope(
+        scope=CampaignScope(
             user_id=uuid4(),
             campaign_id=campaign_id,
             workspace_id=workspace_id,
@@ -161,7 +161,7 @@ def test_agent_searches_then_resolves_document_evidence() -> None:
     toolset = CampaignToolset(
         retrieval=StructuredRetrievalService(StubRetrievalRepository(None)),  # type: ignore[arg-type]
         text_retrieval=StubTextRetrieval(),  # type: ignore[arg-type]
-        scope=AnalysisScope(
+        scope=CampaignScope(
             user_id=uuid4(),
             campaign_id=campaign_id,
             workspace_id=workspace_id,

@@ -7,13 +7,18 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, field_validator
 
-from launchpilot.analysis.http_scope import AuthorizedCampaignScope
+from launchpilot.bootstrap.http_scope import AuthorizedCampaignScope
 from launchpilot.bootstrap.wiring import identity_store
-from launchpilot.identity.ports import IdentityStore
-from launchpilot.performance.contracts import ExternalCampaignBinding, PlatformProvider
+from launchpilot.campaigns.public import (
+    CampaignBindingDirectory,
+    ExternalCampaignBinding,
+)
+from launchpilot.shared import PlatformProvider
 
 router = APIRouter(prefix="/campaigns", tags=["campaign-bindings"])
-IdentityStoreDependency = Annotated[IdentityStore, Depends(identity_store)]
+CampaignBindingsDependency = Annotated[
+    CampaignBindingDirectory, Depends(identity_store)
+]
 
 
 class CampaignBindingInput(BaseModel):
@@ -84,9 +89,9 @@ class CampaignBindingOutput(BaseModel):
 def bind_external_campaign(
     payload: CampaignBindingInput,
     scope: AuthorizedCampaignScope,
-    store: IdentityStoreDependency,
+    bindings: CampaignBindingsDependency,
 ) -> CampaignBindingOutput:
-    binding = store.upsert_campaign_binding(
+    binding = bindings.upsert_campaign_binding(
         user_id=str(scope.user_id),
         campaign_id=str(scope.campaign_id),
         **payload.model_dump(),
@@ -102,11 +107,11 @@ def bind_external_campaign(
 @router.get("/{campaign_id}/bindings", response_model=list[CampaignBindingOutput])
 def list_external_campaign_bindings(
     scope: AuthorizedCampaignScope,
-    store: IdentityStoreDependency,
+    bindings: CampaignBindingsDependency,
 ) -> list[CampaignBindingOutput]:
     return [
         CampaignBindingOutput.from_domain(item)
-        for item in store.list_campaign_bindings(
+        for item in bindings.list_campaign_bindings(
             user_id=str(scope.user_id), campaign_id=str(scope.campaign_id)
         )
     ]

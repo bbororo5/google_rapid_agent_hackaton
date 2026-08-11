@@ -6,10 +6,8 @@ from uuid import UUID, uuid4
 
 import httpx
 
-from launchpilot.performance.contracts import (
-    CampaignMetricRequest,
-    ExternalCampaignBinding,
-)
+from launchpilot.campaigns.public import ExternalCampaignBinding
+from launchpilot.performance.contracts import CampaignMetricRequest
 from launchpilot.performance.models import (
     CampaignObservation,
     Completeness,
