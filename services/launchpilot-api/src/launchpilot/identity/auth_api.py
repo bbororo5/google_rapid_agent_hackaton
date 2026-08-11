@@ -17,7 +17,7 @@ from launchpilot.bootstrap.wiring import (
 )
 from launchpilot.identity.models import ConnectedUser
 from launchpilot.identity.oauth.google import GoogleOAuthClient
-from launchpilot.identity.ports import IdentityStore
+from launchpilot.identity.ports import UserIdentityStore
 from launchpilot.identity.security import (
     BrowserStateManager,
     InvalidSignedToken,
@@ -26,7 +26,7 @@ from launchpilot.identity.security import (
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 SettingsDependency = Annotated[Settings, Depends(settings)]
-IdentityStoreDependency = Annotated[IdentityStore, Depends(identity_store)]
+UserIdentityStoreDependency = Annotated[UserIdentityStore, Depends(identity_store)]
 OAuthDependency = Annotated[GoogleOAuthClient, Depends(google_oauth_client)]
 BrowserStateDependency = Annotated[BrowserStateManager, Depends(browser_state_manager)]
 SessionDependency = Annotated[SessionManager, Depends(session_manager)]
@@ -46,7 +46,7 @@ class UserOutput(BaseModel):
 
 
 def current_user(
-    store: IdentityStoreDependency,
+    store: UserIdentityStoreDependency,
     sessions: SessionDependency,
     session_id: Annotated[str | None, Cookie(alias=SESSION_COOKIE)] = None,
 ) -> ConnectedUser:
@@ -97,7 +97,7 @@ def start_google_login(
 @router.get("/google/callback", response_model=UserOutput)
 def finish_google_login(
     response: Response,
-    store: IdentityStoreDependency,
+    store: UserIdentityStoreDependency,
     oauth: OAuthDependency,
     browser_state: BrowserStateDependency,
     sessions: SessionDependency,

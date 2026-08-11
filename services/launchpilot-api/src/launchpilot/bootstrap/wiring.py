@@ -5,37 +5,34 @@ from fastapi import Depends
 from langchain_core.language_models import BaseChatModel
 from langchain_google_genai import ChatGoogleGenerativeAI
 
-from launchpilot.analysis.public import CampaignAgentFactory, CampaignAnalysisService
+from launchpilot.analysis.agent import CampaignAgentFactory
+from launchpilot.analysis.use_case import CampaignAnalysisService
 from launchpilot.bootstrap.config import Settings
+from launchpilot.campaigns.application.access import CampaignAccessService
 from launchpilot.campaigns.postgres import (
     PostgresCampaignRepository,
     PostgresConversationRepository,
 )
-from launchpilot.campaigns.public import (
-    CampaignAccessService,
-    CampaignService,
-    ConversationService,
-)
+from launchpilot.campaigns.service import CampaignService, ConversationService
+from launchpilot.identity.access_tokens import PlatformAccessTokenProvider
 from launchpilot.identity.oauth.google import GoogleOAuthClient
 from launchpilot.identity.oauth.meta import MetaOAuthClient
 from launchpilot.identity.postgres import PostgresIdentityStore
-from launchpilot.identity.public import (
-    IdentityWorkspaceAccessReader,
-    PlatformAccessTokenProvider,
-)
 from launchpilot.identity.security import (
     BrowserStateManager,
     SessionManager,
     SignedTokenCodec,
 )
+from launchpilot.identity.workspace_access import IdentityWorkspaceAccessReader
 from launchpilot.knowledge.elasticsearch import (
     ElasticsearchCampaignDocumentSearch,
 )
 from launchpilot.knowledge.postgres import (
     PostgresCampaignDocumentRepository,
 )
-from launchpilot.knowledge.public import TextRetrievalService
+from launchpilot.knowledge.service import TextRetrievalService
 from launchpilot.observability.retrieval import OpenTelemetryRetrievalObserver
+from launchpilot.performance.catalog import AdvertisingCatalogService
 from launchpilot.performance.factory import AdsConnectorFactory
 from launchpilot.performance.ingestion import AdsIngestionSourcePlanner
 from launchpilot.performance.observation_postgres import PostgresObservationRepository
@@ -43,7 +40,6 @@ from launchpilot.performance.observation_service import ObservationService
 from launchpilot.performance.postgres import (
     PostgresStructuredRetrievalRepository,
 )
-from launchpilot.performance.public import AdvertisingCatalogService
 from launchpilot.performance.retrieval import StructuredRetrievalService
 from launchpilot.persistence.postgres import PostgresDatabase
 

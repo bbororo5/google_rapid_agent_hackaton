@@ -2,18 +2,20 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from .models import (
-    BM25_WHOLE_DOCUMENT_PROFILE,
+from .contracts.observability import RetrievalObserver
+from .contracts.retrieval import (
     CampaignDocument,
     DocumentType,
-    RetrievalProfile,
     TextSearchHit,
+)
+from .contracts.search_profile import (
+    BM25_WHOLE_DOCUMENT_PROFILE,
+    RetrievalProfile,
 )
 from .ports import (
     CampaignDocumentRepository,
     CampaignDocumentSearch,
     NullRetrievalObserver,
-    RetrievalObserver,
 )
 
 

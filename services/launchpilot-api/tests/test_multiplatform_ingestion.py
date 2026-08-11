@@ -3,14 +3,14 @@ from uuid import uuid4
 
 import pytest
 
+from launchpilot.campaigns.contracts.bindings import ExternalCampaignBinding
 from launchpilot.campaigns.models import Campaign
-from launchpilot.campaigns.public import ExternalCampaignBinding
 from launchpilot.campaigns.service import CampaignService
 from launchpilot.devtools.in_memory import (
     InMemoryObservationRepository,
     InMemoryRepositories,
 )
-from launchpilot.performance.contracts import (
+from launchpilot.performance.contracts.platform import (
     CampaignMetricRequest,
     ConnectorFetchResult,
 )
@@ -78,8 +78,11 @@ def services() -> tuple[Campaign, MultiPlatformIngestionService]:
         goal="Compare ads",
         period=DateRange(date(2026, 7, 1), date(2026, 7, 31)),
     )
-    CampaignService(store).create(campaign)
-    observations = ObservationService(store, InMemoryObservationRepository(store))
+    campaigns = CampaignService(store)
+    campaigns.create(campaign)
+    observations = ObservationService(
+        campaigns, InMemoryObservationRepository(store)
+    )
     return campaign, MultiPlatformIngestionService(observations)
 
 

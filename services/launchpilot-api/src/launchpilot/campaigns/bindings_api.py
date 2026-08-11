@@ -9,7 +9,7 @@ from pydantic import BaseModel, field_validator
 
 from launchpilot.bootstrap.http_scope import AuthorizedCampaignScope
 from launchpilot.bootstrap.wiring import identity_store
-from launchpilot.campaigns.public import (
+from launchpilot.campaigns.contracts.bindings import (
     CampaignBindingDirectory,
     ExternalCampaignBinding,
 )

@@ -4,7 +4,7 @@ from datetime import date
 import httpx
 
 from launchpilot.performance.adapters.google_ads import GoogleAdsConnector
-from launchpilot.performance.contracts import CampaignMetricRequest
+from launchpilot.performance.contracts.platform import CampaignMetricRequest
 from launchpilot.shared import DateRange
 
 

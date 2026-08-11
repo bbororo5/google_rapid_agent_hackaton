@@ -6,7 +6,7 @@ from opentelemetry.sdk.trace.export.in_memory_span_exporter import (
     InMemorySpanExporter,
 )
 
-from launchpilot.knowledge import TextRetrievalService
+from launchpilot.knowledge.service import TextRetrievalService
 from launchpilot.observability.retrieval import OpenTelemetryRetrievalObserver
 
 

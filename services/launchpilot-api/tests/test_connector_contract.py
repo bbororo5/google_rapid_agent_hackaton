@@ -3,16 +3,15 @@ from uuid import uuid4
 
 import pytest
 
-from launchpilot.campaigns.public import ExternalCampaignBinding
-from launchpilot.performance.models import PlatformSlice
-from launchpilot.performance.public import (
+from launchpilot.campaigns.contracts.bindings import ExternalCampaignBinding
+from launchpilot.performance.contracts.platform import (
     CampaignMetricRequest,
     ConnectorFetchResult,
     ExternalAccount,
     ExternalCampaign,
-    PlatformProvider,
 )
-from launchpilot.shared import DateRange
+from launchpilot.performance.models import PlatformSlice
+from launchpilot.shared import DateRange, PlatformProvider
 from launchpilot.shared.errors import DomainError
 
 

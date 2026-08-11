@@ -1,14 +1,15 @@
 from collections.abc import Iterator
-from contextlib import AbstractContextManager, contextmanager
+from contextlib import contextmanager
 from typing import Protocol
 from uuid import UUID
 
-from .models import (
+from .contracts.observability import RetrievalSearchObservation
+from .contracts.retrieval import (
     CampaignDocument,
     DocumentType,
-    RetrievalProfile,
     TextSearchHit,
 )
+from .contracts.search_profile import RetrievalProfile
 
 
 class CampaignDocumentRepository(Protocol):
@@ -35,21 +36,6 @@ class CampaignDocumentSearch(Protocol):
         document_types: tuple[DocumentType, ...] = (),
         top_k: int = 5,
     ) -> tuple[TextSearchHit, ...]: ...
-
-
-class RetrievalSearchObservation(Protocol):
-    def returned(self, count: int) -> None: ...
-
-
-class RetrievalObserver(Protocol):
-    def observe_search(
-        self,
-        *,
-        profile: RetrievalProfile,
-        query_length: int,
-        document_type_filter_count: int,
-        top_k: int,
-    ) -> AbstractContextManager[RetrievalSearchObservation]: ...
 
 
 class _NullRetrievalSearchObservation:

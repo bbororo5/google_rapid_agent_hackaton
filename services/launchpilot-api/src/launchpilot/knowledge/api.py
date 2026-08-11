@@ -7,11 +7,8 @@ from pydantic import BaseModel, field_validator
 
 from launchpilot.bootstrap.http_scope import AuthorizedCampaignScope
 from launchpilot.bootstrap.wiring import text_retrieval_service
-from launchpilot.knowledge.public import (
-    CampaignDocument,
-    DocumentType,
-    TextRetrievalService,
-)
+from launchpilot.knowledge.contracts.retrieval import CampaignDocument, DocumentType
+from launchpilot.knowledge.service import TextRetrievalService
 
 router = APIRouter(prefix="/campaigns", tags=["campaign-documents"])
 TextRetrievalDependency = Annotated[

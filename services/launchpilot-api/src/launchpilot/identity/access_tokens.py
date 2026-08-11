@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import httpx
 
-from launchpilot.performance.public import (
+from launchpilot.performance.contracts.access import (
     PlatformAccess,
     PlatformAccessUnavailable,
     PlatformAuthorizationExpired,
@@ -14,7 +14,7 @@ from launchpilot.performance.public import (
 
 from .models import PlatformConnection
 from .oauth.google import GoogleOAuthClient
-from .ports import IdentityStore
+from .ports import PlatformConnectionStore
 
 
 class PlatformAccessTokenProvider:
@@ -23,7 +23,7 @@ class PlatformAccessTokenProvider:
     _refreshable_providers = frozenset({"GOOGLE_ADS", "YOUTUBE"})
 
     def __init__(
-        self, store: IdentityStore, google_oauth: GoogleOAuthClient
+        self, store: PlatformConnectionStore, google_oauth: GoogleOAuthClient
     ) -> None:
         self._store = store
         self._google_oauth = google_oauth

@@ -18,7 +18,7 @@ from launchpilot.identity.models import ConnectedUser
 from launchpilot.identity.postgres import PostgresIdentityStore
 from launchpilot.identity.security import SessionManager, SignedTokenCodec
 from launchpilot.main import app
-from launchpilot.performance.contracts import (
+from launchpilot.performance.contracts.platform import (
     CampaignMetricRequest,
     ConnectorFetchResult,
 )

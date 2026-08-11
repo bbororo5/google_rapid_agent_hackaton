@@ -1,12 +1,14 @@
 from uuid import uuid4
 
-from launchpilot.campaigns.public import ExternalCampaignBinding
+from launchpilot.campaigns.contracts.bindings import ExternalCampaignBinding
 from launchpilot.identity.access_tokens import PlatformAccessTokenProvider
 from launchpilot.identity.postgres import PlatformConnection
-from launchpilot.performance.ingestion import (
-    AdsIngestionSourcePlanner,
+from launchpilot.performance.contracts.access import (
     PlatformAccess,
     PlatformAuthorizationExpired,
+)
+from launchpilot.performance.ingestion import (
+    AdsIngestionSourcePlanner,
 )
 from launchpilot.shared import PlatformProvider
 

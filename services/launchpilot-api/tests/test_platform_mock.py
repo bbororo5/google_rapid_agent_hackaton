@@ -9,7 +9,7 @@ from launchpilot.devtools.mock_platforms.main import app as mock_app
 from launchpilot.performance.adapters.google_ads import GoogleAdsConnector
 from launchpilot.performance.adapters.meta_ads import MetaAdsConnector
 from launchpilot.performance.adapters.youtube import YouTubeAnalyticsConnector
-from launchpilot.performance.contracts import CampaignMetricRequest
+from launchpilot.performance.contracts.platform import CampaignMetricRequest
 from launchpilot.shared import DateRange
 
 

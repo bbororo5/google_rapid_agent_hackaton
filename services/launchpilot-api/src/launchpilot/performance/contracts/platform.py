@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 from launchpilot.shared import DateRange, DomainError, PlatformProvider
 
-from .models import PlatformSlice
+from ..models import PlatformSlice
 
 
 @dataclass(frozen=True, slots=True)

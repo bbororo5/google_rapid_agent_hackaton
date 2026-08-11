@@ -3,7 +3,7 @@ from datetime import date
 import httpx
 
 from launchpilot.performance.adapters.meta_ads import MetaAdsConnector
-from launchpilot.performance.contracts import CampaignMetricRequest
+from launchpilot.performance.contracts.platform import CampaignMetricRequest
 from launchpilot.shared import DateRange
 
 

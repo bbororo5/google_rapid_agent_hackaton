@@ -6,7 +6,8 @@ from contextlib import contextmanager
 from opentelemetry import trace
 from opentelemetry.trace import Span, Tracer
 
-from launchpilot.knowledge.public import RetrievalProfile, RetrievalSearchObservation
+from launchpilot.knowledge.contracts.observability import RetrievalSearchObservation
+from launchpilot.knowledge.contracts.search_profile import RetrievalProfile
 
 
 class _OpenTelemetryRetrievalSearchObservation:

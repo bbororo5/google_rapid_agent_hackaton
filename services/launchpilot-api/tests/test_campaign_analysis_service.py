@@ -3,13 +3,13 @@ from uuid import uuid4
 
 import pytest
 
-from launchpilot.analysis.public import (
+from launchpilot.analysis.contracts.campaign_analysis import (
     AnalyzeCampaign,
     CampaignAnalysisResult,
-    CampaignAnalysisService,
 )
+from launchpilot.analysis.use_case import CampaignAnalysisService
+from launchpilot.campaigns.application.access import CampaignAccessService
 from launchpilot.campaigns.models import Campaign
-from launchpilot.campaigns.public import CampaignAccessService
 from launchpilot.campaigns.service import CampaignService
 from launchpilot.shared import DateRange
 from launchpilot.shared.errors import NotFoundError

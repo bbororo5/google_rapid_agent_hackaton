@@ -4,12 +4,14 @@ from uuid import UUID
 
 from elasticsearch import Elasticsearch
 
-from .models import (
-    BM25_WHOLE_DOCUMENT_PROFILE,
+from .contracts.retrieval import (
     CampaignDocument,
     DocumentType,
-    RetrievalProfile,
     TextSearchHit,
+)
+from .contracts.search_profile import (
+    BM25_WHOLE_DOCUMENT_PROFILE,
+    RetrievalProfile,
 )
 
 

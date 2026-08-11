@@ -9,7 +9,7 @@ from cryptography.fernet import Fernet
 from psycopg import Connection
 from psycopg.types.json import Jsonb
 
-from launchpilot.campaigns.public import ExternalCampaignBinding
+from launchpilot.campaigns.contracts.bindings import ExternalCampaignBinding
 from launchpilot.persistence.postgres import PostgresDatabase
 from launchpilot.shared import PlatformProvider
 

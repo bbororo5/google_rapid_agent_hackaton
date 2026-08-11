@@ -20,29 +20,33 @@ from launchpilot.bootstrap.wiring import (
 from launchpilot.identity.models import ConnectedUser
 from launchpilot.identity.oauth.google import GoogleOAuthClient
 from launchpilot.identity.oauth.meta import MetaOAuthClient
-from launchpilot.identity.ports import IdentityStore
+from launchpilot.identity.ports import PlatformConnectionStore
 from launchpilot.identity.security import BrowserStateManager, InvalidSignedToken
-from launchpilot.performance.public import (
-    AdvertisingCatalogService,
-    ExternalAccount,
-    ExternalCampaign,
+from launchpilot.performance.contracts.access import PlatformAccessError
+from launchpilot.performance.contracts.catalog import (
+    AdvertisingCatalog,
     ListAdvertisingAccounts,
     ListAdvertisingCampaigns,
-    PlatformAccessError,
+)
+from launchpilot.performance.contracts.platform import (
+    ExternalAccount,
+    ExternalCampaign,
 )
 
 from .auth_api import current_user
 from .connections_api import ConnectionOutput
 
 router = APIRouter(prefix="/connections", tags=["ad connections"])
-IdentityStoreDependency = Annotated[IdentityStore, Depends(identity_store)]
+PlatformConnectionStoreDependency = Annotated[
+    PlatformConnectionStore, Depends(identity_store)
+]
 GoogleOAuthDependency = Annotated[GoogleOAuthClient, Depends(google_oauth_client)]
 MetaOAuthDependency = Annotated[MetaOAuthClient, Depends(meta_oauth_client)]
 UserDependency = Annotated[ConnectedUser, Depends(current_user)]
 BrowserStateDependency = Annotated[BrowserStateManager, Depends(browser_state_manager)]
 SettingsDependency = Annotated[Settings, Depends(settings)]
 AdvertisingCatalogDependency = Annotated[
-    AdvertisingCatalogService, Depends(advertising_catalog_service)
+    AdvertisingCatalog, Depends(advertising_catalog_service)
 ]
 
 GOOGLE_ADS_STATE_COOKIE = "launchpilot_google_ads_state"
@@ -133,7 +137,7 @@ def start_google_ads_connection(
 def finish_google_ads_connection(
     response: Response,
     user: UserDependency,
-    store: IdentityStoreDependency,
+    store: PlatformConnectionStoreDependency,
     oauth: GoogleOAuthDependency,
     browser_state: BrowserStateDependency,
     code: Annotated[str, Query(min_length=1)],
@@ -199,7 +203,7 @@ def start_meta_ads_connection(
 def finish_meta_ads_connection(
     response: Response,
     user: UserDependency,
-    store: IdentityStoreDependency,
+    store: PlatformConnectionStoreDependency,
     oauth: MetaOAuthDependency,
     browser_state: BrowserStateDependency,
     code: Annotated[str, Query(min_length=1)],

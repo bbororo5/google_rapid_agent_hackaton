@@ -4,7 +4,7 @@ from uuid import UUID
 
 from launchpilot.persistence.postgres import PostgresDatabase
 
-from .models import CampaignDocument, DocumentType
+from .contracts.retrieval import CampaignDocument, DocumentType
 
 
 class PostgresCampaignDocumentRepository:

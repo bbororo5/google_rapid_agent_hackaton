@@ -1,24 +1,10 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-
-from .contracts import ExternalAccount, ExternalCampaign
-from .ingestion import AccessTokenProvider, AdsConnectorProvider, PlatformAccess
+from .contracts.access import AccessTokenProvider, AdsConnectorProvider, PlatformAccess
+from .contracts.catalog import ListAdvertisingAccounts, ListAdvertisingCampaigns
+from .contracts.platform import ExternalAccount, ExternalCampaign
 
 _ADVERTISING_PROVIDERS = frozenset({"GOOGLE_ADS", "META_ADS"})
-
-
-@dataclass(frozen=True, slots=True)
-class ListAdvertisingAccounts:
-    user_id: str
-    connection_id: str
-
-
-@dataclass(frozen=True, slots=True)
-class ListAdvertisingCampaigns:
-    user_id: str
-    connection_id: str
-    account_ref: str
 
 
 class AdvertisingCatalogService:

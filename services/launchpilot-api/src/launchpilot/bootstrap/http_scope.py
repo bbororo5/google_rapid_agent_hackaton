@@ -6,14 +6,14 @@ from uuid import UUID
 from fastapi import Depends, HTTPException, status
 
 from launchpilot.bootstrap.wiring import campaign_access_service
-from launchpilot.campaigns.public import CampaignAccessService, CampaignScope
+from launchpilot.campaigns.contracts.access import CampaignScope, CampaignScopeResolver
 from launchpilot.identity.auth_api import current_user
-from launchpilot.identity.public import ConnectedUser
+from launchpilot.identity.models import ConnectedUser
 from launchpilot.shared import NotFoundError
 
 UserDependency = Annotated[ConnectedUser, Depends(current_user)]
 CampaignAccessDependency = Annotated[
-    CampaignAccessService, Depends(campaign_access_service)
+    CampaignScopeResolver, Depends(campaign_access_service)
 ]
 
 

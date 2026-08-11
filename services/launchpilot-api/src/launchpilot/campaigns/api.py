@@ -13,7 +13,7 @@ from launchpilot.bootstrap.wiring import (
 )
 from launchpilot.campaigns.models import Conversation
 from launchpilot.campaigns.service import CampaignService, ConversationService
-from launchpilot.identity.public import WorkspaceDirectory
+from launchpilot.identity.contracts.workspaces import WorkspaceDirectory
 from launchpilot.shared import NotFoundError
 
 from .schemas import (

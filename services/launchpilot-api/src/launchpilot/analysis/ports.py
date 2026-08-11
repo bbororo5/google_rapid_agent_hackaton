@@ -3,8 +3,15 @@ from __future__ import annotations
 from typing import Protocol
 from uuid import UUID
 
-from launchpilot.knowledge.public import CampaignDocument, DocumentType, TextSearchHit
-from launchpilot.performance.public import CampaignMetricQuery, CampaignPerformance
+from launchpilot.knowledge.contracts.retrieval import (
+    CampaignDocument,
+    DocumentType,
+    TextSearchHit,
+)
+from launchpilot.performance.contracts.retrieval import (
+    CampaignMetricQuery,
+    CampaignPerformance,
+)
 
 
 class CampaignPerformanceReader(Protocol):

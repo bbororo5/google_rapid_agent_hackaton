@@ -8,19 +8,19 @@ from launchpilot.analysis.agent import CampaignAgent
 from launchpilot.analysis.evidence import EvidenceCollector
 from launchpilot.analysis.graph import AnalysisGraph
 from launchpilot.analysis.tools import CampaignToolset
-from launchpilot.campaigns.public import CampaignScope
-from launchpilot.knowledge import (
+from launchpilot.campaigns.contracts.access import CampaignScope
+from launchpilot.knowledge.contracts.retrieval import (
     CampaignDocument,
     DocumentType,
-    TextRetrievalService,
     TextSearchHit,
 )
-from launchpilot.performance.retrieval import (
+from launchpilot.knowledge.service import TextRetrievalService
+from launchpilot.performance.contracts.retrieval import (
     CampaignPerformance,
     CampaignSummary,
     MetricEvidence,
-    StructuredRetrievalService,
 )
+from launchpilot.performance.retrieval import StructuredRetrievalService
 
 
 class StubRetrievalRepository:

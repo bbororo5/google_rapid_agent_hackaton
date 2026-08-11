@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from .ports import IdentityStore
+from .contracts.workspaces import WorkspaceDirectory
 
 
 class IdentityWorkspaceAccessReader:
-    def __init__(self, identity_store: IdentityStore) -> None:
+    def __init__(self, identity_store: WorkspaceDirectory) -> None:
         self._identity_store = identity_store
 
     def allows(self, *, user_id: UUID, workspace_id: UUID) -> bool:

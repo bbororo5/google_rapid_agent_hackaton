@@ -2,13 +2,13 @@ from __future__ import annotations
 
 from langchain_core.language_models import BaseChatModel
 
-from launchpilot.campaigns.public import CampaignScope
+from launchpilot.campaigns.contracts.access import CampaignScope
 
+from .contracts.campaign_analysis import CampaignAnalysisResult
 from .evidence import EvidenceCollector
 from .graph import AnalysisGraph
 from .ports import CampaignDocumentReader, CampaignPerformanceReader
 from .tools import CampaignToolset
-from .use_case import CampaignAnalysisResult
 
 
 class CampaignAgent:

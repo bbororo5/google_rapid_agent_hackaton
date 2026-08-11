@@ -1,19 +1,23 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
-from typing import Protocol
 from uuid import UUID, uuid4
 
 import httpx
 
-from launchpilot.campaigns.public import ExternalCampaignBinding
-from launchpilot.performance.contracts import CampaignMetricRequest
+from launchpilot.campaigns.contracts.bindings import ExternalCampaignBinding
+from launchpilot.performance.contracts.access import (
+    AccessTokenProvider,
+    AdsConnectorProvider,
+    PlatformAccessError,
+)
+from launchpilot.performance.contracts.connectors import AdsConnector
+from launchpilot.performance.contracts.platform import CampaignMetricRequest
 from launchpilot.performance.models import (
     CampaignObservation,
     Completeness,
     CompletenessStatus,
 )
-from launchpilot.performance.ports import AdsConnector
 from launchpilot.shared import DateRange
 
 from .observation_service import ObservationService
@@ -30,62 +34,6 @@ class IngestionSource:
 class IngestionOutcome:
     observation: CampaignObservation
     warnings: tuple[str, ...]
-
-
-@dataclass(frozen=True, slots=True)
-class PlatformAccess:
-    provider: str
-    access_token: str
-
-
-class PlatformAccessError(RuntimeError):
-    pass
-
-
-class PlatformAccessUnavailable(PlatformAccessError):
-    pass
-
-
-class PlatformConnectionNotFound(PlatformAccessError):
-    pass
-
-
-class PlatformProviderMismatch(PlatformAccessError):
-    pass
-
-
-class PlatformAuthorizationExpired(PlatformAccessError):
-    pass
-
-
-class PlatformTokenRefreshFailed(PlatformAccessError):
-    pass
-
-
-class PlatformTokenUnavailable(PlatformAccessError):
-    pass
-
-
-class UnsupportedAdsProvider(PlatformAccessError):
-    pass
-
-
-class AdsConnectorUnavailable(PlatformAccessError):
-    pass
-
-
-class AccessTokenProvider(Protocol):
-    def resolve(
-        self,
-        *,
-        connection_id: str,
-        user_id: str,
-        allowed_providers: frozenset[str],
-    ) -> PlatformAccess: ...
-
-
-class AdsConnectorProvider(Protocol):
-    def create(self, provider: str) -> AdsConnector: ...
 
 
 @dataclass(frozen=True, slots=True)

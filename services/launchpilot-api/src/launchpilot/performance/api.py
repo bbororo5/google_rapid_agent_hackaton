@@ -18,14 +18,16 @@ from launchpilot.bootstrap.wiring import (
     platform_access_tokens,
     settings,
 )
-from launchpilot.campaigns.public import CampaignBindingDirectory
+from launchpilot.campaigns.contracts.bindings import CampaignBindingDirectory
 from launchpilot.performance.adapters.youtube import YouTubeAnalyticsConnector
-from launchpilot.performance.ingestion import (
+from launchpilot.performance.contracts.access import (
     AccessTokenProvider,
+    PlatformAccessError,
+)
+from launchpilot.performance.ingestion import (
     AdsIngestionSourcePlanner,
     AllSourcesFailedError,
     MultiPlatformIngestionService,
-    PlatformAccessError,
 )
 from launchpilot.performance.models import (
     CampaignObservation,

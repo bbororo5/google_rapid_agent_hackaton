@@ -6,9 +6,9 @@ from uuid import UUID
 
 from langchain_core.tools import BaseTool, StructuredTool
 
-from launchpilot.campaigns.public import CampaignScope
-from launchpilot.knowledge.public import DocumentType
-from launchpilot.performance.public import CampaignMetricQuery
+from launchpilot.campaigns.contracts.access import CampaignScope
+from launchpilot.knowledge.contracts.retrieval import DocumentType
+from launchpilot.performance.contracts.retrieval import CampaignMetricQuery
 
 from .ports import CampaignDocumentReader, CampaignPerformanceReader
 

@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 from launchpilot.bootstrap.config import Settings
-from launchpilot.performance.ingestion import (
+from launchpilot.performance.contracts.access import (
     AdsConnectorUnavailable,
     UnsupportedAdsProvider,
 )
-from launchpilot.performance.ports import AdsConnector
+from launchpilot.performance.contracts.connectors import AdsConnector
 
 from .adapters.google_ads import GoogleAdsConnector
 from .adapters.meta_ads import MetaAdsConnector

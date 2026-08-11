@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from launchpilot.performance.retrieval import (
+from launchpilot.performance.contracts.retrieval import (
     CampaignMetricQuery,
     CampaignPerformance,
     CampaignSummary,

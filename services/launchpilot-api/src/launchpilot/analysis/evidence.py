@@ -6,7 +6,7 @@ from typing import Any, Protocol
 
 from langchain_core.messages import ToolMessage
 
-from launchpilot.analysis.use_case import AgentEvidenceRef
+from launchpilot.analysis.contracts.campaign_analysis import AgentEvidenceRef
 
 from .models import AnalysisTranscript
 

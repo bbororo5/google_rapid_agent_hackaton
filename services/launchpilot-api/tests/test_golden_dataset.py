@@ -2,7 +2,10 @@ from pathlib import Path
 
 import pytest
 
-from launchpilot.evaluation import GoldenRetrievalCase, load_golden_dataset
+from launchpilot.evaluation.contracts.golden_dataset import (
+    GoldenRetrievalCase,
+    load_golden_dataset,
+)
 
 
 def test_example_golden_dataset_obeys_authoring_contract() -> None:

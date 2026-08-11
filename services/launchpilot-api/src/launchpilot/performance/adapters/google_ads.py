@@ -4,7 +4,7 @@ from typing import Any
 
 import httpx
 
-from launchpilot.performance.contracts import (
+from launchpilot.performance.contracts.platform import (
     CampaignMetricRequest,
     ConnectorFetchResult,
     ExternalAccount,

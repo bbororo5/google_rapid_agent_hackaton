@@ -3,10 +3,9 @@ from uuid import uuid4
 
 from launchpilot.campaigns.models import Campaign
 from launchpilot.campaigns.postgres import PostgresCampaignRepository
-from launchpilot.knowledge import (
+from launchpilot.knowledge.contracts.retrieval import (
     CampaignDocument,
     DocumentType,
-    TextRetrievalService,
 )
 from launchpilot.knowledge.elasticsearch import (
     ElasticsearchCampaignDocumentSearch,
@@ -14,6 +13,7 @@ from launchpilot.knowledge.elasticsearch import (
 from launchpilot.knowledge.postgres import (
     PostgresCampaignDocumentRepository,
 )
+from launchpilot.knowledge.service import TextRetrievalService
 from launchpilot.persistence.postgres import PostgresDatabase
 from launchpilot.shared import DateRange
 

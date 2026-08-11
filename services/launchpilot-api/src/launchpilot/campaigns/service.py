@@ -26,6 +26,9 @@ class CampaignService:
     def list_for_workspaces(self, workspace_ids: set[UUID]) -> list[Campaign]:
         return self._campaigns.list_by_workspaces(workspace_ids)
 
+    def require_campaign(self, campaign_id: UUID) -> None:
+        self.get(campaign_id)
+
 
 class ConversationService:
     def __init__(
