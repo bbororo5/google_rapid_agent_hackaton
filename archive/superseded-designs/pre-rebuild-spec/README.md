@@ -2,7 +2,7 @@
 
 > **Archive notice:** 이 명세는 Phase 0 확정 전에 작성된 초안이다. 신규 리빌드의 현행 기준은 [`docs/rebuild/phase-0-decision-charter.md`](../../rebuild/phase-0-decision-charter.md)다.
 
-문서를 최상위 추상화부터 다시 구성했던 과거 초안이다. 문서 간 충돌이 있으면 현행 기준인 [`docs/rebuild/`](../../rebuild/README.md)를 우선한다.
+문서를 최상위 추상화부터 다시 구성했던 과거 초안이다. 문서 간 충돌이 있으면 [현행 문서 포털](../../../docs/README.md)을 우선한다.
 
 ## 경계 원칙
 
