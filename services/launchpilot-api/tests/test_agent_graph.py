@@ -4,11 +4,11 @@ from uuid import uuid4
 from langchain_core.messages import AIMessage, ToolMessage
 from langchain_core.runnables import RunnableLambda
 
-from launchpilot.agent.evidence import EvidenceCollector
-from launchpilot.agent.graph import AnalysisGraph
-from launchpilot.agent.service import CampaignAgent
-from launchpilot.agent.tools import CampaignToolset
-from launchpilot.application.analysis import AnalysisScope
+from launchpilot.analysis.agent import CampaignAgent
+from launchpilot.analysis.evidence import EvidenceCollector
+from launchpilot.analysis.graph import AnalysisGraph
+from launchpilot.analysis.tools import CampaignToolset
+from launchpilot.analysis.use_case import AnalysisScope
 from launchpilot.knowledge import (
     CampaignDocument,
     DocumentType,

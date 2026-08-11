@@ -6,7 +6,7 @@ import psycopg
 import pytest
 from elasticsearch import ApiError, ConnectionError, Elasticsearch
 
-from launchpilot.infrastructure.postgres_database import PostgresDatabase
+from launchpilot.persistence.postgres import PostgresDatabase
 
 TEST_DATABASE_URL = os.getenv(
     "TEST_DATABASE_URL",

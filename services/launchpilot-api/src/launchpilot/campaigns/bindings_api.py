@@ -7,7 +7,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, field_validator
 
-from launchpilot.api.campaign_context import AuthorizedCampaignScope
+from launchpilot.analysis.http_scope import AuthorizedCampaignScope
 from launchpilot.bootstrap.wiring import identity_store
 from launchpilot.identity.ports import IdentityStore
 from launchpilot.performance.contracts import ExternalCampaignBinding, PlatformProvider

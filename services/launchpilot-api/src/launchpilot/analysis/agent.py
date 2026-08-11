@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from langchain_core.language_models import BaseChatModel
 
-from launchpilot.application.analysis import AnalysisScope, CampaignAnalysisResult
+from launchpilot.analysis.use_case import AnalysisScope, CampaignAnalysisResult
 from launchpilot.knowledge import TextRetrievalService
 from launchpilot.performance.retrieval import StructuredRetrievalService
 

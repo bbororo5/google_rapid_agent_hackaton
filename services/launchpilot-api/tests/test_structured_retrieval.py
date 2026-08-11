@@ -5,7 +5,6 @@ from launchpilot.campaigns.models import Campaign
 from launchpilot.campaigns.postgres import (
     PostgresCampaignRepository,
 )
-from launchpilot.infrastructure.postgres_database import PostgresDatabase
 from launchpilot.performance.models import (
     CampaignObservation,
     Completeness,
@@ -18,6 +17,7 @@ from launchpilot.performance.postgres import (
     PostgresStructuredRetrievalRepository,
 )
 from launchpilot.performance.retrieval import CampaignMetricQuery
+from launchpilot.persistence.postgres import PostgresDatabase
 from launchpilot.shared import DateRange
 
 

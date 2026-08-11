@@ -10,7 +10,6 @@ from launchpilot.campaigns.postgres import (
     PostgresCampaignRepository,
     PostgresConversationRepository,
 )
-from launchpilot.infrastructure.postgres_database import PostgresDatabase
 from launchpilot.performance.models import (
     CampaignObservation,
     Completeness,
@@ -19,6 +18,7 @@ from launchpilot.performance.models import (
     PlatformSlice,
 )
 from launchpilot.performance.observation_postgres import PostgresObservationRepository
+from launchpilot.persistence.postgres import PostgresDatabase
 from launchpilot.shared import DateRange
 
 

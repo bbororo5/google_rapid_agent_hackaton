@@ -8,7 +8,7 @@ import httpx
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 
-from launchpilot.api.campaign_context import AuthorizedCampaignScope, UserDependency
+from launchpilot.analysis.http_scope import AuthorizedCampaignScope, UserDependency
 from launchpilot.bootstrap.config import Settings
 from launchpilot.bootstrap.wiring import (
     ads_ingestion_source_planner,

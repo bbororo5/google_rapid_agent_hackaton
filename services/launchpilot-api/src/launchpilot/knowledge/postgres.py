@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from launchpilot.infrastructure.postgres_database import PostgresDatabase
+from launchpilot.persistence.postgres import PostgresDatabase
 
 from .models import CampaignDocument, DocumentType
 

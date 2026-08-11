@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 from langchain_core.messages import AIMessage, BaseMessage
 
-from launchpilot.application.analysis import AgentEvidenceRef
+from launchpilot.analysis.use_case import AgentEvidenceRef
 
 
 @dataclass(frozen=True, slots=True)

@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from launchpilot.api.campaign_analysis import router as campaign_analysis_router
+from launchpilot.analysis.api import router as campaign_analysis_router
 from launchpilot.bootstrap.config import Settings
 from launchpilot.campaigns.api import router as campaign_router
 from launchpilot.campaigns.bindings_api import router as campaign_binding_router

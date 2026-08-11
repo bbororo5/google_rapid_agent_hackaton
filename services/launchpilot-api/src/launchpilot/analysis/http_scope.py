@@ -5,10 +5,10 @@ from uuid import UUID
 
 from fastapi import Depends, HTTPException, status
 
-from launchpilot.application.analysis import AnalysisScope, CampaignAccessService
+from launchpilot.analysis.use_case import AnalysisScope, CampaignAccessService
 from launchpilot.bootstrap.wiring import campaign_access_service
 from launchpilot.identity.auth_api import current_user
-from launchpilot.identity.postgres import ConnectedUser
+from launchpilot.identity.models import ConnectedUser
 from launchpilot.shared.errors import NotFoundError
 
 UserDependency = Annotated[ConnectedUser, Depends(current_user)]

@@ -17,7 +17,6 @@ from launchpilot.identity.auth_api import SESSION_COOKIE
 from launchpilot.identity.models import ConnectedUser
 from launchpilot.identity.postgres import PostgresIdentityStore
 from launchpilot.identity.security import SessionManager, SignedTokenCodec
-from launchpilot.infrastructure.postgres_database import PostgresDatabase
 from launchpilot.main import app
 from launchpilot.performance.contracts import (
     CampaignMetricRequest,
@@ -25,6 +24,7 @@ from launchpilot.performance.contracts import (
     PlatformProvider,
 )
 from launchpilot.performance.models import MetricObservation, PlatformSlice
+from launchpilot.persistence.postgres import PostgresDatabase
 
 
 @dataclass(frozen=True)

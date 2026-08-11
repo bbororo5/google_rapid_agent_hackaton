@@ -3,7 +3,7 @@ from uuid import uuid4
 
 import pytest
 
-from launchpilot.application.analysis import (
+from launchpilot.analysis.use_case import (
     AnalyzeCampaign,
     CampaignAccessService,
     CampaignAnalysisResult,

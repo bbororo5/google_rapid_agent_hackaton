@@ -5,7 +5,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from launchpilot.api.campaign_context import AuthorizedCampaignScope, UserDependency
+from launchpilot.analysis.http_scope import AuthorizedCampaignScope, UserDependency
 from launchpilot.bootstrap.wiring import (
     campaign_service,
     conversation_service,

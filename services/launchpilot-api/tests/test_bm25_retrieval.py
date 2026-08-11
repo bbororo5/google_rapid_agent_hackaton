@@ -3,7 +3,6 @@ from uuid import uuid4
 
 from launchpilot.campaigns.models import Campaign
 from launchpilot.campaigns.postgres import PostgresCampaignRepository
-from launchpilot.infrastructure.postgres_database import PostgresDatabase
 from launchpilot.knowledge import (
     CampaignDocument,
     DocumentType,
@@ -15,6 +14,7 @@ from launchpilot.knowledge.elasticsearch import (
 from launchpilot.knowledge.postgres import (
     PostgresCampaignDocumentRepository,
 )
+from launchpilot.persistence.postgres import PostgresDatabase
 from launchpilot.shared import DateRange
 
 

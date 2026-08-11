@@ -10,7 +10,7 @@ from launchpilot.campaigns.models import (
     CampaignResourceBinding,
     Conversation,
 )
-from launchpilot.infrastructure.postgres_database import PostgresDatabase
+from launchpilot.persistence.postgres import PostgresDatabase
 from launchpilot.shared import DateRange
 
 Row = dict[str, Any]

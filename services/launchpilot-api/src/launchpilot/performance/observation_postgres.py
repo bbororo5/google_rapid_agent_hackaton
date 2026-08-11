@@ -6,7 +6,6 @@ from uuid import UUID
 from psycopg import Connection
 from psycopg.types.json import Jsonb
 
-from launchpilot.infrastructure.postgres_database import PostgresDatabase
 from launchpilot.performance.models import (
     CampaignObservation,
     Completeness,
@@ -14,6 +13,7 @@ from launchpilot.performance.models import (
     MetricObservation,
     PlatformSlice,
 )
+from launchpilot.persistence.postgres import PostgresDatabase
 from launchpilot.shared import DateRange
 
 Row = dict[str, Any]

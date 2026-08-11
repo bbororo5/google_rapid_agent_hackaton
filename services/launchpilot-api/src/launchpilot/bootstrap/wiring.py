@@ -5,8 +5,8 @@ from fastapi import Depends
 from langchain_core.language_models import BaseChatModel
 from langchain_google_genai import ChatGoogleGenerativeAI
 
-from launchpilot.agent import CampaignAgentFactory
-from launchpilot.application.analysis import (
+from launchpilot.analysis import CampaignAgentFactory
+from launchpilot.analysis.use_case import (
     CampaignAccessService,
     CampaignAnalysisService,
 )
@@ -31,7 +31,6 @@ from launchpilot.identity.security import (
 from launchpilot.identity.workspace_access import (
     IdentityWorkspaceAccessReader,
 )
-from launchpilot.infrastructure.postgres_database import PostgresDatabase
 from launchpilot.knowledge import TextRetrievalService
 from launchpilot.knowledge.elasticsearch import (
     ElasticsearchCampaignDocumentSearch,
@@ -47,6 +46,7 @@ from launchpilot.performance.postgres import (
     PostgresStructuredRetrievalRepository,
 )
 from launchpilot.performance.retrieval import StructuredRetrievalService
+from launchpilot.persistence.postgres import PostgresDatabase
 
 
 @lru_cache

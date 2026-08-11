@@ -10,8 +10,8 @@ from launchpilot.identity.security import (
     InvalidSignedToken,
     SignedTokenCodec,
 )
-from launchpilot.infrastructure.postgres_database import PostgresDatabase
 from launchpilot.main import app
+from launchpilot.persistence.postgres import PostgresDatabase
 
 
 def test_google_authorization_url_uses_state_pkce_callback_and_scopes() -> None:
