@@ -28,6 +28,9 @@ def _local_mock_base_url(value: str | None) -> str | None:
 
 @dataclass(frozen=True, slots=True)
 class Settings:
+    telemetry_enabled: bool
+    otel_service_name: str
+    otel_exporter_endpoint: str | None
     database_url: str
     elasticsearch_url: str
     elasticsearch_index: str
@@ -66,7 +69,18 @@ class Settings:
             "true",
             "yes",
         }
+        telemetry_enabled = os.getenv("TELEMETRY_ENABLED", "false").lower() in {
+            "1",
+            "true",
+            "yes",
+        }
         return cls(
+            telemetry_enabled=telemetry_enabled,
+            otel_service_name=os.getenv("OTEL_SERVICE_NAME", "launchpilot-api"),
+            otel_exporter_endpoint=(
+                os.getenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT")
+                or os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
+            ),
             database_url=os.getenv(
                 "DATABASE_URL",
                 "postgresql://launchpilot:launchpilot-local@127.0.0.1:5432/launchpilot",
@@ -96,6 +110,14 @@ class Settings:
                 os.getenv("PLATFORM_MOCK_BASE_URL")
             ),
         )
+
+    def require_telemetry_endpoint(self) -> str:
+        if not self.otel_exporter_endpoint:
+            raise RuntimeError(
+                "Telemetry is enabled. Set OTEL_EXPORTER_OTLP_ENDPOINT or "
+                "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT."
+            )
+        return self.otel_exporter_endpoint
 
     def require_google_oauth(self) -> None:
         if not self.google_client_id or not self.google_client_secret:

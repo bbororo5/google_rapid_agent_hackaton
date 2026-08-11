@@ -1,3 +1,6 @@
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 
 from launchpilot.api.ads_connections import router as ads_connection_router
@@ -9,12 +12,27 @@ from launchpilot.api.campaigns import router as campaign_router
 from launchpilot.api.connections import router as connection_router
 from launchpilot.api.observations import router as observation_router
 from launchpilot.api.workspaces import router as workspace_router
+from launchpilot.config import Settings
+from launchpilot.infrastructure.telemetry import TelemetryRuntime
+
+telemetry = TelemetryRuntime(Settings.from_environment())
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    try:
+        yield
+    finally:
+        telemetry.shutdown()
+
 
 app = FastAPI(
     title="LaunchPilot API",
     version="0.1.0",
     description="Evidence-grounded marketing analysis portfolio rebuild",
+    lifespan=lifespan,
 )
+telemetry.start(app)
 app.include_router(campaign_router)
 app.include_router(campaign_analysis_router)
 app.include_router(campaign_binding_router)

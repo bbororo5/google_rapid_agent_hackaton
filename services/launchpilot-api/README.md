@@ -16,6 +16,18 @@ OpenAPI UI: `http://127.0.0.1:8000/docs`
 
 Gemini는 `.env.example`처럼 Vertex AI + ADC를 권장한다. 로컬에서는 `gcloud auth application-default login`이 필요하며, Vertex AI 대신 Google AI Studio의 `GOOGLE_API_KEY`를 사용할 수도 있다.
 
+## Agent observability
+
+`TELEMETRY_ENABLED=true`로 실행하면 OpenInference가 LangChain/LangGraph를, OpenTelemetry가 FastAPI·HTTPX·PostgreSQL을 자동 계측한다. 모든 span은 하나의 batch exporter를 통해 LangSmith로 전송된다.
+
+```env
+TELEMETRY_ENABLED=true
+OTEL_EXPORTER_OTLP_ENDPOINT=https://api.smith.langchain.com/otel
+OTEL_EXPORTER_OTLP_HEADERS=x-api-key=YOUR_KEY,Langsmith-Project=launchpilot-eval-v1
+```
+
+LangSmith 네이티브 tracing은 함께 활성화하지 않는다. 수신 장애는 요청을 실패시키지 않으며 종료 시 남은 span을 flush한다.
+
 ## Secret generation
 
 다음 두 값을 별도로 생성해 `.env`에 넣는다.
