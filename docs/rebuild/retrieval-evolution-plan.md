@@ -1,59 +1,48 @@
-# Retrieval Evolution Plan
+# Phase 3–4 — Retrieval Evolution
 
-> 상태: **확정 — Phase 3A 완료, Phase 4A Dataset 작성 기반 완료·협업 검수 대기**
+> 상태: **3A 완료 · 4A Golden Dataset 협업 검수 대기**
 
-## 목적
+광고 분석은 정답 조건이 다른 세 종류의 Retrieval을 요구한다.
 
-광고 캠페인을 분석하려면 세 종류의 Retrieval이 필요하다.
-
-| Retrieval | 답해야 하는 질문 | 품질 기준 |
+| 종류 | 데이터와 질문 | 품질 기준 |
 | --- | --- | --- |
-| 결정적 정형 조회 | 어떤 지표가 어느 기간·플랫폼에서 변했는가? | 수치·기간·대상의 정확성 |
-| 관련도 기반 텍스트 검색 | 이 변화와 관련된 메모·브리프·과거 분석은 무엇인가? | 관련 문서의 검색 순위 |
-| 관계 기반 탐색 | 이 주장과 가설은 어떤 근거에서 나왔는가? | 연결 경로와 출처의 추적 가능성 |
+| Structured Retrieval | 기간·플랫폼별 광고 성과 수치 | 값·기간·대상의 정확성 |
+| Text Retrieval | 메모·브리프·과거 분석 | 관련 passage의 순위 |
+| Relationship Retrieval | Claim·Evidence·가설 연결 | 경로와 출처 추적 가능성 |
 
-한 방식만으로는 세 품질을 보장할 수 없다. 따라서 작은 기준선을 먼저 만들고, 같은 Eval Dataset으로 검증하며 필요한 Retrieval만 추가한다.
+한 저장 방식으로 모두 해결하지 않고 작은 Baseline부터 같은 Dataset에서 비교한다.
 
 ## Baseline: Phase 3A
 
-베이스라인은 다음 범위까지만 구현한다.
+- PostgreSQL에서 ID 조회, 기간·플랫폼 필터와 metric 집계를 수행한다.
+- PostgreSQL 원문을 Elasticsearch에 Whole Document 단위로 Projection하고 BM25로 검색한다.
+- 검색 hit는 `source_ref`를 통해 PostgreSQL 원문으로 다시 resolve한다.
+- LangGraph Agent는 서버가 주입한 Campaign 범위 안에서 Structured·BM25 Tool을 선택한다.
 
-- **Structured Retrieval:** PostgreSQL 원본에서 ID 직접 조회, 기간·플랫폼 필터와 metric 집계
-- **BM25 Retrieval:** 검색 Projection에서 메모·브리프·과거 분석의 lexical 검색
-- **Evidence Resolution:** 검색 결과의 `source_ref`가 가리키는 원본 근거 확인
-- **Agent Baseline:** LangGraph가 사용자 질문에 맞는 Structured·BM25 Tool을 선택하고 근거 기반 답변 생성
+Dense, learned sparse, hybrid, reranker와 graph expansion은 아직 채택하지 않는다.
 
-Dense, learned sparse, hybrid, reranker와 graph expansion은 베이스라인에 포함하지 않는다. Evidence의 직접 참조를 확인하는 것은 검증이며, 여러 관계를 확장하는 Graph Retrieval과 구분한다.
+## Eval and evolution
 
-## Eval과 확장
+```text
+3A Baseline
+→ 4A Golden Dataset·기준 점수
+→ 3B Chunking → Dense → Sparse → Hybrid/RRF → Reranker → Graph 실험
+→ 4B 같은 Dataset에서 품질·지연·복잡성 비교
+```
 
-| Phase | 작업 | 결정할 것 |
-| --- | --- | --- |
-| 3A | Structured Retrieval + BM25 + 최소 LangGraph Agent | 재현 가능한 Agentic RAG 기준선 확립 |
-| 4A | LangSmith/OpenInference 관찰환경 + Golden Dataset | 실행 trace와 정형 정확성·Recall@K·MRR·nDCG@K 측정 기준 확립 |
-| 3B | Dense → learned sparse → hybrid/RRF → reranker → graph expansion 실험 | 한 번에 한 요소만 추가 |
-| 4B | 동일 Dataset으로 품질·지연·복잡성 비교 | 개선된 구성만 유지하고 나머지는 제거 |
+한 번에 한 요소만 바꾸고 개선된 구성만 유지한다. Dense와 sparse는 검색 신호, hybrid는 결합, reranker는 후보 재정렬, graph는 관계 확장이므로 서로를 단순 대체하지 않는다.
 
-이 순서는 기술이 앞 단계를 대체한다는 뜻이 아니다. Dense와 sparse는 BM25와 다른 검색 신호이고, hybrid는 이들을 결합하며, reranker는 검색된 후보를 다시 정렬한다. Graph expansion은 검색 순위가 아니라 근거 관계를 넓히는 별도 축이다.
+## Evaluation contract
 
-Phase 4A 관찰 파이프라인은 OpenInference LangChain 계측과 FastAPI·HTTPX·PostgreSQL OTel 계측을 하나의 OTLP exporter로 모은다. LangSmith APAC에서 FastAPI와 OpenInference trace 수신을 확인했다. Retrieval 결과에는 `rank`, 방식과 index·chunker·retriever 버전을 남기며, 검색 Span에도 같은 버전과 `top_k`, 결과 수, 지연을 기록한다. 원문 질문은 개인정보 노출을 피하기 위해 커스텀 Span 속성에 중복 저장하지 않는다.
+- 관찰 경로: OpenInference LangChain/LangGraph + FastAPI·HTTPX·PostgreSQL OTel → OTLP → LangSmith
+- 결과 식별: `rank`, `index_version`, `chunker_version`, `retriever_version`
+- Golden Dataset: 실행 UUID 대신 안정적인 scenario·campaign 참조 사용
+- Structured 정답: 기대 수치·기간·출처
+- Text 정답: 문서뿐 아니라 사람이 검수한 passage
+- 지표: 정형 정확성, Recall@K, MRR, nDCG@K, latency와 복잡성
 
-Golden Dataset v1은 실행 환경의 UUID가 아닌 안정적인 scenario·campaign 참조를 사용한다. 정형 질문은 기대 수치와 출처를, 텍스트 질문은 정답 문서와 passage를 사람이 검수한다. Chunking 이후에도 같은 passage Ground Truth를 사용해 Whole Document 기준선과 비교한다.
+Chunking 이후에도 같은 passage Ground Truth를 사용해 Whole Document Baseline과 비교한다. Dataset 작성법은 [Eval README](../../services/launchpilot-api/evals/README.md)에 있다.
 
-## 기술 결정 기록 원칙
+## Decision rule
 
-고도화 단계마다 구현 전에 가설과 비교 대상을 ADR로 제안하고, Eval 후 상태를 `채택` 또는 `기각`으로 갱신한다. 예정된 결정 대상은 다음과 같다.
-
-- BM25 index·analyzer·문서 단위
-- Dense embedding 모델과 vector index
-- Learned sparse 모델
-- Hybrid fusion 방식
-- Reranker 모델과 적용 후보 수
-- Graph expansion 방식과 graph DB 필요 여부
-
-## 관련 문서
-
-- [Phase 0 — Product & Evaluation Charter](phase-0-decision-charter.md)
-- [Phase 1 — Domain Model](phase-1-domain-model.md)
-- [ADR-0001 — Retrieval 검색 저장소 후보](adr/0001-retrieval-storage-strategy.md)
-- [ADR-0002 — PostgreSQL Source of Truth](adr/0002-source-of-truth-database.md)
+각 실험은 구현 전에 가설과 비교 대상을 적고, Eval 후 `채택` 또는 `기각`한다. 현재 저장소 결정은 [ADR-0001](adr/0001-retrieval-storage-strategy.md), 관계형 원본 결정은 [ADR-0002](adr/0002-source-of-truth-database.md)에 있다.
