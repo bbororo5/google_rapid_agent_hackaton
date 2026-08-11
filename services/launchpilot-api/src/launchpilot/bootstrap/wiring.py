@@ -10,20 +10,20 @@ from launchpilot.application.analysis import (
     CampaignAccessService,
     CampaignAnalysisService,
 )
-from launchpilot.application.services import (
+from launchpilot.bootstrap.config import Settings
+from launchpilot.campaigns.postgres import (
+    PostgresCampaignRepository,
+    PostgresConversationRepository,
+)
+from launchpilot.campaigns.service import (
     CampaignService,
     ConversationService,
 )
-from launchpilot.bootstrap.config import Settings
 from launchpilot.infrastructure.control_plane import PostgresControlPlane
 from launchpilot.infrastructure.google_oauth import GoogleOAuthClient
 from launchpilot.infrastructure.meta_oauth import MetaOAuthClient
 from launchpilot.infrastructure.platform_access import PlatformAccessTokenProvider
 from launchpilot.infrastructure.postgres_database import PostgresDatabase
-from launchpilot.infrastructure.postgres_domain import (
-    PostgresCampaignRepository,
-    PostgresConversationRepository,
-)
 from launchpilot.infrastructure.security import (
     BrowserStateManager,
     SessionManager,

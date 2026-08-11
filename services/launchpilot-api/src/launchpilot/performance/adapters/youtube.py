@@ -4,7 +4,8 @@ from dataclasses import dataclass
 
 import httpx
 
-from launchpilot.domain.models import DateRange, MetricObservation, PlatformSlice
+from launchpilot.performance.models import MetricObservation, PlatformSlice
+from launchpilot.shared import DateRange
 
 YOUTUBE_CHANNELS_URL = "https://www.googleapis.com/youtube/v3/channels"
 YOUTUBE_ANALYTICS_URL = "https://youtubeanalytics.googleapis.com/v2/reports"

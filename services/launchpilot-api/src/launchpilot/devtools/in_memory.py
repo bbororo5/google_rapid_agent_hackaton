@@ -3,7 +3,8 @@ from __future__ import annotations
 from threading import RLock
 from uuid import UUID
 
-from launchpilot.domain.models import Campaign, CampaignObservation, Conversation
+from launchpilot.campaigns.models import Campaign, Conversation
+from launchpilot.performance.models import CampaignObservation
 
 
 class InMemoryRepositories:

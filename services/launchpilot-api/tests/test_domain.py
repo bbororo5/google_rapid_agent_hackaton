@@ -4,15 +4,15 @@ from uuid import uuid4
 
 import pytest
 
-from launchpilot.domain.errors import DomainError
-from launchpilot.domain.models import (
+from launchpilot.performance.models import (
     CampaignObservation,
     Completeness,
     CompletenessStatus,
-    DateRange,
     MetricObservation,
     PlatformSlice,
 )
+from launchpilot.shared import DateRange
+from launchpilot.shared.errors import DomainError
 
 
 def test_observation_rejects_metrics_with_a_different_period() -> None:

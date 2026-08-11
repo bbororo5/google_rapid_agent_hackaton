@@ -1,10 +1,8 @@
-from __future__ import annotations
-
 from uuid import UUID
 
-from launchpilot.domain.errors import NotFoundError
-from launchpilot.domain.models import Campaign, Conversation
+from launchpilot.shared import NotFoundError
 
+from .models import Campaign, Conversation
 from .ports import CampaignRepository, ConversationRepository
 
 

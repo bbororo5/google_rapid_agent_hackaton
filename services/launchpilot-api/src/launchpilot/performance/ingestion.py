@@ -6,17 +6,17 @@ from uuid import UUID, uuid4
 
 import httpx
 
-from launchpilot.domain.integrations import (
+from launchpilot.performance.contracts import (
     CampaignMetricRequest,
     ExternalCampaignBinding,
 )
-from launchpilot.domain.models import (
+from launchpilot.performance.models import (
     CampaignObservation,
     Completeness,
     CompletenessStatus,
-    DateRange,
 )
 from launchpilot.performance.ports import AdsConnector
+from launchpilot.shared import DateRange
 
 from .observation_service import ObservationService
 

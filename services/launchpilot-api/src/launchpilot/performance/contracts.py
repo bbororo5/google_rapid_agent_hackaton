@@ -5,8 +5,9 @@ from datetime import datetime
 from enum import StrEnum
 from uuid import UUID, uuid4
 
-from .errors import DomainError
-from .models import DateRange, PlatformSlice, utc_now
+from launchpilot.shared import DateRange, DomainError, utc_now
+
+from .models import PlatformSlice
 
 
 class PlatformProvider(StrEnum):
@@ -37,15 +38,8 @@ class ExternalCampaign:
     status: str
 
     def __post_init__(self) -> None:
-        if not all(
-            value.strip()
-            for value in (
-                self.account_ref,
-                self.campaign_ref,
-                self.name,
-                self.status,
-            )
-        ):
+        values = (self.account_ref, self.campaign_ref, self.name, self.status)
+        if not all(value.strip() for value in values):
             raise DomainError("external campaign identity must not be blank")
 
 
@@ -64,15 +58,13 @@ class ExternalCampaignBinding:
     created_at: datetime = field(default_factory=utc_now)
 
     def __post_init__(self) -> None:
-        if not all(
-            value.strip()
-            for value in (
-                self.connection_id,
-                self.external_account_ref,
-                self.external_campaign_ref,
-                self.display_name,
-            )
-        ):
+        identity = (
+            self.connection_id,
+            self.external_account_ref,
+            self.external_campaign_ref,
+            self.display_name,
+        )
+        if not all(value.strip() for value in identity):
             raise DomainError("external campaign binding identity must not be blank")
 
     @classmethod
@@ -111,14 +103,8 @@ class CampaignMetricRequest:
     fetch_run_ref: str
 
     def __post_init__(self) -> None:
-        if not all(
-            value.strip()
-            for value in (
-                self.account_ref,
-                self.campaign_ref,
-                self.fetch_run_ref,
-            )
-        ):
+        identity = (self.account_ref, self.campaign_ref, self.fetch_run_ref)
+        if not all(value.strip() for value in identity):
             raise DomainError("campaign metric request identity must not be blank")
 
 

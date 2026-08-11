@@ -3,9 +3,9 @@ from datetime import date
 
 import httpx
 
-from launchpilot.domain.integrations import CampaignMetricRequest
-from launchpilot.domain.models import DateRange
 from launchpilot.performance.adapters.google_ads import GoogleAdsConnector
+from launchpilot.performance.contracts import CampaignMetricRequest
+from launchpilot.shared import DateRange
 
 
 def google_ads_client() -> httpx.Client:

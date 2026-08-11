@@ -6,9 +6,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
 
-from launchpilot.domain.errors import NotFoundError
-
-from .services import CampaignService
+from launchpilot.campaigns.service import CampaignService
+from launchpilot.shared.errors import NotFoundError
 
 
 @dataclass(frozen=True, slots=True)

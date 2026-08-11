@@ -3,29 +3,26 @@ from uuid import uuid4
 
 import pytest
 
-from launchpilot.application.services import CampaignService
-from launchpilot.domain.integrations import (
+from launchpilot.campaigns.models import Campaign
+from launchpilot.campaigns.service import CampaignService
+from launchpilot.devtools.in_memory import (
+    InMemoryObservationRepository,
+    InMemoryRepositories,
+)
+from launchpilot.performance.contracts import (
     CampaignMetricRequest,
     ConnectorFetchResult,
     ExternalCampaignBinding,
     PlatformProvider,
-)
-from launchpilot.domain.models import (
-    Campaign,
-    DateRange,
-    MetricObservation,
-    PlatformSlice,
-)
-from launchpilot.infrastructure.in_memory import (
-    InMemoryObservationRepository,
-    InMemoryRepositories,
 )
 from launchpilot.performance.ingestion import (
     AllSourcesFailedError,
     IngestionSource,
     MultiPlatformIngestionService,
 )
+from launchpilot.performance.models import MetricObservation, PlatformSlice
 from launchpilot.performance.observation_service import ObservationService
+from launchpilot.shared import DateRange
 
 
 class SuccessfulConnector:

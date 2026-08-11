@@ -12,7 +12,7 @@ from launchpilot.application.analysis import (
     CampaignAnalysisService,
 )
 from launchpilot.bootstrap.wiring import campaign_analysis_service
-from launchpilot.domain.errors import NotFoundError
+from launchpilot.shared.errors import NotFoundError
 
 from .campaign_context import UserDependency
 

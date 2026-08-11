@@ -17,12 +17,12 @@ from launchpilot.bootstrap.wiring import (
     platform_access_tokens,
     settings,
 )
-from launchpilot.domain.integrations import ExternalAccount, ExternalCampaign
 from launchpilot.infrastructure.control_plane import ConnectedUser, PostgresControlPlane
 from launchpilot.infrastructure.google_oauth import GoogleOAuthClient
 from launchpilot.infrastructure.meta_oauth import MetaOAuthClient
 from launchpilot.infrastructure.platform_access import PlatformAccessTokenProvider
 from launchpilot.infrastructure.security import BrowserStateManager, InvalidSignedToken
+from launchpilot.performance.contracts import ExternalAccount, ExternalCampaign
 from launchpilot.performance.factory import AdsConnectorFactory
 from launchpilot.performance.http_errors import platform_access_http_error
 from launchpilot.performance.ingestion import PlatformAccessError

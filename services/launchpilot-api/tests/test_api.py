@@ -14,16 +14,16 @@ from launchpilot.bootstrap.wiring import (
     repository_store,
     settings,
 )
-from launchpilot.domain.integrations import (
-    CampaignMetricRequest,
-    ConnectorFetchResult,
-    PlatformProvider,
-)
-from launchpilot.domain.models import MetricObservation, PlatformSlice
 from launchpilot.infrastructure.control_plane import ConnectedUser, PostgresControlPlane
 from launchpilot.infrastructure.postgres_database import PostgresDatabase
 from launchpilot.infrastructure.security import SessionManager, SignedTokenCodec
 from launchpilot.main import app
+from launchpilot.performance.contracts import (
+    CampaignMetricRequest,
+    ConnectorFetchResult,
+    PlatformProvider,
+)
+from launchpilot.performance.models import MetricObservation, PlatformSlice
 
 
 @dataclass(frozen=True)

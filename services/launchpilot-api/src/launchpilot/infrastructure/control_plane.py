@@ -10,7 +10,7 @@ from cryptography.fernet import Fernet
 from psycopg import Connection
 from psycopg.types.json import Jsonb
 
-from launchpilot.domain.integrations import (
+from launchpilot.performance.contracts import (
     ExternalCampaignBinding,
     PlatformProvider,
 )

@@ -4,14 +4,14 @@ from typing import Any
 
 import httpx
 
-from launchpilot.domain.integrations import (
+from launchpilot.performance.contracts import (
     CampaignMetricRequest,
     ConnectorFetchResult,
     ExternalAccount,
     ExternalCampaign,
     PlatformProvider,
 )
-from launchpilot.domain.models import MetricObservation, PlatformSlice
+from launchpilot.performance.models import MetricObservation, PlatformSlice
 
 
 class GoogleAdsConnector:

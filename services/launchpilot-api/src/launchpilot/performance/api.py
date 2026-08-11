@@ -9,7 +9,6 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 
 from launchpilot.api.campaign_context import AuthorizedCampaignScope, UserDependency
-from launchpilot.api.schemas import ObservationSummaryOutput
 from launchpilot.bootstrap.config import Settings
 from launchpilot.bootstrap.wiring import (
     ads_ingestion_source_planner,
@@ -17,13 +16,6 @@ from launchpilot.bootstrap.wiring import (
     observation_service,
     platform_access_tokens,
     settings,
-)
-from launchpilot.domain.errors import NotFoundError
-from launchpilot.domain.models import (
-    CampaignObservation,
-    Completeness,
-    CompletenessStatus,
-    DateRange,
 )
 from launchpilot.infrastructure.control_plane import PostgresControlPlane
 from launchpilot.infrastructure.platform_access import PlatformAccessTokenProvider
@@ -35,7 +27,15 @@ from launchpilot.performance.ingestion import (
     MultiPlatformIngestionService,
     PlatformAccessError,
 )
+from launchpilot.performance.models import (
+    CampaignObservation,
+    Completeness,
+    CompletenessStatus,
+)
 from launchpilot.performance.observation_service import ObservationService
+from launchpilot.performance.schemas import ObservationSummaryOutput
+from launchpilot.shared import DateRange
+from launchpilot.shared.errors import NotFoundError
 
 router = APIRouter(prefix="/campaigns", tags=["campaign-observations"])
 ObservationDependency = Annotated[ObservationService, Depends(observation_service)]

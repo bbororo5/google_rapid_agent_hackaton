@@ -1,23 +1,25 @@
 from datetime import date
 from uuid import uuid4
 
-from launchpilot.domain.models import (
+from launchpilot.campaigns.models import (
     Campaign,
-    CampaignObservation,
     CampaignResourceBinding,
-    Completeness,
-    CompletenessStatus,
     Conversation,
-    DateRange,
-    MetricObservation,
-    PlatformSlice,
 )
-from launchpilot.infrastructure.postgres_database import PostgresDatabase
-from launchpilot.infrastructure.postgres_domain import (
+from launchpilot.campaigns.postgres import (
     PostgresCampaignRepository,
     PostgresConversationRepository,
 )
+from launchpilot.infrastructure.postgres_database import PostgresDatabase
+from launchpilot.performance.models import (
+    CampaignObservation,
+    Completeness,
+    CompletenessStatus,
+    MetricObservation,
+    PlatformSlice,
+)
 from launchpilot.performance.observation_postgres import PostgresObservationRepository
+from launchpilot.shared import DateRange
 
 
 def test_campaign_survives_repository_recreation(

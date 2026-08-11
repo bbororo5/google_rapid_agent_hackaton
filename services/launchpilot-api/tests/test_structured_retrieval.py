@@ -1,24 +1,24 @@
 from datetime import UTC, date, datetime, timedelta
 from uuid import uuid4
 
-from launchpilot.domain.models import (
-    Campaign,
+from launchpilot.campaigns.models import Campaign
+from launchpilot.campaigns.postgres import (
+    PostgresCampaignRepository,
+)
+from launchpilot.infrastructure.postgres_database import PostgresDatabase
+from launchpilot.performance.models import (
     CampaignObservation,
     Completeness,
     CompletenessStatus,
-    DateRange,
     MetricObservation,
     PlatformSlice,
-)
-from launchpilot.infrastructure.postgres_database import PostgresDatabase
-from launchpilot.infrastructure.postgres_domain import (
-    PostgresCampaignRepository,
 )
 from launchpilot.performance.observation_postgres import PostgresObservationRepository
 from launchpilot.performance.postgres import (
     PostgresStructuredRetrievalRepository,
 )
 from launchpilot.performance.retrieval import CampaignMetricQuery
+from launchpilot.shared import DateRange
 
 
 def test_retrieves_latest_exact_campaign_evidence(

@@ -2,9 +2,9 @@ from datetime import date
 
 import httpx
 
-from launchpilot.domain.integrations import CampaignMetricRequest
-from launchpilot.domain.models import DateRange
 from launchpilot.performance.adapters.meta_ads import MetaAdsConnector
+from launchpilot.performance.contracts import CampaignMetricRequest
+from launchpilot.shared import DateRange
 
 
 def meta_client() -> httpx.Client:

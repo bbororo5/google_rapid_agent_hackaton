@@ -3,14 +3,14 @@ from __future__ import annotations
 from typing import Protocol
 from uuid import UUID
 
-from launchpilot.domain.integrations import (
+from launchpilot.performance.contracts import (
     CampaignMetricRequest,
     ConnectorFetchResult,
     ExternalAccount,
     ExternalCampaign,
     PlatformProvider,
 )
-from launchpilot.domain.models import CampaignObservation
+from launchpilot.performance.models import CampaignObservation
 
 
 class AdsConnector(Protocol):

@@ -1,9 +1,7 @@
-from __future__ import annotations
-
 from typing import Protocol
 from uuid import UUID
 
-from launchpilot.domain.models import Campaign, Conversation
+from .models import Campaign, Conversation
 
 
 class CampaignRepository(Protocol):

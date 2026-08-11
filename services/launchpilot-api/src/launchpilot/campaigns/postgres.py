@@ -5,14 +5,13 @@ from uuid import UUID
 
 from psycopg.types.json import Jsonb
 
-from launchpilot.domain.models import (
+from launchpilot.campaigns.models import (
     Campaign,
     CampaignResourceBinding,
     Conversation,
-    DateRange,
 )
-
-from .postgres_database import PostgresDatabase
+from launchpilot.infrastructure.postgres_database import PostgresDatabase
+from launchpilot.shared import DateRange
 
 Row = dict[str, Any]
 

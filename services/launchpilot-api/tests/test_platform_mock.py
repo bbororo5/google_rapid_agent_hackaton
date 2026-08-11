@@ -6,11 +6,11 @@ from fastapi.testclient import TestClient
 
 from launchpilot.bootstrap.config import Settings
 from launchpilot.devtools.mock_platforms.main import app as mock_app
-from launchpilot.domain.integrations import CampaignMetricRequest
-from launchpilot.domain.models import DateRange
 from launchpilot.performance.adapters.google_ads import GoogleAdsConnector
 from launchpilot.performance.adapters.meta_ads import MetaAdsConnector
 from launchpilot.performance.adapters.youtube import YouTubeAnalyticsConnector
+from launchpilot.performance.contracts import CampaignMetricRequest
+from launchpilot.shared import DateRange
 
 
 def mock_http_client() -> httpx.Client:

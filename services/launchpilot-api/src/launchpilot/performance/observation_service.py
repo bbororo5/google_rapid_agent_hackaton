@@ -1,8 +1,8 @@
 from uuid import UUID
 
-from launchpilot.application.ports import CampaignRepository
-from launchpilot.domain.errors import NotFoundError
-from launchpilot.domain.models import CampaignObservation
+from launchpilot.campaigns.ports import CampaignRepository
+from launchpilot.performance.models import CampaignObservation
+from launchpilot.shared.errors import NotFoundError
 
 from .ports import ObservationRepository
 

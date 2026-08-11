@@ -9,9 +9,10 @@ from launchpilot.application.analysis import (
     CampaignAnalysisResult,
     CampaignAnalysisService,
 )
-from launchpilot.application.services import CampaignService
-from launchpilot.domain.errors import NotFoundError
-from launchpilot.domain.models import Campaign, DateRange
+from launchpilot.campaigns.models import Campaign
+from launchpilot.campaigns.service import CampaignService
+from launchpilot.shared import DateRange
+from launchpilot.shared.errors import NotFoundError
 
 
 class CampaignRepositoryStub:

@@ -3,8 +3,7 @@ from uuid import uuid4
 
 import pytest
 
-from launchpilot.domain.errors import DomainError
-from launchpilot.domain.integrations import (
+from launchpilot.performance.contracts import (
     CampaignMetricRequest,
     ConnectorFetchResult,
     ExternalAccount,
@@ -12,7 +11,9 @@ from launchpilot.domain.integrations import (
     ExternalCampaignBinding,
     PlatformProvider,
 )
-from launchpilot.domain.models import DateRange, PlatformSlice
+from launchpilot.performance.models import PlatformSlice
+from launchpilot.shared import DateRange
+from launchpilot.shared.errors import DomainError
 
 
 def test_external_account_requires_platform_identity() -> None:

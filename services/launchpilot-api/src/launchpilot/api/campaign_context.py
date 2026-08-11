@@ -7,8 +7,8 @@ from fastapi import Depends, HTTPException, status
 
 from launchpilot.application.analysis import AnalysisScope, CampaignAccessService
 from launchpilot.bootstrap.wiring import campaign_access_service
-from launchpilot.domain.errors import NotFoundError
 from launchpilot.infrastructure.control_plane import ConnectedUser
+from launchpilot.shared.errors import NotFoundError
 
 from .auth import current_user
 
