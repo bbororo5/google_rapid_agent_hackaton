@@ -16,6 +16,6 @@ Google ADK Agent, Next.js Frontend, Java Backend, 이전 계약과 E2E·관측 �
 
 - 아카이브 코드는 import, 빌드, 테스트, 배포 대상에 포함하지 않는다.
 - 과거 문제 정의, 설계 근거와 실패 사례를 확인할 때만 사용한다.
-- 아카이브와 현행 문서가 충돌하면 [`docs/rebuild/`](../docs/rebuild/)의 결정이 우선한다.
+- 아카이브와 현행 문서가 충돌하면 [현행 문서 포털](../docs/README.md)에서 연결하는 결정이 우선한다.
 - 현행 구현은 [`services/launchpilot-api/`](../services/launchpilot-api/)에서만 변경한다.
 - 아카이브를 수정해 현행화하지 않는다. 새로운 결정은 `docs/rebuild/`에 기록한다.

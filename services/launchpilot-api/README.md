@@ -2,6 +2,8 @@
 
 여러 광고 플랫폼의 Campaign 성과와 문서 근거를 검색해 답하는 FastAPI 기반 Agentic RAG 서비스다. PostgreSQL Structured Retrieval, Elasticsearch BM25와 최소 LangGraph tool loop를 제공한다.
 
+제품 범위와 전체 로드맵은 [문서 포털](../../docs/README.md), Golden Dataset 작성 규칙은 [Eval README](evals/README.md)를 기준으로 한다. 이 문서는 설치·실행·연결·테스트 방법만 관리한다.
+
 ## Run
 
 ```bash

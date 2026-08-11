@@ -1,6 +1,6 @@
 # Retrieval Evolution Plan
 
-> 상태: **확정 — Phase 3A 완료, Phase 4A LangSmith 수신 검증 완료·Golden Dataset 대기**
+> 상태: **확정 — Phase 3A 완료, Phase 4A Dataset 작성 기반 완료·협업 검수 대기**
 
 ## 목적
 

@@ -11,23 +11,13 @@ LaunchPilot은 광고·콘텐츠 성과 데이터를 근거로 **신호를 찾�
 | Phase 0 — Product & Evaluation Charter | 확정 |
 | Phase 1 — Domain, Data & Evidence Design | 완료 |
 | Phase 2 — Identity, Platform Connection & Data Ingestion | 내부 E2E 완료 · 실제 광고 계정 검증 대기 |
+| Phase 3A — Structured Retrieval + BM25 Baseline | 완료 |
+| Phase 4A — Retrieval Eval v1 | LangSmith 수신 검증 완료 · Golden Dataset 진행 중 |
 | 신규 구현 | `services/launchpilot-api` |
 | 해커톤 프로토타입 | `archive/`에 격리된 참고 자료 |
 | 프로덕션 운영 인프라 | 포트폴리오 범위에서 제외 |
 
-현재 문서 인덱스: [`docs/rebuild/README.md`](docs/rebuild/README.md)
-
-## Roadmap
-
-1. **Phase 0 — Product & Evaluation Charter:** 제품 문제, 에이전트 권한, 품질 기준 확정
-2. **Phase 1 — Domain, Data & Evidence Design:** 도메인 모델과 근거 구조 설계
-3. **Phase 2 — Identity, Platform Connection & Data Ingestion:** 로그인, OAuth 연결, 사용자 요청 기반 데이터 수집
-4. **Phase 3 — Retrieval Baseline:** 구조화 조회와 기본 검색 구현
-5. **Phase 4 — Eval v1:** 대표 질문·기대 근거·최초 기준 점수 구축
-6. **Phase 5 — LangGraph Agent Runtime:** 상태 기반 에이전트 런타임 구현
-7. **Phase 6 — Advanced Retrieval & Eval:** 하이브리드·그래프 검색 비교 실험
-8. **Phase 7 — Integrated Quality Optimization:** 검색·도구 선택·답변 품질 통합 최적화
-9. **Phase 8 — Portfolio Packaging:** 데모와 기술면접 방어 자료 정리
+전체 로드맵과 문서 지도는 [`docs/README.md`](docs/README.md)를 단일 진입점으로 사용한다.
 
 ## Archived prototype
 
@@ -37,4 +27,4 @@ LaunchPilot은 광고·콘텐츠 성과 데이터를 근거로 **신호를 찾�
 - Google ADK 해커톤 구현과 문서: [`archive/google-adk-hackathon-prototype/`](archive/google-adk-hackathon-prototype/)
 - 현재 리빌드 전에 대체된 설계: [`archive/superseded-designs/`](archive/superseded-designs/)
 
-아카이브는 현행 빌드·테스트·배포 대상이 아니다. 현재 구현은 `services/`, 현재 결정은 `docs/rebuild/`만 기준으로 한다.
+아카이브는 현행 빌드·테스트·배포 대상이 아니다. 현재 구현은 `services/`, 현재 결정은 [`docs/README.md`](docs/README.md)에서 연결하는 문서만 기준으로 한다.
