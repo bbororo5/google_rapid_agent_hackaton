@@ -2,6 +2,24 @@
 
 FastAPI 기반 Agentic RAG 서비스다. PostgreSQL Structured Retrieval, Elasticsearch BM25와 최소 LangGraph tool loop를 제공한다. 제품·설계는 [문서 포털](../../docs/README.md), Dataset 규칙은 [Eval README](evals/README.md)를 먼저 본다.
 
+## Package boundaries
+
+코드는 기술 계층보다 제품 기능을 기준으로 찾는다.
+
+| 패키지 | 책임 |
+| --- | --- |
+| `identity` | 로그인, Workspace, 플랫폼 권한 |
+| `campaigns` | Campaign, Conversation, 외부 Campaign 연결 |
+| `performance` | 성과 수집, Observation, 정형 조회 |
+| `knowledge` | 문서 원본, BM25 검색 |
+| `analysis` | LangGraph, Tool, Evidence, 답변 생성 |
+| `evaluation` | Golden Dataset과 Eval |
+| `bootstrap` | 설정, 객체 조립, FastAPI 실행 |
+| `observability` | OpenTelemetry/OpenInference 계측 |
+| `persistence`, `shared`, `devtools` | 공유 실행 기반과 개발 지원 |
+
+기능 내부는 `HTTP adapter → service/use case → model/port` 방향을 따른다. PostgreSQL·Elasticsearch·외부 API 구현은 Port 뒤에 두고 `bootstrap/wiring.py`에서 조립한다. 결정 배경은 [ADR-0003](../../docs/rebuild/adr/0003-feature-oriented-modular-monolith.md)에 있다.
+
 ## Quick start
 
 ```bash

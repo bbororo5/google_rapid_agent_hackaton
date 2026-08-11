@@ -1,6 +1,6 @@
 # ADR-0003 — Feature-oriented Modular Monolith
 
-> 상태: **채택 · 리팩터링 진행 중** · 결정일: 2026-08-11
+> 상태: **채택 · 구현 완료** · 결정일: 2026-08-11
 
 ## Context
 
@@ -28,6 +28,8 @@ analysis       LangGraph·Tool·Evidence·답변
 evaluation     Golden Dataset·Eval
 observability  OpenTelemetry·OpenInference 전송
 devtools       mock 플랫폼 등 로컬 지원 도구
+persistence    공유 PostgreSQL 연결·스키마 실행 기반
+shared         기능에 종속되지 않는 오류·시간 값
 ```
 
 각 기능 모듈 안에서 HTTP → application → model/port 방향을 지킨다. PostgreSQL·Elasticsearch·외부 API는 해당 모듈의 Port를 구현하고, 구체 객체 조립은 `bootstrap`만 담당한다. Port는 외부 시스템 경계에만 만들며 내부 계산까지 추상화하지 않는다.
@@ -39,3 +41,5 @@ devtools       mock 플랫폼 등 로컬 지원 도구
 - 모듈 간 호출은 공개 service·contract를 통한다.
 - 리팩터링 중 기존 동작과 API 계약을 바꾸지 않는다.
 - 구조 규칙은 자동 테스트로 고정한다.
+
+현재 패키지 안내와 실행 방법은 [LaunchPilot API README](../../../services/launchpilot-api/README.md)에서 확인한다.
