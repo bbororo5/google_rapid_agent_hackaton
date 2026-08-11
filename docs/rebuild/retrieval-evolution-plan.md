@@ -36,7 +36,9 @@ Dense, learned sparse, hybrid, reranker와 graph expansion은 베이스라인에
 
 이 순서는 기술이 앞 단계를 대체한다는 뜻이 아니다. Dense와 sparse는 BM25와 다른 검색 신호이고, hybrid는 이들을 결합하며, reranker는 검색된 후보를 다시 정렬한다. Graph expansion은 검색 순위가 아니라 근거 관계를 넓히는 별도 축이다.
 
-Phase 4A 관찰 파이프라인은 OpenInference LangChain 계측과 FastAPI·HTTPX·PostgreSQL OTel 계측을 하나의 OTLP exporter로 모은다. LangSmith APAC에서 FastAPI와 OpenInference trace 수신을 확인했으며, 다음 작업은 Golden Dataset 구축이다.
+Phase 4A 관찰 파이프라인은 OpenInference LangChain 계측과 FastAPI·HTTPX·PostgreSQL OTel 계측을 하나의 OTLP exporter로 모은다. LangSmith APAC에서 FastAPI와 OpenInference trace 수신을 확인했다. Retrieval 결과에는 `rank`, 방식과 index·chunker·retriever 버전을 남기며, 검색 Span에도 같은 버전과 `top_k`, 결과 수, 지연을 기록한다. 원문 질문은 개인정보 노출을 피하기 위해 커스텀 Span 속성에 중복 저장하지 않는다.
+
+Golden Dataset v1은 실행 환경의 UUID가 아닌 안정적인 scenario·campaign 참조를 사용한다. 정형 질문은 기대 수치와 출처를, 텍스트 질문은 정답 문서와 passage를 사람이 검수한다. Chunking 이후에도 같은 passage Ground Truth를 사용해 Whole Document 기준선과 비교한다.
 
 ## 기술 결정 기록 원칙
 

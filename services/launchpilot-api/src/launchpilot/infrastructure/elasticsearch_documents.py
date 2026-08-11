@@ -5,8 +5,10 @@ from uuid import UUID
 from elasticsearch import Elasticsearch
 
 from launchpilot.application.text_retrieval import (
+    BM25_WHOLE_DOCUMENT_PROFILE,
     CampaignDocument,
     DocumentType,
+    RetrievalProfile,
     TextSearchHit,
 )
 
@@ -14,9 +16,19 @@ from launchpilot.application.text_retrieval import (
 class ElasticsearchCampaignDocumentSearch:
     """Rebuildable BM25 projection for campaign text documents."""
 
-    def __init__(self, url: str, index_name: str) -> None:
+    def __init__(
+        self,
+        url: str,
+        index_name: str,
+        profile: RetrievalProfile = BM25_WHOLE_DOCUMENT_PROFILE,
+    ) -> None:
         self._client = Elasticsearch(url, request_timeout=5)
         self._index_name = index_name
+        self._profile = profile.model_copy(update={"index_version": index_name})
+
+    @property
+    def profile(self) -> RetrievalProfile:
+        return self._profile
 
     def ensure_index(self) -> None:
         if self._client.indices.exists(index=self._index_name):
@@ -92,19 +104,27 @@ class ElasticsearchCampaignDocumentSearch:
                 "fields": {"content": {"fragment_size": 180, "number_of_fragments": 1}}
             },
         )
-        return tuple(self._hit(item) for item in response["hits"]["hits"])
+        return tuple(
+            self._hit(item, rank=rank)
+            for rank, item in enumerate(response["hits"]["hits"], start=1)
+        )
 
-    @staticmethod
-    def _hit(hit: dict[str, object]) -> TextSearchHit:
+    def _hit(self, hit: dict[str, object], *, rank: int) -> TextSearchHit:
         source = hit["_source"]
         highlight = hit.get("highlight", {})
         fragments = highlight.get("content", [])
         excerpt = fragments[0] if fragments else str(source["content"])[:180]
         return TextSearchHit(
             document_id=source["document_id"],
+            campaign_id=source["campaign_id"],
             document_type=source["document_type"],
             title=source["title"],
             excerpt=excerpt,
             source_ref=source["source_ref"],
             score=hit["_score"],
+            rank=rank,
+            retrieval_method=self._profile.method,
+            index_version=self._profile.index_version,
+            chunker_version=self._profile.chunker_version,
+            retriever_version=self._profile.retriever_version,
         )

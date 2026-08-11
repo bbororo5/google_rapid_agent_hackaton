@@ -140,11 +140,17 @@ def test_agent_searches_then_resolves_document_evidence() -> None:
             return (
                 TextSearchHit(
                     document_id=document.id,
+                    campaign_id=campaign_id,
                     document_type=document.document_type,
                     title=document.title,
                     excerpt=document.content,
                     source_ref=document.source_ref,
                     score=2.0,
+                    rank=1,
+                    retrieval_method="bm25",
+                    index_version="campaign-documents-v1",
+                    chunker_version="whole-document-v1",
+                    retriever_version="bm25-v1",
                 ),
             )
 

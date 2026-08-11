@@ -65,6 +65,13 @@ def test_bm25_search_is_campaign_scoped_and_resolves_postgres_source(
     )
 
     assert hits[0].document_id == fatigue.id
+    assert hits[0].campaign_id == campaign_id
+    assert hits[0].chunk_id is None
+    assert hits[0].rank == 1
+    assert hits[0].retrieval_method == "bm25"
+    assert hits[0].index_version == index
+    assert hits[0].chunker_version == "whole-document-v1"
+    assert hits[0].retriever_version == "bm25-v1"
     assert hits[0].score > 0
     assert hidden == ()
     assert resolved == fatigue
