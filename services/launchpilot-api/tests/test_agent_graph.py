@@ -9,17 +9,17 @@ from launchpilot.agent.graph import AnalysisGraph
 from launchpilot.agent.service import CampaignAgent
 from launchpilot.agent.tools import CampaignToolset
 from launchpilot.application.analysis import AnalysisScope
-from launchpilot.application.retrieval import (
-    CampaignPerformance,
-    CampaignSummary,
-    MetricEvidence,
-    StructuredRetrievalService,
-)
 from launchpilot.knowledge import (
     CampaignDocument,
     DocumentType,
     TextRetrievalService,
     TextSearchHit,
+)
+from launchpilot.performance.retrieval import (
+    CampaignPerformance,
+    CampaignSummary,
+    MetricEvidence,
+    StructuredRetrievalService,
 )
 
 

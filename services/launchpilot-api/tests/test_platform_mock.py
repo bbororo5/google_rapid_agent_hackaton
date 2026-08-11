@@ -8,9 +8,9 @@ from launchpilot.bootstrap.config import Settings
 from launchpilot.devtools.mock_platforms.main import app as mock_app
 from launchpilot.domain.integrations import CampaignMetricRequest
 from launchpilot.domain.models import DateRange
-from launchpilot.infrastructure.google_ads import GoogleAdsConnector
-from launchpilot.infrastructure.meta_ads import MetaAdsConnector
-from launchpilot.infrastructure.youtube import YouTubeAnalyticsConnector
+from launchpilot.performance.adapters.google_ads import GoogleAdsConnector
+from launchpilot.performance.adapters.meta_ads import MetaAdsConnector
+from launchpilot.performance.adapters.youtube import YouTubeAnalyticsConnector
 
 
 def mock_http_client() -> httpx.Client:

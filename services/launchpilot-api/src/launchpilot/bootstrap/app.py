@@ -9,11 +9,11 @@ from launchpilot.api.campaign_analysis import router as campaign_analysis_router
 from launchpilot.api.campaign_bindings import router as campaign_binding_router
 from launchpilot.api.campaigns import router as campaign_router
 from launchpilot.api.connections import router as connection_router
-from launchpilot.api.observations import router as observation_router
 from launchpilot.api.workspaces import router as workspace_router
 from launchpilot.bootstrap.config import Settings
 from launchpilot.knowledge.api import router as campaign_document_router
 from launchpilot.observability.runtime import TelemetryRuntime
+from launchpilot.performance.api import router as observation_router
 
 telemetry = TelemetryRuntime(Settings.from_environment())
 

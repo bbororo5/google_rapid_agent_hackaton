@@ -1,7 +1,6 @@
 from datetime import UTC, date, datetime, timedelta
 from uuid import uuid4
 
-from launchpilot.application.retrieval import CampaignMetricQuery
 from launchpilot.domain.models import (
     Campaign,
     CampaignObservation,
@@ -14,11 +13,12 @@ from launchpilot.domain.models import (
 from launchpilot.infrastructure.postgres_database import PostgresDatabase
 from launchpilot.infrastructure.postgres_domain import (
     PostgresCampaignRepository,
-    PostgresObservationRepository,
 )
-from launchpilot.infrastructure.postgres_retrieval import (
+from launchpilot.performance.observation_postgres import PostgresObservationRepository
+from launchpilot.performance.postgres import (
     PostgresStructuredRetrievalRepository,
 )
+from launchpilot.performance.retrieval import CampaignMetricQuery
 
 
 def test_retrieves_latest_exact_campaign_evidence(

@@ -16,8 +16,8 @@ from launchpilot.infrastructure.postgres_database import PostgresDatabase
 from launchpilot.infrastructure.postgres_domain import (
     PostgresCampaignRepository,
     PostgresConversationRepository,
-    PostgresObservationRepository,
 )
+from launchpilot.performance.observation_postgres import PostgresObservationRepository
 
 
 def test_campaign_survives_repository_recreation(

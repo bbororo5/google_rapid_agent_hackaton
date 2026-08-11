@@ -3,9 +3,9 @@ from __future__ import annotations
 from uuid import UUID
 
 from launchpilot.domain.errors import NotFoundError
-from launchpilot.domain.models import Campaign, CampaignObservation, Conversation
+from launchpilot.domain.models import Campaign, Conversation
 
-from .ports import CampaignRepository, ConversationRepository, ObservationRepository
+from .ports import CampaignRepository, ConversationRepository
 
 
 class CampaignService:
@@ -46,22 +46,3 @@ class ConversationService:
         if self._campaigns.get(campaign_id) is None:
             raise NotFoundError("campaign not found")
         return self._conversations.list_by_campaign(campaign_id)
-
-
-class ObservationService:
-    def __init__(
-        self, campaigns: CampaignRepository, observations: ObservationRepository
-    ) -> None:
-        self._campaigns = campaigns
-        self._observations = observations
-
-    def record(self, observation: CampaignObservation) -> CampaignObservation:
-        if self._campaigns.get(observation.campaign_id) is None:
-            raise NotFoundError("campaign not found")
-        self._observations.add(observation)
-        return observation
-
-    def list_for_campaign(self, campaign_id: UUID) -> list[CampaignObservation]:
-        if self._campaigns.get(campaign_id) is None:
-            raise NotFoundError("campaign not found")
-        return self._observations.list_by_campaign(campaign_id)

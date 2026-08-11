@@ -6,7 +6,6 @@ from uuid import UUID, uuid4
 
 import httpx
 
-from launchpilot.application.ports import AdsConnector
 from launchpilot.domain.integrations import (
     CampaignMetricRequest,
     ExternalCampaignBinding,
@@ -17,8 +16,9 @@ from launchpilot.domain.models import (
     CompletenessStatus,
     DateRange,
 )
+from launchpilot.performance.ports import AdsConnector
 
-from .services import ObservationService
+from .observation_service import ObservationService
 
 
 @dataclass(frozen=True, slots=True)

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import httpx
 
-from launchpilot.application.ingestion import (
+from launchpilot.performance.ingestion import (
     PlatformAccess,
     PlatformAccessUnavailable,
     PlatformAuthorizationExpired,

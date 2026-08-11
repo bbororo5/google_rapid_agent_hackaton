@@ -5,7 +5,7 @@ import httpx
 
 from launchpilot.domain.integrations import CampaignMetricRequest
 from launchpilot.domain.models import DateRange
-from launchpilot.infrastructure.google_ads import GoogleAdsConnector
+from launchpilot.performance.adapters.google_ads import GoogleAdsConnector
 
 
 def google_ads_client() -> httpx.Client:

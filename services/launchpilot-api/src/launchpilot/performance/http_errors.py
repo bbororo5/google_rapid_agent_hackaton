@@ -1,6 +1,6 @@
 from fastapi import HTTPException, status
 
-from launchpilot.application.ingestion import (
+from launchpilot.performance.ingestion import (
     AdsConnectorUnavailable,
     PlatformAccessError,
     PlatformAccessUnavailable,

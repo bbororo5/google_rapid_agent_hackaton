@@ -10,15 +10,11 @@ from launchpilot.application.analysis import (
     CampaignAccessService,
     CampaignAnalysisService,
 )
-from launchpilot.application.ingestion import AdsIngestionSourcePlanner
-from launchpilot.application.retrieval import StructuredRetrievalService
 from launchpilot.application.services import (
     CampaignService,
     ConversationService,
-    ObservationService,
 )
 from launchpilot.bootstrap.config import Settings
-from launchpilot.infrastructure.ads_factory import AdsConnectorFactory
 from launchpilot.infrastructure.control_plane import PostgresControlPlane
 from launchpilot.infrastructure.google_oauth import GoogleOAuthClient
 from launchpilot.infrastructure.meta_oauth import MetaOAuthClient
@@ -27,10 +23,6 @@ from launchpilot.infrastructure.postgres_database import PostgresDatabase
 from launchpilot.infrastructure.postgres_domain import (
     PostgresCampaignRepository,
     PostgresConversationRepository,
-    PostgresObservationRepository,
-)
-from launchpilot.infrastructure.postgres_retrieval import (
-    PostgresStructuredRetrievalRepository,
 )
 from launchpilot.infrastructure.security import (
     BrowserStateManager,
@@ -47,6 +39,14 @@ from launchpilot.knowledge.elasticsearch import (
 from launchpilot.knowledge.postgres import (
     PostgresCampaignDocumentRepository,
 )
+from launchpilot.performance.factory import AdsConnectorFactory
+from launchpilot.performance.ingestion import AdsIngestionSourcePlanner
+from launchpilot.performance.observation_postgres import PostgresObservationRepository
+from launchpilot.performance.observation_service import ObservationService
+from launchpilot.performance.postgres import (
+    PostgresStructuredRetrievalRepository,
+)
+from launchpilot.performance.retrieval import StructuredRetrievalService
 
 
 @lru_cache

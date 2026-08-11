@@ -4,7 +4,7 @@ import httpx
 
 from launchpilot.domain.integrations import CampaignMetricRequest
 from launchpilot.domain.models import DateRange
-from launchpilot.infrastructure.meta_ads import MetaAdsConnector
+from launchpilot.performance.adapters.meta_ads import MetaAdsConnector
 
 
 def meta_client() -> httpx.Client:

@@ -356,7 +356,7 @@ def test_multiplatform_api_persists_observation_across_repository_recreation(
         assert binding_response.status_code == 201
 
     monkeypatch.setattr(
-        "launchpilot.infrastructure.ads_factory.AdsConnectorFactory.create",
+        "launchpilot.performance.factory.AdsConnectorFactory.create",
         lambda self, provider: ApiFixtureAdsConnector(PlatformProvider(provider)),
     )
     response = context.client.post(

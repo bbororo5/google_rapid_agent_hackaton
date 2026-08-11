@@ -7,7 +7,6 @@ from fastapi import APIRouter, Cookie, Depends, HTTPException, Query, Response, 
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 
-from launchpilot.application.ingestion import PlatformAccessError
 from launchpilot.bootstrap.config import Settings
 from launchpilot.bootstrap.wiring import (
     ads_connector_factory,
@@ -19,16 +18,17 @@ from launchpilot.bootstrap.wiring import (
     settings,
 )
 from launchpilot.domain.integrations import ExternalAccount, ExternalCampaign
-from launchpilot.infrastructure.ads_factory import AdsConnectorFactory
 from launchpilot.infrastructure.control_plane import ConnectedUser, PostgresControlPlane
 from launchpilot.infrastructure.google_oauth import GoogleOAuthClient
 from launchpilot.infrastructure.meta_oauth import MetaOAuthClient
 from launchpilot.infrastructure.platform_access import PlatformAccessTokenProvider
 from launchpilot.infrastructure.security import BrowserStateManager, InvalidSignedToken
+from launchpilot.performance.factory import AdsConnectorFactory
+from launchpilot.performance.http_errors import platform_access_http_error
+from launchpilot.performance.ingestion import PlatformAccessError
 
 from .auth import current_user
 from .connections import ConnectionOutput
-from .platform_errors import platform_access_http_error
 
 router = APIRouter(prefix="/connections", tags=["ad connections"])
 ControlPlaneDependency = Annotated[PostgresControlPlane, Depends(control_plane)]

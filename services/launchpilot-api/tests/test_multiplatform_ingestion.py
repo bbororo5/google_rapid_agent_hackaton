@@ -3,12 +3,7 @@ from uuid import uuid4
 
 import pytest
 
-from launchpilot.application.ingestion import (
-    AllSourcesFailedError,
-    IngestionSource,
-    MultiPlatformIngestionService,
-)
-from launchpilot.application.services import CampaignService, ObservationService
+from launchpilot.application.services import CampaignService
 from launchpilot.domain.integrations import (
     CampaignMetricRequest,
     ConnectorFetchResult,
@@ -25,6 +20,12 @@ from launchpilot.infrastructure.in_memory import (
     InMemoryObservationRepository,
     InMemoryRepositories,
 )
+from launchpilot.performance.ingestion import (
+    AllSourcesFailedError,
+    IngestionSource,
+    MultiPlatformIngestionService,
+)
+from launchpilot.performance.observation_service import ObservationService
 
 
 class SuccessfulConnector:

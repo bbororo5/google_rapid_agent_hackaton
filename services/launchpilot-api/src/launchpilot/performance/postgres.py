@@ -2,14 +2,13 @@ from __future__ import annotations
 
 from typing import Any
 
-from launchpilot.application.retrieval import (
+from launchpilot.infrastructure.postgres_database import PostgresDatabase
+from launchpilot.performance.retrieval import (
     CampaignMetricQuery,
     CampaignPerformance,
     CampaignSummary,
     MetricEvidence,
 )
-
-from .postgres_database import PostgresDatabase
 
 
 class PostgresStructuredRetrievalRepository:

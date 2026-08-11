@@ -3,8 +3,8 @@ from __future__ import annotations
 from langchain_core.language_models import BaseChatModel
 
 from launchpilot.application.analysis import AnalysisScope, CampaignAnalysisResult
-from launchpilot.application.retrieval import StructuredRetrievalService
 from launchpilot.knowledge import TextRetrievalService
+from launchpilot.performance.retrieval import StructuredRetrievalService
 
 from .evidence import EvidenceCollector
 from .graph import AnalysisGraph

@@ -8,13 +8,8 @@ import httpx
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 
-from launchpilot.application.ingestion import (
-    AdsIngestionSourcePlanner,
-    AllSourcesFailedError,
-    MultiPlatformIngestionService,
-    PlatformAccessError,
-)
-from launchpilot.application.services import ObservationService
+from launchpilot.api.campaign_context import AuthorizedCampaignScope, UserDependency
+from launchpilot.api.schemas import ObservationSummaryOutput
 from launchpilot.bootstrap.config import Settings
 from launchpilot.bootstrap.wiring import (
     ads_ingestion_source_planner,
@@ -32,11 +27,15 @@ from launchpilot.domain.models import (
 )
 from launchpilot.infrastructure.control_plane import PostgresControlPlane
 from launchpilot.infrastructure.platform_access import PlatformAccessTokenProvider
-from launchpilot.infrastructure.youtube import YouTubeAnalyticsConnector
-
-from .campaign_context import AuthorizedCampaignScope, UserDependency
-from .platform_errors import platform_access_http_error
-from .schemas import ObservationSummaryOutput
+from launchpilot.performance.adapters.youtube import YouTubeAnalyticsConnector
+from launchpilot.performance.http_errors import platform_access_http_error
+from launchpilot.performance.ingestion import (
+    AdsIngestionSourcePlanner,
+    AllSourcesFailedError,
+    MultiPlatformIngestionService,
+    PlatformAccessError,
+)
+from launchpilot.performance.observation_service import ObservationService
 
 router = APIRouter(prefix="/campaigns", tags=["campaign-observations"])
 ObservationDependency = Annotated[ObservationService, Depends(observation_service)]
