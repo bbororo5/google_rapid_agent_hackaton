@@ -79,7 +79,7 @@ APAC endpoint는 `https://apac.api.smith.langchain.com/otel`이다. LangSmith �
 
 ```bash
 # terminal 1
-.venv/bin/uvicorn launchpilot.mock_platforms.main:app --port 9000
+.venv/bin/uvicorn launchpilot.devtools.mock_platforms.main:app --port 9000
 
 # terminal 2
 cp .env.mock.example .env.mock

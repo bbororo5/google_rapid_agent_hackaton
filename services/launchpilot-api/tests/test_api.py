@@ -8,7 +8,7 @@ from langchain_core.messages import AIMessage, ToolMessage
 from langchain_core.runnables import RunnableLambda
 
 from launchpilot.api.auth import SESSION_COOKIE
-from launchpilot.api.dependencies import (
+from launchpilot.bootstrap.wiring import (
     agent_model,
     control_plane,
     repository_store,

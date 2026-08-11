@@ -5,7 +5,7 @@ from launchpilot.application.ingestion import (
     UnsupportedAdsProvider,
 )
 from launchpilot.application.ports import AdsConnector
-from launchpilot.config import Settings
+from launchpilot.bootstrap.config import Settings
 
 from .google_ads import GoogleAdsConnector
 from .meta_ads import MetaAdsConnector

@@ -15,7 +15,14 @@ from launchpilot.application.ingestion import (
     PlatformAccessError,
 )
 from launchpilot.application.services import ObservationService
-from launchpilot.config import Settings
+from launchpilot.bootstrap.config import Settings
+from launchpilot.bootstrap.wiring import (
+    ads_ingestion_source_planner,
+    control_plane,
+    observation_service,
+    platform_access_tokens,
+    settings,
+)
 from launchpilot.domain.errors import NotFoundError
 from launchpilot.domain.models import (
     CampaignObservation,
@@ -28,13 +35,6 @@ from launchpilot.infrastructure.platform_access import PlatformAccessTokenProvid
 from launchpilot.infrastructure.youtube import YouTubeAnalyticsConnector
 
 from .campaign_context import AuthorizedCampaignScope, UserDependency
-from .dependencies import (
-    ads_ingestion_source_planner,
-    control_plane,
-    observation_service,
-    platform_access_tokens,
-    settings,
-)
 from .platform_errors import platform_access_http_error
 from .schemas import ObservationSummaryOutput
 

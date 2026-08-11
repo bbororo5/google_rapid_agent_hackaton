@@ -11,10 +11,10 @@ from launchpilot.application.analysis import (
     CampaignAnalysisResult,
     CampaignAnalysisService,
 )
+from launchpilot.bootstrap.wiring import campaign_analysis_service
 from launchpilot.domain.errors import NotFoundError
 
 from .campaign_context import UserDependency
-from .dependencies import campaign_analysis_service
 
 router = APIRouter(prefix="/campaigns", tags=["campaign-analysis"])
 AnalysisDependency = Annotated[

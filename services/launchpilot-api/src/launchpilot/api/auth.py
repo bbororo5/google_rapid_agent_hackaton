@@ -7,21 +7,20 @@ from fastapi import APIRouter, Cookie, Depends, HTTPException, Query, Response, 
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 
-from launchpilot.config import Settings
+from launchpilot.bootstrap.config import Settings
+from launchpilot.bootstrap.wiring import (
+    browser_state_manager,
+    control_plane,
+    google_oauth_client,
+    session_manager,
+    settings,
+)
 from launchpilot.infrastructure.control_plane import ConnectedUser, PostgresControlPlane
 from launchpilot.infrastructure.google_oauth import GoogleOAuthClient
 from launchpilot.infrastructure.security import (
     BrowserStateManager,
     InvalidSignedToken,
     SessionManager,
-)
-
-from .dependencies import (
-    browser_state_manager,
-    control_plane,
-    google_oauth_client,
-    session_manager,
-    settings,
 )
 
 router = APIRouter(prefix="/auth", tags=["auth"])

@@ -18,7 +18,7 @@ from launchpilot.application.services import (
     ObservationService,
 )
 from launchpilot.application.text_retrieval import TextRetrievalService
-from launchpilot.config import Settings
+from launchpilot.bootstrap.config import Settings
 from launchpilot.infrastructure.ads_factory import AdsConnectorFactory
 from launchpilot.infrastructure.control_plane import PostgresControlPlane
 from launchpilot.infrastructure.elasticsearch_documents import (

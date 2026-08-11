@@ -10,8 +10,8 @@ from opentelemetry.sdk.trace.export.in_memory_span_exporter import (
     InMemorySpanExporter,
 )
 
-from launchpilot.config import Settings
-from launchpilot.infrastructure.telemetry import TelemetryRuntime
+from launchpilot.bootstrap.config import Settings
+from launchpilot.observability.runtime import TelemetryRuntime
 
 
 def test_telemetry_is_disabled_by_default(monkeypatch: pytest.MonkeyPatch) -> None:

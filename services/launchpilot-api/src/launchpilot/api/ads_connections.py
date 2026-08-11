@@ -8,7 +8,16 @@ from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 
 from launchpilot.application.ingestion import PlatformAccessError
-from launchpilot.config import Settings
+from launchpilot.bootstrap.config import Settings
+from launchpilot.bootstrap.wiring import (
+    ads_connector_factory,
+    browser_state_manager,
+    control_plane,
+    google_oauth_client,
+    meta_oauth_client,
+    platform_access_tokens,
+    settings,
+)
 from launchpilot.domain.integrations import ExternalAccount, ExternalCampaign
 from launchpilot.infrastructure.ads_factory import AdsConnectorFactory
 from launchpilot.infrastructure.control_plane import ConnectedUser, PostgresControlPlane
@@ -19,15 +28,6 @@ from launchpilot.infrastructure.security import BrowserStateManager, InvalidSign
 
 from .auth import current_user
 from .connections import ConnectionOutput
-from .dependencies import (
-    ads_connector_factory,
-    browser_state_manager,
-    control_plane,
-    google_oauth_client,
-    meta_oauth_client,
-    platform_access_tokens,
-    settings,
-)
 from .platform_errors import platform_access_http_error
 
 router = APIRouter(prefix="/connections", tags=["ad connections"])

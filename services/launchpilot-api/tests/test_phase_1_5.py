@@ -2,7 +2,7 @@ import httpx
 from cryptography.fernet import Fernet
 from fastapi.testclient import TestClient
 
-from launchpilot.api.dependencies import settings
+from launchpilot.bootstrap.wiring import settings
 from launchpilot.infrastructure.control_plane import PostgresControlPlane
 from launchpilot.infrastructure.google_oauth import GoogleOAuthClient
 from launchpilot.infrastructure.postgres_database import PostgresDatabase

@@ -10,9 +10,9 @@ from launchpilot.application.text_retrieval import (
     DocumentType,
     TextRetrievalService,
 )
+from launchpilot.bootstrap.wiring import text_retrieval_service
 
 from .campaign_context import AuthorizedCampaignScope
-from .dependencies import text_retrieval_service
 
 router = APIRouter(prefix="/campaigns", tags=["campaign-documents"])
 TextRetrievalDependency = Annotated[

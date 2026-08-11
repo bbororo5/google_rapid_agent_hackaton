@@ -7,11 +7,11 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, field_validator
 
+from launchpilot.bootstrap.wiring import control_plane
 from launchpilot.domain.integrations import ExternalCampaignBinding, PlatformProvider
 from launchpilot.infrastructure.control_plane import PostgresControlPlane
 
 from .campaign_context import AuthorizedCampaignScope
-from .dependencies import control_plane
 
 router = APIRouter(prefix="/campaigns", tags=["campaign-bindings"])
 ControlPlaneDependency = Annotated[PostgresControlPlane, Depends(control_plane)]

@@ -6,12 +6,16 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from launchpilot.application.services import CampaignService, ConversationService
+from launchpilot.bootstrap.wiring import (
+    campaign_service,
+    control_plane,
+    conversation_service,
+)
 from launchpilot.domain.errors import NotFoundError
 from launchpilot.domain.models import Conversation
 from launchpilot.infrastructure.control_plane import PostgresControlPlane
 
 from .campaign_context import AuthorizedCampaignScope, UserDependency
-from .dependencies import campaign_service, control_plane, conversation_service
 from .schemas import (
     CampaignCreateInput,
     CampaignOutput,

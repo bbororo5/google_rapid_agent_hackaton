@@ -3,6 +3,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
+from launchpilot.bootstrap.wiring import control_plane
 from launchpilot.infrastructure.control_plane import (
     ConnectedUser,
     PostgresControlPlane,
@@ -10,7 +11,6 @@ from launchpilot.infrastructure.control_plane import (
 )
 
 from .auth import current_user
-from .dependencies import control_plane
 
 router = APIRouter(prefix="/workspaces", tags=["workspaces"])
 UserDependency = Annotated[ConnectedUser, Depends(current_user)]

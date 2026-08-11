@@ -4,13 +4,13 @@ import httpx
 import pytest
 from fastapi.testclient import TestClient
 
-from launchpilot.config import Settings
+from launchpilot.bootstrap.config import Settings
+from launchpilot.devtools.mock_platforms.main import app as mock_app
 from launchpilot.domain.integrations import CampaignMetricRequest
 from launchpilot.domain.models import DateRange
 from launchpilot.infrastructure.google_ads import GoogleAdsConnector
 from launchpilot.infrastructure.meta_ads import MetaAdsConnector
 from launchpilot.infrastructure.youtube import YouTubeAnalyticsConnector
-from launchpilot.mock_platforms.main import app as mock_app
 
 
 def mock_http_client() -> httpx.Client:
