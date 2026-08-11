@@ -18,7 +18,9 @@ FastAPI 기반 Agentic RAG 서비스다. PostgreSQL Structured Retrieval, Elasti
 | `observability` | OpenTelemetry/OpenInference 계측 |
 | `persistence`, `shared`, `devtools` | 공유 실행 기반과 개발 지원 |
 
-기능 내부는 `HTTP adapter → service/use case → model/port` 방향을 따른다. PostgreSQL·Elasticsearch·외부 API 구현은 Port 뒤에 두고 `bootstrap/wiring.py`에서 조립한다. 결정 배경은 [ADR-0003](../../docs/rebuild/adr/0003-feature-oriented-modular-monolith.md)에 있다.
+기능 내부는 `전문 Contract → use case → domain/port → adapter` 방향을 따른다. 예를 들어 `campaigns/contracts/access.py`는 Campaign 권한 범위를, `performance/contracts/retrieval.py`는 정형 검색 메시지를, `knowledge/contracts/retrieval.py`는 문서 검색 메시지를 정의한다. `public.py` 같은 포괄적 export는 사용하지 않으며 다른 기능은 상대 기능의 `contracts/<책임>.py`만 참조한다.
+
+PostgreSQL·Elasticsearch·외부 API 구현은 Port 뒤에 두고 `bootstrap/wiring.py`에서 조립한다. 이 규칙은 `tests/test_architecture.py`가 검사하며, 결정 배경은 [ADR-0003](../../docs/rebuild/adr/0003-feature-oriented-modular-monolith.md)에 있다.
 
 ## Quick start
 

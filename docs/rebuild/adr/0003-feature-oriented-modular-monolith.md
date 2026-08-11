@@ -32,11 +32,11 @@ persistence    공유 PostgreSQL 연결·스키마 실행 기반
 shared         기능에 종속되지 않는 오류·시간 값
 ```
 
-각 기능 모듈 안에서 HTTP → application → model/port 방향을 지킨다. PostgreSQL·Elasticsearch·외부 API는 해당 모듈의 Port를 구현하고, 구체 객체 조립은 `bootstrap`만 담당한다. Port는 외부 시스템 경계에만 만들며 내부 계산까지 추상화하지 않는다.
+각 기능 모듈 안에서 Contract → application → domain/port 방향으로 책임을 구현한다. PostgreSQL·Elasticsearch·외부 API는 해당 모듈의 Port를 구현하고, 구체 객체 조립은 `bootstrap`만 담당한다. Port는 외부 시스템 경계와 모듈 협력 역할에만 만들며 내부 계산까지 추상화하지 않는다.
 
 ## Collaboration messages
 
-기능 모듈은 상대 모듈의 내부 파일이 아니라 `public.py`에 선언된 메시지와 Facade만 사용한다.
+기능 모듈은 상대 모듈의 구현이나 포괄적인 export 파일을 참조하지 않는다. `contracts/access.py`, `contracts/retrieval.py`, `contracts/bindings.py`처럼 책임 이름이 드러나는 전문 계약만 사용한다.
 
 | 호출자 | 전달 메시지 | 수신 모듈 | 응답 |
 | --- | --- | --- | --- |
@@ -49,11 +49,22 @@ shared         기능에 종속되지 않는 오류·시간 값
 
 `analysis`가 요구하는 정형·문서 검색은 소비자 소유 Port로 한 번 더 좁힌다. 따라서 LangGraph는 `StructuredRetrievalService`나 `TextRetrievalService`의 구체 타입을 알지 않는다. `bootstrap`은 유일한 composition root이므로 각 모듈의 Adapter를 직접 import할 수 있다.
 
+```text
+contracts/<capability>.py  Command·Query·Result·역할 Protocol
+application/              계약을 수행하는 유스케이스 구현
+models.py                 모듈 내부 도메인 상태와 규칙
+ports.py                  저장소 등 내부 구현 경계
+adapters/·postgres.py     외부 시스템 Adapter
+api.py                    HTTP 전달 Adapter
+```
+
+`public.py`는 사용하지 않는다. 하나의 공개 출구에 무관한 책임이 다시 모이고 인터페이스 설계가 구현 이후의 export 정리로 퇴행하는 것을 방지하기 위해서다.
+
 ## Constraints
 
 - API가 PostgreSQL 구현을 직접 호출하지 않는다.
 - application은 FastAPI, Elasticsearch와 exporter를 알지 않는다.
-- 모듈 간 호출은 공개 service·contract를 통한다.
+- 모듈 간 호출은 책임별 `contracts`를 통한다.
 - 기능 간 내부 파일 직접 import는 아키텍처 테스트가 차단한다.
 - 리팩터링 중 기존 동작과 API 계약을 바꾸지 않는다.
 - 구조 규칙은 자동 테스트로 고정한다.

@@ -87,13 +87,18 @@ def test_http_adapters_do_not_import_concrete_data_stores() -> None:
     )
 
 
-def test_feature_modules_collaborate_only_through_public_interfaces() -> None:
+def test_feature_modules_collaborate_only_through_specialized_contracts() -> None:
     violations: list[str] = []
     for source_module in FEATURE_MODULES:
-        public_api = PACKAGE_ROOT / source_module / "public.py"
-        assert public_api.exists(), f"{source_module} must define public.py"
+        module_root = PACKAGE_ROOT / source_module
+        assert not (module_root / "public.py").exists(), (
+            f"{source_module} must expose named contracts, not public.py"
+        )
+        assert (module_root / "contracts").is_dir(), (
+            f"{source_module} must define responsibility-specific contracts"
+        )
 
-        for path in (PACKAGE_ROOT / source_module).rglob("*.py"):
+        for path in module_root.rglob("*.py"):
             for imported in _imports(path):
                 parts = imported.split(".")
                 if len(parts) < 2 or parts[0] != "launchpilot":
@@ -101,7 +106,7 @@ def test_feature_modules_collaborate_only_through_public_interfaces() -> None:
                 target_module = parts[1]
                 if target_module not in FEATURE_MODULES or target_module == source_module:
                     continue
-                if len(parts) < 3 or parts[2] != "public":
+                if len(parts) < 3 or parts[2] != "contracts":
                     violations.append(
                         f"{path.relative_to(PACKAGE_ROOT)} -> {imported}"
                     )
