@@ -20,6 +20,14 @@ CORE_FILENAMES = {
     "use_case.py",
 }
 FRAMEWORK_PACKAGES = {"fastapi", "elasticsearch", "opentelemetry", "psycopg"}
+FEATURE_MODULES = {
+    "analysis",
+    "campaigns",
+    "evaluation",
+    "identity",
+    "knowledge",
+    "performance",
+}
 
 
 def _imports(path: Path) -> set[str]:
@@ -75,5 +83,29 @@ def test_http_adapters_do_not_import_concrete_data_stores() -> None:
                 )
 
     assert not violations, "Concrete stores imported by HTTP adapters:\n" + "\n".join(
+        violations
+    )
+
+
+def test_feature_modules_collaborate_only_through_public_interfaces() -> None:
+    violations: list[str] = []
+    for source_module in FEATURE_MODULES:
+        public_api = PACKAGE_ROOT / source_module / "public.py"
+        assert public_api.exists(), f"{source_module} must define public.py"
+
+        for path in (PACKAGE_ROOT / source_module).rglob("*.py"):
+            for imported in _imports(path):
+                parts = imported.split(".")
+                if len(parts) < 2 or parts[0] != "launchpilot":
+                    continue
+                target_module = parts[1]
+                if target_module not in FEATURE_MODULES or target_module == source_module:
+                    continue
+                if len(parts) < 3 or parts[2] != "public":
+                    violations.append(
+                        f"{path.relative_to(PACKAGE_ROOT)} -> {imported}"
+                    )
+
+    assert not violations, "Feature boundary bypasses found:\n" + "\n".join(
         violations
     )

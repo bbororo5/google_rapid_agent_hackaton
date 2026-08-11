@@ -34,11 +34,27 @@ shared         기능에 종속되지 않는 오류·시간 값
 
 각 기능 모듈 안에서 HTTP → application → model/port 방향을 지킨다. PostgreSQL·Elasticsearch·외부 API는 해당 모듈의 Port를 구현하고, 구체 객체 조립은 `bootstrap`만 담당한다. Port는 외부 시스템 경계에만 만들며 내부 계산까지 추상화하지 않는다.
 
+## Collaboration messages
+
+기능 모듈은 상대 모듈의 내부 파일이 아니라 `public.py`에 선언된 메시지와 Facade만 사용한다.
+
+| 호출자 | 전달 메시지 | 수신 모듈 | 응답 |
+| --- | --- | --- | --- |
+| HTTP 접근 제어 | 사용자·Campaign 식별자 | `campaigns` | 권한이 확인된 `CampaignScope` |
+| `analysis` | `CampaignMetricQuery` | `performance` | 수치와 출처를 담은 `CampaignPerformance` |
+| `analysis` | 문서 검색·원문 확인 요청 | `knowledge` | `TextSearchHit`·`CampaignDocument` |
+| `performance` | Campaign binding 조회 | `campaigns` | `ExternalCampaignBinding` 목록 |
+| `performance` | 연결 자격 증명 요청 | `identity` 구현체 | 만료가 처리된 `PlatformAccess` |
+| 광고 연결 API | 계정·Campaign 탐색 Query | `performance` | `ExternalAccount`·`ExternalCampaign` |
+
+`analysis`가 요구하는 정형·문서 검색은 소비자 소유 Port로 한 번 더 좁힌다. 따라서 LangGraph는 `StructuredRetrievalService`나 `TextRetrievalService`의 구체 타입을 알지 않는다. `bootstrap`은 유일한 composition root이므로 각 모듈의 Adapter를 직접 import할 수 있다.
+
 ## Constraints
 
 - API가 PostgreSQL 구현을 직접 호출하지 않는다.
 - application은 FastAPI, Elasticsearch와 exporter를 알지 않는다.
 - 모듈 간 호출은 공개 service·contract를 통한다.
+- 기능 간 내부 파일 직접 import는 아키텍처 테스트가 차단한다.
 - 리팩터링 중 기존 동작과 API 계약을 바꾸지 않는다.
 - 구조 규칙은 자동 테스트로 고정한다.
 
