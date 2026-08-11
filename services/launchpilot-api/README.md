@@ -26,6 +26,8 @@ OTEL_EXPORTER_OTLP_ENDPOINT=https://api.smith.langchain.com/otel
 OTEL_EXPORTER_OTLP_HEADERS=x-api-key=YOUR_KEY,Langsmith-Project=launchpilot-eval-v1
 ```
 
+APAC 계정은 endpoint를 `https://apac.api.smith.langchain.com/otel`로 바꾼다.
+
 LangSmith 네이티브 tracing은 함께 활성화하지 않는다. 수신 장애는 요청을 실패시키지 않으며 종료 시 남은 span을 flush한다.
 
 ## Secret generation

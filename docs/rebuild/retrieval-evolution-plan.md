@@ -1,6 +1,6 @@
 # Retrieval Evolution Plan
 
-> 상태: **확정 — Phase 3A 완료, Phase 4A OTel 파이프라인 구현·외부 수신 검증 대기**
+> 상태: **확정 — Phase 3A 완료, Phase 4A LangSmith 수신 검증 완료·Golden Dataset 대기**
 
 ## 목적
 
@@ -36,7 +36,7 @@ Dense, learned sparse, hybrid, reranker와 graph expansion은 베이스라인에
 
 이 순서는 기술이 앞 단계를 대체한다는 뜻이 아니다. Dense와 sparse는 BM25와 다른 검색 신호이고, hybrid는 이들을 결합하며, reranker는 검색된 후보를 다시 정렬한다. Graph expansion은 검색 순위가 아니라 근거 관계를 넓히는 별도 축이다.
 
-Phase 4A 관찰 파이프라인은 OpenInference LangChain 계측과 FastAPI·HTTPX·PostgreSQL OTel 계측을 하나의 OTLP exporter로 모은다. 현재 코드와 장애 격리 검증은 완료했으며, LangSmith 자격 증명으로 실제 trace를 확인한 뒤 Golden Dataset 구축으로 넘어간다.
+Phase 4A 관찰 파이프라인은 OpenInference LangChain 계측과 FastAPI·HTTPX·PostgreSQL OTel 계측을 하나의 OTLP exporter로 모은다. LangSmith APAC에서 FastAPI와 OpenInference trace 수신을 확인했으며, 다음 작업은 Golden Dataset 구축이다.
 
 ## 기술 결정 기록 원칙
 

@@ -9,7 +9,7 @@
 | Phase 0 | [`phase-0-decision-charter.md`](phase-0-decision-charter.md) | 확정 | 완료 |
 | Phase 1 | [`phase-1-domain-model.md`](phase-1-domain-model.md) | 확정 | 완료 |
 | Phase 2 | [`phase-2-multiplatform-ingestion.md`](phase-2-multiplatform-ingestion.md) | 확정 | 세 플랫폼 mock E2E 완료, 실제 Ads 성과 검증 대기 |
-| Phase 3A~4B | [`retrieval-evolution-plan.md`](retrieval-evolution-plan.md) | 확정 | 3A 완료, 4A OTel 파이프라인 구현·외부 수신 검증 대기 |
+| Phase 3A~4B | [`retrieval-evolution-plan.md`](retrieval-evolution-plan.md) | 확정 | 3A 완료, 4A LangSmith 수신 검증 완료·Golden Dataset 대기 |
 
 ## Architecture Decision Records
 
