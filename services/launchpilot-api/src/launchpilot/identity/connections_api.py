@@ -10,22 +10,19 @@ from pydantic import BaseModel
 from launchpilot.bootstrap.config import Settings
 from launchpilot.bootstrap.wiring import (
     browser_state_manager,
-    control_plane,
     google_oauth_client,
+    identity_store,
     settings,
 )
-from launchpilot.infrastructure.control_plane import (
-    ConnectedUser,
-    PlatformConnection,
-    PostgresControlPlane,
-)
-from launchpilot.infrastructure.google_oauth import GoogleOAuthClient
-from launchpilot.infrastructure.security import BrowserStateManager, InvalidSignedToken
+from launchpilot.identity.models import ConnectedUser, PlatformConnection
+from launchpilot.identity.oauth.google import GoogleOAuthClient
+from launchpilot.identity.ports import IdentityStore
+from launchpilot.identity.security import BrowserStateManager, InvalidSignedToken
 
-from .auth import current_user
+from .auth_api import current_user
 
 router = APIRouter(prefix="/connections", tags=["connections"])
-ControlPlaneDependency = Annotated[PostgresControlPlane, Depends(control_plane)]
+IdentityStoreDependency = Annotated[IdentityStore, Depends(identity_store)]
 OAuthDependency = Annotated[GoogleOAuthClient, Depends(google_oauth_client)]
 UserDependency = Annotated[ConnectedUser, Depends(current_user)]
 BrowserStateDependency = Annotated[BrowserStateManager, Depends(browser_state_manager)]
@@ -84,7 +81,7 @@ def start_youtube_connection(
 def finish_youtube_connection(
     response: Response,
     user: UserDependency,
-    store: ControlPlaneDependency,
+    store: IdentityStoreDependency,
     oauth: OAuthDependency,
     browser_state: BrowserStateDependency,
     code: Annotated[str, Query(min_length=1)],
@@ -129,7 +126,7 @@ def finish_youtube_connection(
 
 @router.get("", response_model=list[ConnectionOutput])
 def list_connections(
-    user: UserDependency, store: ControlPlaneDependency
+    user: UserDependency, store: IdentityStoreDependency
 ) -> list[ConnectionOutput]:
     return [
         ConnectionOutput.from_domain(item) for item in store.list_connections(user.id)

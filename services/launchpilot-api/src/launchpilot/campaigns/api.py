@@ -8,12 +8,12 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from launchpilot.api.campaign_context import AuthorizedCampaignScope, UserDependency
 from launchpilot.bootstrap.wiring import (
     campaign_service,
-    control_plane,
     conversation_service,
+    identity_store,
 )
 from launchpilot.campaigns.models import Conversation
 from launchpilot.campaigns.service import CampaignService, ConversationService
-from launchpilot.infrastructure.control_plane import PostgresControlPlane
+from launchpilot.identity.ports import IdentityStore
 from launchpilot.shared.errors import NotFoundError
 
 from .schemas import (
@@ -26,14 +26,14 @@ from .schemas import (
 router = APIRouter(prefix="/campaigns", tags=["campaigns"])
 CampaignDependency = Annotated[CampaignService, Depends(campaign_service)]
 ConversationDependency = Annotated[ConversationService, Depends(conversation_service)]
-ControlPlaneDependency = Annotated[PostgresControlPlane, Depends(control_plane)]
+IdentityStoreDependency = Annotated[IdentityStore, Depends(identity_store)]
 
 
 @router.post("", response_model=CampaignOutput, status_code=status.HTTP_201_CREATED)
 def create_campaign(
     payload: CampaignCreateInput,
     user: UserDependency,
-    store: ControlPlaneDependency,
+    store: IdentityStoreDependency,
     campaigns: CampaignDependency,
 ) -> CampaignOutput:
     if not store.has_workspace_access(
@@ -48,7 +48,7 @@ def create_campaign(
 @router.get("", response_model=list[CampaignOutput])
 def list_campaigns(
     user: UserDependency,
-    store: ControlPlaneDependency,
+    store: IdentityStoreDependency,
     campaigns: CampaignDependency,
 ) -> list[CampaignOutput]:
     workspace_ids = {UUID(item.id) for item in store.list_workspaces(user.id)}

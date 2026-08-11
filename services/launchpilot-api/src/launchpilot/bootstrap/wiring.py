@@ -19,19 +19,19 @@ from launchpilot.campaigns.service import (
     CampaignService,
     ConversationService,
 )
-from launchpilot.infrastructure.control_plane import PostgresControlPlane
-from launchpilot.infrastructure.google_oauth import GoogleOAuthClient
-from launchpilot.infrastructure.meta_oauth import MetaOAuthClient
-from launchpilot.infrastructure.platform_access import PlatformAccessTokenProvider
-from launchpilot.infrastructure.postgres_database import PostgresDatabase
-from launchpilot.infrastructure.security import (
+from launchpilot.identity.access_tokens import PlatformAccessTokenProvider
+from launchpilot.identity.oauth.google import GoogleOAuthClient
+from launchpilot.identity.oauth.meta import MetaOAuthClient
+from launchpilot.identity.postgres import PostgresIdentityStore
+from launchpilot.identity.security import (
     BrowserStateManager,
     SessionManager,
     SignedTokenCodec,
 )
-from launchpilot.infrastructure.workspace_access import (
-    ControlPlaneWorkspaceAccessReader,
+from launchpilot.identity.workspace_access import (
+    IdentityWorkspaceAccessReader,
 )
+from launchpilot.infrastructure.postgres_database import PostgresDatabase
 from launchpilot.knowledge import TextRetrievalService
 from launchpilot.knowledge.elasticsearch import (
     ElasticsearchCampaignDocumentSearch,
@@ -120,16 +120,16 @@ def settings() -> Settings:
 
 
 @lru_cache
-def control_plane() -> PostgresControlPlane:
+def identity_store() -> PostgresIdentityStore:
     config = settings()
-    return PostgresControlPlane(repository_store(), config.token_encryption_key)
+    return PostgresIdentityStore(repository_store(), config.token_encryption_key)
 
 
 def campaign_access_service(
     campaigns: Annotated[CampaignService, Depends(campaign_service)],
-    store: Annotated[PostgresControlPlane, Depends(control_plane)],
+    store: Annotated[PostgresIdentityStore, Depends(identity_store)],
 ) -> CampaignAccessService:
-    return CampaignAccessService(campaigns, ControlPlaneWorkspaceAccessReader(store))
+    return CampaignAccessService(campaigns, IdentityWorkspaceAccessReader(store))
 
 
 def campaign_analysis_service(
@@ -189,7 +189,7 @@ def google_oauth_client() -> GoogleOAuthClient:
 
 
 def platform_access_tokens(
-    store: Annotated[PostgresControlPlane, Depends(control_plane)],
+    store: Annotated[PostgresIdentityStore, Depends(identity_store)],
     oauth: Annotated[GoogleOAuthClient, Depends(google_oauth_client)],
 ) -> PlatformAccessTokenProvider:
     return PlatformAccessTokenProvider(store, oauth)

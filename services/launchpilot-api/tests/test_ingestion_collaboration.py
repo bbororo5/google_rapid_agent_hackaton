@@ -1,7 +1,7 @@
 from uuid import uuid4
 
-from launchpilot.infrastructure.control_plane import PlatformConnection
-from launchpilot.infrastructure.platform_access import PlatformAccessTokenProvider
+from launchpilot.identity.access_tokens import PlatformAccessTokenProvider
+from launchpilot.identity.postgres import PlatformConnection
 from launchpilot.performance.contracts import ExternalCampaignBinding, PlatformProvider
 from launchpilot.performance.ingestion import (
     AdsIngestionSourcePlanner,

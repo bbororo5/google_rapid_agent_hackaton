@@ -7,16 +7,17 @@ from fastapi.testclient import TestClient
 from langchain_core.messages import AIMessage, ToolMessage
 from langchain_core.runnables import RunnableLambda
 
-from launchpilot.api.auth import SESSION_COOKIE
 from launchpilot.bootstrap.wiring import (
     agent_model,
-    control_plane,
+    identity_store,
     repository_store,
     settings,
 )
-from launchpilot.infrastructure.control_plane import ConnectedUser, PostgresControlPlane
+from launchpilot.identity.auth_api import SESSION_COOKIE
+from launchpilot.identity.models import ConnectedUser
+from launchpilot.identity.postgres import PostgresIdentityStore
+from launchpilot.identity.security import SessionManager, SignedTokenCodec
 from launchpilot.infrastructure.postgres_database import PostgresDatabase
-from launchpilot.infrastructure.security import SessionManager, SignedTokenCodec
 from launchpilot.main import app
 from launchpilot.performance.contracts import (
     CampaignMetricRequest,
@@ -29,7 +30,7 @@ from launchpilot.performance.models import MetricObservation, PlatformSlice
 @dataclass(frozen=True)
 class AuthenticatedClient:
     client: TestClient
-    store: PostgresControlPlane
+    store: PostgresIdentityStore
     user: ConnectedUser
     workspace_id: str
     session_manager: SessionManager
@@ -46,10 +47,10 @@ def authenticated_client(
     monkeypatch.setenv("GOOGLE_OAUTH_CLIENT_ID", "test-client")
     monkeypatch.setenv("GOOGLE_OAUTH_CLIENT_SECRET", "test-secret")
     settings.cache_clear()
-    control_plane.cache_clear()
+    identity_store.cache_clear()
     repository_store.cache_clear()
 
-    store = control_plane()
+    store = identity_store()
     user = store.upsert_user(
         google_subject="user-a", email="a@example.com", display_name="User A"
     )

@@ -12,8 +12,9 @@ from launchpilot.performance.ingestion import (
     PlatformTokenUnavailable,
 )
 
-from .control_plane import PlatformConnection, PostgresControlPlane
-from .google_oauth import GoogleOAuthClient
+from .models import PlatformConnection
+from .oauth.google import GoogleOAuthClient
+from .ports import IdentityStore
 
 
 class PlatformAccessTokenProvider:
@@ -22,7 +23,7 @@ class PlatformAccessTokenProvider:
     _refreshable_providers = frozenset({"GOOGLE_ADS", "YOUTUBE"})
 
     def __init__(
-        self, store: PostgresControlPlane, google_oauth: GoogleOAuthClient
+        self, store: IdentityStore, google_oauth: GoogleOAuthClient
     ) -> None:
         self._store = store
         self._google_oauth = google_oauth

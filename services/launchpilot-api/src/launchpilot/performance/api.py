@@ -12,13 +12,13 @@ from launchpilot.api.campaign_context import AuthorizedCampaignScope, UserDepend
 from launchpilot.bootstrap.config import Settings
 from launchpilot.bootstrap.wiring import (
     ads_ingestion_source_planner,
-    control_plane,
+    identity_store,
     observation_service,
     platform_access_tokens,
     settings,
 )
-from launchpilot.infrastructure.control_plane import PostgresControlPlane
-from launchpilot.infrastructure.platform_access import PlatformAccessTokenProvider
+from launchpilot.identity.access_tokens import PlatformAccessTokenProvider
+from launchpilot.identity.ports import IdentityStore
 from launchpilot.performance.adapters.youtube import YouTubeAnalyticsConnector
 from launchpilot.performance.http_errors import platform_access_http_error
 from launchpilot.performance.ingestion import (
@@ -39,7 +39,7 @@ from launchpilot.shared.errors import NotFoundError
 
 router = APIRouter(prefix="/campaigns", tags=["campaign-observations"])
 ObservationDependency = Annotated[ObservationService, Depends(observation_service)]
-ControlPlaneDependency = Annotated[PostgresControlPlane, Depends(control_plane)]
+IdentityStoreDependency = Annotated[IdentityStore, Depends(identity_store)]
 SettingsDependency = Annotated[Settings, Depends(settings)]
 AccessTokensDependency = Annotated[
     PlatformAccessTokenProvider, Depends(platform_access_tokens)
@@ -156,7 +156,7 @@ def fetch_multi_platform_ad_observation(
     payload: MultiPlatformObservationRequest,
     scope: AuthorizedCampaignScope,
     user: UserDependency,
-    store: ControlPlaneDependency,
+    store: IdentityStoreDependency,
     source_planner: SourcePlannerDependency,
     observations: ObservationDependency,
 ) -> MultiPlatformObservationOutput:

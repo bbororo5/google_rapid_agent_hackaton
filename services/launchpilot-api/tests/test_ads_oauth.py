@@ -1,7 +1,7 @@
 from urllib.parse import parse_qs, urlparse
 
-from launchpilot.infrastructure.google_oauth import GoogleOAuthClient
-from launchpilot.infrastructure.meta_oauth import MetaOAuthClient
+from launchpilot.identity.oauth.google import GoogleOAuthClient
+from launchpilot.identity.oauth.meta import MetaOAuthClient
 
 
 def test_google_ads_authorization_uses_dedicated_scope_and_callback() -> None:

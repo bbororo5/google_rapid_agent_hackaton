@@ -7,10 +7,9 @@ from fastapi import Depends, HTTPException, status
 
 from launchpilot.application.analysis import AnalysisScope, CampaignAccessService
 from launchpilot.bootstrap.wiring import campaign_access_service
-from launchpilot.infrastructure.control_plane import ConnectedUser
+from launchpilot.identity.auth_api import current_user
+from launchpilot.identity.postgres import ConnectedUser
 from launchpilot.shared.errors import NotFoundError
-
-from .auth import current_user
 
 UserDependency = Annotated[ConnectedUser, Depends(current_user)]
 CampaignAccessDependency = Annotated[

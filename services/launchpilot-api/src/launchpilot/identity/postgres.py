@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID, uuid4
@@ -10,12 +9,13 @@ from cryptography.fernet import Fernet
 from psycopg import Connection
 from psycopg.types.json import Jsonb
 
+from launchpilot.infrastructure.postgres_database import PostgresDatabase
 from launchpilot.performance.contracts import (
     ExternalCampaignBinding,
     PlatformProvider,
 )
 
-from .postgres_database import PostgresDatabase
+from .models import ConnectedUser, PlatformConnection, WorkspaceAccess
 
 Row = dict[str, Any]
 
@@ -24,32 +24,8 @@ def utc_now() -> datetime:
     return datetime.now(UTC)
 
 
-@dataclass(frozen=True, slots=True)
-class ConnectedUser:
-    id: str
-    google_subject: str
-    email: str
-    display_name: str | None
-
-
-@dataclass(frozen=True, slots=True)
-class PlatformConnection:
-    id: str
-    user_id: str
-    provider: str
-    account_ref: str | None
-    granted_scopes: tuple[str, ...]
-
-
-@dataclass(frozen=True, slots=True)
-class WorkspaceAccess:
-    id: str
-    name: str
-    role: str
-
-
-class PostgresControlPlane:
-    """Persistent control-plane data with encrypted OAuth tokens."""
+class PostgresIdentityStore:
+    """Persistent identity data with encrypted OAuth tokens."""
 
     def __init__(
         self, database: PostgresDatabase, token_encryption_key: str | None

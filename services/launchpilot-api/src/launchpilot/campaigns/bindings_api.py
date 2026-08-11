@@ -8,12 +8,12 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, field_validator
 
 from launchpilot.api.campaign_context import AuthorizedCampaignScope
-from launchpilot.bootstrap.wiring import control_plane
-from launchpilot.infrastructure.control_plane import PostgresControlPlane
+from launchpilot.bootstrap.wiring import identity_store
+from launchpilot.identity.ports import IdentityStore
 from launchpilot.performance.contracts import ExternalCampaignBinding, PlatformProvider
 
 router = APIRouter(prefix="/campaigns", tags=["campaign-bindings"])
-ControlPlaneDependency = Annotated[PostgresControlPlane, Depends(control_plane)]
+IdentityStoreDependency = Annotated[IdentityStore, Depends(identity_store)]
 
 
 class CampaignBindingInput(BaseModel):
@@ -84,7 +84,7 @@ class CampaignBindingOutput(BaseModel):
 def bind_external_campaign(
     payload: CampaignBindingInput,
     scope: AuthorizedCampaignScope,
-    store: ControlPlaneDependency,
+    store: IdentityStoreDependency,
 ) -> CampaignBindingOutput:
     binding = store.upsert_campaign_binding(
         user_id=str(scope.user_id),
@@ -102,7 +102,7 @@ def bind_external_campaign(
 @router.get("/{campaign_id}/bindings", response_model=list[CampaignBindingOutput])
 def list_external_campaign_bindings(
     scope: AuthorizedCampaignScope,
-    store: ControlPlaneDependency,
+    store: IdentityStoreDependency,
 ) -> list[CampaignBindingOutput]:
     return [
         CampaignBindingOutput.from_domain(item)

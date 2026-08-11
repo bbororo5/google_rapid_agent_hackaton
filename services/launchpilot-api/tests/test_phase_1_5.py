@@ -3,14 +3,14 @@ from cryptography.fernet import Fernet
 from fastapi.testclient import TestClient
 
 from launchpilot.bootstrap.wiring import settings
-from launchpilot.infrastructure.control_plane import PostgresControlPlane
-from launchpilot.infrastructure.google_oauth import GoogleOAuthClient
-from launchpilot.infrastructure.postgres_database import PostgresDatabase
-from launchpilot.infrastructure.security import (
+from launchpilot.identity.oauth.google import GoogleOAuthClient
+from launchpilot.identity.postgres import PostgresIdentityStore
+from launchpilot.identity.security import (
     BrowserStateManager,
     InvalidSignedToken,
     SignedTokenCodec,
 )
+from launchpilot.infrastructure.postgres_database import PostgresDatabase
 from launchpilot.main import app
 
 
@@ -66,7 +66,7 @@ def test_oauth_state_is_bound_to_signed_browser_cookie() -> None:
 def test_control_plane_creates_workspace_and_keeps_refresh_token(
     postgres_database: PostgresDatabase,
 ) -> None:
-    store = PostgresControlPlane(postgres_database, Fernet.generate_key().decode())
+    store = PostgresIdentityStore(postgres_database, Fernet.generate_key().decode())
     user = store.upsert_user(
         google_subject="google-sub", email="user@example.com", display_name="User"
     )

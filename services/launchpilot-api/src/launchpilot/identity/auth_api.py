@@ -10,14 +10,15 @@ from pydantic import BaseModel
 from launchpilot.bootstrap.config import Settings
 from launchpilot.bootstrap.wiring import (
     browser_state_manager,
-    control_plane,
     google_oauth_client,
+    identity_store,
     session_manager,
     settings,
 )
-from launchpilot.infrastructure.control_plane import ConnectedUser, PostgresControlPlane
-from launchpilot.infrastructure.google_oauth import GoogleOAuthClient
-from launchpilot.infrastructure.security import (
+from launchpilot.identity.models import ConnectedUser
+from launchpilot.identity.oauth.google import GoogleOAuthClient
+from launchpilot.identity.ports import IdentityStore
+from launchpilot.identity.security import (
     BrowserStateManager,
     InvalidSignedToken,
     SessionManager,
@@ -25,7 +26,7 @@ from launchpilot.infrastructure.security import (
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 SettingsDependency = Annotated[Settings, Depends(settings)]
-ControlPlaneDependency = Annotated[PostgresControlPlane, Depends(control_plane)]
+IdentityStoreDependency = Annotated[IdentityStore, Depends(identity_store)]
 OAuthDependency = Annotated[GoogleOAuthClient, Depends(google_oauth_client)]
 BrowserStateDependency = Annotated[BrowserStateManager, Depends(browser_state_manager)]
 SessionDependency = Annotated[SessionManager, Depends(session_manager)]
@@ -45,7 +46,7 @@ class UserOutput(BaseModel):
 
 
 def current_user(
-    store: ControlPlaneDependency,
+    store: IdentityStoreDependency,
     sessions: SessionDependency,
     session_id: Annotated[str | None, Cookie(alias=SESSION_COOKIE)] = None,
 ) -> ConnectedUser:
@@ -96,7 +97,7 @@ def start_google_login(
 @router.get("/google/callback", response_model=UserOutput)
 def finish_google_login(
     response: Response,
-    store: ControlPlaneDependency,
+    store: IdentityStoreDependency,
     oauth: OAuthDependency,
     browser_state: BrowserStateDependency,
     sessions: SessionDependency,
