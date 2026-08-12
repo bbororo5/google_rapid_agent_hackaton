@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from enum import StrEnum
+from typing import Protocol
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -44,3 +45,9 @@ class TextSearchHit(BaseModel):
     index_version: str
     chunker_version: str
     retriever_version: str
+
+
+class CampaignDocumentCatalog(Protocol):
+    def add(self, document: CampaignDocument) -> CampaignDocument: ...
+
+    def rebuild_projection(self, *, workspace_id: UUID, campaign_id: UUID) -> int: ...

@@ -5,6 +5,7 @@ from langchain_core.language_models import BaseChatModel
 from launchpilot.campaigns.contracts.access import CampaignScope
 
 from .contracts.campaign_analysis import CampaignAnalysisResult
+from .contracts.runtime import AnalysisWorkflow, EvidenceReader
 from .evidence import EvidenceCollector
 from .graph import AnalysisGraph
 from .ports import CampaignDocumentReader, CampaignPerformanceReader
@@ -13,7 +14,7 @@ from .tools import CampaignToolset
 
 class CampaignAgent:
     def __init__(
-        self, *, graph: AnalysisGraph, evidence_collector: EvidenceCollector
+        self, *, graph: AnalysisWorkflow, evidence_collector: EvidenceReader
     ) -> None:
         self._graph = graph
         self._evidence_collector = evidence_collector

@@ -12,8 +12,8 @@ from launchpilot.performance.contracts.access import (
     PlatformTokenUnavailable,
 )
 
+from .contracts.tokens import GoogleTokenLifecycle
 from .models import PlatformConnection
-from .oauth.google import GoogleOAuthClient
 from .ports import PlatformConnectionStore
 
 
@@ -23,7 +23,7 @@ class PlatformAccessTokenProvider:
     _refreshable_providers = frozenset({"GOOGLE_ADS", "YOUTUBE"})
 
     def __init__(
-        self, store: PlatformConnectionStore, google_oauth: GoogleOAuthClient
+        self, store: PlatformConnectionStore, google_oauth: GoogleTokenLifecycle
     ) -> None:
         self._store = store
         self._google_oauth = google_oauth

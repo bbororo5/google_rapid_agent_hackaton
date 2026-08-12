@@ -11,8 +11,11 @@ from launchpilot.bootstrap.wiring import (
     conversation_service,
     identity_store,
 )
+from launchpilot.campaigns.contracts.management import (
+    CampaignCatalog,
+    ConversationCatalog,
+)
 from launchpilot.campaigns.models import Conversation
-from launchpilot.campaigns.service import CampaignService, ConversationService
 from launchpilot.identity.contracts.workspaces import WorkspaceDirectory
 from launchpilot.shared import NotFoundError
 
@@ -24,8 +27,10 @@ from .schemas import (
 )
 
 router = APIRouter(prefix="/campaigns", tags=["campaigns"])
-CampaignDependency = Annotated[CampaignService, Depends(campaign_service)]
-ConversationDependency = Annotated[ConversationService, Depends(conversation_service)]
+CampaignDependency = Annotated[CampaignCatalog, Depends(campaign_service)]
+ConversationDependency = Annotated[
+    ConversationCatalog, Depends(conversation_service)
+]
 WorkspaceDirectoryDependency = Annotated[
     WorkspaceDirectory, Depends(identity_store)
 ]

@@ -14,10 +14,10 @@ from launchpilot.bootstrap.wiring import (
     identity_store,
     settings,
 )
+from launchpilot.identity.contracts.oauth import BrowserState, GoogleOAuthGateway
 from launchpilot.identity.models import ConnectedUser, PlatformConnection
-from launchpilot.identity.oauth.google import GoogleOAuthClient
 from launchpilot.identity.ports import PlatformConnectionStore
-from launchpilot.identity.security import BrowserStateManager, InvalidSignedToken
+from launchpilot.identity.security import InvalidSignedToken
 
 from .auth_api import current_user
 
@@ -25,9 +25,9 @@ router = APIRouter(prefix="/connections", tags=["connections"])
 PlatformConnectionStoreDependency = Annotated[
     PlatformConnectionStore, Depends(identity_store)
 ]
-OAuthDependency = Annotated[GoogleOAuthClient, Depends(google_oauth_client)]
+OAuthDependency = Annotated[GoogleOAuthGateway, Depends(google_oauth_client)]
 UserDependency = Annotated[ConnectedUser, Depends(current_user)]
-BrowserStateDependency = Annotated[BrowserStateManager, Depends(browser_state_manager)]
+BrowserStateDependency = Annotated[BrowserState, Depends(browser_state_manager)]
 SettingsDependency = Annotated[Settings, Depends(settings)]
 YOUTUBE_STATE_COOKIE = "launchpilot_youtube_state"
 YOUTUBE_SCOPES = (

@@ -17,11 +17,14 @@ from launchpilot.bootstrap.wiring import (
     meta_oauth_client,
     settings,
 )
+from launchpilot.identity.contracts.oauth import (
+    BrowserState,
+    GoogleOAuthGateway,
+    MetaOAuthGateway,
+)
 from launchpilot.identity.models import ConnectedUser
-from launchpilot.identity.oauth.google import GoogleOAuthClient
-from launchpilot.identity.oauth.meta import MetaOAuthClient
 from launchpilot.identity.ports import PlatformConnectionStore
-from launchpilot.identity.security import BrowserStateManager, InvalidSignedToken
+from launchpilot.identity.security import InvalidSignedToken
 from launchpilot.performance.contracts.access import PlatformAccessError
 from launchpilot.performance.contracts.catalog import (
     AdvertisingCatalog,
@@ -40,10 +43,10 @@ router = APIRouter(prefix="/connections", tags=["ad connections"])
 PlatformConnectionStoreDependency = Annotated[
     PlatformConnectionStore, Depends(identity_store)
 ]
-GoogleOAuthDependency = Annotated[GoogleOAuthClient, Depends(google_oauth_client)]
-MetaOAuthDependency = Annotated[MetaOAuthClient, Depends(meta_oauth_client)]
+GoogleOAuthDependency = Annotated[GoogleOAuthGateway, Depends(google_oauth_client)]
+MetaOAuthDependency = Annotated[MetaOAuthGateway, Depends(meta_oauth_client)]
 UserDependency = Annotated[ConnectedUser, Depends(current_user)]
-BrowserStateDependency = Annotated[BrowserStateManager, Depends(browser_state_manager)]
+BrowserStateDependency = Annotated[BrowserState, Depends(browser_state_manager)]
 SettingsDependency = Annotated[Settings, Depends(settings)]
 AdvertisingCatalogDependency = Annotated[
     AdvertisingCatalog, Depends(advertising_catalog_service)

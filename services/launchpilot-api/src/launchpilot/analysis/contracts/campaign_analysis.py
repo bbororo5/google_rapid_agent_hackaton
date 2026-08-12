@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Literal
+from typing import Literal, Protocol
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
@@ -29,3 +29,9 @@ class CampaignAnalysisResult(BaseModel):
 
     answer: str
     evidence: tuple[AgentEvidenceRef, ...]
+
+
+class CampaignAnalyzer(Protocol):
+    """Campaign-analysis capability exposed to delivery components."""
+
+    def handle(self, command: AnalyzeCampaign) -> CampaignAnalysisResult: ...

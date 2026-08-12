@@ -4,6 +4,8 @@ from dataclasses import dataclass
 from typing import Protocol
 from uuid import UUID
 
+from ..models import Campaign
+
 
 @dataclass(frozen=True, slots=True)
 class CampaignScope:
@@ -20,3 +22,9 @@ class WorkspaceAccessReader(Protocol):
 
 class CampaignScopeResolver(Protocol):
     def authorize(self, *, user_id: UUID, campaign_id: UUID) -> CampaignScope: ...
+
+
+class CampaignReader(Protocol):
+    """Minimal campaign information required by access-control components."""
+
+    def get(self, campaign_id: UUID) -> Campaign: ...

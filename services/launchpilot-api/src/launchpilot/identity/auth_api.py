@@ -15,21 +15,23 @@ from launchpilot.bootstrap.wiring import (
     session_manager,
     settings,
 )
+from launchpilot.identity.contracts.oauth import (
+    BrowserState,
+    GoogleOAuthGateway,
+    UserSession,
+)
 from launchpilot.identity.models import ConnectedUser
-from launchpilot.identity.oauth.google import GoogleOAuthClient
 from launchpilot.identity.ports import UserIdentityStore
 from launchpilot.identity.security import (
-    BrowserStateManager,
     InvalidSignedToken,
-    SessionManager,
 )
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 SettingsDependency = Annotated[Settings, Depends(settings)]
 UserIdentityStoreDependency = Annotated[UserIdentityStore, Depends(identity_store)]
-OAuthDependency = Annotated[GoogleOAuthClient, Depends(google_oauth_client)]
-BrowserStateDependency = Annotated[BrowserStateManager, Depends(browser_state_manager)]
-SessionDependency = Annotated[SessionManager, Depends(session_manager)]
+OAuthDependency = Annotated[GoogleOAuthGateway, Depends(google_oauth_client)]
+BrowserStateDependency = Annotated[BrowserState, Depends(browser_state_manager)]
+SessionDependency = Annotated[UserSession, Depends(session_manager)]
 SESSION_COOKIE = "launchpilot_session"
 LOGIN_STATE_COOKIE = "launchpilot_login_state"
 LOGIN_SCOPES = ("openid", "email", "profile")

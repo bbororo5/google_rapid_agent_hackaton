@@ -9,15 +9,15 @@ from pydantic import BaseModel, field_validator
 from launchpilot.analysis.contracts.campaign_analysis import (
     AnalyzeCampaign,
     CampaignAnalysisResult,
+    CampaignAnalyzer,
 )
-from launchpilot.analysis.use_case import CampaignAnalysisService
 from launchpilot.bootstrap.http_scope import UserDependency
 from launchpilot.bootstrap.wiring import campaign_analysis_service
 from launchpilot.shared import NotFoundError
 
 router = APIRouter(prefix="/campaigns", tags=["campaign-analysis"])
 AnalysisDependency = Annotated[
-    CampaignAnalysisService, Depends(campaign_analysis_service)
+    CampaignAnalyzer, Depends(campaign_analysis_service)
 ]
 
 

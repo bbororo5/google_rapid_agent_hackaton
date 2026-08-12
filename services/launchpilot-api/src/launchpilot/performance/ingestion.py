@@ -12,6 +12,7 @@ from launchpilot.performance.contracts.access import (
     PlatformAccessError,
 )
 from launchpilot.performance.contracts.connectors import AdsConnector
+from launchpilot.performance.contracts.observations import ObservationRecorder
 from launchpilot.performance.contracts.platform import CampaignMetricRequest
 from launchpilot.performance.models import (
     CampaignObservation,
@@ -19,8 +20,6 @@ from launchpilot.performance.models import (
     CompletenessStatus,
 )
 from launchpilot.shared import DateRange
-
-from .observation_service import ObservationService
 
 
 @dataclass(frozen=True, slots=True)
@@ -88,7 +87,7 @@ class AllSourcesFailedError(RuntimeError):
 class MultiPlatformIngestionService:
     """Fault-isolation boundary that builds one immutable multi-platform snapshot."""
 
-    def __init__(self, observations: ObservationService) -> None:
+    def __init__(self, observations: ObservationRecorder) -> None:
         self._observations = observations
 
     def collect(

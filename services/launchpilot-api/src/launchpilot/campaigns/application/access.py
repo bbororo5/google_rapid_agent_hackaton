@@ -4,13 +4,12 @@ from uuid import UUID
 
 from launchpilot.shared import NotFoundError
 
-from ..contracts.access import CampaignScope, WorkspaceAccessReader
-from ..service import CampaignService
+from ..contracts.access import CampaignReader, CampaignScope, WorkspaceAccessReader
 
 
 class CampaignAccessService:
     def __init__(
-        self, campaigns: CampaignService, workspace_access: WorkspaceAccessReader
+        self, campaigns: CampaignReader, workspace_access: WorkspaceAccessReader
     ) -> None:
         self._campaigns = campaigns
         self._workspace_access = workspace_access

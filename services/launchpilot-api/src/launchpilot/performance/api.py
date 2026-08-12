@@ -24,6 +24,7 @@ from launchpilot.performance.contracts.access import (
     AccessTokenProvider,
     PlatformAccessError,
 )
+from launchpilot.performance.contracts.observations import ObservationCatalog
 from launchpilot.performance.ingestion import (
     AdsIngestionSourcePlanner,
     AllSourcesFailedError,
@@ -34,12 +35,11 @@ from launchpilot.performance.models import (
     Completeness,
     CompletenessStatus,
 )
-from launchpilot.performance.observation_service import ObservationService
 from launchpilot.performance.schemas import ObservationSummaryOutput
 from launchpilot.shared import DateRange, NotFoundError
 
 router = APIRouter(prefix="/campaigns", tags=["campaign-observations"])
-ObservationDependency = Annotated[ObservationService, Depends(observation_service)]
+ObservationDependency = Annotated[ObservationCatalog, Depends(observation_service)]
 CampaignBindingsDependency = Annotated[
     CampaignBindingDirectory, Depends(identity_store)
 ]
