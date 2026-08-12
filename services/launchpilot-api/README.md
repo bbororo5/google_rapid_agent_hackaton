@@ -22,6 +22,8 @@ FastAPI 기반 Agentic RAG 서비스다. PostgreSQL Structured Retrieval, Elasti
 
 PostgreSQL·Elasticsearch·외부 API 구현은 Port 뒤에 두고 `bootstrap/wiring.py`에서 조립한다. 이 규칙은 `tests/test_architecture.py`가 검사하며, 결정 배경은 [ADR-0003](../../docs/rebuild/adr/0003-feature-oriented-modular-monolith.md)에 있다.
 
+내부 컴포넌트도 구체 서비스가 아닌 필요한 역할을 생성자로 받는다. `tests/test_component_collaboration.py`는 주요 컴포넌트가 `CampaignReader`, `ObservationRecorder`, `AccessTokenProvider` 같은 역할 인터페이스로 연결되는지 검사한다.
+
 ## Quick start
 
 ```bash

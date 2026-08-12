@@ -60,11 +60,15 @@ api.py                    HTTP 전달 Adapter
 
 `public.py`는 사용하지 않는다. 하나의 공개 출구에 무관한 책임이 다시 모이고 인터페이스 설계가 구현 이후의 export 정리로 퇴행하는 것을 방지하기 위해서다.
 
+컴포넌트는 구체 협력자의 클래스가 아니라 자신에게 필요한 역할을 생성자에서 요구한다. 예를 들어 Campaign 접근은 `CampaignReader`, 데이터 수집은 `ObservationRecorder`, 토큰 갱신은 `GoogleTokenLifecycle`에 의존한다. Command·Query·Result와 순수 도메인 값은 협력자가 아니므로 불필요한 인터페이스로 감싸지 않는다. 실제 역할 구현의 선택은 `bootstrap/wiring.py`에서만 수행한다.
+
 ## Constraints
 
 - API가 PostgreSQL 구현을 직접 호출하지 않는다.
 - application은 FastAPI, Elasticsearch와 exporter를 알지 않는다.
 - 모듈 간 호출은 책임별 `contracts`를 통한다.
+- 내부 컴포넌트 간 협력도 역할 Protocol을 통한다.
+- Command·Query·Result·도메인 값은 인터페이스화하지 않는다.
 - 기능 간 내부 파일 직접 import는 아키텍처 테스트가 차단한다.
 - 리팩터링 중 기존 동작과 API 계약을 바꾸지 않는다.
 - 구조 규칙은 자동 테스트로 고정한다.
