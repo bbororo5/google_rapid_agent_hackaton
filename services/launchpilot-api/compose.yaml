@@ -6,7 +6,7 @@ services:
       POSTGRES_USER: launchpilot
       POSTGRES_PASSWORD: launchpilot-local
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - launchpilot-postgres:/var/lib/postgresql/data
       - ./docker/postgres/init-test-db.sql:/docker-entrypoint-initdb.d/init-test-db.sql:ro

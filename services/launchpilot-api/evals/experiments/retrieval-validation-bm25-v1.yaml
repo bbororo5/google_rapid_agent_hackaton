@@ -1,0 +1,23 @@
+matrix_version: retrieval-validation-bm25-v1
+description: >-
+  Validation-only matrix shortlisted from retrieval-matrix-v1. Holdout remains
+  untouched until Dense, Sparse, Hybrid, and Reranker candidates are available.
+splits: [validation]
+
+chunkers:
+  - method: whole_document
+    version: whole-document-v1
+    max_tokens: 8192
+    overlap_tokens: 0
+  - method: fixed_token
+    version: fixed-token-512-overlap-128-v1
+    max_tokens: 512
+    overlap_tokens: 128
+
+retrievers:
+  - method: bm25
+    version: bm25-top5-v1
+    top_k: 5
+  - method: bm25
+    version: bm25-top10-v1
+    top_k: 10

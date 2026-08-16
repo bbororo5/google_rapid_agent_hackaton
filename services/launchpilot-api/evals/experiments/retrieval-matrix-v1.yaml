@@ -1,0 +1,88 @@
+matrix_version: retrieval-matrix-v1
+description: >-
+  Initial Korean marketing RAG matrix. Every combination uses the same Golden,
+  corpus version, split, qrels, and metric implementation.
+splits: [tune]
+
+chunkers:
+  - method: whole_document
+    version: whole-document-v1
+    max_tokens: 8192
+    overlap_tokens: 0
+  - method: fixed_token
+    version: fixed-token-256-overlap-64-v1
+    max_tokens: 256
+    overlap_tokens: 64
+  - method: fixed_token
+    version: fixed-token-400-overlap-100-v1
+    max_tokens: 400
+    overlap_tokens: 100
+  - method: fixed_token
+    version: fixed-token-512-overlap-128-v1
+    max_tokens: 512
+    overlap_tokens: 128
+  - method: sentence
+    version: sentence-pack-400-overlap-50-v1
+    max_tokens: 400
+    overlap_tokens: 50
+  - method: recursive
+    version: recursive-heading-400-overlap-50-v1
+    max_tokens: 400
+    overlap_tokens: 50
+  - method: semantic
+    version: semantic-breakpoint-v1
+    max_tokens: 400
+    overlap_tokens: 50
+
+retrievers:
+  - method: bm25
+    version: bm25-top5-v1
+    top_k: 5
+  - method: bm25
+    version: bm25-top10-v1
+    top_k: 10
+  - method: dense
+    version: dense-marketing-concept-hash-top10-v1
+    provider: local-marketing-concept-hash-512
+    top_k: 10
+  - method: sparse
+    version: sparse-ko-tfidf-top10-v1
+    provider: local-ko-word-bigram-tfidf
+    top_k: 10
+  - method: hybrid
+    version: hybrid-dense-alpha025-top10-v1
+    provider: dense
+    fusion: weighted_score
+    alpha: 0.25
+    top_k: 10
+  - method: hybrid
+    version: hybrid-dense-alpha050-top10-v1
+    provider: dense
+    fusion: weighted_score
+    alpha: 0.5
+    top_k: 10
+  - method: hybrid
+    version: hybrid-dense-alpha075-top10-v1
+    provider: dense
+    fusion: weighted_score
+    alpha: 0.75
+    top_k: 10
+  - method: hybrid
+    version: hybrid-dense-rrf60-top10-v1
+    provider: dense
+    fusion: rrf
+    rrf_k: 60
+    top_k: 10
+  - method: hybrid
+    version: hybrid-sparse-rrf60-top10-v1
+    provider: sparse
+    fusion: rrf
+    rrf_k: 60
+    top_k: 10
+  - method: hybrid
+    version: hybrid-dense-rrf60-cross-feature-rerank-v1
+    provider: dense
+    fusion: rrf
+    rrf_k: 60
+    reranker: local-ko-marketing-cross-feature-v1
+    top_k: 10

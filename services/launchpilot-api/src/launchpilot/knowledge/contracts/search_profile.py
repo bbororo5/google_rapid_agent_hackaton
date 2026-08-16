@@ -5,6 +5,9 @@ from pydantic import BaseModel, ConfigDict, Field
 
 class RetrievalMethod(StrEnum):
     BM25 = "bm25"
+    DENSE = "dense"
+    SPARSE = "sparse"
+    HYBRID = "hybrid"
 
 
 class RetrievalProfile(BaseModel):

@@ -158,6 +158,82 @@ _MIGRATIONS = (
             ON campaign_documents(workspace_id, campaign_id, created_at);
         """,
     ),
+    (
+        3,
+        """
+        CREATE TABLE retrieval_experiment_runs (
+            id UUID PRIMARY KEY,
+            matrix_version TEXT NOT NULL,
+            golden_version TEXT NOT NULL,
+            corpus_version TEXT NOT NULL,
+            split TEXT NOT NULL,
+            chunker_method TEXT NOT NULL,
+            chunker_version TEXT NOT NULL,
+            chunker_config JSONB NOT NULL,
+            retriever_method TEXT NOT NULL,
+            retriever_version TEXT NOT NULL,
+            retriever_config JSONB NOT NULL,
+            status TEXT NOT NULL,
+            block_reason TEXT,
+            document_count INTEGER NOT NULL,
+            chunk_count INTEGER NOT NULL,
+            eligible_case_count INTEGER NOT NULL,
+            aggregate_metrics JSONB NOT NULL,
+            started_at TIMESTAMPTZ NOT NULL,
+            finished_at TIMESTAMPTZ NOT NULL,
+            CHECK (split IN ('tune', 'validation', 'holdout')),
+            CHECK (status IN ('pending', 'running', 'completed', 'blocked', 'failed')),
+            CHECK (document_count >= 0),
+            CHECK (chunk_count >= 0),
+            CHECK (eligible_case_count >= 0)
+        );
+        CREATE INDEX retrieval_experiment_runs_matrix_idx
+            ON retrieval_experiment_runs(matrix_version, split, status);
+
+        CREATE TABLE retrieval_experiment_case_results (
+            experiment_id UUID NOT NULL
+                REFERENCES retrieval_experiment_runs(id) ON DELETE CASCADE,
+            case_id TEXT NOT NULL,
+            query_profile TEXT NOT NULL,
+            taxonomy JSONB NOT NULL,
+            latency_ms DOUBLE PRECISION NOT NULL,
+            retrieved JSONB NOT NULL,
+            metrics JSONB NOT NULL,
+            PRIMARY KEY(experiment_id, case_id),
+            CHECK (latency_ms >= 0)
+        );
+        CREATE INDEX retrieval_experiment_cases_profile_idx
+            ON retrieval_experiment_case_results(query_profile);
+
+        CREATE TABLE retrieval_experiment_slice_metrics (
+            experiment_id UUID NOT NULL
+                REFERENCES retrieval_experiment_runs(id) ON DELETE CASCADE,
+            dimension TEXT NOT NULL,
+            value TEXT NOT NULL,
+            metric_name TEXT NOT NULL,
+            metric_value DOUBLE PRECISION NOT NULL,
+            sample_size INTEGER NOT NULL,
+            PRIMARY KEY(experiment_id, dimension, value, metric_name),
+            CHECK (sample_size > 0)
+        );
+        CREATE INDEX retrieval_experiment_slice_lookup_idx
+            ON retrieval_experiment_slice_metrics(dimension, value, metric_name);
+        """,
+    ),
+    (
+        4,
+        """
+        ALTER TABLE retrieval_experiment_runs
+            ADD COLUMN execution_id UUID;
+        UPDATE retrieval_experiment_runs
+            SET execution_id = id
+            WHERE execution_id IS NULL;
+        ALTER TABLE retrieval_experiment_runs
+            ALTER COLUMN execution_id SET NOT NULL;
+        CREATE INDEX retrieval_experiment_runs_execution_idx
+            ON retrieval_experiment_runs(execution_id, split, status);
+        """,
+    ),
 )
 
 

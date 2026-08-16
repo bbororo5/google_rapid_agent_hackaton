@@ -1,0 +1,182 @@
+{
+  "audit_version": "v1",
+  "generated_at": "2026-08-16T05:03:07.490691+00:00",
+  "source": "synthetic-marketing-v1",
+  "source_type": "approved_synthetic_postgresql",
+  "table_counts": {
+    "workspaces": 3,
+    "campaigns": 300,
+    "campaign_observations": 27000,
+    "platform_slices": 54000,
+    "metric_observations": 575226,
+    "campaign_documents": 900
+  },
+  "campaign_period": {
+    "start": "2025-01-01",
+    "end": "2025-09-15"
+  },
+  "completeness_distribution": {
+    "COMPLETE": 26871,
+    "PARTIAL": 129
+  },
+  "platform_currency_distribution": [
+    {
+      "platform": "GOOGLE_ADS",
+      "currency": "KRW",
+      "slice_count": 11970
+    },
+    {
+      "platform": "GOOGLE_ADS",
+      "currency": "USD",
+      "slice_count": 6030
+    },
+    {
+      "platform": "META_ADS",
+      "currency": "KRW",
+      "slice_count": 11970
+    },
+    {
+      "platform": "META_ADS",
+      "currency": "USD",
+      "slice_count": 6030
+    },
+    {
+      "platform": "YOUTUBE",
+      "currency": "KRW",
+      "slice_count": 11970
+    },
+    {
+      "platform": "YOUTUBE",
+      "currency": "USD",
+      "slice_count": 6030
+    }
+  ],
+  "metric_distribution": [
+    {
+      "metric_key": "clicks",
+      "unit": "count",
+      "row_count": 54000
+    },
+    {
+      "metric_key": "conversion_value",
+      "unit": "currency:KRW",
+      "row_count": 35826
+    },
+    {
+      "metric_key": "conversion_value",
+      "unit": "currency:USD",
+      "row_count": 18045
+    },
+    {
+      "metric_key": "conversions",
+      "unit": "count",
+      "row_count": 53871
+    },
+    {
+      "metric_key": "cpa",
+      "unit": "currency:KRW",
+      "row_count": 35826
+    },
+    {
+      "metric_key": "cpa",
+      "unit": "currency:USD",
+      "row_count": 18045
+    },
+    {
+      "metric_key": "cpc",
+      "unit": "currency:KRW",
+      "row_count": 35826
+    },
+    {
+      "metric_key": "cpc",
+      "unit": "currency:USD",
+      "row_count": 18045
+    },
+    {
+      "metric_key": "ctr",
+      "unit": "ratio",
+      "row_count": 54000
+    },
+    {
+      "metric_key": "cvr",
+      "unit": "ratio",
+      "row_count": 53871
+    },
+    {
+      "metric_key": "impressions",
+      "unit": "count",
+      "row_count": 54000
+    },
+    {
+      "metric_key": "meta.reach",
+      "unit": "count",
+      "row_count": 18000
+    },
+    {
+      "metric_key": "roas",
+      "unit": "ratio",
+      "row_count": 53871
+    },
+    {
+      "metric_key": "spend",
+      "unit": "currency:KRW",
+      "row_count": 35910
+    },
+    {
+      "metric_key": "spend",
+      "unit": "currency:USD",
+      "row_count": 18090
+    },
+    {
+      "metric_key": "youtube.video_views",
+      "unit": "count",
+      "row_count": 18000
+    }
+  ],
+  "duplicate_campaign_names_within_workspace": 0,
+  "issues": [
+    {
+      "code": "PARTIAL_OBSERVATIONS_PRESENT",
+      "severity": "expected_edge_case",
+      "count": 129,
+      "detail": "Conversion tracking gaps are explicitly marked."
+    },
+    {
+      "code": "MULTI_CURRENCY_DATASET",
+      "severity": "requires_unit_aware_evaluation",
+      "detail": "KRW and USD values must never be aggregated without unit filters."
+    }
+  ],
+  "generation_plan": {
+    "target_cases": 600,
+    "generated_cases": 600,
+    "supported": {
+      "structured_exact": 280,
+      "lexical_identifier": 90,
+      "no_answer": 30,
+      "ambiguous": 20,
+      "adversarial": 50,
+      "semantic": 50,
+      "entity_semantic": 30,
+      "mixed_structured_semantic": 50
+    },
+    "scenario_breakdown": {
+      "metric_lookup": 100,
+      "entity_resolution": 90,
+      "no_answer_detection": 30,
+      "clarification": 20,
+      "causal_evidence_boundary": 20,
+      "aggregation": 30,
+      "period_comparison": 30,
+      "platform_comparison": 30,
+      "campaign_comparison": 30,
+      "trend_analysis": 30,
+      "tracking_gap_detection": 30,
+      "comparison_safety": 30,
+      "document_causal_diagnosis": 50,
+      "document_goal_pacing": 30,
+      "pg_document_recommendation": 50
+    },
+    "excluded_document_dependent_cases": 0
+  }
+}

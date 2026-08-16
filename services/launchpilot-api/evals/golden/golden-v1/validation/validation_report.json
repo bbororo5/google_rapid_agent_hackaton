@@ -1,0 +1,27 @@
+{
+  "golden_version": "golden-v1",
+  "validated_at": "2026-08-16T05:03:18.874422+00:00",
+  "total_cases": 600,
+  "checks": {
+    "duplicate_case_ids": 0,
+    "missing_corpus_refs": 0,
+    "invalid_document_spans": 0,
+    "gold_passage_mismatches": 0,
+    "unsupported_positive_answers": 0,
+    "formula_mismatches": 0,
+    "split_group_leakage": 0,
+    "pii_exposure": 0,
+    "duplicate_normalized_queries": 0,
+    "unanswerable_with_relevance_3": 0,
+    "missing_taxonomy_assignments": 0,
+    "unknown_taxonomy_codes": 0,
+    "invalid_taxonomy_cardinality": 0,
+    "taxonomy_rule_violations": 0
+  },
+  "passed": true,
+  "human_review_required": 260,
+  "limitations": [
+    "Synthetic documents are controlled evaluation fixtures, not real marketer-authored evidence.",
+    "Human review remains required for no-answer, ambiguity, diagnosis, and recommendation cases."
+  ]
+}

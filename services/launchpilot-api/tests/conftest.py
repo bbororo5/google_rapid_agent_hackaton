@@ -20,6 +20,9 @@ def _truncate(database: PostgresDatabase) -> None:
     with database.connect() as connection:
         connection.execute(
             """TRUNCATE TABLE
+                retrieval_experiment_slice_metrics,
+                retrieval_experiment_case_results,
+                retrieval_experiment_runs,
                 campaign_documents,
                 external_campaign_bindings,
                 metric_observations,

@@ -1,0 +1,42 @@
+selection_version: selected-retrieval-v1
+selected_at: "2026-08-16"
+selection_basis:
+  golden_version: golden-v1
+  corpus_version: synthetic-pg-doc-snapshot-v1
+  tune_matrix: retrieval-matrix-v1
+  tune_execution_id: 483788d3-51df-48d7-a77c-3b98360c48f4
+  validation_matrix: retrieval-validation-v1
+  validation_execution_id: 95336527-9d55-4174-8d97-e84b9a7a4ed4
+  holdout_matrix: retrieval-holdout-v1
+  holdout_execution_id: d67b24f9-db59-43f6-8498-6e2d53975963
+
+chunker:
+  method: whole_document
+  version: whole-document-v1
+  max_tokens: 8192
+  overlap_tokens: 0
+
+retriever:
+  method: dense
+  version: dense-marketing-concept-hash-top10-v1
+  provider: local-marketing-concept-hash-512
+  top_k: 10
+
+measured_results:
+  validation:
+    cases: 26
+    recall_at_k: 1.0
+    ndcg_at_k: 0.9666
+    query_profile_ndcg_floor: 0.9131
+    latency_p95_ms: 1.81
+  holdout:
+    cases: 26
+    recall_at_k: 1.0
+    ndcg_at_k: 0.9382
+    query_profile_ndcg_floor: 0.8393
+    latency_p95_ms: 5.35
+
+limitations:
+  - Results are based on deterministic synthetic campaign documents.
+  - The dense baseline is a domain concept feature-hash encoder, not a pretrained neural embedding model.
+  - Human review remains required for the 130 document evidence spans and safety slices.

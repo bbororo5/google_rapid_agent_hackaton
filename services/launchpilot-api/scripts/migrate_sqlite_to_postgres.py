@@ -5,9 +5,8 @@ import json
 import sqlite3
 from pathlib import Path
 
-from psycopg.types.json import Jsonb
-
 from launchpilot.infrastructure.postgres_database import PostgresDatabase
+from psycopg.types.json import Jsonb
 
 TABLES = (
     "users",

@@ -1,0 +1,317 @@
+{
+  "taxonomy_version": "marketing-retrieval-taxonomy-v1",
+  "generated_at": "2026-08-16T05:03:18.880652+00:00",
+  "total_cases": 600,
+  "dimensions": {
+    "marketing_domain": {
+      "budget_delivery": 91,
+      "conversion_acquisition": 33,
+      "creative_performance": 120,
+      "delivery_awareness": 62,
+      "entity_governance": 140,
+      "measurement_quality": 60,
+      "revenue_profitability": 22,
+      "traffic_engagement": 72
+    },
+    "analysis_task": {
+      "aggregation": 30,
+      "anomaly_detection": 30,
+      "campaign_comparison": 30,
+      "causal_diagnosis": 50,
+      "clarification": 20,
+      "entity_resolution": 90,
+      "evidence_boundary": 40,
+      "goal_pacing": 30,
+      "metric_lookup": 100,
+      "no_answer_detection": 30,
+      "period_comparison": 40,
+      "platform_comparison": 30,
+      "recommendation": 50,
+      "trend_analysis": 30
+    },
+    "business_objective": {
+      "acquisition": 84,
+      "app_growth": 84,
+      "awareness": 100,
+      "lead_generation": 91,
+      "retargeting": 95,
+      "retention": 96,
+      "unknown": 50
+    },
+    "funnel_stage": {
+      "awareness": 62,
+      "consideration": 82,
+      "conversion": 65,
+      "cross_funnel": 251,
+      "not_applicable": 140
+    },
+    "metric_family": {
+      "conversion_efficiency": 59,
+      "data_quality": 30,
+      "delivery_reach": 62,
+      "entity_metadata": 90,
+      "none": 120,
+      "spend_cost": 118,
+      "traffic_engagement": 99,
+      "value_return": 22
+    },
+    "scope_type": {
+      "campaign_period": 110,
+      "campaign_platform_day": 100,
+      "campaign_platform_period": 100,
+      "cross_campaign_period": 40,
+      "cross_platform_period": 40,
+      "entity_only": 90,
+      "missing_or_ambiguous": 50,
+      "multi_source": 70
+    },
+    "temporal_granularity": {
+      "campaign_lifetime": 100,
+      "comparative_periods": 70,
+      "day": 100,
+      "month": 30,
+      "none": 90,
+      "unspecified": 70,
+      "week": 140
+    },
+    "difficulty": {
+      "l1_entity_or_fact": 90,
+      "l2_filtered_lookup": 100,
+      "l3_aggregation_or_comparison": 180,
+      "l4_multi_hop_or_source": 130,
+      "l5_ambiguous_or_adversarial": 100
+    },
+    "evidence_type": {
+      "absence_proof": 30,
+      "document_passage": 80,
+      "none_expected": 40,
+      "pg_and_document": 50,
+      "pg_entity": 90,
+      "pg_metric": 280,
+      "pg_observation": 30
+    },
+    "answer_mode": {
+      "abstention": 70,
+      "clarification": 20,
+      "comparison": 90,
+      "data_quality_alert": 40,
+      "entity_record": 90,
+      "grounded_explanation": 130,
+      "numeric_fact": 130,
+      "trend_summary": 30
+    },
+    "language_style": {
+      "colloquial_ko": 120,
+      "keyword_short": 23,
+      "ko_en_mixed": 140,
+      "noisy_ko": 30,
+      "professional_ko": 287
+    },
+    "risk_types": {
+      "attribution_mismatch": 10,
+      "currency_mismatch": 10,
+      "entity_ambiguity": 20,
+      "insufficient_evidence": 30,
+      "missing_entity": 30,
+      "none": 470,
+      "period_mismatch": 10,
+      "tracking_gap": 30,
+      "unsupported_causality": 20
+    }
+  },
+  "distinct_group_counts": {
+    "marketing_domain": {
+      "budget_delivery": 73,
+      "conversion_acquisition": 33,
+      "creative_performance": 120,
+      "delivery_awareness": 55,
+      "entity_governance": 140,
+      "measurement_quality": 56,
+      "revenue_profitability": 22,
+      "traffic_engagement": 60
+    },
+    "analysis_task": {
+      "aggregation": 30,
+      "anomaly_detection": 30,
+      "campaign_comparison": 30,
+      "causal_diagnosis": 50,
+      "clarification": 20,
+      "entity_resolution": 90,
+      "evidence_boundary": 40,
+      "goal_pacing": 30,
+      "metric_lookup": 100,
+      "no_answer_detection": 30,
+      "period_comparison": 40,
+      "platform_comparison": 30,
+      "recommendation": 50,
+      "trend_analysis": 30
+    },
+    "business_objective": {
+      "acquisition": 40,
+      "app_growth": 40,
+      "awareness": 43,
+      "lead_generation": 42,
+      "retargeting": 43,
+      "retention": 42,
+      "unknown": 50
+    },
+    "funnel_stage": {
+      "awareness": 55,
+      "consideration": 70,
+      "conversion": 62,
+      "cross_funnel": 185,
+      "not_applicable": 140
+    },
+    "metric_family": {
+      "conversion_efficiency": 54,
+      "data_quality": 30,
+      "delivery_reach": 55,
+      "entity_metadata": 90,
+      "none": 120,
+      "spend_cost": 100,
+      "traffic_engagement": 85,
+      "value_return": 22
+    },
+    "scope_type": {
+      "campaign_period": 99,
+      "campaign_platform_day": 100,
+      "campaign_platform_period": 100,
+      "cross_campaign_period": 40,
+      "cross_platform_period": 30,
+      "entity_only": 90,
+      "missing_or_ambiguous": 50,
+      "multi_source": 70
+    },
+    "temporal_granularity": {
+      "campaign_lifetime": 100,
+      "comparative_periods": 64,
+      "day": 100,
+      "month": 30,
+      "none": 90,
+      "unspecified": 70,
+      "week": 110
+    },
+    "difficulty": {
+      "l1_entity_or_fact": 90,
+      "l2_filtered_lookup": 100,
+      "l3_aggregation_or_comparison": 138,
+      "l4_multi_hop_or_source": 130,
+      "l5_ambiguous_or_adversarial": 100
+    },
+    "evidence_type": {
+      "absence_proof": 30,
+      "document_passage": 80,
+      "none_expected": 40,
+      "pg_and_document": 50,
+      "pg_entity": 90,
+      "pg_metric": 180,
+      "pg_observation": 30
+    },
+    "answer_mode": {
+      "abstention": 70,
+      "clarification": 20,
+      "comparison": 80,
+      "data_quality_alert": 38,
+      "entity_record": 90,
+      "grounded_explanation": 130,
+      "numeric_fact": 100,
+      "trend_summary": 30
+    },
+    "language_style": {
+      "colloquial_ko": 120,
+      "keyword_short": 23,
+      "ko_en_mixed": 100,
+      "noisy_ko": 30,
+      "professional_ko": 223
+    },
+    "risk_types": {
+      "attribution_mismatch": 10,
+      "currency_mismatch": 10,
+      "entity_ambiguity": 20,
+      "insufficient_evidence": 30,
+      "missing_entity": 30,
+      "none": 220,
+      "period_mismatch": 10,
+      "tracking_gap": 30,
+      "unsupported_causality": 20
+    }
+  },
+  "missing_concepts": {
+    "marketing_domain": [
+      "audience_targeting",
+      "retention_lifecycle"
+    ],
+    "analysis_task": [],
+    "business_objective": [],
+    "funnel_stage": [
+      "retention"
+    ],
+    "metric_family": [],
+    "scope_type": [
+      "workspace_period"
+    ],
+    "temporal_granularity": [],
+    "difficulty": [],
+    "evidence_type": [],
+    "answer_mode": [],
+    "language_style": [],
+    "risk_types": [
+      "privacy_sensitive",
+      "stale_data",
+      "zero_denominator"
+    ]
+  },
+  "critical_slice_readiness": [
+    {
+      "slice": "structured_exact",
+      "case_count": 280,
+      "distinct_groups": 172,
+      "required_cases": 50,
+      "required_groups": 10,
+      "status": "ready"
+    },
+    {
+      "slice": "semantic",
+      "case_count": 50,
+      "distinct_groups": 50,
+      "required_cases": 50,
+      "required_groups": 10,
+      "status": "ready"
+    },
+    {
+      "slice": "mixed_structured_semantic",
+      "case_count": 50,
+      "distinct_groups": 50,
+      "required_cases": 50,
+      "required_groups": 10,
+      "status": "ready"
+    },
+    {
+      "slice": "no_answer",
+      "case_count": 30,
+      "distinct_groups": 30,
+      "required_cases": 50,
+      "required_groups": 10,
+      "status": "not_ready"
+    },
+    {
+      "slice": "ambiguous",
+      "case_count": 20,
+      "distinct_groups": 20,
+      "required_cases": 50,
+      "required_groups": 10,
+      "status": "not_ready"
+    },
+    {
+      "slice": "unsupported_causality",
+      "case_count": 20,
+      "distinct_groups": 20,
+      "required_cases": 50,
+      "required_groups": 10,
+      "status": "not_ready"
+    }
+  ],
+  "balance_gaps": [],
+  "production_ready": false,
+  "interpretation": "Taxonomy assignment is valid, but coverage readiness is a separate gate. Critical no-answer, ambiguity, and unsupported-causality slices below the model-selection minimum keep this snapshot from being a production model-selection dataset."
+}

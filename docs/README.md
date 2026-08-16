@@ -13,6 +13,10 @@
 
 필요한 기술 선택의 상세 근거는 해당 Phase에서 ADR로 연결한다. 실행 방법은 [API README](../services/launchpilot-api/README.md), Dataset 작성법은 [Eval README](../services/launchpilot-api/evals/README.md)에만 둔다.
 
+현재 Retrieval Eval 작업의 구현 상태와 후속 PR 문안은
+[Marketing Retrieval Evaluation 인수인계](rebuild/handoff-marketing-retrieval-evaluation.md)에
+정리되어 있다.
+
 ## Current roadmap
 
 | Phase | 상태 | 결과 또는 다음 결정 |
@@ -21,9 +25,9 @@
 | 1. Domain, Data & Evidence | 완료 | Campaign·Observation·Evidence 경계 확정 |
 | 2. Identity & Data Ingestion | mock E2E 완료 | 실제 Ads 계정 검증 대기 |
 | 3A. Retrieval Baseline | 완료 | PostgreSQL Structured Retrieval + Elasticsearch BM25 |
-| 4A. Retrieval Eval v1 | 진행 중 | Golden Dataset 협업 검수와 기준 점수 |
-| 3B. Retrieval 고도화 | 대기 | Chunking부터 한 요소씩 실험 |
-| 4B. 비교 Eval | 대기 | 같은 Dataset에서 개선된 구성만 채택 |
+| 4A. Retrieval Eval v1 | 기술 완료·검수 대기 | Golden 600건과 문서 span 130건 생성 |
+| 3B. Retrieval 고도화 | v1 완료 | 7 Chunker × 10 Retriever, 70조합 실행 |
+| 4B. 비교 Eval | v1 완료 | validation 선택과 blind holdout 확인 |
 | 5. Integrated Quality Optimization | 대기 | 검색·도구 선택·답변 품질 통합 개선 |
 | 6. Portfolio Packaging | 대기 | 데모·아키텍처·면접 방어 자료 |
 

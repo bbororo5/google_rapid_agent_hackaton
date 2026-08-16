@@ -1,0 +1,48 @@
+matrix_version: retrieval-validation-v1
+description: >-
+  Validation shortlist selected from retrieval-matrix-v1 tune results. It keeps
+  the strongest dense and hybrid settings plus sparse, reranked, and BM25
+  controls. The holdout split remains untouched during this run.
+splits: [validation]
+
+chunkers:
+  - method: whole_document
+    version: whole-document-v1
+    max_tokens: 8192
+    overlap_tokens: 0
+  - method: fixed_token
+    version: fixed-token-512-overlap-128-v1
+    max_tokens: 512
+    overlap_tokens: 128
+
+retrievers:
+  - method: bm25
+    version: bm25-top5-v1
+    top_k: 5
+  - method: dense
+    version: dense-marketing-concept-hash-top10-v1
+    provider: local-marketing-concept-hash-512
+    top_k: 10
+  - method: sparse
+    version: sparse-ko-tfidf-top10-v1
+    provider: local-ko-word-bigram-tfidf
+    top_k: 10
+  - method: hybrid
+    version: hybrid-dense-alpha075-top10-v1
+    provider: dense
+    fusion: weighted_score
+    alpha: 0.75
+    top_k: 10
+  - method: hybrid
+    version: hybrid-dense-rrf60-top10-v1
+    provider: dense
+    fusion: rrf
+    rrf_k: 60
+    top_k: 10
+  - method: hybrid
+    version: hybrid-dense-rrf60-cross-feature-rerank-v1
+    provider: dense
+    fusion: rrf
+    rrf_k: 60
+    reranker: local-ko-marketing-cross-feature-v1
+    top_k: 10

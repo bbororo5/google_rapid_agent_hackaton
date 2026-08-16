@@ -122,6 +122,7 @@ Mock 파일에는 실제 Client Secret이나 token을 넣지 않는다. `PLATFOR
 | Google Ads·Meta Ads 정규화 | fixture 완료, 실제 광고 자산 검증 대기 |
 | PostgreSQL 영속화·Structured Retrieval | 실제 dialect·권한 격리 검증 완료 |
 | Elasticsearch BM25·원문 resolve | 실제 검색 검증 완료 |
+| Chunker × Retriever Eval | tune 70/70, validation 12/12, holdout 1/1 완료 |
 | LangGraph tool loop | LLM fixture 완료, 실모델 검증 대기 |
 
 ## Test
@@ -130,5 +131,62 @@ Mock 파일에는 실제 Client Secret이나 token을 넣지 않는다. `PLATFOR
 docker compose up -d postgres elasticsearch
 .venv/bin/pytest
 ```
+
+## Synthetic PostgreSQL marketing data
+
+Retrieval experiments can use deterministic synthetic campaign data that is kept
+separate from real platform ingestion by the `synthetic-marketing-v1` provenance
+prefix and a dedicated synthetic user. The default seed creates 3 workspaces,
+300 campaigns, and 90 daily observations per campaign.
+
+```bash
+launchpilot-seed-synthetic --dry-run
+launchpilot-seed-synthetic --replace
+```
+
+If port 5432 is already occupied, start the project database on another port and
+pass the matching URL to the seeder:
+
+```bash
+POSTGRES_PORT=55432 docker compose up -d postgres
+launchpilot-seed-synthetic \
+  --database-url postgresql://launchpilot:launchpilot-local@localhost:55432/launchpilot \
+  --replace
+```
+
+Scale and repeatability are configurable:
+
+```bash
+launchpilot-seed-synthetic \
+  --workspaces 5 \
+  --campaigns-per-workspace 200 \
+  --days 180 \
+  --seed 20260813 \
+  --replace
+```
+
+`--replace` deletes only workspaces owned by the dedicated synthetic user. It
+does not delete real users, workspaces, campaigns, or platform observations.
+
+## Retrieval evaluation
+
+Golden과 corpus를 고정한 뒤 matrix의 chunker/retriever 설정만 교체한다.
+
+```bash
+launchpilot-build-golden \
+  --database-url postgresql://launchpilot:launchpilot-local@localhost:55432/launchpilot \
+  --output evals/golden/golden-v1
+
+launchpilot-run-retrieval-evals \
+  --matrix evals/experiments/retrieval-matrix-v1.yaml \
+  --golden-root evals/golden/golden-v1 \
+  --output evals/runs/retrieval-matrix-v1 \
+  --database-url postgresql://launchpilot:launchpilot-local@localhost:55432/launchpilot \
+  --require-completed
+```
+
+현재 선택 설정과 tune/validation/holdout 실행 ID는
+`evals/experiments/selected-retrieval-v1.yaml`에 고정되어 있다. 실행 결과 원문은
+gzip JSONL로 저장하고 조합·질문·taxonomy slice 지표는 PostgreSQL에 저장한다.
 
 테스트는 별도 `launchpilot_test` PostgreSQL DB를 사용한다.

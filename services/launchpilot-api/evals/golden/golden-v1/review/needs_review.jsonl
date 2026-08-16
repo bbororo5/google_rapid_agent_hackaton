@@ -1,0 +1,260 @@
+{"case_id": "adversarial.attribution.c0003", "reason": "Attribution mismatch interpretation requires human review.", "review_fields": ["expected_answer", "ambiguity"]}
+{"case_id": "adversarial.attribution.c0006", "reason": "Attribution mismatch interpretation requires human review.", "review_fields": ["expected_answer", "ambiguity"]}
+{"case_id": "adversarial.attribution.c0009", "reason": "Attribution mismatch interpretation requires human review.", "review_fields": ["expected_answer", "ambiguity"]}
+{"case_id": "adversarial.attribution.c0012", "reason": "Attribution mismatch interpretation requires human review.", "review_fields": ["expected_answer", "ambiguity"]}
+{"case_id": "adversarial.attribution.c0015", "reason": "Attribution mismatch interpretation requires human review.", "review_fields": ["expected_answer", "ambiguity"]}
+{"case_id": "adversarial.attribution.c0018", "reason": "Attribution mismatch interpretation requires human review.", "review_fields": ["expected_answer", "ambiguity"]}
+{"case_id": "adversarial.attribution.c0021", "reason": "Attribution mismatch interpretation requires human review.", "review_fields": ["expected_answer", "ambiguity"]}
+{"case_id": "adversarial.attribution.c0024", "reason": "Attribution mismatch interpretation requires human review.", "review_fields": ["expected_answer", "ambiguity"]}
+{"case_id": "adversarial.attribution.c0027", "reason": "Attribution mismatch interpretation requires human review.", "review_fields": ["expected_answer", "ambiguity"]}
+{"case_id": "adversarial.attribution.c0030", "reason": "Attribution mismatch interpretation requires human review.", "review_fields": ["expected_answer", "ambiguity"]}
+{"case_id": "adversarial.c0191.causal-overclaim", "reason": "Causal diagnosis and refusal wording require human review.", "review_fields": ["query", "expected_answer", "ambiguity"]}
+{"case_id": "adversarial.c0192.causal-overclaim", "reason": "Causal diagnosis and refusal wording require human review.", "review_fields": ["query", "expected_answer", "ambiguity"]}
+{"case_id": "adversarial.c0193.causal-overclaim", "reason": "Causal diagnosis and refusal wording require human review.", "review_fields": ["query", "expected_answer", "ambiguity"]}
+{"case_id": "adversarial.c0194.causal-overclaim", "reason": "Causal diagnosis and refusal wording require human review.", "review_fields": ["query", "expected_answer", "ambiguity"]}
+{"case_id": "adversarial.c0195.causal-overclaim", "reason": "Causal diagnosis and refusal wording require human review.", "review_fields": ["query", "expected_answer", "ambiguity"]}
+{"case_id": "adversarial.c0196.causal-overclaim", "reason": "Causal diagnosis and refusal wording require human review.", "review_fields": ["query", "expected_answer", "ambiguity"]}
+{"case_id": "adversarial.c0197.causal-overclaim", "reason": "Causal diagnosis and refusal wording require human review.", "review_fields": ["query", "expected_answer", "ambiguity"]}
+{"case_id": "adversarial.c0198.causal-overclaim", "reason": "Causal diagnosis and refusal wording require human review.", "review_fields": ["query", "expected_answer", "ambiguity"]}
+{"case_id": "adversarial.c0199.causal-overclaim", "reason": "Causal diagnosis and refusal wording require human review.", "review_fields": ["query", "expected_answer", "ambiguity"]}
+{"case_id": "adversarial.c0200.causal-overclaim", "reason": "Causal diagnosis and refusal wording require human review.", "review_fields": ["query", "expected_answer", "ambiguity"]}
+{"case_id": "adversarial.c0201.causal-overclaim", "reason": "Causal diagnosis and refusal wording require human review.", "review_fields": ["query", "expected_answer", "ambiguity"]}
+{"case_id": "adversarial.c0202.causal-overclaim", "reason": "Causal diagnosis and refusal wording require human review.", "review_fields": ["query", "expected_answer", "ambiguity"]}
+{"case_id": "adversarial.c0203.causal-overclaim", "reason": "Causal diagnosis and refusal wording require human review.", "review_fields": ["query", "expected_answer", "ambiguity"]}
+{"case_id": "adversarial.c0204.causal-overclaim", "reason": "Causal diagnosis and refusal wording require human review.", "review_fields": ["query", "expected_answer", "ambiguity"]}
+{"case_id": "adversarial.c0205.causal-overclaim", "reason": "Causal diagnosis and refusal wording require human review.", "review_fields": ["query", "expected_answer", "ambiguity"]}
+{"case_id": "adversarial.c0206.causal-overclaim", "reason": "Causal diagnosis and refusal wording require human review.", "review_fields": ["query", "expected_answer", "ambiguity"]}
+{"case_id": "adversarial.c0207.causal-overclaim", "reason": "Causal diagnosis and refusal wording require human review.", "review_fields": ["query", "expected_answer", "ambiguity"]}
+{"case_id": "adversarial.c0208.causal-overclaim", "reason": "Causal diagnosis and refusal wording require human review.", "review_fields": ["query", "expected_answer", "ambiguity"]}
+{"case_id": "adversarial.c0209.causal-overclaim", "reason": "Causal diagnosis and refusal wording require human review.", "review_fields": ["query", "expected_answer", "ambiguity"]}
+{"case_id": "adversarial.c0210.causal-overclaim", "reason": "Causal diagnosis and refusal wording require human review.", "review_fields": ["query", "expected_answer", "ambiguity"]}
+{"case_id": "adversarial.currency.c0002-c0201", "reason": "Cross-currency abstention requires human review.", "review_fields": ["expected_answer", "risk_types"]}
+{"case_id": "adversarial.currency.c0003-c0202", "reason": "Cross-currency abstention requires human review.", "review_fields": ["expected_answer", "risk_types"]}
+{"case_id": "adversarial.currency.c0005-c0204", "reason": "Cross-currency abstention requires human review.", "review_fields": ["expected_answer", "risk_types"]}
+{"case_id": "adversarial.currency.c0006-c0205", "reason": "Cross-currency abstention requires human review.", "review_fields": ["expected_answer", "risk_types"]}
+{"case_id": "adversarial.currency.c0008-c0207", "reason": "Cross-currency abstention requires human review.", "review_fields": ["expected_answer", "risk_types"]}
+{"case_id": "adversarial.currency.c0009-c0220", "reason": "Cross-currency abstention requires human review.", "review_fields": ["expected_answer", "risk_types"]}
+{"case_id": "adversarial.currency.c0011-c0222", "reason": "Cross-currency abstention requires human review.", "review_fields": ["expected_answer", "risk_types"]}
+{"case_id": "adversarial.currency.c0012-c0211", "reason": "Cross-currency abstention requires human review.", "review_fields": ["expected_answer", "risk_types"]}
+{"case_id": "adversarial.currency.c0014-c0201", "reason": "Cross-currency abstention requires human review.", "review_fields": ["expected_answer", "risk_types"]}
+{"case_id": "adversarial.currency.c0015-c0202", "reason": "Cross-currency abstention requires human review.", "review_fields": ["expected_answer", "risk_types"]}
+{"case_id": "adversarial.period.c0181", "reason": "Period normalization requires human review.", "review_fields": ["expected_answer", "expected_facts"]}
+{"case_id": "adversarial.period.c0182", "reason": "Period normalization requires human review.", "review_fields": ["expected_answer", "expected_facts"]}
+{"case_id": "adversarial.period.c0183", "reason": "Period normalization requires human review.", "review_fields": ["expected_answer", "expected_facts"]}
+{"case_id": "adversarial.period.c0184", "reason": "Period normalization requires human review.", "review_fields": ["expected_answer", "expected_facts"]}
+{"case_id": "adversarial.period.c0185", "reason": "Period normalization requires human review.", "review_fields": ["expected_answer", "expected_facts"]}
+{"case_id": "adversarial.period.c0186", "reason": "Period normalization requires human review.", "review_fields": ["expected_answer", "expected_facts"]}
+{"case_id": "adversarial.period.c0187", "reason": "Period normalization requires human review.", "review_fields": ["expected_answer", "expected_facts"]}
+{"case_id": "adversarial.period.c0188", "reason": "Period normalization requires human review.", "review_fields": ["expected_answer", "expected_facts"]}
+{"case_id": "adversarial.period.c0189", "reason": "Period normalization requires human review.", "review_fields": ["expected_answer", "expected_facts"]}
+{"case_id": "adversarial.period.c0190", "reason": "Period normalization requires human review.", "review_fields": ["expected_answer", "expected_facts"]}
+{"case_id": "ambiguous.alias-01", "reason": "Ambiguous entity labels require human confirmation.", "review_fields": ["ambiguity", "expected_answer"]}
+{"case_id": "ambiguous.alias-02", "reason": "Ambiguous entity labels require human confirmation.", "review_fields": ["ambiguity", "expected_answer"]}
+{"case_id": "ambiguous.alias-03", "reason": "Ambiguous entity labels require human confirmation.", "review_fields": ["ambiguity", "expected_answer"]}
+{"case_id": "ambiguous.alias-04", "reason": "Ambiguous entity labels require human confirmation.", "review_fields": ["ambiguity", "expected_answer"]}
+{"case_id": "ambiguous.alias-05", "reason": "Ambiguous entity labels require human confirmation.", "review_fields": ["ambiguity", "expected_answer"]}
+{"case_id": "ambiguous.alias-06", "reason": "Ambiguous entity labels require human confirmation.", "review_fields": ["ambiguity", "expected_answer"]}
+{"case_id": "ambiguous.alias-07", "reason": "Ambiguous entity labels require human confirmation.", "review_fields": ["ambiguity", "expected_answer"]}
+{"case_id": "ambiguous.alias-08", "reason": "Ambiguous entity labels require human confirmation.", "review_fields": ["ambiguity", "expected_answer"]}
+{"case_id": "ambiguous.alias-09", "reason": "Ambiguous entity labels require human confirmation.", "review_fields": ["ambiguity", "expected_answer"]}
+{"case_id": "ambiguous.alias-10", "reason": "Ambiguous entity labels require human confirmation.", "review_fields": ["ambiguity", "expected_answer"]}
+{"case_id": "ambiguous.alias-11", "reason": "Ambiguous entity labels require human confirmation.", "review_fields": ["ambiguity", "expected_answer"]}
+{"case_id": "ambiguous.alias-12", "reason": "Ambiguous entity labels require human confirmation.", "review_fields": ["ambiguity", "expected_answer"]}
+{"case_id": "ambiguous.alias-13", "reason": "Ambiguous entity labels require human confirmation.", "review_fields": ["ambiguity", "expected_answer"]}
+{"case_id": "ambiguous.alias-14", "reason": "Ambiguous entity labels require human confirmation.", "review_fields": ["ambiguity", "expected_answer"]}
+{"case_id": "ambiguous.alias-15", "reason": "Ambiguous entity labels require human confirmation.", "review_fields": ["ambiguity", "expected_answer"]}
+{"case_id": "ambiguous.alias-16", "reason": "Ambiguous entity labels require human confirmation.", "review_fields": ["ambiguity", "expected_answer"]}
+{"case_id": "ambiguous.alias-17", "reason": "Ambiguous entity labels require human confirmation.", "review_fields": ["ambiguity", "expected_answer"]}
+{"case_id": "ambiguous.alias-18", "reason": "Ambiguous entity labels require human confirmation.", "review_fields": ["ambiguity", "expected_answer"]}
+{"case_id": "ambiguous.alias-19", "reason": "Ambiguous entity labels require human confirmation.", "review_fields": ["ambiguity", "expected_answer"]}
+{"case_id": "ambiguous.alias-20", "reason": "Ambiguous entity labels require human confirmation.", "review_fields": ["ambiguity", "expected_answer"]}
+{"case_id": "entity-semantic.c0051.pacing", "reason": "Document pacing rule requires human passage review.", "review_fields": ["expected_answer", "gold_evidence"]}
+{"case_id": "entity-semantic.c0052.pacing", "reason": "Document pacing rule requires human passage review.", "review_fields": ["expected_answer", "gold_evidence"]}
+{"case_id": "entity-semantic.c0053.pacing", "reason": "Document pacing rule requires human passage review.", "review_fields": ["expected_answer", "gold_evidence"]}
+{"case_id": "entity-semantic.c0054.pacing", "reason": "Document pacing rule requires human passage review.", "review_fields": ["expected_answer", "gold_evidence"]}
+{"case_id": "entity-semantic.c0055.pacing", "reason": "Document pacing rule requires human passage review.", "review_fields": ["expected_answer", "gold_evidence"]}
+{"case_id": "entity-semantic.c0056.pacing", "reason": "Document pacing rule requires human passage review.", "review_fields": ["expected_answer", "gold_evidence"]}
+{"case_id": "entity-semantic.c0057.pacing", "reason": "Document pacing rule requires human passage review.", "review_fields": ["expected_answer", "gold_evidence"]}
+{"case_id": "entity-semantic.c0058.pacing", "reason": "Document pacing rule requires human passage review.", "review_fields": ["expected_answer", "gold_evidence"]}
+{"case_id": "entity-semantic.c0059.pacing", "reason": "Document pacing rule requires human passage review.", "review_fields": ["expected_answer", "gold_evidence"]}
+{"case_id": "entity-semantic.c0060.pacing", "reason": "Document pacing rule requires human passage review.", "review_fields": ["expected_answer", "gold_evidence"]}
+{"case_id": "entity-semantic.c0061.pacing", "reason": "Document pacing rule requires human passage review.", "review_fields": ["expected_answer", "gold_evidence"]}
+{"case_id": "entity-semantic.c0062.pacing", "reason": "Document pacing rule requires human passage review.", "review_fields": ["expected_answer", "gold_evidence"]}
+{"case_id": "entity-semantic.c0063.pacing", "reason": "Document pacing rule requires human passage review.", "review_fields": ["expected_answer", "gold_evidence"]}
+{"case_id": "entity-semantic.c0064.pacing", "reason": "Document pacing rule requires human passage review.", "review_fields": ["expected_answer", "gold_evidence"]}
+{"case_id": "entity-semantic.c0065.pacing", "reason": "Document pacing rule requires human passage review.", "review_fields": ["expected_answer", "gold_evidence"]}
+{"case_id": "entity-semantic.c0066.pacing", "reason": "Document pacing rule requires human passage review.", "review_fields": ["expected_answer", "gold_evidence"]}
+{"case_id": "entity-semantic.c0067.pacing", "reason": "Document pacing rule requires human passage review.", "review_fields": ["expected_answer", "gold_evidence"]}
+{"case_id": "entity-semantic.c0068.pacing", "reason": "Document pacing rule requires human passage review.", "review_fields": ["expected_answer", "gold_evidence"]}
+{"case_id": "entity-semantic.c0069.pacing", "reason": "Document pacing rule requires human passage review.", "review_fields": ["expected_answer", "gold_evidence"]}
+{"case_id": "entity-semantic.c0070.pacing", "reason": "Document pacing rule requires human passage review.", "review_fields": ["expected_answer", "gold_evidence"]}
+{"case_id": "entity-semantic.c0071.pacing", "reason": "Document pacing rule requires human passage review.", "review_fields": ["expected_answer", "gold_evidence"]}
+{"case_id": "entity-semantic.c0072.pacing", "reason": "Document pacing rule requires human passage review.", "review_fields": ["expected_answer", "gold_evidence"]}
+{"case_id": "entity-semantic.c0073.pacing", "reason": "Document pacing rule requires human passage review.", "review_fields": ["expected_answer", "gold_evidence"]}
+{"case_id": "entity-semantic.c0074.pacing", "reason": "Document pacing rule requires human passage review.", "review_fields": ["expected_answer", "gold_evidence"]}
+{"case_id": "entity-semantic.c0075.pacing", "reason": "Document pacing rule requires human passage review.", "review_fields": ["expected_answer", "gold_evidence"]}
+{"case_id": "entity-semantic.c0076.pacing", "reason": "Document pacing rule requires human passage review.", "review_fields": ["expected_answer", "gold_evidence"]}
+{"case_id": "entity-semantic.c0077.pacing", "reason": "Document pacing rule requires human passage review.", "review_fields": ["expected_answer", "gold_evidence"]}
+{"case_id": "entity-semantic.c0078.pacing", "reason": "Document pacing rule requires human passage review.", "review_fields": ["expected_answer", "gold_evidence"]}
+{"case_id": "entity-semantic.c0079.pacing", "reason": "Document pacing rule requires human passage review.", "review_fields": ["expected_answer", "gold_evidence"]}
+{"case_id": "entity-semantic.c0080.pacing", "reason": "Document pacing rule requires human passage review.", "review_fields": ["expected_answer", "gold_evidence"]}
+{"case_id": "mixed.c0081.recommendation-clicks", "reason": "PG plus document recommendation requires human review.", "review_fields": ["expected_facts", "expected_answer", "gold_evidence"]}
+{"case_id": "mixed.c0082.recommendation-spend", "reason": "PG plus document recommendation requires human review.", "review_fields": ["expected_facts", "expected_answer", "gold_evidence"]}
+{"case_id": "mixed.c0083.recommendation-conversions", "reason": "PG plus document recommendation requires human review.", "review_fields": ["expected_facts", "expected_answer", "gold_evidence"]}
+{"case_id": "mixed.c0084.recommendation-clicks", "reason": "PG plus document recommendation requires human review.", "review_fields": ["expected_facts", "expected_answer", "gold_evidence"]}
+{"case_id": "mixed.c0085.recommendation-spend", "reason": "PG plus document recommendation requires human review.", "review_fields": ["expected_facts", "expected_answer", "gold_evidence"]}
+{"case_id": "mixed.c0086.recommendation-conversions", "reason": "PG plus document recommendation requires human review.", "review_fields": ["expected_facts", "expected_answer", "gold_evidence"]}
+{"case_id": "mixed.c0087.recommendation-clicks", "reason": "PG plus document recommendation requires human review.", "review_fields": ["expected_facts", "expected_answer", "gold_evidence"]}
+{"case_id": "mixed.c0088.recommendation-spend", "reason": "PG plus document recommendation requires human review.", "review_fields": ["expected_facts", "expected_answer", "gold_evidence"]}
+{"case_id": "mixed.c0089.recommendation-conversions", "reason": "PG plus document recommendation requires human review.", "review_fields": ["expected_facts", "expected_answer", "gold_evidence"]}
+{"case_id": "mixed.c0090.recommendation-clicks", "reason": "PG plus document recommendation requires human review.", "review_fields": ["expected_facts", "expected_answer", "gold_evidence"]}
+{"case_id": "mixed.c0091.recommendation-spend", "reason": "PG plus document recommendation requires human review.", "review_fields": ["expected_facts", "expected_answer", "gold_evidence"]}
+{"case_id": "mixed.c0092.recommendation-conversions", "reason": "PG plus document recommendation requires human review.", "review_fields": ["expected_facts", "expected_answer", "gold_evidence"]}
+{"case_id": "mixed.c0093.recommendation-clicks", "reason": "PG plus document recommendation requires human review.", "review_fields": ["expected_facts", "expected_answer", "gold_evidence"]}
+{"case_id": "mixed.c0094.recommendation-spend", "reason": "PG plus document recommendation requires human review.", "review_fields": ["expected_facts", "expected_answer", "gold_evidence"]}
+{"case_id": "mixed.c0095.recommendation-conversions", "reason": "PG plus document recommendation requires human review.", "review_fields": ["expected_facts", "expected_answer", "gold_evidence"]}
+{"case_id": "mixed.c0096.recommendation-clicks", "reason": "PG plus document recommendation requires human review.", "review_fields": ["expected_facts", "expected_answer", "gold_evidence"]}
+{"case_id": "mixed.c0097.recommendation-spend", "reason": "PG plus document recommendation requires human review.", "review_fields": ["expected_facts", "expected_answer", "gold_evidence"]}
+{"case_id": "mixed.c0098.recommendation-conversions", "reason": "PG plus document recommendation requires human review.", "review_fields": ["expected_facts", "expected_answer", "gold_evidence"]}
+{"case_id": "mixed.c0099.recommendation-clicks", "reason": "PG plus document recommendation requires human review.", "review_fields": ["expected_facts", "expected_answer", "gold_evidence"]}
+{"case_id": "mixed.c0100.recommendation-spend", "reason": "PG plus document recommendation requires human review.", "review_fields": ["expected_facts", "expected_answer", "gold_evidence"]}
+{"case_id": "mixed.c0101.recommendation-conversions", "reason": "PG plus document recommendation requires human review.", "review_fields": ["expected_facts", "expected_answer", "gold_evidence"]}
+{"case_id": "mixed.c0102.recommendation-clicks", "reason": "PG plus document recommendation requires human review.", "review_fields": ["expected_facts", "expected_answer", "gold_evidence"]}
+{"case_id": "mixed.c0103.recommendation-spend", "reason": "PG plus document recommendation requires human review.", "review_fields": ["expected_facts", "expected_answer", "gold_evidence"]}
+{"case_id": "mixed.c0104.recommendation-conversions", "reason": "PG plus document recommendation requires human review.", "review_fields": ["expected_facts", "expected_answer", "gold_evidence"]}
+{"case_id": "mixed.c0105.recommendation-clicks", "reason": "PG plus document recommendation requires human review.", "review_fields": ["expected_facts", "expected_answer", "gold_evidence"]}
+{"case_id": "mixed.c0106.recommendation-spend", "reason": "PG plus document recommendation requires human review.", "review_fields": ["expected_facts", "expected_answer", "gold_evidence"]}
+{"case_id": "mixed.c0107.recommendation-conversions", "reason": "PG plus document recommendation requires human review.", "review_fields": ["expected_facts", "expected_answer", "gold_evidence"]}
+{"case_id": "mixed.c0108.recommendation-clicks", "reason": "PG plus document recommendation requires human review.", "review_fields": ["expected_facts", "expected_answer", "gold_evidence"]}
+{"case_id": "mixed.c0109.recommendation-spend", "reason": "PG plus document recommendation requires human review.", "review_fields": ["expected_facts", "expected_answer", "gold_evidence"]}
+{"case_id": "mixed.c0110.recommendation-conversions", "reason": "PG plus document recommendation requires human review.", "review_fields": ["expected_facts", "expected_answer", "gold_evidence"]}
+{"case_id": "mixed.c0111.recommendation-clicks", "reason": "PG plus document recommendation requires human review.", "review_fields": ["expected_facts", "expected_answer", "gold_evidence"]}
+{"case_id": "mixed.c0112.recommendation-spend", "reason": "PG plus document recommendation requires human review.", "review_fields": ["expected_facts", "expected_answer", "gold_evidence"]}
+{"case_id": "mixed.c0113.recommendation-conversions", "reason": "PG plus document recommendation requires human review.", "review_fields": ["expected_facts", "expected_answer", "gold_evidence"]}
+{"case_id": "mixed.c0114.recommendation-clicks", "reason": "PG plus document recommendation requires human review.", "review_fields": ["expected_facts", "expected_answer", "gold_evidence"]}
+{"case_id": "mixed.c0115.recommendation-spend", "reason": "PG plus document recommendation requires human review.", "review_fields": ["expected_facts", "expected_answer", "gold_evidence"]}
+{"case_id": "mixed.c0116.recommendation-conversions", "reason": "PG plus document recommendation requires human review.", "review_fields": ["expected_facts", "expected_answer", "gold_evidence"]}
+{"case_id": "mixed.c0117.recommendation-clicks", "reason": "PG plus document recommendation requires human review.", "review_fields": ["expected_facts", "expected_answer", "gold_evidence"]}
+{"case_id": "mixed.c0118.recommendation-spend", "reason": "PG plus document recommendation requires human review.", "review_fields": ["expected_facts", "expected_answer", "gold_evidence"]}
+{"case_id": "mixed.c0119.recommendation-conversions", "reason": "PG plus document recommendation requires human review.", "review_fields": ["expected_facts", "expected_answer", "gold_evidence"]}
+{"case_id": "mixed.c0120.recommendation-clicks", "reason": "PG plus document recommendation requires human review.", "review_fields": ["expected_facts", "expected_answer", "gold_evidence"]}
+{"case_id": "mixed.c0121.recommendation-spend", "reason": "PG plus document recommendation requires human review.", "review_fields": ["expected_facts", "expected_answer", "gold_evidence"]}
+{"case_id": "mixed.c0122.recommendation-conversions", "reason": "PG plus document recommendation requires human review.", "review_fields": ["expected_facts", "expected_answer", "gold_evidence"]}
+{"case_id": "mixed.c0123.recommendation-clicks", "reason": "PG plus document recommendation requires human review.", "review_fields": ["expected_facts", "expected_answer", "gold_evidence"]}
+{"case_id": "mixed.c0124.recommendation-spend", "reason": "PG plus document recommendation requires human review.", "review_fields": ["expected_facts", "expected_answer", "gold_evidence"]}
+{"case_id": "mixed.c0125.recommendation-conversions", "reason": "PG plus document recommendation requires human review.", "review_fields": ["expected_facts", "expected_answer", "gold_evidence"]}
+{"case_id": "mixed.c0126.recommendation-clicks", "reason": "PG plus document recommendation requires human review.", "review_fields": ["expected_facts", "expected_answer", "gold_evidence"]}
+{"case_id": "mixed.c0127.recommendation-spend", "reason": "PG plus document recommendation requires human review.", "review_fields": ["expected_facts", "expected_answer", "gold_evidence"]}
+{"case_id": "mixed.c0128.recommendation-conversions", "reason": "PG plus document recommendation requires human review.", "review_fields": ["expected_facts", "expected_answer", "gold_evidence"]}
+{"case_id": "mixed.c0129.recommendation-clicks", "reason": "PG plus document recommendation requires human review.", "review_fields": ["expected_facts", "expected_answer", "gold_evidence"]}
+{"case_id": "mixed.c0130.recommendation-spend", "reason": "PG plus document recommendation requires human review.", "review_fields": ["expected_facts", "expected_answer", "gold_evidence"]}
+{"case_id": "no-answer.missing-c9001", "reason": "No-answer labels require human confirmation.", "review_fields": ["query", "expected_answer", "unanswerable"]}
+{"case_id": "no-answer.missing-c9002", "reason": "No-answer labels require human confirmation.", "review_fields": ["query", "expected_answer", "unanswerable"]}
+{"case_id": "no-answer.missing-c9003", "reason": "No-answer labels require human confirmation.", "review_fields": ["query", "expected_answer", "unanswerable"]}
+{"case_id": "no-answer.missing-c9004", "reason": "No-answer labels require human confirmation.", "review_fields": ["query", "expected_answer", "unanswerable"]}
+{"case_id": "no-answer.missing-c9005", "reason": "No-answer labels require human confirmation.", "review_fields": ["query", "expected_answer", "unanswerable"]}
+{"case_id": "no-answer.missing-c9006", "reason": "No-answer labels require human confirmation.", "review_fields": ["query", "expected_answer", "unanswerable"]}
+{"case_id": "no-answer.missing-c9007", "reason": "No-answer labels require human confirmation.", "review_fields": ["query", "expected_answer", "unanswerable"]}
+{"case_id": "no-answer.missing-c9008", "reason": "No-answer labels require human confirmation.", "review_fields": ["query", "expected_answer", "unanswerable"]}
+{"case_id": "no-answer.missing-c9009", "reason": "No-answer labels require human confirmation.", "review_fields": ["query", "expected_answer", "unanswerable"]}
+{"case_id": "no-answer.missing-c9010", "reason": "No-answer labels require human confirmation.", "review_fields": ["query", "expected_answer", "unanswerable"]}
+{"case_id": "no-answer.missing-c9011", "reason": "No-answer labels require human confirmation.", "review_fields": ["query", "expected_answer", "unanswerable"]}
+{"case_id": "no-answer.missing-c9012", "reason": "No-answer labels require human confirmation.", "review_fields": ["query", "expected_answer", "unanswerable"]}
+{"case_id": "no-answer.missing-c9013", "reason": "No-answer labels require human confirmation.", "review_fields": ["query", "expected_answer", "unanswerable"]}
+{"case_id": "no-answer.missing-c9014", "reason": "No-answer labels require human confirmation.", "review_fields": ["query", "expected_answer", "unanswerable"]}
+{"case_id": "no-answer.missing-c9015", "reason": "No-answer labels require human confirmation.", "review_fields": ["query", "expected_answer", "unanswerable"]}
+{"case_id": "no-answer.missing-c9016", "reason": "No-answer labels require human confirmation.", "review_fields": ["query", "expected_answer", "unanswerable"]}
+{"case_id": "no-answer.missing-c9017", "reason": "No-answer labels require human confirmation.", "review_fields": ["query", "expected_answer", "unanswerable"]}
+{"case_id": "no-answer.missing-c9018", "reason": "No-answer labels require human confirmation.", "review_fields": ["query", "expected_answer", "unanswerable"]}
+{"case_id": "no-answer.missing-c9019", "reason": "No-answer labels require human confirmation.", "review_fields": ["query", "expected_answer", "unanswerable"]}
+{"case_id": "no-answer.missing-c9020", "reason": "No-answer labels require human confirmation.", "review_fields": ["query", "expected_answer", "unanswerable"]}
+{"case_id": "no-answer.missing-c9021", "reason": "No-answer labels require human confirmation.", "review_fields": ["query", "expected_answer", "unanswerable"]}
+{"case_id": "no-answer.missing-c9022", "reason": "No-answer labels require human confirmation.", "review_fields": ["query", "expected_answer", "unanswerable"]}
+{"case_id": "no-answer.missing-c9023", "reason": "No-answer labels require human confirmation.", "review_fields": ["query", "expected_answer", "unanswerable"]}
+{"case_id": "no-answer.missing-c9024", "reason": "No-answer labels require human confirmation.", "review_fields": ["query", "expected_answer", "unanswerable"]}
+{"case_id": "no-answer.missing-c9025", "reason": "No-answer labels require human confirmation.", "review_fields": ["query", "expected_answer", "unanswerable"]}
+{"case_id": "no-answer.missing-c9026", "reason": "No-answer labels require human confirmation.", "review_fields": ["query", "expected_answer", "unanswerable"]}
+{"case_id": "no-answer.missing-c9027", "reason": "No-answer labels require human confirmation.", "review_fields": ["query", "expected_answer", "unanswerable"]}
+{"case_id": "no-answer.missing-c9028", "reason": "No-answer labels require human confirmation.", "review_fields": ["query", "expected_answer", "unanswerable"]}
+{"case_id": "no-answer.missing-c9029", "reason": "No-answer labels require human confirmation.", "review_fields": ["query", "expected_answer", "unanswerable"]}
+{"case_id": "no-answer.missing-c9030", "reason": "No-answer labels require human confirmation.", "review_fields": ["query", "expected_answer", "unanswerable"]}
+{"case_id": "semantic.c0001.diagnosis", "reason": "Document diagnosis requires human passage review.", "review_fields": ["expected_answer", "gold_evidence"]}
+{"case_id": "semantic.c0002.diagnosis", "reason": "Document diagnosis requires human passage review.", "review_fields": ["expected_answer", "gold_evidence"]}
+{"case_id": "semantic.c0003.diagnosis", "reason": "Document diagnosis requires human passage review.", "review_fields": ["expected_answer", "gold_evidence"]}
+{"case_id": "semantic.c0004.diagnosis", "reason": "Document diagnosis requires human passage review.", "review_fields": ["expected_answer", "gold_evidence"]}
+{"case_id": "semantic.c0005.diagnosis", "reason": "Document diagnosis requires human passage review.", "review_fields": ["expected_answer", "gold_evidence"]}
+{"case_id": "semantic.c0006.diagnosis", "reason": "Document diagnosis requires human passage review.", "review_fields": ["expected_answer", "gold_evidence"]}
+{"case_id": "semantic.c0007.diagnosis", "reason": "Document diagnosis requires human passage review.", "review_fields": ["expected_answer", "gold_evidence"]}
+{"case_id": "semantic.c0008.diagnosis", "reason": "Document diagnosis requires human passage review.", "review_fields": ["expected_answer", "gold_evidence"]}
+{"case_id": "semantic.c0009.diagnosis", "reason": "Document diagnosis requires human passage review.", "review_fields": ["expected_answer", "gold_evidence"]}
+{"case_id": "semantic.c0010.diagnosis", "reason": "Document diagnosis requires human passage review.", "review_fields": ["expected_answer", "gold_evidence"]}
+{"case_id": "semantic.c0011.diagnosis", "reason": "Document diagnosis requires human passage review.", "review_fields": ["expected_answer", "gold_evidence"]}
+{"case_id": "semantic.c0012.diagnosis", "reason": "Document diagnosis requires human passage review.", "review_fields": ["expected_answer", "gold_evidence"]}
+{"case_id": "semantic.c0013.diagnosis", "reason": "Document diagnosis requires human passage review.", "review_fields": ["expected_answer", "gold_evidence"]}
+{"case_id": "semantic.c0014.diagnosis", "reason": "Document diagnosis requires human passage review.", "review_fields": ["expected_answer", "gold_evidence"]}
+{"case_id": "semantic.c0015.diagnosis", "reason": "Document diagnosis requires human passage review.", "review_fields": ["expected_answer", "gold_evidence"]}
+{"case_id": "semantic.c0016.diagnosis", "reason": "Document diagnosis requires human passage review.", "review_fields": ["expected_answer", "gold_evidence"]}
+{"case_id": "semantic.c0017.diagnosis", "reason": "Document diagnosis requires human passage review.", "review_fields": ["expected_answer", "gold_evidence"]}
+{"case_id": "semantic.c0018.diagnosis", "reason": "Document diagnosis requires human passage review.", "review_fields": ["expected_answer", "gold_evidence"]}
+{"case_id": "semantic.c0019.diagnosis", "reason": "Document diagnosis requires human passage review.", "review_fields": ["expected_answer", "gold_evidence"]}
+{"case_id": "semantic.c0020.diagnosis", "reason": "Document diagnosis requires human passage review.", "review_fields": ["expected_answer", "gold_evidence"]}
+{"case_id": "semantic.c0021.diagnosis", "reason": "Document diagnosis requires human passage review.", "review_fields": ["expected_answer", "gold_evidence"]}
+{"case_id": "semantic.c0022.diagnosis", "reason": "Document diagnosis requires human passage review.", "review_fields": ["expected_answer", "gold_evidence"]}
+{"case_id": "semantic.c0023.diagnosis", "reason": "Document diagnosis requires human passage review.", "review_fields": ["expected_answer", "gold_evidence"]}
+{"case_id": "semantic.c0024.diagnosis", "reason": "Document diagnosis requires human passage review.", "review_fields": ["expected_answer", "gold_evidence"]}
+{"case_id": "semantic.c0025.diagnosis", "reason": "Document diagnosis requires human passage review.", "review_fields": ["expected_answer", "gold_evidence"]}
+{"case_id": "semantic.c0026.diagnosis", "reason": "Document diagnosis requires human passage review.", "review_fields": ["expected_answer", "gold_evidence"]}
+{"case_id": "semantic.c0027.diagnosis", "reason": "Document diagnosis requires human passage review.", "review_fields": ["expected_answer", "gold_evidence"]}
+{"case_id": "semantic.c0028.diagnosis", "reason": "Document diagnosis requires human passage review.", "review_fields": ["expected_answer", "gold_evidence"]}
+{"case_id": "semantic.c0029.diagnosis", "reason": "Document diagnosis requires human passage review.", "review_fields": ["expected_answer", "gold_evidence"]}
+{"case_id": "semantic.c0030.diagnosis", "reason": "Document diagnosis requires human passage review.", "review_fields": ["expected_answer", "gold_evidence"]}
+{"case_id": "semantic.c0031.diagnosis", "reason": "Document diagnosis requires human passage review.", "review_fields": ["expected_answer", "gold_evidence"]}
+{"case_id": "semantic.c0032.diagnosis", "reason": "Document diagnosis requires human passage review.", "review_fields": ["expected_answer", "gold_evidence"]}
+{"case_id": "semantic.c0033.diagnosis", "reason": "Document diagnosis requires human passage review.", "review_fields": ["expected_answer", "gold_evidence"]}
+{"case_id": "semantic.c0034.diagnosis", "reason": "Document diagnosis requires human passage review.", "review_fields": ["expected_answer", "gold_evidence"]}
+{"case_id": "semantic.c0035.diagnosis", "reason": "Document diagnosis requires human passage review.", "review_fields": ["expected_answer", "gold_evidence"]}
+{"case_id": "semantic.c0036.diagnosis", "reason": "Document diagnosis requires human passage review.", "review_fields": ["expected_answer", "gold_evidence"]}
+{"case_id": "semantic.c0037.diagnosis", "reason": "Document diagnosis requires human passage review.", "review_fields": ["expected_answer", "gold_evidence"]}
+{"case_id": "semantic.c0038.diagnosis", "reason": "Document diagnosis requires human passage review.", "review_fields": ["expected_answer", "gold_evidence"]}
+{"case_id": "semantic.c0039.diagnosis", "reason": "Document diagnosis requires human passage review.", "review_fields": ["expected_answer", "gold_evidence"]}
+{"case_id": "semantic.c0040.diagnosis", "reason": "Document diagnosis requires human passage review.", "review_fields": ["expected_answer", "gold_evidence"]}
+{"case_id": "semantic.c0041.diagnosis", "reason": "Document diagnosis requires human passage review.", "review_fields": ["expected_answer", "gold_evidence"]}
+{"case_id": "semantic.c0042.diagnosis", "reason": "Document diagnosis requires human passage review.", "review_fields": ["expected_answer", "gold_evidence"]}
+{"case_id": "semantic.c0043.diagnosis", "reason": "Document diagnosis requires human passage review.", "review_fields": ["expected_answer", "gold_evidence"]}
+{"case_id": "semantic.c0044.diagnosis", "reason": "Document diagnosis requires human passage review.", "review_fields": ["expected_answer", "gold_evidence"]}
+{"case_id": "semantic.c0045.diagnosis", "reason": "Document diagnosis requires human passage review.", "review_fields": ["expected_answer", "gold_evidence"]}
+{"case_id": "semantic.c0046.diagnosis", "reason": "Document diagnosis requires human passage review.", "review_fields": ["expected_answer", "gold_evidence"]}
+{"case_id": "semantic.c0047.diagnosis", "reason": "Document diagnosis requires human passage review.", "review_fields": ["expected_answer", "gold_evidence"]}
+{"case_id": "semantic.c0048.diagnosis", "reason": "Document diagnosis requires human passage review.", "review_fields": ["expected_answer", "gold_evidence"]}
+{"case_id": "semantic.c0049.diagnosis", "reason": "Document diagnosis requires human passage review.", "review_fields": ["expected_answer", "gold_evidence"]}
+{"case_id": "semantic.c0050.diagnosis", "reason": "Document diagnosis requires human passage review.", "review_fields": ["expected_answer", "gold_evidence"]}
+{"case_id": "structured.c0006.tracking-gap", "reason": "Data-quality impact wording requires human review.", "review_fields": ["expected_answer", "risk_types"]}
+{"case_id": "structured.c0013.tracking-gap", "reason": "Data-quality impact wording requires human review.", "review_fields": ["expected_answer", "risk_types"]}
+{"case_id": "structured.c0020.tracking-gap", "reason": "Data-quality impact wording requires human review.", "review_fields": ["expected_answer", "risk_types"]}
+{"case_id": "structured.c0027.tracking-gap", "reason": "Data-quality impact wording requires human review.", "review_fields": ["expected_answer", "risk_types"]}
+{"case_id": "structured.c0034.tracking-gap", "reason": "Data-quality impact wording requires human review.", "review_fields": ["expected_answer", "risk_types"]}
+{"case_id": "structured.c0041.tracking-gap", "reason": "Data-quality impact wording requires human review.", "review_fields": ["expected_answer", "risk_types"]}
+{"case_id": "structured.c0048.tracking-gap", "reason": "Data-quality impact wording requires human review.", "review_fields": ["expected_answer", "risk_types"]}
+{"case_id": "structured.c0055.tracking-gap", "reason": "Data-quality impact wording requires human review.", "review_fields": ["expected_answer", "risk_types"]}
+{"case_id": "structured.c0062.tracking-gap", "reason": "Data-quality impact wording requires human review.", "review_fields": ["expected_answer", "risk_types"]}
+{"case_id": "structured.c0069.tracking-gap", "reason": "Data-quality impact wording requires human review.", "review_fields": ["expected_answer", "risk_types"]}
+{"case_id": "structured.c0076.tracking-gap", "reason": "Data-quality impact wording requires human review.", "review_fields": ["expected_answer", "risk_types"]}
+{"case_id": "structured.c0083.tracking-gap", "reason": "Data-quality impact wording requires human review.", "review_fields": ["expected_answer", "risk_types"]}
+{"case_id": "structured.c0090.tracking-gap", "reason": "Data-quality impact wording requires human review.", "review_fields": ["expected_answer", "risk_types"]}
+{"case_id": "structured.c0097.tracking-gap", "reason": "Data-quality impact wording requires human review.", "review_fields": ["expected_answer", "risk_types"]}
+{"case_id": "structured.c0104.tracking-gap", "reason": "Data-quality impact wording requires human review.", "review_fields": ["expected_answer", "risk_types"]}
+{"case_id": "structured.c0111.tracking-gap", "reason": "Data-quality impact wording requires human review.", "review_fields": ["expected_answer", "risk_types"]}
+{"case_id": "structured.c0118.tracking-gap", "reason": "Data-quality impact wording requires human review.", "review_fields": ["expected_answer", "risk_types"]}
+{"case_id": "structured.c0125.tracking-gap", "reason": "Data-quality impact wording requires human review.", "review_fields": ["expected_answer", "risk_types"]}
+{"case_id": "structured.c0132.tracking-gap", "reason": "Data-quality impact wording requires human review.", "review_fields": ["expected_answer", "risk_types"]}
+{"case_id": "structured.c0139.tracking-gap", "reason": "Data-quality impact wording requires human review.", "review_fields": ["expected_answer", "risk_types"]}
+{"case_id": "structured.c0146.tracking-gap", "reason": "Data-quality impact wording requires human review.", "review_fields": ["expected_answer", "risk_types"]}
+{"case_id": "structured.c0153.tracking-gap", "reason": "Data-quality impact wording requires human review.", "review_fields": ["expected_answer", "risk_types"]}
+{"case_id": "structured.c0160.tracking-gap", "reason": "Data-quality impact wording requires human review.", "review_fields": ["expected_answer", "risk_types"]}
+{"case_id": "structured.c0167.tracking-gap", "reason": "Data-quality impact wording requires human review.", "review_fields": ["expected_answer", "risk_types"]}
+{"case_id": "structured.c0174.tracking-gap", "reason": "Data-quality impact wording requires human review.", "review_fields": ["expected_answer", "risk_types"]}
+{"case_id": "structured.c0181.tracking-gap", "reason": "Data-quality impact wording requires human review.", "review_fields": ["expected_answer", "risk_types"]}
+{"case_id": "structured.c0188.tracking-gap", "reason": "Data-quality impact wording requires human review.", "review_fields": ["expected_answer", "risk_types"]}
+{"case_id": "structured.c0195.tracking-gap", "reason": "Data-quality impact wording requires human review.", "review_fields": ["expected_answer", "risk_types"]}
+{"case_id": "structured.c0202.tracking-gap", "reason": "Data-quality impact wording requires human review.", "review_fields": ["expected_answer", "risk_types"]}
+{"case_id": "structured.c0209.tracking-gap", "reason": "Data-quality impact wording requires human review.", "review_fields": ["expected_answer", "risk_types"]}

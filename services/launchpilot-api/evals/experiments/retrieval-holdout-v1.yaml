@@ -1,0 +1,17 @@
+matrix_version: retrieval-holdout-v1
+description: >-
+  One-time blind holdout confirmation for the winner selected on validation:
+  whole-document chunking with the local marketing concept-hash dense retriever.
+splits: [holdout]
+
+chunkers:
+  - method: whole_document
+    version: whole-document-v1
+    max_tokens: 8192
+    overlap_tokens: 0
+
+retrievers:
+  - method: dense
+    version: dense-marketing-concept-hash-top10-v1
+    provider: local-marketing-concept-hash-512
+    top_k: 10

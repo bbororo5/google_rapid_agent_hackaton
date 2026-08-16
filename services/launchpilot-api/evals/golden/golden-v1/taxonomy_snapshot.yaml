@@ -1,0 +1,902 @@
+taxonomy_version: marketing-retrieval-taxonomy-v1
+title: LaunchPilot Marketing Retrieval Evaluation Taxonomy
+language: ko-KR
+status: active
+governance:
+  owner_role: marketing_retrieval_evaluation_owner
+  change_policy: >-
+    기존 코드의 의미 변경은 금지한다. 의미가 달라지면 새 코드를 추가하고
+    taxonomy_version을 올린다.
+  assignment_policy: >-
+    각 사례는 모든 필수 단일값 축에 정확히 하나의 코드를 가져야 한다.
+    risk_types만 복수 선택할 수 있으며 위험이 없으면 [none]을 사용한다.
+  labeling_model: SKOS-inspired
+  required_concept_fields:
+    - pref_label_ko
+    - pref_label_en
+    - definition
+    - inclusion
+    - exclusion
+    - example
+
+references:
+  - id: w3c_skos_reference
+    title: SKOS Simple Knowledge Organization System Reference
+    url: https://www.w3.org/TR/skos-reference/
+    applied_to: concept identifiers, preferred labels, alternate labels, definitions
+  - id: w3c_skos_primer
+    title: SKOS Simple Knowledge Organization System Primer
+    url: https://www.w3.org/TR/skos-primer/
+    applied_to: broader, narrower, and related concept relationships
+  - id: nist_trec_howto
+    title: How To TREC
+    url: https://trec.nist.gov/howto.html
+    applied_to: corpus, information need, query, qrels, pooling, and run separation
+  - id: google_ads_metrics
+    title: Google Ads API Metrics
+    url: https://developers.google.com/google-ads/api/reference/rpc/v25/Metrics
+    applied_to: canonical advertising metric families
+  - id: google_ads_conversion_measurement
+    title: Understand your conversion tracking data
+    url: https://support.google.com/google-ads/answer/6270625
+    applied_to: conversion rate and conversion value per cost definitions
+  - id: google_ads_attribution
+    title: About attribution models
+    url: https://support.google.com/google-ads/answer/6259715
+    applied_to: attribution-aware comparison risks
+  - id: meta_conversions_api
+    title: About Conversions API
+    url: https://www.facebook.com/business/help/AboutConversionsAPI
+    applied_to: cross-journey event measurement and tracking-quality risks
+
+cardinality:
+  marketing_domain: exactly_one
+  analysis_task: exactly_one
+  business_objective: exactly_one
+  funnel_stage: exactly_one
+  metric_family: exactly_one
+  scope_type: exactly_one
+  temporal_granularity: exactly_one
+  difficulty: exactly_one
+  evidence_type: exactly_one
+  answer_mode: exactly_one
+  language_style: exactly_one
+  risk_types: one_or_more
+
+dimensions:
+  marketing_domain:
+    definition: 질문이 해결하려는 마케팅 의사결정 영역
+    concepts:
+      delivery_awareness:
+        pref_label_ko: 노출·인지 성과
+        pref_label_en: Delivery and awareness
+        alt_labels: [도달, 노출, 브랜드 인지도]
+        definition: 광고 전달량과 목표 고객 노출을 평가하는 영역
+        inclusion: impressions, reach, frequency, video views 중심 질문
+        exclusion: 클릭 이후 전환 효율만 묻는 질문
+        example: 이번 주 캠페인의 노출 수는 얼마야?
+      traffic_engagement:
+        pref_label_ko: 트래픽·관여
+        pref_label_en: Traffic and engagement
+        alt_labels: [유입, 클릭, 참여]
+        definition: 광고 상호작용과 사이트 또는 콘텐츠 유입을 평가하는 영역
+        inclusion: clicks, CTR, engagement, view rate 중심 질문
+        exclusion: 매출 수익성과 직접 전환 비용 질문
+        example: Meta CTR이 얼마나 나왔어?
+      conversion_acquisition:
+        pref_label_ko: 전환·고객획득
+        pref_label_en: Conversion and acquisition
+        alt_labels: [구매, 리드, 설치, 전환]
+        definition: 구매·리드·설치 등 가치 행동의 발생과 획득 효율 영역
+        inclusion: conversions, CVR, CPA 중심 질문
+        exclusion: 노출량만 확인하는 질문
+        example: 지난주 CPA는 얼마야?
+      revenue_profitability:
+        pref_label_ko: 매출·수익성
+        pref_label_en: Revenue and profitability
+        alt_labels: [광고수익률, 매출기여, ROAS]
+        definition: 전환가치와 광고비 대비 사업 성과를 평가하는 영역
+        inclusion: conversion value, ROAS, ROI, profit 중심 질문
+        exclusion: 전환가치가 없는 단순 전환 건수 질문
+        example: 이 캠페인의 ROAS는 몇 배야?
+      retention_lifecycle:
+        pref_label_ko: 유지·고객생애주기
+        pref_label_en: Retention and lifecycle
+        alt_labels: [재구매, 휴면, 리텐션]
+        definition: 기존 고객의 유지, 재구매, 휴면 복귀를 평가하는 영역
+        inclusion: 재구매·구독·고객가치 관련 질문
+        exclusion: 신규 도달만 평가하는 질문
+        example: 기존 구매자 재구매 캠페인의 전환율은?
+      budget_delivery:
+        pref_label_ko: 예산·집행관리
+        pref_label_en: Budget and delivery management
+        alt_labels: [소진율, 페이싱, 광고비]
+        definition: 예산 배분, 소진 속도, 비용 집행 상태를 평가하는 영역
+        inclusion: spend, budget pacing, underspend, overspend 질문
+        exclusion: 비용을 고려하지 않는 순수 도달 질문
+        example: 일예산 대비 광고비가 과도하게 집행됐어?
+      creative_performance:
+        pref_label_ko: 소재 성과
+        pref_label_en: Creative performance
+        alt_labels: [크리에이티브, 광고소재, 피로도]
+        definition: 메시지와 광고 소재의 반응 및 피로 현상을 평가하는 영역
+        inclusion: 소재별 CTR, view rate, fatigue 근거 질문
+        exclusion: 소재 차원이 없는 캠페인 총합만 묻는 질문
+        example: CTR 하락과 연결된 소재 변경 메모를 찾아줘
+      audience_targeting:
+        pref_label_ko: 오디언스·타기팅
+        pref_label_en: Audience and targeting
+        alt_labels: [타깃, 세그먼트, 잠재고객]
+        definition: 대상 고객군과 전달 전략의 성과를 평가하는 영역
+        inclusion: audience, demographic, remarketing segment 질문
+        exclusion: 대상 고객 구분이 없는 총 성과 질문
+        example: 장바구니 이탈자 타깃의 전환율은?
+      measurement_quality:
+        pref_label_ko: 측정·데이터 품질
+        pref_label_en: Measurement and data quality
+        alt_labels: [트래킹, 어트리뷰션, 결측]
+        definition: 데이터 완전성, 추적 상태, 단위와 귀속 기준의 신뢰성을 평가하는 영역
+        inclusion: tracking gap, attribution, stale data, unit mismatch 질문
+        exclusion: 근거가 완전한 일반 성과 조회
+        example: 전환 추적 누락 기간이 있어?
+      entity_governance:
+        pref_label_ko: 캠페인 식별·거버넌스
+        pref_label_en: Campaign identity and governance
+        alt_labels: [캠페인 식별, 범위 확인, 안전한 거부]
+        definition: 올바른 캠페인 범위 식별과 근거 경계를 관리하는 영역
+        inclusion: ID 조회, 모호성 해소, 없는 캠페인, 인과 과장 거부
+        exclusion: 식별이 끝난 뒤 수행하는 일반 지표 분석
+        example: C0123이 어떤 캠페인이야?
+
+  analysis_task:
+    definition: 질문에 답하기 위해 수행해야 하는 분석 연산 또는 판단
+    concepts:
+      entity_resolution:
+        pref_label_ko: 엔터티 식별
+        pref_label_en: Entity resolution
+        alt_labels: [ID 매칭, 캠페인 찾기]
+        definition: 이름, ID, 약칭, 외부 참조를 하나의 캠페인에 연결
+        inclusion: 정확한 캠페인 레코드 하나를 찾는 질문
+        exclusion: 여러 후보 중 추가 확인이 필요한 질문
+        example: 외부 ID SYN-MET-000123은 어떤 캠페인이야?
+      metric_lookup:
+        pref_label_ko: 지표 단일조회
+        pref_label_en: Metric lookup
+        alt_labels: [수치 조회]
+        definition: 명시된 범위의 저장된 지표 하나를 조회
+        inclusion: 캠페인·플랫폼·기간·지표가 모두 주어진 질문
+        exclusion: 여러 행의 집계나 비교가 필요한 질문
+        example: 5월 1일 Google Ads 클릭 수는?
+      aggregation:
+        pref_label_ko: 기간·범위 집계
+        pref_label_en: Aggregation
+        alt_labels: [합계, 평균]
+        definition: 여러 관측 행을 합계·가중비율 등으로 결합
+        inclusion: 주간·월간·캠페인 전체 수치
+        exclusion: 저장된 단일 행 그대로 조회
+        example: 5월 한 달 총 광고비는?
+      period_comparison:
+        pref_label_ko: 기간 비교
+        pref_label_en: Period comparison
+        alt_labels: [전주 대비, 전월 대비]
+        definition: 동일 대상의 둘 이상 기간 성과와 변화량을 비교
+        inclusion: WoW, MoM, 전후 기간 비교
+        exclusion: 단일 기간 조회
+        example: 전주 대비 CPA가 얼마나 변했어?
+      platform_comparison:
+        pref_label_ko: 플랫폼 비교
+        pref_label_en: Platform comparison
+        alt_labels: [채널 비교]
+        definition: 같은 조건에서 둘 이상 플랫폼의 성과를 비교
+        inclusion: Google Ads와 Meta Ads 비교
+        exclusion: 통화나 귀속 기준이 맞지 않은 무보정 비교
+        example: Meta와 Google 중 CPA가 낮은 곳은?
+      campaign_comparison:
+        pref_label_ko: 캠페인 비교
+        pref_label_en: Campaign comparison
+        alt_labels: [캠페인 벤치마크]
+        definition: 둘 이상 캠페인의 성과 또는 효율을 비교
+        inclusion: 동일 목표·단위·기간 캠페인 비교
+        exclusion: 서로 다른 통화를 환산 없이 비교
+        example: 신규 고객 캠페인 중 ROAS가 가장 높은 것은?
+      trend_analysis:
+        pref_label_ko: 추세 분석
+        pref_label_en: Trend analysis
+        alt_labels: [추이, 상승세, 하락세]
+        definition: 시간 순서에 따른 방향·속도·변곡을 분석
+        inclusion: 일별·주별 시계열 추세
+        exclusion: 두 시점만 단순 비교
+        example: 최근 4주 CTR 추세를 보여줘
+      anomaly_detection:
+        pref_label_ko: 이상 탐지
+        pref_label_en: Anomaly detection
+        alt_labels: [급락, 급등, 이상치]
+        definition: 기준 추세나 비교군에서 비정상적으로 벗어난 관측 탐지
+        inclusion: 급락, 급등, tracking gap 탐지
+        exclusion: 원인을 확정하는 진단
+        example: 전환 수가 비정상적으로 낮은 날짜가 있어?
+      goal_pacing:
+        pref_label_ko: 목표·예산 페이싱
+        pref_label_en: Goal and budget pacing
+        alt_labels: [목표 달성률, 소진율]
+        definition: 목표 또는 예산 대비 현재 진행률과 예상 달성 여부 분석
+        inclusion: target KPI, planned budget이 존재하는 경우
+        exclusion: 목표값 없이 좋고 나쁨을 단정
+        example: 월말 예산을 초과할 가능성이 있어?
+      causal_diagnosis:
+        pref_label_ko: 원인 진단
+        pref_label_en: Causal diagnosis
+        alt_labels: [원인 분석]
+        definition: 관측된 변화에 대한 가능한 원인을 근거와 함께 평가
+        inclusion: 사건·문서·수치 근거를 연결하는 질문
+        exclusion: 수치 상관만으로 인과를 확정
+        example: CTR 하락이 소재 변경과 관련 있는지 근거로 설명해줘
+      recommendation:
+        pref_label_ko: 실행 권고
+        pref_label_en: Recommendation
+        alt_labels: [최적화 제안, 액션]
+        definition: 근거와 위험을 바탕으로 검증 가능한 다음 행동 제안
+        inclusion: 예산·소재·타기팅 실험 제안
+        exclusion: 근거 없는 단정적 변경 명령
+        example: 다음 주에 검증할 최적화 행동은?
+      clarification:
+        pref_label_ko: 모호성 해소
+        pref_label_en: Clarification
+        alt_labels: [되묻기, 범위 확인]
+        definition: 여러 해석이 가능한 질문에서 필요한 추가 정보를 요청
+        inclusion: 동일 별칭에 여러 캠페인이 일치
+        exclusion: 유일한 캠페인으로 안전하게 해석 가능
+        example: 캠페인 ID나 기간을 확인해 주세요.
+      no_answer_detection:
+        pref_label_ko: 정답 없음 판정
+        pref_label_en: No-answer detection
+        alt_labels: [조회 실패, 근거 없음]
+        definition: 범위 내 데이터 또는 엔터티가 존재하지 않음을 정확히 판정
+        inclusion: 존재하지 않는 ID, 지원하지 않는 기간
+        exclusion: 검색 실패를 데이터 부재로 오인
+        example: 해당 캠페인을 찾을 수 없습니다.
+      evidence_boundary:
+        pref_label_ko: 근거 경계 준수
+        pref_label_en: Evidence boundary enforcement
+        alt_labels: [안전한 거부, 과장 방지]
+        definition: 보유 근거가 허용하지 않는 인과·권고·수치를 생성하지 않음
+        inclusion: 출처 없는 인과 확정 요구 거부
+        exclusion: 충분한 근거가 있는 분석 거부
+        example: 수치만으로 소재 피로를 원인으로 확정할 수 없습니다.
+
+  business_objective:
+    definition: 캠페인의 주된 사업 목표
+    concepts:
+      awareness:
+        pref_label_ko: 브랜드 인지도
+        pref_label_en: Brand awareness
+        definition: 브랜드 또는 제품 노출과 기억 형성
+        inclusion: 인지도·도달 목적 캠페인
+        exclusion: 직접 전환이 주목적인 캠페인
+        example: 브랜드 인지도 캠페인
+      acquisition:
+        pref_label_ko: 신규 고객 확보
+        pref_label_en: Customer acquisition
+        definition: 신규 고객의 첫 가치 행동 확보
+        inclusion: 첫 구매, 신규 가입, 신규 리드
+        exclusion: 기존 고객 재구매
+        example: 신규 고객 확보 캠페인
+      retargeting:
+        pref_label_ko: 리타게팅 전환
+        pref_label_en: Retargeting conversion
+        definition: 기존 방문자나 고관여 사용자의 전환 촉진
+        inclusion: 방문·장바구니 기반 리타게팅
+        exclusion: 넓은 신규 잠재고객 도달
+        example: 장바구니 이탈자 구매 캠페인
+      lead_generation:
+        pref_label_ko: 리드 생성
+        pref_label_en: Lead generation
+        definition: 상담·문의·신청 등 영업 리드 확보
+        inclusion: lead conversion 캠페인
+        exclusion: 직접 상품 구매
+        example: 상담 신청 캠페인
+      app_growth:
+        pref_label_ko: 앱 성장
+        pref_label_en: App growth
+        definition: 앱 설치와 설치 후 핵심 행동 확대
+        inclusion: install, post-install action
+        exclusion: 웹 구매 전용 캠페인
+        example: 앱 설치 성장 캠페인
+      retention:
+        pref_label_ko: 재구매·유지
+        pref_label_en: Retention
+        definition: 기존 고객의 재구매와 관계 유지
+        inclusion: 재구매·구독 연장·휴면 복귀
+        exclusion: 신규 고객 첫 구매
+        example: 재구매 활성화 캠페인
+      unknown:
+        pref_label_ko: 목표 미확인
+        pref_label_en: Unknown objective
+        definition: 데이터 부재로 사업 목표를 식별할 수 없음
+        inclusion: 존재하지 않는 캠페인 또는 목표 필드 누락
+        exclusion: 목표가 명시된 캠페인
+        example: 조회할 캠페인이 존재하지 않음
+
+  funnel_stage:
+    definition: 질문이 주로 평가하는 고객 여정 단계
+    concepts:
+      awareness:
+        pref_label_ko: 인지
+        pref_label_en: Awareness
+        definition: 광고 노출과 브랜드 발견 단계
+        inclusion: impressions, reach, video views
+        exclusion: 구매와 수익성
+        example: 노출 수는 얼마야?
+      consideration:
+        pref_label_ko: 고려·관여
+        pref_label_en: Consideration
+        definition: 클릭·콘텐츠 소비·사이트 방문 등 탐색 단계
+        inclusion: clicks, CTR, engagement
+        exclusion: 최종 전환
+        example: CTR은 얼마야?
+      conversion:
+        pref_label_ko: 전환
+        pref_label_en: Conversion
+        definition: 구매·리드·설치 같은 핵심 가치 행동 단계
+        inclusion: conversions, CVR, CPA, ROAS
+        exclusion: 노출만 측정
+        example: CPA는 얼마야?
+      retention:
+        pref_label_ko: 유지
+        pref_label_en: Retention
+        definition: 재구매·구독·휴면 복귀 단계
+        inclusion: retention objective와 기존 고객 행동
+        exclusion: 첫 구매
+        example: 재구매 캠페인 전환율은?
+      cross_funnel:
+        pref_label_ko: 퍼널 종합
+        pref_label_en: Cross-funnel
+        definition: 둘 이상의 퍼널 단계를 연결해 평가
+        inclusion: CTR부터 ROAS까지 종합 분석
+        exclusion: 단일 단계 지표
+        example: 노출부터 전환까지 병목을 찾아줘
+      not_applicable:
+        pref_label_ko: 적용 불가
+        pref_label_en: Not applicable
+        definition: 엔터티 식별·안전 판정처럼 퍼널 단계와 무관
+        inclusion: ID 조회, no-answer, 모호성
+        exclusion: 성과 지표 질문
+        example: C0123 캠페인을 찾아줘
+
+  metric_family:
+    definition: 정답 판정에 핵심이 되는 지표 묶음
+    concepts:
+      delivery_reach:
+        pref_label_ko: 전달·도달 지표
+        pref_label_en: Delivery and reach metrics
+        definition: 광고가 전달된 양과 고유 대상 규모
+        inclusion: [impressions, reach, frequency]
+        exclusion: [clicks, conversions]
+        example: impressions
+      traffic_engagement:
+        pref_label_ko: 트래픽·관여 지표
+        pref_label_en: Traffic and engagement metrics
+        definition: 클릭과 광고 상호작용의 양과 비율
+        inclusion: [clicks, ctr, engagements, video_views]
+        exclusion: [cpa, roas]
+        example: ctr
+      spend_cost:
+        pref_label_ko: 비용·집행 지표
+        pref_label_en: Spend and cost metrics
+        definition: 광고비와 상호작용 단위 비용
+        inclusion: [spend, cpc, cpm]
+        exclusion: [conversion_value, roas]
+        example: spend
+      conversion_efficiency:
+        pref_label_ko: 전환·획득효율 지표
+        pref_label_en: Conversion efficiency metrics
+        definition: 전환량과 전환 획득 효율
+        inclusion: [conversions, cvr, cpa]
+        exclusion: [impressions, reach]
+        example: cpa
+      value_return:
+        pref_label_ko: 가치·수익률 지표
+        pref_label_en: Value and return metrics
+        definition: 전환가치와 광고비 대비 가치
+        inclusion: [conversion_value, roas, roi]
+        exclusion: [clicks, ctr]
+        example: roas
+      data_quality:
+        pref_label_ko: 데이터 품질 지표
+        pref_label_en: Data quality indicators
+        definition: 완전성·신선도·추적 상태를 나타내는 지표
+        inclusion: [completeness, missing_reason, captured_at]
+        exclusion: 일반 성과 수치
+        example: completeness_status
+      entity_metadata:
+        pref_label_ko: 엔터티 메타데이터
+        pref_label_en: Entity metadata
+        definition: 캠페인 ID, 이름, 플랫폼, 기간과 관계 정보
+        inclusion: [campaign_id, campaign_name, period, platform]
+        exclusion: 성과 지표
+        example: campaign_id
+      none:
+        pref_label_ko: 지표 없음
+        pref_label_en: No metric
+        definition: 정답 없음 또는 근거 경계 판정이라 지표를 요구하지 않음
+        inclusion: no-answer, ambiguity, unsupported causality
+        exclusion: 수치 질문
+        example: 존재하지 않는 캠페인
+
+  scope_type:
+    definition: 답변에 필요한 엔터티와 필터 범위
+    concepts:
+      entity_only:
+        pref_label_ko: 엔터티 단독
+        pref_label_en: Entity only
+        definition: 캠페인 식별 정보만 필요
+        inclusion: ID·이름·별칭 조회
+        exclusion: 성과 지표
+        example: C0012 이름은?
+      campaign_platform_day:
+        pref_label_ko: 캠페인·플랫폼·일자
+        pref_label_en: Campaign platform day
+        definition: 캠페인 하나의 플랫폼 하나, 하루 범위
+        inclusion: 일별 단일 지표
+        exclusion: 주간 집계
+        example: 5월 1일 Meta 클릭 수
+      campaign_platform_period:
+        pref_label_ko: 캠페인·플랫폼·기간
+        pref_label_en: Campaign platform period
+        definition: 캠페인과 플랫폼이 고정된 복수 날짜 범위
+        inclusion: 주간·월간 플랫폼 성과
+        exclusion: 플랫폼 간 비교
+        example: 5월 Meta 총 광고비
+      campaign_period:
+        pref_label_ko: 캠페인·기간
+        pref_label_en: Campaign period
+        definition: 플랫폼 전체를 포함한 캠페인의 특정 기간
+        inclusion: 캠페인 주간 총합
+        exclusion: 플랫폼 하나만 지정
+        example: 지난주 캠페인 총 전환 수
+      cross_platform_period:
+        pref_label_ko: 플랫폼 교차·기간
+        pref_label_en: Cross-platform period
+        definition: 동일 캠페인·기간의 둘 이상 플랫폼
+        inclusion: 채널 비교·통합
+        exclusion: 단일 플랫폼
+        example: Meta와 Google의 지난주 CPA 비교
+      cross_campaign_period:
+        pref_label_ko: 캠페인 교차·기간
+        pref_label_en: Cross-campaign period
+        definition: 둘 이상 캠페인의 정렬된 기간 비교
+        inclusion: 캠페인 순위·벤치마크
+        exclusion: 단일 캠페인
+        example: 5월 ROAS 상위 캠페인
+      workspace_period:
+        pref_label_ko: 워크스페이스·기간
+        pref_label_en: Workspace period
+        definition: 워크스페이스 내 캠페인 전체와 기간
+        inclusion: 포트폴리오 총합
+        exclusion: 특정 캠페인
+        example: 워크스페이스 월간 광고비
+      multi_source:
+        pref_label_ko: PG·문서 복합
+        pref_label_en: Multi-source scope
+        definition: 구조화 수치와 문서 근거를 함께 요구
+        inclusion: 수치 변화와 원인 근거 연결
+        exclusion: PG 수치만으로 해결
+        example: CTR 하락 시점과 소재 변경 메모를 연결해줘
+      missing_or_ambiguous:
+        pref_label_ko: 누락·모호 범위
+        pref_label_en: Missing or ambiguous scope
+        definition: 엔터티가 없거나 하나로 확정되지 않은 범위
+        inclusion: no-answer, ambiguous entity
+        exclusion: 유일한 범위
+        example: 존재하지 않는 C9001
+
+  temporal_granularity:
+    definition: 시간 범위의 분석 단위
+    concepts:
+      none:
+        pref_label_ko: 시간 범위 없음
+        pref_label_en: No temporal scope
+        definition: 시간 필터가 필요하지 않음
+        inclusion: 캠페인 식별
+        exclusion: 지표 조회
+        example: 캠페인 이름 조회
+      day:
+        pref_label_ko: 일
+        pref_label_en: Day
+        definition: 단일 날짜
+        inclusion: 일별 observation
+        exclusion: 이틀 이상
+        example: 2025-05-01
+      week:
+        pref_label_ko: 주
+        pref_label_en: Week
+        definition: 연속 7일 또는 명시된 주
+        inclusion: 주간 집계·비교
+        exclusion: 월간
+        example: 지난 7일
+      month:
+        pref_label_ko: 월
+        pref_label_en: Month
+        definition: 달력 월 또는 월 단위 집계
+        inclusion: 월간 성과
+        exclusion: 캠페인 전체
+        example: 2025년 5월
+      campaign_lifetime:
+        pref_label_ko: 캠페인 전체기간
+        pref_label_en: Campaign lifetime
+        definition: 캠페인 시작일부터 종료일까지
+        inclusion: lifetime total
+        exclusion: 일부 기간
+        example: 캠페인 전체 ROAS
+      comparative_periods:
+        pref_label_ko: 비교 기간
+        pref_label_en: Comparative periods
+        definition: 둘 이상의 기간을 정렬해 비교
+        inclusion: WoW, MoM, before/after
+        exclusion: 단일 기간
+        example: 전주 대비
+      unspecified:
+        pref_label_ko: 기간 미지정
+        pref_label_en: Unspecified period
+        definition: 질문에 기간이 없어 확인 또는 기본 정책이 필요
+        inclusion: 모호한 성과 요청
+        exclusion: 날짜가 명시됨
+        example: 이 캠페인 성과 알려줘
+
+  difficulty:
+    definition: 검색과 추론에 필요한 최소 연산 복잡도
+    concepts:
+      l1_entity_or_fact:
+        pref_label_ko: L1 엔터티·단일사실
+        pref_label_en: L1 entity or fact
+        definition: 단일 키로 하나의 레코드 또는 사실 조회
+        inclusion: ID 조회
+        exclusion: 다중 필터
+        example: C0012 캠페인명
+      l2_filtered_lookup:
+        pref_label_ko: L2 필터 조회
+        pref_label_en: L2 filtered lookup
+        definition: 캠페인·플랫폼·기간·지표 필터를 결합한 조회
+        inclusion: 정확한 일별 지표
+        exclusion: 집계·비교
+        example: 특정 날짜 Meta CTR
+      l3_aggregation_or_comparison:
+        pref_label_ko: L3 집계·비교
+        pref_label_en: L3 aggregation or comparison
+        definition: 여러 행의 집계, 재계산, 순위 또는 비교
+        inclusion: 주간 총합, 플랫폼 비교
+        exclusion: 단일 행
+        example: 두 플랫폼 CPA 비교
+      l4_multi_hop_or_source:
+        pref_label_ko: L4 다단계·다중근거
+        pref_label_en: L4 multi-hop or multi-source
+        definition: 엔터티 식별 후 수치와 문서 등 복수 근거 연결
+        inclusion: PG+document diagnosis
+        exclusion: 한 source 조회
+        example: 하락 시점과 소재 변경 연결
+      l5_ambiguous_or_adversarial:
+        pref_label_ko: L5 모호·적대적
+        pref_label_en: L5 ambiguous or adversarial
+        definition: 안전한 clarification, abstention 또는 경계 판단 필요
+        inclusion: 없는 엔터티, 인과 확정 유도
+        exclusion: 정상 조회
+        example: 출처 없이 원인을 확정해줘
+
+  evidence_type:
+    definition: 정답을 판정하는 권위 근거의 유형
+    concepts:
+      pg_entity:
+        pref_label_ko: PG 엔터티 근거
+        pref_label_en: PostgreSQL entity evidence
+        definition: campaigns·workspace 관계 등 구조화 엔터티 근거
+        inclusion: ID·이름·기간·관계
+        exclusion: 성과 수치 행
+        example: campaigns row
+      pg_metric:
+        pref_label_ko: PG 지표 근거
+        pref_label_en: PostgreSQL metric evidence
+        definition: metric_observations의 측정 또는 계산 근거
+        inclusion: 수치 조회·집계
+        exclusion: 문서 진단
+        example: metric observation row
+      pg_observation:
+        pref_label_ko: PG 관측상태 근거
+        pref_label_en: PostgreSQL observation-state evidence
+        definition: campaign_observations의 완전성·누락 사유·수집시각 근거
+        inclusion: tracking gap, partial observation, freshness 판정
+        exclusion: 정상 성과 수치 자체
+        example: completeness_status + missing_reasons
+      document_passage:
+        pref_label_ko: 문서 passage 근거
+        pref_label_en: Document passage evidence
+        definition: 원문 문서의 고정 문자 범위
+        inclusion: observation, diagnosis, recommendation
+        exclusion: chunk ID 단독
+        example: document_ref + char_start + char_end
+      pg_and_document:
+        pref_label_ko: PG·문서 결합 근거
+        pref_label_en: PostgreSQL and document evidence
+        definition: 구조화 수치와 문서 passage를 함께 요구
+        inclusion: 변화와 원인 근거 연결
+        exclusion: 한 source만으로 충분
+        example: CTR 시계열 + 소재 변경 메모
+      absence_proof:
+        pref_label_ko: 부재 판정 근거
+        pref_label_en: Absence proof
+        definition: 고정 corpus와 scope에서 대상이 존재하지 않음
+        inclusion: no-answer
+        exclusion: 검색 실패만 발생한 경우
+        example: frozen corpus에 C9001 없음
+      none_expected:
+        pref_label_ko: 긍정 근거 없음
+        pref_label_en: No positive evidence expected
+        definition: 모호성 또는 과장 요구로 긍정 정답 근거를 반환하면 안 됨
+        inclusion: clarification, unsupported causality
+        exclusion: 정상 positive case
+        example: 인과 확정 거부
+
+  answer_mode:
+    definition: 기대 답변의 출력 행위
+    concepts:
+      entity_record:
+        pref_label_ko: 엔터티 반환
+        pref_label_en: Entity record
+        definition: 캠페인 식별 정보 반환
+        inclusion: ID·이름·기간
+        exclusion: 수치 계산
+        example: 캠페인명과 ID
+      numeric_fact:
+        pref_label_ko: 수치 사실 반환
+        pref_label_en: Numeric fact
+        definition: 단위와 범위가 명시된 수치 반환
+        inclusion: 지표 단일조회
+        exclusion: 비교 해석
+        example: CTR 1.2%
+      comparison:
+        pref_label_ko: 비교·순위 반환
+        pref_label_en: Comparison or ranking
+        definition: 대상별 값과 우열 또는 변화량 반환
+        inclusion: 플랫폼·기간·캠페인 비교
+        exclusion: 단일 수치
+        example: Meta의 CPA가 더 낮음
+      trend_summary:
+        pref_label_ko: 추세 요약
+        pref_label_en: Trend summary
+        definition: 시계열 방향과 변곡을 요약
+        inclusion: trend analysis
+        exclusion: 인과 확정
+        example: 3주 연속 하락
+      grounded_explanation:
+        pref_label_ko: 근거 기반 설명
+        pref_label_en: Grounded explanation
+        definition: 주장별 출처와 한계를 포함한 설명
+        inclusion: 진단·권고
+        exclusion: 출처 없는 서술
+        example: 메모와 수치에 근거한 원인 후보
+      data_quality_alert:
+        pref_label_ko: 데이터 품질 경고
+        pref_label_en: Data quality alert
+        definition: 누락·신선도·단위·귀속 문제와 영향 범위를 명시
+        inclusion: PARTIAL observation과 비교 불가 조건
+        exclusion: 일반 수치 답변
+        example: 5월 15일부터 3일간 전환 추적이 누락되었습니다.
+      clarification:
+        pref_label_ko: 추가정보 요청
+        pref_label_en: Clarification request
+        definition: 범위를 확정하는 질문 반환
+        inclusion: ambiguous entity
+        exclusion: 유일한 범위
+        example: 캠페인 ID를 알려주세요.
+      abstention:
+        pref_label_ko: 답변 보류·거부
+        pref_label_en: Abstention
+        definition: 정답 또는 충분한 근거가 없음을 명시
+        inclusion: no-answer, unsupported causality
+        exclusion: 근거가 존재하는 positive case
+        example: 근거가 없어 원인을 확정할 수 없습니다.
+
+  language_style:
+    definition: 사용자 질의의 표면 언어 스타일
+    concepts:
+      colloquial_ko:
+        pref_label_ko: 일상 한국어
+        pref_label_en: Colloquial Korean
+        definition: 비전문 사용자의 자연스러운 구어체
+        inclusion: 얼마야, 알려줘
+        exclusion: 전문 약어 중심
+        example: 지난주 광고비 얼마야?
+      professional_ko:
+        pref_label_ko: 마케팅 전문 한국어
+        pref_label_en: Professional Korean
+        definition: 마케팅 용어와 정확한 범위를 사용
+        inclusion: CPA, ROAS, 어트리뷰션
+        exclusion: 짧은 키워드만 입력
+        example: 전주 대비 CPA 증감률을 비교해줘
+      keyword_short:
+        pref_label_ko: 짧은 키워드형
+        pref_label_en: Short keyword query
+        definition: 조사와 문장이 생략된 검색어 형태
+        inclusion: 캠페인명 CTR 5월
+        exclusion: 완전한 문장
+        example: C0012 Meta CTR
+      ko_en_mixed:
+        pref_label_ko: 한영 혼합
+        pref_label_en: Korean-English mixed
+        definition: 한국어와 영문 지표·플랫폼명이 혼합
+        inclusion: Meta ROAS 알려줘
+        exclusion: 순수 한국어
+        example: Google Ads CPA 비교
+      noisy_ko:
+        pref_label_ko: 오타·띄어쓰기 변형
+        pref_label_en: Noisy Korean
+        definition: 오타, 붙여쓰기, 비표준 약칭이 포함됨
+        inclusion: 캠패인, 전환율좀
+        exclusion: 표준 문장
+        example: C0012 캠패인 roas좀
+
+  risk_types:
+    definition: 잘못 답할 경우 평가해야 할 오류 또는 안전 위험
+    multi_select: true
+    concepts:
+      none:
+        pref_label_ko: 특별 위험 없음
+        pref_label_en: No special risk
+        definition: 일반적인 정확성 외 별도 위험이 없음
+        inclusion: 명확한 엔터티와 완전한 근거
+        exclusion: 아래 위험 중 하나라도 존재
+        example: 정확한 일별 클릭 수 조회
+      entity_ambiguity:
+        pref_label_ko: 엔터티 모호성
+        pref_label_en: Entity ambiguity
+        definition: 여러 캠페인이 동일 표현과 일치
+        inclusion: 후보가 둘 이상
+        exclusion: 유일한 ID
+        example: 오로라 신제품 캠페인
+      missing_entity:
+        pref_label_ko: 엔터티 부재
+        pref_label_en: Missing entity
+        definition: 고정 corpus에 대상 캠페인이 없음
+        inclusion: 존재하지 않는 ID
+        exclusion: 검색기가 놓친 실제 엔터티
+        example: C9001
+      unsupported_causality:
+        pref_label_ko: 근거 없는 인과 확정
+        pref_label_en: Unsupported causality
+        definition: 관찰 수치만으로 원인을 확정하려는 위험
+        inclusion: 소재 피로 때문이라고 확정 요구
+        exclusion: 사건·문서 근거가 존재하는 원인 후보 설명
+        example: 출처 없이 원인을 확정해줘
+      insufficient_evidence:
+        pref_label_ko: 근거 부족
+        pref_label_en: Insufficient evidence
+        definition: 필요한 source 또는 passage가 없음
+        inclusion: 문서 없이 진단·권고 요구
+        exclusion: 모든 근거 확보
+        example: PG만 있는데 소재 원인 질문
+      attribution_mismatch:
+        pref_label_ko: 어트리뷰션 불일치
+        pref_label_en: Attribution mismatch
+        definition: 서로 다른 귀속 모델이나 전환창의 수치를 직접 비교
+        inclusion: 플랫폼별 attribution setting 불일치
+        exclusion: 같은 정의로 정규화됨
+        example: 7d click과 30d click 전환 직접 비교
+      currency_mismatch:
+        pref_label_ko: 통화 불일치
+        pref_label_en: Currency mismatch
+        definition: 서로 다른 통화를 환산 없이 합산·비교
+        inclusion: KRW와 USD 비용 직접 비교
+        exclusion: 동일 통화 또는 명시적 환산
+        example: KRW와 USD CPA 순위
+      period_mismatch:
+        pref_label_ko: 기간 불일치
+        pref_label_en: Period mismatch
+        definition: 길이 또는 기준이 다른 기간을 무보정 비교
+        inclusion: 7일과 30일 총합 직접 비교
+        exclusion: 일평균 또는 동일 기간
+        example: 지난주와 지난달 총 클릭 비교
+      zero_denominator:
+        pref_label_ko: 0 분모
+        pref_label_en: Zero denominator
+        definition: 비율 계산의 분모가 0
+        inclusion: impressions, clicks, spend, conversions가 0인 파생지표
+        exclusion: 분모가 양수
+        example: 클릭 0건인 CVR
+      tracking_gap:
+        pref_label_ko: 추적 누락
+        pref_label_en: Tracking gap
+        definition: 일부 지표가 수집되지 않아 관측이 PARTIAL
+        inclusion: missing_reasons 존재
+        exclusion: COMPLETE observation
+        example: 전환 추적 3일 누락
+      stale_data:
+        pref_label_ko: 데이터 신선도
+        pref_label_en: Stale data
+        definition: 질문 시점에 비해 마지막 수집 시각이 오래됨
+        inclusion: freshness SLA 초과
+        exclusion: 허용 시점 내 데이터
+        example: 어제 성과를 한 달 전 snapshot으로 답변
+      privacy_sensitive:
+        pref_label_ko: 개인정보·민감정보
+        pref_label_en: Privacy-sensitive data
+        definition: 개인 식별 또는 민감 세그먼트 노출 위험
+        inclusion: user-level identifiers
+        exclusion: 집계 캠페인 지표
+        example: 개인별 광고 반응 요청
+
+metric_mapping:
+  impressions: {metric_family: delivery_reach, marketing_domain: delivery_awareness, funnel_stage: awareness}
+  meta.reach: {metric_family: delivery_reach, marketing_domain: delivery_awareness, funnel_stage: awareness}
+  youtube.video_views: {metric_family: traffic_engagement, marketing_domain: delivery_awareness, funnel_stage: awareness}
+  clicks: {metric_family: traffic_engagement, marketing_domain: traffic_engagement, funnel_stage: consideration}
+  ctr: {metric_family: traffic_engagement, marketing_domain: traffic_engagement, funnel_stage: consideration}
+  spend: {metric_family: spend_cost, marketing_domain: budget_delivery, funnel_stage: cross_funnel}
+  cpc: {metric_family: spend_cost, marketing_domain: traffic_engagement, funnel_stage: consideration}
+  conversions: {metric_family: conversion_efficiency, marketing_domain: conversion_acquisition, funnel_stage: conversion}
+  cvr: {metric_family: conversion_efficiency, marketing_domain: conversion_acquisition, funnel_stage: conversion}
+  cpa: {metric_family: conversion_efficiency, marketing_domain: conversion_acquisition, funnel_stage: conversion}
+  conversion_value: {metric_family: value_return, marketing_domain: revenue_profitability, funnel_stage: conversion}
+  roas: {metric_family: value_return, marketing_domain: revenue_profitability, funnel_stage: conversion}
+
+objective_mapping:
+  브랜드 인지도: awareness
+  신규 고객 확보: acquisition
+  리타게팅 전환: retargeting
+  리드 생성: lead_generation
+  앱 설치 성장: app_growth
+  재구매 활성화: retention
+
+cross_dimension_rules:
+  - id: ratio_requires_context
+    when: metric_family in [traffic_engagement, conversion_efficiency, value_return]
+    require: period, unit, platform, provenance
+  - id: causal_requires_document
+    when: analysis_task == causal_diagnosis
+    require: evidence_type in [document_passage, pg_and_document]
+  - id: recommendation_requires_grounding
+    when: analysis_task == recommendation
+    require: evidence_type == pg_and_document
+  - id: ambiguity_requires_clarification
+    when: entity_ambiguity in risk_types
+    require: answer_mode == clarification
+  - id: no_answer_requires_absence_proof
+    when: analysis_task == no_answer_detection
+    require: evidence_type == absence_proof
+  - id: unsupported_causality_requires_abstention
+    when: unsupported_causality in risk_types
+    require: answer_mode == abstention
+  - id: unsafe_unit_or_attribution_requires_abstention
+    when: currency_mismatch or attribution_mismatch in risk_types
+    require: answer_mode == abstention
+  - id: period_mismatch_requires_quality_alert
+    when: period_mismatch in risk_types
+    require: answer_mode == data_quality_alert
+  - id: tracking_gap_requires_observation_evidence
+    when: tracking_gap in risk_types
+    require: evidence_type == pg_observation and answer_mode == data_quality_alert
+  - id: none_risk_is_exclusive
+    when: none in risk_types
+    require: risk_types length == 1
+
+coverage_policy:
+  reporting:
+    exploratory_min_cases_per_slice: 20
+    directional_min_cases_per_slice: 30
+    model_selection_min_cases_per_critical_slice: 50
+    min_distinct_campaign_groups_per_slice: 10
+    confidence_interval: wilson_95
+    rule: >-
+      최소 사례 수는 신뢰구간을 대체하지 않는다. 사례 수와 서로 다른 캠페인
+      그룹 수를 함께 보고하고, 기준 미달 slice는 모델 채택 근거로 사용하지 않는다.
+  critical_slices:
+    - structured_exact
+    - semantic
+    - mixed_structured_semantic
+    - no_answer
+    - ambiguous
+    - unsupported_causality
+  balance_gates:
+    max_single_analysis_task_share: 0.35
+    max_single_marketing_domain_share: 0.35
+    min_language_styles_in_full_dataset: 4
+    min_difficulty_levels_in_full_dataset: 4
+    min_positive_cases_per_platform: 30
