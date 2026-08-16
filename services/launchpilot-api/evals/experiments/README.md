@@ -1,75 +1,181 @@
-# Retrieval Experiment Matrix
+# 검색 실험 v1: 결과와 논의 사항
 
-이 디렉터리는 Golden Dataset은 고정한 채 `Chunker × Retriever × 설정값`만
-바꾸는 반복 실험을 정의한다. 특정 방식이 정답이라는 라벨은 Golden에 넣지 않고,
-모든 조합이 동일한 corpus, qrels, split, metric 구현을 공유한다.
+## 이 문서의 목적
 
-## v1 실험 범위
+이 실험은 한국어 마케팅 질문에서 어떤 청킹과 검색 방식이 유리한지 비교하기 위한
+첫 번째 기준선이다. 현재 결과는 **합성 환경에서 조합을 비교한 결과**이며 실제
+사용자 환경의 운영 성능을 보장하지 않는다.
 
-- Chunker 7개: whole document, fixed token 256/400/512, sentence, recursive,
-  semantic
-- Retriever 10개: BM25 Top-K 2개, Dense, Korean TF-IDF Sparse, Hybrid alpha
-  0.25/0.50/0.75, Dense/Sparse RRF, Reranker 조합
-- 총 조합: tune split 기준 70개
+## 1. 사용한 데이터와 실행 환경
 
-v1은 외부 API나 모델 다운로드 없이 재현되는 한국어 마케팅 기준선을 제공한다.
+| 항목 | 현재 구성 |
+| --- | --- |
+| 전체 Golden Dataset | 600건 |
+| 이번 문서 검색 실험 대상 | 130건 |
+| Tune / Validation / Holdout | 78 / 26 / 26건 |
+| 검색 문서 | 캠페인 300개 × BRIEF·MEMO·ANALYSIS = 900개 |
+| 데이터 성격 | 동일 규칙과 seed로 재생성 가능한 합성 데이터 |
+| 질문 언어 | 한국어 중심, 일부 광고 플랫폼 영문 용어 포함 |
+| 실험 조합 | 7 Chunker × 10 Retriever = 70개 |
+| 결과 저장 | PostgreSQL + 로컬 gzip JSONL 보고서 |
 
-- Dense: 마케팅 지표·추세·진단 동의어를 정규화한 512차원 feature hashing
-- Sparse: 한국어 단어·2/3-gram TF-IDF
-- Hybrid: BM25와 Dense/Sparse의 weighted score 또는 RRF
-- Reranker: query-passage term/concept/number 교차 feature 점수
-- Semantic chunker: 인접 문장의 dense cosine breakpoint
+전체 Golden 600건 중 정확한 ID·기간·성과 수치를 묻는 사례는 PostgreSQL 검색
+대상이다. 이번 청킹·Retriever 비교에는 문서의 설명·원인·권고를 찾아야 하는
+130건만 사용했다.
 
-미지원 adapter, 빈 corpus, 빈 평가 slice는 0점 대신 `blocked`로 기록한다. 0점과
-실행 불가는 분석상 전혀 다른 상태이기 때문이다.
+실험 검색기는 Python 메모리에서 실행된다. PostgreSQL은 Golden 원본과 실험 결과를
+저장하지만, 이번 Dense·Sparse·Hybrid 점수 계산 자체에는 Elasticsearch를 사용하지
+않았다. 따라서 이 결과를 Elasticsearch 운영 성능으로 해석하면 안 된다.
 
-## 평가 지표
+### 현재 검색 방식의 실제 의미
 
-- `Recall@K`: 정답 passage 중 검색된 비율
-- `MRR@K`: 첫 정답 청크 순위의 역수
-- `nDCG@K`: graded qrels와 순위를 함께 반영
-- `Context Precision@K`: 검색 문맥 중 중복을 제외한 정답 청크 비율
-- `latency_p50_ms`, `latency_p95_ms`: 검색 호출 지연시간
+| 이름 | 이번 실험에서 사용한 방식 |
+| --- | --- |
+| BM25 | 같은 단어가 얼마나 잘 겹치는지 계산하는 검색 |
+| Dense | 마케팅 동의어를 정규화한 512차원 concept-hash 벡터 검색 |
+| Sparse | 한국어 단어와 2·3글자 조각에 TF-IDF 가중치를 준 검색 |
+| Hybrid | BM25와 Dense 또는 Sparse 결과를 점수나 순위로 결합 |
+| Reranker | 상위 후보의 단어·개념·숫자 일치를 다시 계산해 재정렬 |
 
-전체 평균과 함께 query profile 및 taxonomy 12개 축별 slice 결과를 저장한다.
-동일 passage를 겹치는 여러 청크가 검색해도 정답 이득은 한 번만 계산한다.
+현재 Dense는 pretrained 신경망 embedding이 아니며 Sparse도 learned sparse 모델이
+아니다. 따라서 엄밀한 의미의 neural zero-shot 비교가 아니라, 외부 모델 없이
+재현 가능한 **로컬 마케팅 기준선 비교**다.
 
-## 실행
+## 2. 결과를 보기 전에 필요한 전제
 
-```powershell
-launchpilot-run-retrieval-evals `
-  --matrix evals/experiments/retrieval-matrix-v1.yaml `
-  --golden-root evals/golden/golden-v1 `
-  --output evals/runs/retrieval-matrix-v1 `
-  --database-url postgresql://launchpilot:launchpilot-local@127.0.0.1:55432/launchpilot
+1. 질문에서 campaign 범위가 이미 정확히 식별됐다고 가정한다.
+2. 검색 시 해당 campaign의 문서만 대상으로 제한한다. 보통 BRIEF·MEMO·ANALYSIS
+   3개이므로 전체 workspace에서 찾는 것보다 쉬운 조건이다.
+3. 합성 문서와 Golden 질문은 비슷한 마케팅 용어와 생성 규칙을 공유한다.
+4. 문서 정답 span 130건과 검수 대기 사례 260건은 아직 전문가 검수를 마치지 않았다.
+5. Holdout은 최종 설정 선택 후 한 번만 사용했다. 앞으로 설정을 바꾸면 같은
+   Holdout을 다시 튜닝에 사용하지 않고 `holdout-v2`를 만들어야 한다.
+6. p95 지연시간은 로컬 CPU에서 측정한 검색 호출 시간이며 indexing과 실제 네트워크
+   시간을 포함한 운영 SLA가 아니다.
+
+이 전제 때문에 현재 수치는 “이 환경에서 어떤 조합이 상대적으로 좋았는가”에는
+답할 수 있지만, “실제 사용자에게도 같은 점수가 나오는가”에는 답할 수 없다.
+
+## 3. 질문이 처리되는 흐름
+
+```text
+사용자 질문
+  ↓
+workspace·campaign 범위 식별
+  ↓
+정확한 ID·기간·수치 질문 → PostgreSQL 조회
+설명·원인·권고 질문       → 문서 검색
+  ↓
+문서를 통째로 보거나 작은 청크로 분리
+  ↓
+BM25·Dense·Sparse·Hybrid로 상위 K개 검색
+  ↓
+필요하면 Reranker로 순서 재정렬
+  ↓
+검색 근거를 답변 생성 단계에 전달
 ```
 
-`--require-completed`를 추가하면 완료 조합이 하나도 없을 때 CI가 실패한다.
+예를 들어 “C0121의 지난주 ROAS가 얼마야?”는 PostgreSQL에서 조회한다. 반면
+“C0121의 성과가 떨어진 이유와 다음 조치를 알려줘”는 MEMO와 ANALYSIS의 의미를
+찾아야 하므로 문서 검색을 사용한다.
 
-## 결과 저장
+## 4. 평가 점수 읽는 법
 
-- `retrieval_experiment_runs`: 조합 manifest, 상태, 전체 지표
-- `retrieval_experiment_case_results`: 질문별 순위·점수·지연시간·지표
-- `retrieval_experiment_slice_metrics`: taxonomy slice별 집계값
-- `evals/runs/...`: 사람이 읽는 실행 보고서와 gzip JSONL bundle
+| 지표 | 쉽게 말하면 | 방향 |
+| --- | --- | --- |
+| Recall@K | 정답을 상위 K개 안에 놓치지 않고 넣었는가 | 높을수록 좋음 |
+| MRR@K | 첫 정답이 얼마나 앞 순위에 있는가 | 높을수록 좋음 |
+| nDCG@K | 중요한 정답을 좋은 순서로 보여줬는가 | 높을수록 좋음 |
+| Context Precision@K | 가져온 K개 중 실제 근거 비율은 얼마인가 | 높을수록 좋음 |
+| p95 latency | 느린 쪽 5%에 가까운 검색 시간 | 낮을수록 좋음 |
 
-matrix를 한 번 실행할 때 생성되는 모든 조합은 동일한 `execution_id`를 가진다.
-따라서 같은 `matrix_version`을 반복 실행해도 실행 회차별 비교와 재현이 가능하다.
+Recall이 1.0이어도 모두 같은 성능은 아니다. 정답이 1위인지 10위인지 구분하려면
+MRR과 nDCG를 같이 봐야 한다. 또한 정답이 1개인 경우 Top-10의 Context Precision은
+약 0.1, Top-5는 약 0.2가 되므로 K가 다른 결과를 그대로 비교하면 안 된다.
 
-선택 순서는 tune 후보 축소 → validation 선택 → blind holdout 1회 검증이다.
-Accuracy 하나로 선택하지 않고 nDCG/Recall, 최저 slice, 지연시간과 비용을 함께 본다.
+## 5. 핵심 결과
 
-## 현재 상태
+### 검색 방식별 최고 결과
 
-2026-08-16 실행에서는 캠페인 문서 900개와 문서형 Golden 130개를 사용했다.
+| 검색 방식 | 최고 청킹 | Recall@K | MRR@K | nDCG@K | p95 |
+| --- | --- | ---: | ---: | ---: | ---: |
+| Dense | Whole document | 1.0000 | 0.9316 | **0.9493** | 2.53ms |
+| Hybrid, Dense 75% | Whole document | 1.0000 | 0.8932 | 0.9209 | 3.86ms |
+| Sparse | Whole document | 1.0000 | 0.8397 | 0.8817 | **1.52ms** |
+| BM25 Top-5 | Fixed 512 / overlap 128 | 1.0000 | 0.8013 | 0.8527 | 3.17ms |
 
-- tune: 70/70 완료, blocked 0
-- validation shortlist: 12/12 완료, blocked 0
-- blind holdout: 선택된 1개 조합을 1회 실행, blocked 0
-- 최종 선택: whole document + marketing concept-hash Dense Top-10
-  - validation: Recall 1.0000, nDCG 0.9666, query-profile floor 0.9131
-  - holdout: Recall 1.0000, nDCG 0.9382, query-profile floor 0.8393
+Dense는 네 방식 모두 Recall 1.0인 상황에서 정답을 더 앞에 배치해 MRR과 nDCG가
+가장 높았다. Hybrid는 Dense 이외의 신호를 섞으면서 순위가 조금 낮아졌고,
+Reranker도 nDCG 0.8848과 p95 12.19ms로 품질과 속도 모두 개선하지 못했다.
 
-선택 결과는 `selected-retrieval-v1.yaml`에 실행 ID와 함께 고정했다. 이는 합성
-corpus용 재현 가능한 기준선이며, 향후 실제 문서와 pretrained embedding을 연결할
-때 동일 Golden/metric 계약으로 다시 비교해야 한다.
+### 청킹 방식별 최고 결과
+
+| 청킹 | 최고 nDCG | 해석 |
+| --- | ---: | --- |
+| Whole document | **0.9493** | 전체 문맥을 보존해 최종 선택 |
+| Fixed 512 / overlap 128 | 0.9286 | 안정적인 차선 후보 |
+| Sentence pack 400 | 0.9223 | 문장 보존 효과는 있으나 Whole보다 낮음 |
+| Fixed 400 / overlap 100 | 0.9206 | 무난한 기준선 |
+| Fixed 256 / overlap 64 | 0.8541 | 문맥이 너무 잘게 나뉨 |
+| Semantic breakpoint | 0.8495 | 계산 비용 대비 이점 없음 |
+| Recursive heading | 0.5732 | 정답 span이 분리되는 문제 발생 |
+
+현재 문서는 캠페인별로 짧고 범위가 명확해 Whole document가 유리했다. 긴 실제
+보고서·회의록·가이드 문서에서도 Whole이 좋다는 의미는 아니다.
+
+### 최종 선택 검증
+
+최종 설정은 `Whole document + Dense Top-10`이다.
+
+| 단계 | 사례 수 | Recall@K | MRR@K | nDCG@K | 최저 slice nDCG |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Tune | 78 | 1.0000 | 0.9316 | 0.9493 | 0.8682 |
+| Validation | 26 | 1.0000 | 0.9551 | 0.9666 | 0.9131 |
+| Blind holdout | 26 | 1.0000 | 0.9167 | 0.9382 | 0.8393 |
+
+Holdout에서도 정답을 모두 Top-10 안에 넣었지만 Validation보다 nDCG가 0.0284
+낮아졌다. 특히 자유로운 표현의 일반 의미 검색은 Holdout 10건에서 nDCG 0.8393으로
+다른 질문 유형보다 낮았다.
+
+## 6. 지금 함께 평가하고 결정할 것
+
+1. **검색 범위:** campaign을 먼저 정확히 찾은 뒤 3개 문서만 검색할지, 전체
+   workspace 문서에서 campaign 식별과 문서 검색을 함께 평가할지 결정해야 한다.
+2. **실제 문서 길이:** 운영 BRIEF·MEMO·ANALYSIS가 현재 합성 문서처럼 짧은지
+   확인해야 Whole document 선택을 유지할 수 있다.
+3. **모델 방향:** 로컬 concept-hash를 유지할지, 실제 multilingual embedding과
+   learned sparse 모델을 추가해 다시 비교할지 결정해야 한다.
+4. **품질 기준:** 평균 nDCG뿐 아니라 일반 의미 검색, No-answer, 모호한 질문 같은
+   취약 slice의 최소 허용 점수를 정해야 한다.
+5. **최종 답변 평가:** 검색 성공과 별도로 답변의 수치 정확성, 근거 일치,
+   과도한 추론 여부를 평가할 기준이 필요하다.
+
+## 7. 현재 문제와 개선 순서
+
+| 현재 문제 | 결과에 미치는 영향 | 다음 개선 |
+| --- | --- | --- |
+| 합성 문서와 질문이 비슷한 규칙을 공유 | 실제보다 점수가 높을 수 있음 | 실제·전문가 작성 질문을 추가 |
+| Holdout 26건, semantic slice 10건 | 작은 변화에도 점수가 크게 흔들림 | 중요 slice별 최소 50건 확보 |
+| campaign 범위를 미리 제공 | 검색 문제가 지나치게 쉬워짐 | 전체 workspace 검색 실험을 별도 추가 |
+| 자동 생성 정답 미검수 | 잘못된 정답으로 평가할 위험 | 마케터 2인의 독립 검수와 불일치 조정 |
+| 로컬 기준선만 비교 | 실제 embedding 성능을 알 수 없음 | pretrained Dense·Learned Sparse 추가 |
+| 로컬 지연시간만 측정 | 운영 비용·네트워크 지연 미반영 | 실제 인프라에서 p95·비용 재측정 |
+
+권장 순서는 다음과 같다.
+
+1. 현재 v1 결과와 Holdout을 동결한다.
+2. 문서 span 130건과 위험 사례를 사람이 검수한다.
+3. 실제 또는 전문가 작성 질문을 최소 500건 확보한다.
+4. `campaign 범위를 아는 검색`과 `전체 workspace 검색`을 분리 평가한다.
+5. 실제 embedding 후보를 같은 Golden과 지표로 비교한다.
+6. 새로운 Validation과 `holdout-v2`에서 최종 설정을 다시 확인한다.
+
+## 재현 정보
+
+| 단계 | Execution ID |
+| --- | --- |
+| Tune | `483788d3-51df-48d7-a77c-3b98360c48f4` |
+| Validation | `95336527-9d55-4174-8d97-e84b9a7a4ed4` |
+| Holdout | `d67b24f9-db59-43f6-8498-6e2d53975963` |
+
+최종 선택 설정은 `selected-retrieval-v1.yaml`에 고정되어 있다.

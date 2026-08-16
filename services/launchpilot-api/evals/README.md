@@ -25,7 +25,8 @@ PG+문서 권고를 포함한다. 문서 사례 130개는 `document_ref + char s
 청킹·검색 방식의 조합 실험은
 [`experiments/retrieval-matrix-v1.yaml`](experiments/retrieval-matrix-v1.yaml)에
 정의하며, 실행·지표·DB 스키마는 [`experiments/README.md`](experiments/README.md)에
-정리했다. Golden에는 Retriever 정답을 넣지 않고 실험 manifest만 분리한다.
+한국어 비교표와 함께 정리했다. Golden에는 Retriever 정답을 넣지 않고 실험
+manifest만 분리한다.
 
 ```bash
 launchpilot-build-golden \
