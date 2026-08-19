@@ -11,6 +11,7 @@ from launchpilot.knowledge.contracts.retrieval import DocumentType
 from launchpilot.performance.contracts.retrieval import CampaignMetricQuery
 
 from .ports import CampaignDocumentReader, CampaignPerformanceReader
+from .reranker import MarketingDomainReranker
 
 
 class CampaignToolset:
@@ -22,10 +23,12 @@ class CampaignToolset:
         scope: CampaignScope,
         retrieval: CampaignPerformanceReader,
         text_retrieval: CampaignDocumentReader,
+        reranker: MarketingDomainReranker | None = None,
     ) -> None:
         self._scope = scope
         self._retrieval = retrieval
         self._text_retrieval = text_retrieval
+        self._reranker = reranker or MarketingDomainReranker()
 
     def tools(self) -> list[BaseTool]:
         return [
@@ -107,10 +110,11 @@ class CampaignToolset:
             campaign_id=self._scope.campaign_id,
             query=query,
             document_types=tuple(document_types or ()),
-            top_k=top_k,
+            top_k=max(top_k, 10),
         )
+        reranked = self._reranker.rerank(query, hits)[:top_k]
         return json.dumps(
-            [item.model_dump(mode="json") for item in hits], ensure_ascii=False
+            [item.model_dump(mode="json") for item in reranked], ensure_ascii=False
         )
 
     def search_documents_semantic(
@@ -127,10 +131,11 @@ class CampaignToolset:
             campaign_id=self._scope.campaign_id,
             query=query,
             document_types=tuple(document_types or ()),
-            top_k=top_k,
+            top_k=max(top_k, 10),
         )
+        reranked = self._reranker.rerank(query, hits)[:top_k]
         return json.dumps(
-            [item.model_dump(mode="json") for item in hits], ensure_ascii=False
+            [item.model_dump(mode="json") for item in reranked], ensure_ascii=False
         )
 
     def search_campaign_documents(

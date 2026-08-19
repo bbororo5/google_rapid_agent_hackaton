@@ -118,3 +118,45 @@ def test_campaign_toolset_provides_single_responsibility_search_tools() -> None:
     assert "search_documents_keyword" in tool_names
     assert "search_documents_semantic" in tool_names
     assert "resolve_campaign_document" in tool_names
+
+
+def test_marketing_domain_reranker_prioritizes_concept_and_type_match() -> None:
+    from launchpilot.analysis.reranker import MarketingDomainReranker
+    from launchpilot.knowledge.contracts.retrieval import DocumentType, TextSearchHit
+    from launchpilot.knowledge.contracts.search_profile import RetrievalMethod
+
+    reranker = MarketingDomainReranker()
+    cid = uuid4()
+    doc1 = TextSearchHit(
+        document_id=uuid4(),
+        campaign_id=cid,
+        document_type=DocumentType.BRIEF,
+        title="브리프",
+        excerpt="일 예산 200만원을 기준으로 집행합니다.",
+        score=0.5,
+        rank=1,
+        source_ref="ref-1",
+        retrieval_method=RetrievalMethod.BM25,
+        index_version="v1",
+        chunker_version="v1",
+        retriever_version="v1",
+    )
+    doc2 = TextSearchHit(
+        document_id=uuid4(),
+        campaign_id=cid,
+        document_type=DocumentType.ANALYSIS,
+        title="분석",
+        excerpt="크리에이티브 피로도 누적으로 CTR이 급락하여 다음 조치가 필요합니다.",
+        score=0.4,
+        rank=2,
+        source_ref="ref-2",
+        retrieval_method=RetrievalMethod.BM25,
+        index_version="v1",
+        chunker_version="v1",
+        retriever_version="v1",
+    )
+
+    reranked = reranker.rerank("소재 피로 원인 분석 및 조치 제안", [doc1, doc2])
+    assert len(reranked) == 2
+    assert reranked[0].document_id == doc2.document_id
+    assert reranked[0].rank == 1
