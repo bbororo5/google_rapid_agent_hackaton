@@ -35,15 +35,15 @@ perturbations = [
     ("Jargon (Marketer Slang)", PerturbationLevel.MARKETER_JARGON),
 ]
 
-# Pure 1st-Stage Retrievers only (ReRanker is separated into downstream Post-Retrieval stage)
+# 1st-Stage Pure Retrievers: Keyword (BM25), Semantic (Dense), Hybrid (Linear Score Fusion alpha=0.5)
 retrievers = [
     ("BM25", RetrievalConfig(method=RetrievalMethod.BM25, version="bm25-v1", top_k=5, search_scope="workspace")),
     ("Dense", RetrievalConfig(method=RetrievalMethod.DENSE, version="dense-v1", top_k=5, search_scope="workspace", provider="dense")),
-    ("Hybrid (RRF)", RetrievalConfig(method=RetrievalMethod.HYBRID, version="hybrid-rrf-v1", top_k=5, search_scope="workspace", fusion=FusionMethod.RRF, rrf_k=60, provider="dense")),
+    ("Hybrid (Score Fusion)", RetrievalConfig(method=RetrievalMethod.HYBRID, version="hybrid-weighted-v1", top_k=5, search_scope="workspace", fusion=FusionMethod.WEIGHTED_SCORE, alpha=0.5, provider="dense")),
 ]
 
 results = []
-print("=== PURE 1ST-STAGE RETRIEVAL MATRIX EXPERIMENT (GOLDEN V2, ALL 900 DOCS) ===")
+print("=== PURE 1ST-STAGE RETRIEVAL MATRIX EXPERIMENT (BM25, DENSE, SCORE-FUSED HYBRID) ===")
 print("Total combinations: " + str(len(perturbations) * len(chunkers) * len(retrievers)) + " runs\n")
 
 for p_label, p_level in perturbations:
@@ -51,7 +51,7 @@ for p_label, p_level in perturbations:
     for c_label, c_cfg in chunkers:
         for r_label, r_cfg in retrievers:
             manifest = ExperimentManifest(
-                matrix_version="matrix-v2-pure-retrieval",
+                matrix_version="matrix-v2-score-hybrid",
                 golden_version="golden-v2",
                 corpus_version="synthetic-pg-doc-snapshot-v2",
                 split="tune",
@@ -87,8 +87,8 @@ col4 = "Recall@5"
 col5 = "MRR@5"
 col6 = "nDCG@5"
 
-print(f"| {col1:<24} | {col2:<10} | {col3:<16} | {col4:<8} | {col5:<8} | {col6:<8} |")
-print("|" + "-" * 26 + "|" + "-" * 12 + "|" + "-" * 18 + "|" + "-" * 10 + "|" + "-" * 10 + "|" + "-" * 10 + "|")
+print(f"| {col1:<24} | {col2:<10} | {col3:<22} | {col4:<8} | {col5:<8} | {col6:<8} |")
+print("|" + "-" * 26 + "|" + "-" * 12 + "|" + "-" * 24 + "|" + "-" * 10 + "|" + "-" * 10 + "|" + "-" * 10 + "|")
 for row in results:
     p = row["perturbation"]
     c = row["chunker"]
@@ -96,4 +96,4 @@ for row in results:
     rec_s = f"{row["recall_at_5"]:.4f}"
     mrr_s = f"{row["mrr_at_5"]:.4f}"
     ndcg_s = f"{row["ndcg_at_5"]:.4f}"
-    print(f"| {p:<24} | {c:<10} | {r:<16} | {rec_s:<8} | {mrr_s:<8} | {ndcg_s:<8} |")
+    print(f"| {p:<24} | {c:<10} | {r:<22} | {rec_s:<8} | {mrr_s:<8} | {ndcg_s:<8} |")
