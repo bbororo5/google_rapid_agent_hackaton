@@ -10,6 +10,7 @@
 | 2 | [Phase 1 — Domain Model](rebuild/phase-1-domain-model.md) | 플랫폼 데이터와 관측 사실·LLM 산출물을 어떻게 구분하는가? |
 | 3 | [Phase 2 — Multi-platform Ingestion](rebuild/phase-2-multiplatform-ingestion.md) | 외부 계정과 Campaign을 어떻게 연결하고 수집하는가? |
 | 4 | [Retrieval Evolution Plan](rebuild/retrieval-evolution-plan.md) | Baseline을 무엇으로 측정하고 어떤 순서로 개선하는가? |
+| 5 | [C3 Component Architecture](rebuild/c3-component-architecture.md) | 시스템의 내부 컴포넌트 덩어리와 외부 연동 컨텍스트는 어떻게 구성되는가? |
 
 필요한 기술 선택의 상세 근거는 해당 Phase에서 ADR로 연결한다. 실행 방법은 [API README](../services/launchpilot-api/README.md), Dataset 작성법은 [Eval README](../services/launchpilot-api/evals/README.md)에만 둔다.
 
