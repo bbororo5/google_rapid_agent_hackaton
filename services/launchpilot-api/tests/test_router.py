@@ -92,3 +92,29 @@ def test_analysis_graph_runs_with_router_node_and_scoped_prompt() -> None:
     assert transcript.final_answer() == "조회된 광고비는 100원입니다."
     assert "2026-08-19" in received_system_prompts[0]
     assert str(workspace_id) in received_system_prompts[0]
+
+
+def test_campaign_toolset_provides_single_responsibility_search_tools() -> None:
+    from unittest.mock import MagicMock
+    from launchpilot.campaigns.contracts.access import CampaignScope
+    from launchpilot.analysis.tools import CampaignToolset
+
+    retrieval = MagicMock()
+    text_retrieval = MagicMock()
+    text_retrieval.search.return_value = ()
+    scope = CampaignScope(
+        workspace_id=uuid4(), campaign_id=uuid4(), user_id="user-1"
+    )
+
+    toolset = CampaignToolset(
+        scope=scope,
+        retrieval=retrieval,
+        text_retrieval=text_retrieval,
+    )
+    tools = toolset.tools()
+    tool_names = {t.name for t in tools}
+
+    assert "get_campaign_performance" in tool_names
+    assert "search_documents_keyword" in tool_names
+    assert "search_documents_semantic" in tool_names
+    assert "resolve_campaign_document" in tool_names

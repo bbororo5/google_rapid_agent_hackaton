@@ -35,6 +35,16 @@ class CampaignDocumentReader(Protocol):
         top_k: int = 5,
     ) -> tuple[TextSearchHit, ...]: ...
 
+    def search_semantic(
+        self,
+        *,
+        workspace_id: UUID,
+        campaign_id: UUID,
+        query: str,
+        document_types: tuple[DocumentType, ...] = (),
+        top_k: int = 5,
+    ) -> tuple[TextSearchHit, ...]: ...
+
     def resolve(
         self, *, document_id: UUID, workspace_id: UUID, campaign_id: UUID
     ) -> CampaignDocument | None: ...
