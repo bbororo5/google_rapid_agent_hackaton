@@ -35,15 +35,15 @@ perturbations = [
     ("Jargon (Marketer Slang)", PerturbationLevel.MARKETER_JARGON),
 ]
 
+# Pure 1st-Stage Retrievers only (ReRanker is separated into downstream Post-Retrieval stage)
 retrievers = [
     ("BM25", RetrievalConfig(method=RetrievalMethod.BM25, version="bm25-v1", top_k=5, search_scope="workspace")),
     ("Dense", RetrievalConfig(method=RetrievalMethod.DENSE, version="dense-v1", top_k=5, search_scope="workspace", provider="dense")),
     ("Hybrid (RRF)", RetrievalConfig(method=RetrievalMethod.HYBRID, version="hybrid-rrf-v1", top_k=5, search_scope="workspace", fusion=FusionMethod.RRF, rrf_k=60, provider="dense")),
-    ("Hybrid + Rerank", RetrievalConfig(method=RetrievalMethod.HYBRID, version="hybrid-rerank-v1", top_k=5, search_scope="workspace", fusion=FusionMethod.RRF, rrf_k=60, provider="dense", reranker="cross-feature")),
 ]
 
 results = []
-print("=== FULL RETRIEVAL MATRIX EXPERIMENT (GOLDEN V2, ALL 900 DOCS) ===")
+print("=== PURE 1ST-STAGE RETRIEVAL MATRIX EXPERIMENT (GOLDEN V2, ALL 900 DOCS) ===")
 print("Total combinations: " + str(len(perturbations) * len(chunkers) * len(retrievers)) + " runs\n")
 
 for p_label, p_level in perturbations:
@@ -51,7 +51,7 @@ for p_label, p_level in perturbations:
     for c_label, c_cfg in chunkers:
         for r_label, r_cfg in retrievers:
             manifest = ExperimentManifest(
-                matrix_version="matrix-v2",
+                matrix_version="matrix-v2-pure-retrieval",
                 golden_version="golden-v2",
                 corpus_version="synthetic-pg-doc-snapshot-v2",
                 split="tune",
@@ -93,7 +93,7 @@ for row in results:
     p = row["perturbation"]
     c = row["chunker"]
     r = row["retriever"]
-    rec_s = f"{row['recall_at_5']:.4f}"
-    mrr_s = f"{row['mrr_at_5']:.4f}"
-    ndcg_s = f"{row['ndcg_at_5']:.4f}"
+    rec_s = f"{row["recall_at_5"]:.4f}"
+    mrr_s = f"{row["mrr_at_5"]:.4f}"
+    ndcg_s = f"{row["ndcg_at_5"]:.4f}"
     print(f"| {p:<24} | {c:<10} | {r:<16} | {rec_s:<8} | {mrr_s:<8} | {ndcg_s:<8} |")

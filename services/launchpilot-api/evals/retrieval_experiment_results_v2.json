@@ -31,16 +31,6 @@
   },
   {
     "perturbation": "Clean (Template)",
-    "chunker": "Whole Doc",
-    "retriever": "Hybrid + Rerank",
-    "recall_at_5": 0.5595238095238095,
-    "mrr_at_5": 0.5595238095238095,
-    "ndcg_at_5": 0.5595238095238095,
-    "precision_at_5": 0.11190476190476191,
-    "p95_ms": 0.0
-  },
-  {
-    "perturbation": "Clean (Template)",
     "chunker": "Sentence",
     "retriever": "BM25",
     "recall_at_5": 0.5,
@@ -71,16 +61,6 @@
   },
   {
     "perturbation": "Clean (Template)",
-    "chunker": "Sentence",
-    "retriever": "Hybrid + Rerank",
-    "recall_at_5": 0.5238095238095238,
-    "mrr_at_5": 0.4785714285714286,
-    "ndcg_at_5": 0.49014799200789627,
-    "precision_at_5": 0.10476190476190476,
-    "p95_ms": 0.0
-  },
-  {
-    "perturbation": "Clean (Template)",
     "chunker": "Fixed 400",
     "retriever": "BM25",
     "recall_at_5": 0.5119047619047619,
@@ -107,16 +87,6 @@
     "mrr_at_5": 0.3863095238095238,
     "ndcg_at_5": 0.412506498991766,
     "precision_at_5": 0.09761904761904763,
-    "p95_ms": 0.0
-  },
-  {
-    "perturbation": "Clean (Template)",
-    "chunker": "Fixed 400",
-    "retriever": "Hybrid + Rerank",
-    "recall_at_5": 0.5238095238095238,
-    "mrr_at_5": 0.47619047619047616,
-    "ndcg_at_5": 0.48865997653061505,
-    "precision_at_5": 0.10476190476190476,
     "p95_ms": 0.0
   },
   {
@@ -151,16 +121,6 @@
   },
   {
     "perturbation": "Colloquial (Synonym)",
-    "chunker": "Whole Doc",
-    "retriever": "Hybrid + Rerank",
-    "recall_at_5": 0.5595238095238095,
-    "mrr_at_5": 0.5595238095238095,
-    "ndcg_at_5": 0.5595238095238095,
-    "precision_at_5": 0.11190476190476191,
-    "p95_ms": 0.0
-  },
-  {
-    "perturbation": "Colloquial (Synonym)",
     "chunker": "Sentence",
     "retriever": "BM25",
     "recall_at_5": 0.5,
@@ -187,16 +147,6 @@
     "mrr_at_5": 0.38928571428571435,
     "ndcg_at_5": 0.41735123165590365,
     "precision_at_5": 0.1,
-    "p95_ms": 0.0
-  },
-  {
-    "perturbation": "Colloquial (Synonym)",
-    "chunker": "Sentence",
-    "retriever": "Hybrid + Rerank",
-    "recall_at_5": 0.5238095238095238,
-    "mrr_at_5": 0.4785714285714286,
-    "ndcg_at_5": 0.49014799200789627,
-    "precision_at_5": 0.10476190476190476,
     "p95_ms": 0.0
   },
   {
@@ -230,16 +180,6 @@
     "p95_ms": 0.0
   },
   {
-    "perturbation": "Colloquial (Synonym)",
-    "chunker": "Fixed 400",
-    "retriever": "Hybrid + Rerank",
-    "recall_at_5": 0.5238095238095238,
-    "mrr_at_5": 0.47619047619047616,
-    "ndcg_at_5": 0.48865997653061505,
-    "precision_at_5": 0.10476190476190476,
-    "p95_ms": 0.0
-  },
-  {
     "perturbation": "Jargon (Marketer Slang)",
     "chunker": "Whole Doc",
     "retriever": "BM25",
@@ -266,16 +206,6 @@
     "recall_at_5": 0.36904761904761907,
     "mrr_at_5": 0.3402777777777778,
     "ndcg_at_5": 0.3475301912525751,
-    "precision_at_5": 0.07380952380952381,
-    "p95_ms": 0.0
-  },
-  {
-    "perturbation": "Jargon (Marketer Slang)",
-    "chunker": "Whole Doc",
-    "retriever": "Hybrid + Rerank",
-    "recall_at_5": 0.36904761904761907,
-    "mrr_at_5": 0.36904761904761907,
-    "ndcg_at_5": 0.36904761904761907,
     "precision_at_5": 0.07380952380952381,
     "p95_ms": 0.0
   },
@@ -311,16 +241,6 @@
   },
   {
     "perturbation": "Jargon (Marketer Slang)",
-    "chunker": "Sentence",
-    "retriever": "Hybrid + Rerank",
-    "recall_at_5": 0.38095238095238093,
-    "mrr_at_5": 0.3357142857142857,
-    "ndcg_at_5": 0.3472908491507534,
-    "precision_at_5": 0.0761904761904762,
-    "p95_ms": 0.0
-  },
-  {
-    "perturbation": "Jargon (Marketer Slang)",
     "chunker": "Fixed 400",
     "retriever": "BM25",
     "recall_at_5": 0.34523809523809523,
@@ -347,16 +267,6 @@
     "mrr_at_5": 0.30099206349206353,
     "ndcg_at_5": 0.31826235286081117,
     "precision_at_5": 0.07380952380952381,
-    "p95_ms": 0.0
-  },
-  {
-    "perturbation": "Jargon (Marketer Slang)",
-    "chunker": "Fixed 400",
-    "retriever": "Hybrid + Rerank",
-    "recall_at_5": 0.38095238095238093,
-    "mrr_at_5": 0.3333333333333333,
-    "ndcg_at_5": 0.34580283367347214,
-    "precision_at_5": 0.0761904761904762,
     "p95_ms": 0.0
   }
 ]
