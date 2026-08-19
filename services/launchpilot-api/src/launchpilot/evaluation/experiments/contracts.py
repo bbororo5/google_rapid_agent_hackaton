@@ -52,6 +52,7 @@ class RetrievalConfig(BaseModel):
     method: RetrievalMethod
     version: str = Field(min_length=1)
     top_k: int = Field(default=10, ge=1, le=100)
+    search_scope: str = Field(default="campaign", pattern=r"^(campaign|workspace)$")
     provider: str | None = None
     fusion: FusionMethod | None = None
     alpha: float | None = Field(default=None, ge=0.0, le=1.0)

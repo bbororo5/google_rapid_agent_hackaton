@@ -100,7 +100,14 @@ class RetrievalExperimentRunner:
         case_results = []
         for case in selected_cases:
             started = time.perf_counter()
-            filters = {"campaign_ref": case.campaign_ref} if case.campaign_ref else None
+            filters = (
+                {"campaign_ref": case.campaign_ref}
+                if (
+                    case.campaign_ref
+                    and manifest.retriever.search_scope == "campaign"
+                )
+                else None
+            )
             hits = retriever.search(
                 case.query,
                 top_k=manifest.retriever.top_k,
