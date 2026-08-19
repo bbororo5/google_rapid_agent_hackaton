@@ -1,0 +1,183 @@
+{
+  "golden_version": "golden-v2",
+  "corpus_version": "synthetic-pg-doc-snapshot-v2",
+  "created_at": "2026-08-19T07:49:31.235566+00:00",
+  "source_kind": "approved_synthetic_postgresql",
+  "source_data_hashes": {
+    "campaigns_sha256": "e5bdeec73019d23960f200ab8e8167ee1169af5e1d8ec8ca49727a82c4915684",
+    "selected_evidence_sha256": "bc5e70d467f8177fd0d48c0e04c2780ae4bfebfdbcb85a96d0ccbb934a045a21",
+    "documents_sha256": "b0edfa9a818c00f0a6e83a164bcb2d6add42fdc46062e53a6d2f222610b5bc2b"
+  },
+  "total_cases": 680,
+  "target_cases": 680,
+  "case_distribution": {
+    "adversarial": 80,
+    "ambiguous": 50,
+    "entity_semantic": 30,
+    "lexical_identifier": 90,
+    "mixed_structured_semantic": 50,
+    "no_answer": 50,
+    "semantic": 50,
+    "structured_exact": 280
+  },
+  "language_distribution": {
+    "ko-KR": 680
+  },
+  "required_source_distribution": {
+    "documents": 80,
+    "pg": 550,
+    "pg+documents": 50
+  },
+  "split_distribution": {
+    "holdout": 90,
+    "tune": 447,
+    "validation": 143
+  },
+  "formulas": {
+    "ctr": "clicks / impressions",
+    "cvr": "conversions / clicks",
+    "cpc": "spend / clicks",
+    "cpa": "spend / conversions",
+    "roas": "conversion_value / spend"
+  },
+  "zero_division_policy": "derived metric is 0 when denominator is 0",
+  "exclusion_policy": "Document-dependent profiles require a frozen source document and human-reviewable character span.",
+  "retrieval_configuration": null,
+  "taxonomy_version": "marketing-retrieval-taxonomy-v1",
+  "taxonomy_sha256": "553dde072a2908fb2df82a1bf075beabb2b52b4799961174ec83db7e4b1e2b27",
+  "taxonomy_coverage_ready": true,
+  "taxonomy_distributions": {
+    "marketing_domain": {
+      "budget_delivery": 91,
+      "conversion_acquisition": 33,
+      "creative_performance": 150,
+      "delivery_awareness": 62,
+      "entity_governance": 190,
+      "measurement_quality": 60,
+      "revenue_profitability": 22,
+      "traffic_engagement": 72
+    },
+    "analysis_task": {
+      "aggregation": 30,
+      "anomaly_detection": 30,
+      "campaign_comparison": 30,
+      "causal_diagnosis": 50,
+      "clarification": 50,
+      "entity_resolution": 90,
+      "evidence_boundary": 70,
+      "goal_pacing": 30,
+      "metric_lookup": 100,
+      "no_answer_detection": 50,
+      "period_comparison": 40,
+      "platform_comparison": 30,
+      "recommendation": 50,
+      "trend_analysis": 30
+    },
+    "business_objective": {
+      "acquisition": 89,
+      "app_growth": 89,
+      "awareness": 105,
+      "lead_generation": 96,
+      "retargeting": 100,
+      "retention": 101,
+      "unknown": 100
+    },
+    "funnel_stage": {
+      "awareness": 62,
+      "consideration": 82,
+      "conversion": 65,
+      "cross_funnel": 281,
+      "not_applicable": 190
+    },
+    "metric_family": {
+      "conversion_efficiency": 59,
+      "data_quality": 30,
+      "delivery_reach": 62,
+      "entity_metadata": 90,
+      "none": 200,
+      "spend_cost": 118,
+      "traffic_engagement": 99,
+      "value_return": 22
+    },
+    "scope_type": {
+      "campaign_period": 110,
+      "campaign_platform_day": 100,
+      "campaign_platform_period": 100,
+      "cross_campaign_period": 40,
+      "cross_platform_period": 40,
+      "entity_only": 90,
+      "missing_or_ambiguous": 100,
+      "multi_source": 100
+    },
+    "temporal_granularity": {
+      "campaign_lifetime": 100,
+      "comparative_periods": 70,
+      "day": 100,
+      "month": 30,
+      "none": 90,
+      "unspecified": 150,
+      "week": 140
+    },
+    "difficulty": {
+      "l1_entity_or_fact": 90,
+      "l2_filtered_lookup": 100,
+      "l3_aggregation_or_comparison": 180,
+      "l4_multi_hop_or_source": 130,
+      "l5_ambiguous_or_adversarial": 180
+    },
+    "evidence_type": {
+      "absence_proof": 50,
+      "document_passage": 80,
+      "none_expected": 100,
+      "pg_and_document": 50,
+      "pg_entity": 90,
+      "pg_metric": 280,
+      "pg_observation": 30
+    },
+    "answer_mode": {
+      "abstention": 120,
+      "clarification": 50,
+      "comparison": 90,
+      "data_quality_alert": 40,
+      "entity_record": 90,
+      "grounded_explanation": 130,
+      "numeric_fact": 130,
+      "trend_summary": 30
+    },
+    "language_style": {
+      "colloquial_ko": 200,
+      "keyword_short": 23,
+      "ko_en_mixed": 140,
+      "noisy_ko": 30,
+      "professional_ko": 287
+    },
+    "risk_types": {
+      "attribution_mismatch": 10,
+      "currency_mismatch": 10,
+      "entity_ambiguity": 50,
+      "insufficient_evidence": 60,
+      "missing_entity": 50,
+      "none": 470,
+      "period_mismatch": 10,
+      "tracking_gap": 30,
+      "unsupported_causality": 50
+    }
+  },
+  "validation_results": {
+    "duplicate_case_ids": 0,
+    "missing_corpus_refs": 0,
+    "invalid_document_spans": 0,
+    "gold_passage_mismatches": 0,
+    "unsupported_positive_answers": 0,
+    "formula_mismatches": 0,
+    "split_group_leakage": 0,
+    "pii_exposure": 0,
+    "duplicate_normalized_queries": 0,
+    "unanswerable_with_relevance_3": 0,
+    "missing_taxonomy_assignments": 0,
+    "unknown_taxonomy_codes": 0,
+    "invalid_taxonomy_cardinality": 0,
+    "taxonomy_rule_violations": 0
+  },
+  "validation_passed": true
+}
