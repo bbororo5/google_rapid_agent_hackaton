@@ -33,6 +33,23 @@ services:
       timeout: 3s
       retries: 30
 
+  phoenix:
+    image: arizephoenix/phoenix:latest
+    environment:
+      PHOENIX_PORT: 6006
+      PHOENIX_GRPC_PORT: 4317
+    ports:
+      - "6006:6006" # UI & OTLP HTTP endpoint (/v1/traces)
+      - "4317:4317" # OTLP gRPC endpoint
+    volumes:
+      - launchpilot-phoenix:/root/.phoenix
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen("http://localhost:6006/")'"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+
 volumes:
   launchpilot-postgres:
   launchpilot-elasticsearch:
+  launchpilot-phoenix:
