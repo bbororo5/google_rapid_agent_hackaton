@@ -10,22 +10,6 @@ from langgraph.prebuilt import ToolNode, tools_condition
 
 from .models import AnalysisTranscript
 from .prompts import SYSTEM_PROMPT
-from .router import QueryRoute, QueryRouter
-
-
-class RouterNode:
-    """Classifies user intent to choose the optimal processing strategy."""
-
-    def __init__(self, router: QueryRouter | None = None) -> None:
-        self._router = router or QueryRouter()
-
-    def __call__(self, state: MessagesState) -> dict[str, Any]:
-        last_message = state["messages"][-1]
-        question = (
-            last_message.content if isinstance(last_message.content, str) else ""
-        )
-        route = self._router.classify(question)
-        return {"route": route}
 
 
 class AgentNode:
@@ -42,18 +26,15 @@ class AgentNode:
 
 
 class AnalysisGraph:
-    """Owns the LangGraph execution topology with routing and tool nodes."""
+    """Owns the LangGraph execution topology: pure autonomous ReAct agent."""
 
     def __init__(
         self,
         *,
         model_with_tools: Runnable[Any, AIMessage],
         tools: list[BaseTool],
-        router: QueryRouter | None = None,
     ) -> None:
-        self._compiled = self._compile(
-            model_with_tools, tools, router or QueryRouter()
-        )
+        self._compiled = self._compile(model_with_tools, tools)
 
     def invoke(self, question: str) -> AnalysisTranscript:
         state = self._compiled.invoke({"messages": [HumanMessage(content=question)]})
@@ -63,15 +44,12 @@ class AnalysisGraph:
     def _compile(
         model_with_tools: Runnable[Any, AIMessage],
         tools: list[BaseTool],
-        router: QueryRouter,
     ):
         graph = StateGraph(MessagesState)
-        graph.add_node("router", RouterNode(router))
         graph.add_node("agent", AgentNode(model_with_tools))
         graph.add_node("tools", ToolNode(tools, handle_tool_errors=True))
 
-        graph.add_edge(START, "router")
-        graph.add_edge("router", "agent")
+        graph.add_edge(START, "agent")
         graph.add_conditional_edges(
             "agent", tools_condition, {"tools": "tools", END: END}
         )
