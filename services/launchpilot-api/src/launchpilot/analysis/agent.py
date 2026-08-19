@@ -9,6 +9,7 @@ from .contracts.runtime import AnalysisWorkflow, EvidenceReader
 from .evidence import EvidenceCollector
 from .graph import AnalysisGraph
 from .ports import CampaignDocumentReader, CampaignPerformanceReader
+from .scope import ExecutionScope
 from .tools import CampaignToolset
 
 
@@ -48,10 +49,15 @@ class CampaignAgentFactory:
             text_retrieval=self._text_retrieval,
         )
         tools = toolset.tools()
+        execution_scope = ExecutionScope.create(
+            workspace_id=scope.workspace_id,
+            campaign_id=scope.campaign_id,
+        )
         return CampaignAgent(
             graph=AnalysisGraph(
                 model_with_tools=self._model.bind_tools(tools),
                 tools=tools,
+                scope=execution_scope,
             ),
             evidence_collector=EvidenceCollector(),
         )

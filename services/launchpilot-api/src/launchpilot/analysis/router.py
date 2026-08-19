@@ -3,6 +3,8 @@ from __future__ import annotations
 import re
 from enum import StrEnum
 
+from .scope import ExecutionScope
+
 
 class QueryRoute(StrEnum):
     STRUCTURED_METRIC = "structured_metric"
@@ -51,3 +53,34 @@ class QueryRouter:
                 return QueryRoute.UNSTRUCTURED_DOCUMENT
 
         return QueryRoute.STRUCTURED_METRIC
+
+
+class ScopeRouter:
+    """Resolves and validates execution scope (workspace, time, campaign) from context and query."""
+
+    _CAMPAIGN_CODE_PATTERN = re.compile(r"\b(C\d{4})\b", re.IGNORECASE)
+    _UUID_PATTERN = re.compile(
+        r"\b([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\b",
+        re.IGNORECASE,
+    )
+
+    def resolve(self, question: str, initial_scope: ExecutionScope) -> ExecutionScope:
+        campaign_id = initial_scope.campaign_id
+        campaign_code = initial_scope.campaign_code
+
+        if campaign_id is None and campaign_code is None:
+            code_match = self._CAMPAIGN_CODE_PATTERN.search(question)
+            if code_match:
+                campaign_code = code_match.group(1).upper()
+            else:
+                uuid_match = self._UUID_PATTERN.search(question)
+                if uuid_match:
+                    campaign_id = uuid_match.group(1)
+
+        return ExecutionScope.create(
+            workspace_id=initial_scope.workspace_id,
+            campaign_id=campaign_id,
+            campaign_code=campaign_code,
+            user_id=initial_scope.user_id,
+            reference_now=initial_scope.reference_now,
+        )
