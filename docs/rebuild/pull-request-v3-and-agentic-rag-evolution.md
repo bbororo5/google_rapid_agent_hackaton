@@ -23,12 +23,13 @@
 ## 📊 2. 3대 점진적 어블레이션 및 스트레스 테스트 실측 성적
 
 ### [A] 3대 점진적 어블레이션 (Phase 1 ~ Phase 3)
-| 실험 단계 | 파이프라인 구성 | 팩트 정확도 (Faithfulness) | 평균 지연시간 (Latency) | 도구 호출 수 (Invocations) |
-| :--- | :--- | :---: | :---: | :---: |
-| **Phase 1-A** | Classic (SQL + BM25) | 100.0% (4/4) | 17.91 초 | 41 회 (BM25 29회 호출) |
-| **Phase 1-C** | + Causal Knowledge Graph | 100.0% (4/4) | 15.06 초 | 33 회 (BM25 68.9% 절감) |
-| **Phase 2** | + ScopeRouter 단독 앵커링 (ADR 0007) | 100.0% (4/4) | **8.08 초** | **9 회 (최단 지연시간)** |
-| **Phase 3** | + In-Loop Evidence Organizer (Reranker) | 100.0% (4/4) | 24.31 초 | 9 회 (자료 정렬 및 전수 인용) |
+| 실험 단계 | 파이프라인 구성 | 팩트 정확도 (Faithfulness) | 평균 지연시간 (Latency) | 도구 호출 수 (Invocations) | 핵심 실측 특징 |
+| :--- | :--- | :---: | :---: | :---: | :--- |
+| **Phase 1-A** | Classic (SQL + BM25) | 100.0% (4/4) | 17.91 초 | 41 회 | BM25 29회 호출 발생 (검색 뺑뺑이) |
+| **Phase 1-B** | + Dense Vector | **75.0% (3/4) ⚠️** | 15.54 초 | 37 회 | 시맨틱 노이즈로 1건 오답 발생 |
+| **Phase 1-C** | + Causal Knowledge Graph | 100.0% (4/4) | 15.06 초 | 33 회 | 그래프 1회 호출로 3-Hop 인과 체인 완결 |
+| **Phase 2** | + ScopeRouter 단독 앵커링 (ADR 0007) | 100.0% (4/4) | **8.08 초** | **9 회** | 비파괴적 앵커링으로 최단 지연시간 달성 |
+| **Phase 3** | + In-Loop Evidence Organizer (Reranker) | 100.0% (4/4) | 24.31 초 | **9 회** | 도구 자율 하이브리드 및 전수 인용 완성 |
 
 ### [B] 현실적 적대적 스트레스 테스트 (Adversarial Stress Test)
 | 고난도 챌린지 케이스 | Phase 2 (Reranker 없음) | **Phase 3 (In-Loop Reranker)** | 실측 비교 |

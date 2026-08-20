@@ -9,13 +9,13 @@
 
 ## 1. 전 Phase 점진적 어블레이션 종합 비교 성적표
 
-| 비교 항목 | Phase 1-A (Baseline) | Phase 1-C (Causal Graph) | Phase 2 (ScopeRouter) | **Phase 3 (In-Loop Reranker)** |
-| :--- | :---: | :---: | :---: | :---: |
-| **파이프라인 구성** | SQL + BM25 | + Causal Graph | + `ScopeRouter` 앵커링 | **`Router` ➔ `Agent` <-> `Tools` ➔ `Reranker` ➔ `Agent` ➔ `END`** |
-| **답변 팩트 정확도 (`Faithfulness`)** | 100.0% (4/4) | 100.0% (4/4) | 100.0% (4/4) | **100.0% (4/4)** |
-| **평균 응답 지연 시간 (`Latency`)** | 17.91 초 | 15.06 초 | **8.08 초 (최단 ⚡)** | **24.31 초 (추가 정렬 오버헤드 발생)** |
-| **도구 호출 패턴** | BM25 29회 폭증 | Graph 4회 해결 | 질의당 2.2회 | **Graph + Dense + BM25 자율 하이브리드** |
-| **출처 인용 완결성 (`Citation`)** | 부분적 텍스트 | 부분적 텍스트 | 표준 인용 | **`[surface | UUID | timestamp]` 전수 인용** |
+| 비교 항목 | Phase 1-A (Baseline) | Phase 1-B (+ Dense) | Phase 1-C (+ Graph) | Phase 2 (ScopeRouter) | **Phase 3 (In-Loop Reranker)** |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| **파이프라인 구성** | SQL + BM25 | + Dense Vector | + Causal Graph | + `ScopeRouter` 앵커링 | **`Router` ➔ `Agent` <-> `Tools` ➔ `Reranker` ➔ `Agent` ➔ `END`** |
+| **답변 팩트 정확도 (`Faithfulness`)** | 100.0% (4/4) | **75.0% (3/4) ⚠️** | 100.0% (4/4) | 100.0% (4/4) | **100.0% (4/4)** |
+| **평균 응답 지연 시간 (`Latency`)** | 17.91 초 | 15.54 초 | 15.06 초 | **8.08 초 (최단 ⚡)** | **24.31 초 (추가 정렬 오버헤드 발생)** |
+| **총 도구 호출 수** | 41 회 (BM25 29회 폭증) | 37 회 (Dense 11회 추가) | 33 회 (BM25 68.9% 절감) | **9 회 (질의당 2.2회)** | **9 회 (자율 하이브리드 조합)** |
+| **출처 인용 완결성 (`Citation`)** | 부분적 텍스트 | 부분적 텍스트 | 부분적 텍스트 | 표준 인용 | **`[surface | UUID | timestamp]` 전수 인용** |
 
 ---
 
