@@ -12,6 +12,7 @@ from launchpilot.performance.contracts.retrieval import CampaignMetricQuery
 
 from .ports import CampaignDocumentReader, CampaignPerformanceReader
 from .reranker import MarketingDomainReranker
+from .graph_retriever import MarketingKnowledgeGraph
 
 
 class CampaignToolset:
@@ -24,14 +25,16 @@ class CampaignToolset:
         retrieval: CampaignPerformanceReader,
         text_retrieval: CampaignDocumentReader,
         reranker: MarketingDomainReranker | None = None,
+        graph: MarketingKnowledgeGraph | None = None,
     ) -> None:
         self._scope = scope
         self._retrieval = retrieval
         self._text_retrieval = text_retrieval
         self._reranker = reranker or MarketingDomainReranker()
+        self._graph = graph
 
     def tools(self) -> list[BaseTool]:
-        return [
+        tool_list = [
             StructuredTool.from_function(
                 func=self.get_campaign_performance,
                 name="get_campaign_performance",
@@ -47,7 +50,7 @@ class CampaignToolset:
                 name="search_documents_keyword",
                 description=(
                     "BM25 keyword search over this campaign's memos, briefs, and "
-                    "prior analyses. Best for exact campaign codes (e.g. C0010), "
+                    "prior analyses. Best for exact campaign codes, "
                     "product names, metrics, and specific technical terminology."
                 ),
             ),
@@ -61,14 +64,6 @@ class CampaignToolset:
                 ),
             ),
             StructuredTool.from_function(
-                func=self.search_campaign_documents,
-                name="search_campaign_documents",
-                description=(
-                    "BM25 keyword search over this campaign's memos, briefs, and "
-                    "prior analyses (alias for search_documents_keyword)."
-                ),
-            ),
-            StructuredTool.from_function(
                 func=self.resolve_campaign_document,
                 name="resolve_campaign_document",
                 description=(
@@ -77,6 +72,46 @@ class CampaignToolset:
                 ),
             ),
         ]
+
+        if self._graph:
+            tool_list.append(
+                StructuredTool.from_function(
+                    func=self.traverse_campaign_graph,
+                    name="traverse_campaign_graph",
+                    description=(
+                        "Traverse the campaign's directed Causal Knowledge Graph in 1 atomic call. "
+                        "Connects Brief guidelines -> Metric anomaly facts -> Operational action memos -> "
+                        "Follow-up monthly performance analyses."
+                    ),
+                )
+            )
+
+        return tool_list
+
+    def traverse_campaign_graph(self, query: str, campaign_identifier: str | None = None) -> str:
+        if not self._graph:
+            return json.dumps({"error": "graph engine not initialized"})
+        target_camp = campaign_identifier or str(self._scope.campaign_id)
+        result = self._graph.traverse(query=query, campaign_identifier=target_camp)
+        if not result:
+            return json.dumps({"error": "campaign not found in graph"})
+        return json.dumps({
+            "campaign_code": result.campaign_code,
+            "campaign_name": result.campaign_name,
+            "connected_documents_count": len(result.connected_documents),
+            "connected_metrics_count": len(result.connected_metrics),
+            "causal_chains": [
+                {
+                    "seed_memo": c.seed_node_key,
+                    "causal_explanation": c.causal_explanation,
+                    "action_memo": c.action_memo,
+                    "evaluating_analyses": c.evaluating_analyses,
+                }
+                for c in result.causal_chains
+            ],
+            "connected_documents": result.connected_documents,
+            "connected_metrics": result.connected_metrics[:10],
+        }, ensure_ascii=False)
 
     def get_campaign_performance(
         self,
@@ -136,18 +171,6 @@ class CampaignToolset:
         reranked = self._reranker.rerank(query, hits)[:top_k]
         return json.dumps(
             [item.model_dump(mode="json") for item in reranked], ensure_ascii=False
-        )
-
-    def search_campaign_documents(
-        self,
-        query: str,
-        document_types: list[DocumentType] | None = None,
-        top_k: int = 5,
-    ) -> str:
-        return self.search_documents_keyword(
-            query=query,
-            document_types=document_types,
-            top_k=top_k,
         )
 
     def resolve_campaign_document(self, document_id: UUID) -> str:

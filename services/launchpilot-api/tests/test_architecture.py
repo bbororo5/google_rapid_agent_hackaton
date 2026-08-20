@@ -23,7 +23,6 @@ FRAMEWORK_PACKAGES = {"fastapi", "elasticsearch", "opentelemetry", "psycopg"}
 FEATURE_MODULES = {
     "analysis",
     "campaigns",
-    "evaluation",
     "identity",
     "knowledge",
     "performance",
