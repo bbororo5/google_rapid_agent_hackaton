@@ -44,7 +44,7 @@ services:
     volumes:
       - launchpilot-phoenix:/root/.phoenix
     healthcheck:
-      test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen("http://localhost:6006/")'"]
+      test: ["CMD-SHELL", "curl -fsS http://localhost:6006/ >/dev/null 2>&1 || exit 1"]
       interval: 5s
       timeout: 3s
       retries: 15

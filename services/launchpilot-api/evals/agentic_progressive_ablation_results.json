@@ -1,0 +1,289 @@
+[
+  {
+    "stage": "stage1_classic",
+    "title": "1차 실험: Classic Baseline [SQL Fact + BM25]",
+    "faithfulness_rate": 100.0,
+    "abstention_rate": 100.0,
+    "avg_latency": 17.906310558319092,
+    "tool_distribution": {
+      "search_documents_keyword": 29,
+      "resolve_campaign_document": 9,
+      "get_campaign_performance": 3
+    },
+    "results": [
+      {
+        "case_id": "det_copy_c0001",
+        "query": "오로라 리테일에서 2월 중순경 메인 문구 반응 꺾여서 가격 메리트 앞세운 카피로 긴급 변경했던 운영 메모 찾아줘",
+        "is_negative": false,
+        "tools_used": [
+          "search_documents_keyword",
+          "search_documents_keyword",
+          "search_documents_keyword",
+          "search_documents_keyword",
+          "search_documents_keyword",
+          "search_documents_keyword",
+          "resolve_campaign_document",
+          "resolve_campaign_document",
+          "resolve_campaign_document",
+          "search_documents_keyword",
+          "search_documents_keyword",
+          "search_documents_keyword"
+        ],
+        "latency": 17.02297616004944,
+        "eval_status": "GROUNDED_FAITHFUL",
+        "passed": true
+      },
+      {
+        "case_id": "det_pacing_c0001",
+        "query": "오로라 리테일에서 1월 말에 광고비 태우는 속도가 너무 가팔라서 하루 집행 금액 깎았던 페이싱 조치 일지 어디 있어? 체크해봐",
+        "is_negative": false,
+        "tools_used": [
+          "search_documents_keyword",
+          "search_documents_keyword",
+          "search_documents_keyword",
+          "search_documents_keyword",
+          "search_documents_keyword",
+          "search_documents_keyword",
+          "search_documents_keyword",
+          "resolve_campaign_document",
+          "resolve_campaign_document",
+          "get_campaign_performance",
+          "get_campaign_performance"
+        ],
+        "latency": 18.9933021068573,
+        "eval_status": "GROUNDED_FAITHFUL",
+        "passed": true
+      },
+      {
+        "case_id": "det_brief_c0001",
+        "query": "오로라 리테일 1월 런칭 초기 기획 지침 중에 하루 단위로 지표 튀어도 즉시 건드리지 말자고 명시해둔 운영 원칙 찾아줘",
+        "is_negative": false,
+        "tools_used": [
+          "search_documents_keyword",
+          "search_documents_keyword",
+          "search_documents_keyword",
+          "search_documents_keyword",
+          "search_documents_keyword",
+          "search_documents_keyword",
+          "search_documents_keyword",
+          "resolve_campaign_document",
+          "resolve_campaign_document",
+          "search_documents_keyword"
+        ],
+        "latency": 21.889575958251953,
+        "eval_status": "GROUNDED_FAITHFUL",
+        "passed": true
+      },
+      {
+        "case_id": "det_video_c0001",
+        "query": "오로라 리테일에서 3월 중순에 숏폼 피드 영상 너무 자주 노출되어 후기형 짧은 영상으로 바꿔 넣었던 일지 있어? 정리본 줘",
+        "is_negative": false,
+        "tools_used": [
+          "search_documents_keyword",
+          "search_documents_keyword",
+          "search_documents_keyword",
+          "search_documents_keyword",
+          "resolve_campaign_document",
+          "search_documents_keyword",
+          "resolve_campaign_document",
+          "get_campaign_performance"
+        ],
+        "latency": 13.719388008117676,
+        "eval_status": "GROUNDED_FAITHFUL",
+        "passed": true
+      }
+    ]
+  },
+  {
+    "stage": "stage2_dense",
+    "title": "2차 실험: + Dense Semantic [SQL + BM25 + Dense]",
+    "faithfulness_rate": 75.0,
+    "abstention_rate": 100.0,
+    "avg_latency": 15.536917746067047,
+    "tool_distribution": {
+      "search_documents_keyword": 26,
+      "search_documents_semantic": 11,
+      "resolve_campaign_document": 9,
+      "get_campaign_performance": 2
+    },
+    "results": [
+      {
+        "case_id": "det_copy_c0001",
+        "query": "오로라 리테일에서 2월 중순경 메인 문구 반응 꺾여서 가격 메리트 앞세운 카피로 긴급 변경했던 운영 메모 찾아줘",
+        "is_negative": false,
+        "tools_used": [
+          "search_documents_keyword",
+          "search_documents_semantic",
+          "search_documents_keyword",
+          "search_documents_semantic",
+          "search_documents_keyword",
+          "search_documents_semantic",
+          "resolve_campaign_document",
+          "resolve_campaign_document",
+          "search_documents_keyword",
+          "search_documents_keyword",
+          "search_documents_keyword"
+        ],
+        "latency": 15.649255752563477,
+        "eval_status": "UNGROUNDED_MISS",
+        "passed": false
+      },
+      {
+        "case_id": "det_pacing_c0001",
+        "query": "오로라 리테일에서 1월 말에 광고비 태우는 속도가 너무 가팔라서 하루 집행 금액 깎았던 페이싱 조치 일지 어디 있어? 체크해봐",
+        "is_negative": false,
+        "tools_used": [
+          "search_documents_keyword",
+          "search_documents_semantic",
+          "search_documents_keyword",
+          "search_documents_keyword",
+          "search_documents_keyword",
+          "search_documents_semantic",
+          "resolve_campaign_document",
+          "resolve_campaign_document",
+          "get_campaign_performance",
+          "search_documents_keyword"
+        ],
+        "latency": 11.158949851989746,
+        "eval_status": "GROUNDED_FAITHFUL",
+        "passed": true
+      },
+      {
+        "case_id": "det_brief_c0001",
+        "query": "오로라 리테일 1월 런칭 초기 기획 지침 중에 하루 단위로 지표 튀어도 즉시 건드리지 말자고 명시해둔 운영 원칙 찾아줘",
+        "is_negative": false,
+        "tools_used": [
+          "search_documents_keyword",
+          "search_documents_semantic",
+          "search_documents_keyword",
+          "search_documents_semantic",
+          "search_documents_keyword",
+          "search_documents_semantic",
+          "search_documents_keyword",
+          "search_documents_keyword",
+          "search_documents_keyword",
+          "search_documents_keyword",
+          "resolve_campaign_document",
+          "search_documents_keyword",
+          "resolve_campaign_document",
+          "resolve_campaign_document",
+          "search_documents_keyword"
+        ],
+        "latency": 17.435744047164917,
+        "eval_status": "GROUNDED_FAITHFUL",
+        "passed": true
+      },
+      {
+        "case_id": "det_video_c0001",
+        "query": "오로라 리테일에서 3월 중순에 숏폼 피드 영상 너무 자주 노출되어 후기형 짧은 영상으로 바꿔 넣었던 일지 있어? 정리본 줘",
+        "is_negative": false,
+        "tools_used": [
+          "search_documents_keyword",
+          "search_documents_semantic",
+          "search_documents_semantic",
+          "search_documents_keyword",
+          "search_documents_keyword",
+          "search_documents_semantic",
+          "search_documents_keyword",
+          "get_campaign_performance",
+          "resolve_campaign_document",
+          "search_documents_keyword",
+          "search_documents_keyword",
+          "resolve_campaign_document"
+        ],
+        "latency": 17.90372133255005,
+        "eval_status": "GROUNDED_FAITHFUL",
+        "passed": true
+      }
+    ]
+  },
+  {
+    "stage": "stage3_causal_graph",
+    "title": "3차 실험: + Causal Knowledge Graph [SQL + BM25 + Dense + Graph ⭐]",
+    "faithfulness_rate": 100.0,
+    "abstention_rate": 100.0,
+    "avg_latency": 15.056677639484406,
+    "tool_distribution": {
+      "search_documents_keyword": 9,
+      "search_documents_semantic": 7,
+      "traverse_campaign_graph": 4,
+      "resolve_campaign_document": 10,
+      "get_campaign_performance": 3
+    },
+    "results": [
+      {
+        "case_id": "det_copy_c0001",
+        "query": "오로라 리테일에서 2월 중순경 메인 문구 반응 꺾여서 가격 메리트 앞세운 카피로 긴급 변경했던 운영 메모 찾아줘",
+        "is_negative": false,
+        "tools_used": [
+          "search_documents_keyword",
+          "search_documents_semantic",
+          "traverse_campaign_graph",
+          "search_documents_semantic",
+          "resolve_campaign_document",
+          "resolve_campaign_document",
+          "search_documents_keyword",
+          "search_documents_keyword",
+          "get_campaign_performance"
+        ],
+        "latency": 13.652353048324585,
+        "eval_status": "GROUNDED_FAITHFUL",
+        "passed": true
+      },
+      {
+        "case_id": "det_pacing_c0001",
+        "query": "오로라 리테일에서 1월 말에 광고비 태우는 속도가 너무 가팔라서 하루 집행 금액 깎았던 페이싱 조치 일지 어디 있어? 체크해봐",
+        "is_negative": false,
+        "tools_used": [
+          "search_documents_keyword",
+          "search_documents_semantic",
+          "traverse_campaign_graph",
+          "search_documents_semantic",
+          "resolve_campaign_document",
+          "resolve_campaign_document",
+          "search_documents_keyword",
+          "resolve_campaign_document",
+          "resolve_campaign_document",
+          "get_campaign_performance"
+        ],
+        "latency": 16.538620948791504,
+        "eval_status": "GROUNDED_FAITHFUL",
+        "passed": true
+      },
+      {
+        "case_id": "det_brief_c0001",
+        "query": "오로라 리테일 1월 런칭 초기 기획 지침 중에 하루 단위로 지표 튀어도 즉시 건드리지 말자고 명시해둔 운영 원칙 찾아줘",
+        "is_negative": false,
+        "tools_used": [
+          "search_documents_keyword",
+          "search_documents_semantic",
+          "traverse_campaign_graph",
+          "resolve_campaign_document",
+          "search_documents_semantic",
+          "resolve_campaign_document",
+          "resolve_campaign_document"
+        ],
+        "latency": 15.68475079536438,
+        "eval_status": "GROUNDED_FAITHFUL",
+        "passed": true
+      },
+      {
+        "case_id": "det_video_c0001",
+        "query": "오로라 리테일에서 3월 중순에 숏폼 피드 영상 너무 자주 노출되어 후기형 짧은 영상으로 바꿔 넣었던 일지 있어? 정리본 줘",
+        "is_negative": false,
+        "tools_used": [
+          "search_documents_keyword",
+          "search_documents_semantic",
+          "traverse_campaign_graph",
+          "resolve_campaign_document",
+          "search_documents_keyword",
+          "search_documents_keyword",
+          "get_campaign_performance"
+        ],
+        "latency": 14.350985765457153,
+        "eval_status": "GROUNDED_FAITHFUL",
+        "passed": true
+      }
+    ]
+  }
+]

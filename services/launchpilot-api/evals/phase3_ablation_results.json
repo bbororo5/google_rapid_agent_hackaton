@@ -1,0 +1,63 @@
+{
+  "stage": "stage3a_reranker",
+  "title": "Phase 3: + Postprocessing Node (MarketingDomainReranker)",
+  "faithfulness_rate": 100.0,
+  "abstention_rate": 100.0,
+  "avg_latency": 24.31253331899643,
+  "tool_distribution": {
+    "search_documents_keyword": 1,
+    "search_documents_semantic": 4,
+    "resolve_campaign_document": 2,
+    "traverse_campaign_graph": 1
+  },
+  "results": [
+    {
+      "case_id": "det_copy_c0001",
+      "query": "오로라 리테일에서 2월 중순경 메인 문구 반응 꺾여서 가격 메리트 앞세운 카피로 긴급 변경했던 운영 메모 찾아줘",
+      "is_negative": false,
+      "tools_used": [
+        "search_documents_keyword"
+      ],
+      "latency": 23.2044837474823,
+      "eval_status": "GROUNDED_FAITHFUL",
+      "passed": true
+    },
+    {
+      "case_id": "det_pacing_c0001",
+      "query": "오로라 리테일에서 1월 말에 광고비 태우는 속도가 너무 가팔라서 하루 집행 금액 깎았던 페이싱 조치 일지 어디 있어? 체크해봐",
+      "is_negative": false,
+      "tools_used": [
+        "search_documents_semantic",
+        "resolve_campaign_document",
+        "traverse_campaign_graph"
+      ],
+      "latency": 15.736296892166138,
+      "eval_status": "GROUNDED_FAITHFUL",
+      "passed": true
+    },
+    {
+      "case_id": "det_brief_c0001",
+      "query": "오로라 리테일 1월 런칭 초기 기획 지침 중에 하루 단위로 지표 튀어도 즉시 건드리지 말자고 명시해둔 운영 원칙 찾아줘",
+      "is_negative": false,
+      "tools_used": [
+        "search_documents_semantic"
+      ],
+      "latency": 18.88949680328369,
+      "eval_status": "GROUNDED_FAITHFUL",
+      "passed": true
+    },
+    {
+      "case_id": "det_video_c0001",
+      "query": "오로라 리테일에서 3월 중순에 숏폼 피드 영상 너무 자주 노출되어 후기형 짧은 영상으로 바꿔 넣었던 일지 있어? 정리본 줘",
+      "is_negative": false,
+      "tools_used": [
+        "search_documents_semantic",
+        "resolve_campaign_document",
+        "search_documents_semantic"
+      ],
+      "latency": 39.41985583305359,
+      "eval_status": "GROUNDED_FAITHFUL",
+      "passed": true
+    }
+  ]
+}
