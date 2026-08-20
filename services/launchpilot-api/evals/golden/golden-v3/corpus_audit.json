@@ -1,0 +1,12 @@
+{
+  "status": "PASS",
+  "total_campaigns": 30,
+  "total_documents": 1050,
+  "total_observations": 5640,
+  "doc_tier_breakdown": {
+    "large_campaigns_10": 550,
+    "medium_campaigns_10": 350,
+    "small_campaigns_10": 150
+  },
+  "fk_errors": 0
+}

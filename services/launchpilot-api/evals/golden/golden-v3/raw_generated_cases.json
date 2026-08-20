@@ -1,0 +1,2765 @@
+{
+  "metadata": {
+    "version": "golden-v3",
+    "created_by": "Senior Performance Marketer Persona (8-year experience)",
+    "description": "100% blind realistic Slack-style queries for 30 campaigns across 3 brands in H1 2025",
+    "total_cases": 150,
+    "positive_cases": 121,
+    "negative_cases": 29,
+    "breakdown": {
+      "copy_fatigue_response_memo07": 30,
+      "video_fatigue_response_memo11": 30,
+      "budget_pacing_reduction_memo02": 30,
+      "initial_pacing_guide_brief02": 30,
+      "cross_campaign_comparison_memo05": 10,
+      "negative_unexecuted_query": 20
+    }
+  },
+  "cases": [
+    {
+      "case_id": "v3_copy_fatigue_c0001",
+      "category": "copy_fatigue_response",
+      "event_description": "카피/소재 피로 대응: 할인 혜택 강조 헤드라인 카피 긴급 교체",
+      "brand": "오로라 리테일",
+      "campaign_ref": "C0001",
+      "query": "오로라 리테일 C0001 집행할 때 메인 카피 피로도 심해져서 할인 혜택 부각하는 쪽으로 문구 급하게 바꿨던 일지 공유 좀 해주세요.",
+      "target_document_keys": [
+        "c0001:memo_07"
+      ],
+      "target_document_ids": [
+        "a0c38064-1d17-5bed-97c8-0cd422246a7a"
+      ],
+      "target_titles": [
+        "C0001 2월 3주차 헤드라인 카피 교체 메모"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_copy_fatigue_c0002",
+      "category": "copy_fatigue_response",
+      "event_description": "카피/소재 피로 대응: 할인 혜택 강조 헤드라인 카피 긴급 교체",
+      "brand": "오로라 리테일",
+      "campaign_ref": "C0002",
+      "query": "오로라 리테일 C0002에서 헤드라인 피로감 생겨서 할인 혜택 강조 카피로 긴급 변경했던 기록 찾아봐줄 수 있어?",
+      "target_document_keys": [
+        "c0002:memo_07"
+      ],
+      "target_document_ids": [
+        "13e398e3-e664-5a5a-894e-9857a990ecd8"
+      ],
+      "target_titles": [
+        "C0002 2월 3주차 헤드라인 카피 교체 메모"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_copy_fatigue_c0003",
+      "category": "copy_fatigue_response",
+      "event_description": "카피/소재 피로 대응: 할인 혜택 강조 헤드라인 카피 긴급 교체",
+      "brand": "오로라 리테일",
+      "campaign_ref": "C0003",
+      "query": "C0003(오로라 리테일) 운영 중에 헤드라인 효율 떨어져서 혜택 소구 카피 C안으로 전격 교체했던 메모 어디 있지?",
+      "target_document_keys": [
+        "c0003:memo_07"
+      ],
+      "target_document_ids": [
+        "5936356a-a1f5-5bda-9ab6-2fa608fdb98a"
+      ],
+      "target_titles": [
+        "C0003 2월 3주차 헤드라인 카피 교체 메모"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_copy_fatigue_c0004",
+      "category": "copy_fatigue_response",
+      "event_description": "카피/소재 피로 대응: 할인 혜택 강조 헤드라인 카피 긴급 교체",
+      "brand": "오로라 리테일",
+      "campaign_ref": "C0004",
+      "query": "오로라 리테일 C0004 캠페인 헤드라인 피로도 터져서 할인 혜택 중심 카피로 급하게 수정한 일지 링크 부탁해요.",
+      "target_document_keys": [
+        "c0004:memo_07"
+      ],
+      "target_document_ids": [
+        "27109744-321d-5ac1-acc4-f3f47741df36"
+      ],
+      "target_titles": [
+        "C0004 2월 3주차 헤드라인 카피 교체 메모"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_copy_fatigue_c0005",
+      "category": "copy_fatigue_response",
+      "event_description": "카피/소재 피로 대응: 할인 혜택 강조 헤드라인 카피 긴급 교체",
+      "brand": "오로라 리테일",
+      "campaign_ref": "C0005",
+      "query": "C0005 헤드라인 소재 피로 와서 할인 혜택 내세운 카피로 긴급 교체 조치했던 메모 좀 찾아줘요 (오로라 리테일).",
+      "target_document_keys": [
+        "c0005:memo_07"
+      ],
+      "target_document_ids": [
+        "8bb28d42-a058-5f7a-8eb1-4ebb57ec2ab3"
+      ],
+      "target_titles": [
+        "C0005 2월 3주차 헤드라인 카피 교체 메모"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_copy_fatigue_c0006",
+      "category": "copy_fatigue_response",
+      "event_description": "카피/소재 피로 대응: 할인 혜택 강조 헤드라인 카피 긴급 교체",
+      "brand": "오로라 리테일",
+      "campaign_ref": "C0006",
+      "query": "오로라 리테일 C0006 카피 피로도 때문에 할인 혜택을 전면에 내건 헤드라인으로 전격 교체했던 운영 기록 확인 부탁드립니다.",
+      "target_document_keys": [
+        "c0006:memo_07"
+      ],
+      "target_document_ids": [
+        "4affdbc5-382d-5fc9-a535-37a74c3a8f12"
+      ],
+      "target_titles": [
+        "C0006 2월 3주차 헤드라인 카피 교체 메모"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_copy_fatigue_c0007",
+      "category": "copy_fatigue_response",
+      "event_description": "카피/소재 피로 대응: 할인 혜택 강조 헤드라인 카피 긴급 교체",
+      "brand": "오로라 리테일",
+      "campaign_ref": "C0007",
+      "query": "C0007 오로라 리테일에서 헤드라인 피로 감지하고 할인 혜택 강조하는 C안 카피로 긴급 변경한 메모 공유 가능할까요?",
+      "target_document_keys": [
+        "c0007:memo_07"
+      ],
+      "target_document_ids": [
+        "b3a0881b-55d9-5459-bef4-3cd2ea788fde"
+      ],
+      "target_titles": [
+        "C0007 2월 3주차 헤드라인 카피 교체 메모"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_copy_fatigue_c0008",
+      "category": "copy_fatigue_response",
+      "event_description": "카피/소재 피로 대응: 할인 혜택 강조 헤드라인 카피 긴급 교체",
+      "brand": "오로라 리테일",
+      "campaign_ref": "C0008",
+      "query": "오로라 리테일 C0008 담당자님, 헤드라인 피로도 올라서 할인 혜택 강조 카피로 긴급 변경했던 일지 어디에 있나요?",
+      "target_document_keys": [
+        "c0008:memo_07"
+      ],
+      "target_document_ids": [
+        "921fbcbd-1ff6-5080-bbad-41d19943243a"
+      ],
+      "target_titles": [
+        "C0008 2월 3주차 헤드라인 카피 교체 메모"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_copy_fatigue_c0009",
+      "category": "copy_fatigue_response",
+      "event_description": "카피/소재 피로 대응: 할인 혜택 강조 헤드라인 카피 긴급 교체",
+      "brand": "오로라 리테일",
+      "campaign_ref": "C0009",
+      "query": "C0009 헤드라인 피로 때문에 할인 혜택 강조형 카피로 급히 갈아끼웠던 조치 기록 좀 찾아줘 (오로라 리테일).",
+      "target_document_keys": [
+        "c0009:memo_07"
+      ],
+      "target_document_ids": [
+        "68e828ed-b62f-574c-b898-30371edd754a"
+      ],
+      "target_titles": [
+        "C0009 2월 3주차 헤드라인 카피 교체 메모"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_copy_fatigue_c0010",
+      "category": "copy_fatigue_response",
+      "event_description": "카피/소재 피로 대응: 할인 혜택 강조 헤드라인 카피 긴급 교체",
+      "brand": "오로라 리테일",
+      "campaign_ref": "C0010",
+      "query": "오로라 리테일 C0010 헤드라인 반응 떨어져서 할인 혜택 강조하는 신규 카피로 긴급 변경했던 운영 메모 부탁드립니다.",
+      "target_document_keys": [
+        "c0010:memo_07"
+      ],
+      "target_document_ids": [
+        "5b2d5d94-6cc1-56a2-9d6d-b1bd02bcdd51"
+      ],
+      "target_titles": [
+        "C0010 2월 3주차 헤드라인 카피 교체 메모"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_copy_fatigue_c0011",
+      "category": "copy_fatigue_response",
+      "event_description": "카피/소재 피로 대응: 할인 혜택 강조 헤드라인 카피 긴급 교체",
+      "brand": "넥스트앱스 글로벌",
+      "campaign_ref": "C0011",
+      "query": "넥스트앱스 글로벌 C0011 집행할 때 메인 카피 피로도 심해져서 할인 혜택 부각하는 쪽으로 문구 급하게 바꿨던 일지 공유 좀 해주세요.",
+      "target_document_keys": [
+        "c0011:memo_07"
+      ],
+      "target_document_ids": [
+        "c8aa01df-9a63-528a-a242-72bab4c208c2"
+      ],
+      "target_titles": [
+        "C0011 2월 3주차 헤드라인 카피 교체 메모"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_copy_fatigue_c0012",
+      "category": "copy_fatigue_response",
+      "event_description": "카피/소재 피로 대응: 할인 혜택 강조 헤드라인 카피 긴급 교체",
+      "brand": "넥스트앱스 글로벌",
+      "campaign_ref": "C0012",
+      "query": "넥스트앱스 글로벌 C0012에서 헤드라인 피로감 생겨서 할인 혜택 강조 카피로 긴급 변경했던 기록 찾아봐줄 수 있어?",
+      "target_document_keys": [
+        "c0012:memo_07"
+      ],
+      "target_document_ids": [
+        "8f747b8b-35fb-5845-943a-9d29271e2c5d"
+      ],
+      "target_titles": [
+        "C0012 2월 3주차 헤드라인 카피 교체 메모"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_copy_fatigue_c0013",
+      "category": "copy_fatigue_response",
+      "event_description": "카피/소재 피로 대응: 할인 혜택 강조 헤드라인 카피 긴급 교체",
+      "brand": "넥스트앱스 글로벌",
+      "campaign_ref": "C0013",
+      "query": "C0013(넥스트앱스 글로벌) 운영 중에 헤드라인 효율 떨어져서 혜택 소구 카피 C안으로 전격 교체했던 메모 어디 있지?",
+      "target_document_keys": [
+        "c0013:memo_07"
+      ],
+      "target_document_ids": [
+        "29012960-6abc-5d3c-859b-50cb2e8531bf"
+      ],
+      "target_titles": [
+        "C0013 2월 3주차 헤드라인 카피 교체 메모"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_copy_fatigue_c0014",
+      "category": "copy_fatigue_response",
+      "event_description": "카피/소재 피로 대응: 할인 혜택 강조 헤드라인 카피 긴급 교체",
+      "brand": "넥스트앱스 글로벌",
+      "campaign_ref": "C0014",
+      "query": "넥스트앱스 글로벌 C0014 캠페인 헤드라인 피로도 터져서 할인 혜택 중심 카피로 급하게 수정한 일지 링크 부탁해요.",
+      "target_document_keys": [
+        "c0014:memo_07"
+      ],
+      "target_document_ids": [
+        "5edc39ed-f90b-5277-a4f0-4e2b3e8d53c5"
+      ],
+      "target_titles": [
+        "C0014 2월 3주차 헤드라인 카피 교체 메모"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_copy_fatigue_c0015",
+      "category": "copy_fatigue_response",
+      "event_description": "카피/소재 피로 대응: 할인 혜택 강조 헤드라인 카피 긴급 교체",
+      "brand": "넥스트앱스 글로벌",
+      "campaign_ref": "C0015",
+      "query": "C0015 헤드라인 소재 피로 와서 할인 혜택 내세운 카피로 긴급 교체 조치했던 메모 좀 찾아줘요 (넥스트앱스 글로벌).",
+      "target_document_keys": [
+        "c0015:memo_07"
+      ],
+      "target_document_ids": [
+        "02d944c1-8e57-5d3f-98f1-b768db704c78"
+      ],
+      "target_titles": [
+        "C0015 2월 3주차 헤드라인 카피 교체 메모"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_copy_fatigue_c0016",
+      "category": "copy_fatigue_response",
+      "event_description": "카피/소재 피로 대응: 할인 혜택 강조 헤드라인 카피 긴급 교체",
+      "brand": "넥스트앱스 글로벌",
+      "campaign_ref": "C0016",
+      "query": "넥스트앱스 글로벌 C0016 카피 피로도 때문에 할인 혜택을 전면에 내건 헤드라인으로 전격 교체했던 운영 기록 확인 부탁드립니다.",
+      "target_document_keys": [
+        "c0016:memo_07"
+      ],
+      "target_document_ids": [
+        "9dc9e85a-a2a0-5837-b63e-bc8c810579af"
+      ],
+      "target_titles": [
+        "C0016 2월 3주차 헤드라인 카피 교체 메모"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_copy_fatigue_c0017",
+      "category": "copy_fatigue_response",
+      "event_description": "카피/소재 피로 대응: 할인 혜택 강조 헤드라인 카피 긴급 교체",
+      "brand": "넥스트앱스 글로벌",
+      "campaign_ref": "C0017",
+      "query": "C0017 넥스트앱스 글로벌에서 헤드라인 피로 감지하고 할인 혜택 강조하는 C안 카피로 긴급 변경한 메모 공유 가능할까요?",
+      "target_document_keys": [
+        "c0017:memo_07"
+      ],
+      "target_document_ids": [
+        "1dadd0cf-ee31-55bb-b694-3a1166c6c3c2"
+      ],
+      "target_titles": [
+        "C0017 2월 3주차 헤드라인 카피 교체 메모"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_copy_fatigue_c0018",
+      "category": "copy_fatigue_response",
+      "event_description": "카피/소재 피로 대응: 할인 혜택 강조 헤드라인 카피 긴급 교체",
+      "brand": "넥스트앱스 글로벌",
+      "campaign_ref": "C0018",
+      "query": "넥스트앱스 글로벌 C0018 담당자님, 헤드라인 피로도 올라서 할인 혜택 강조 카피로 긴급 변경했던 일지 어디에 있나요?",
+      "target_document_keys": [
+        "c0018:memo_07"
+      ],
+      "target_document_ids": [
+        "84088e50-04f9-54e2-8660-d516debf481a"
+      ],
+      "target_titles": [
+        "C0018 2월 3주차 헤드라인 카피 교체 메모"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_copy_fatigue_c0019",
+      "category": "copy_fatigue_response",
+      "event_description": "카피/소재 피로 대응: 할인 혜택 강조 헤드라인 카피 긴급 교체",
+      "brand": "넥스트앱스 글로벌",
+      "campaign_ref": "C0019",
+      "query": "C0019 헤드라인 피로 때문에 할인 혜택 강조형 카피로 급히 갈아끼웠던 조치 기록 좀 찾아줘 (넥스트앱스 글로벌).",
+      "target_document_keys": [
+        "c0019:memo_07"
+      ],
+      "target_document_ids": [
+        "0e8279ef-c09d-57d7-a2bb-cb17d3cf38f0"
+      ],
+      "target_titles": [
+        "C0019 2월 3주차 헤드라인 카피 교체 메모"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_copy_fatigue_c0020",
+      "category": "copy_fatigue_response",
+      "event_description": "카피/소재 피로 대응: 할인 혜택 강조 헤드라인 카피 긴급 교체",
+      "brand": "넥스트앱스 글로벌",
+      "campaign_ref": "C0020",
+      "query": "넥스트앱스 글로벌 C0020 헤드라인 반응 떨어져서 할인 혜택 강조하는 신규 카피로 긴급 변경했던 운영 메모 부탁드립니다.",
+      "target_document_keys": [
+        "c0020:memo_07"
+      ],
+      "target_document_ids": [
+        "e88ffcc8-5a47-5f4d-9bdf-f90a35a40711"
+      ],
+      "target_titles": [
+        "C0020 2월 3주차 헤드라인 카피 교체 메모"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_copy_fatigue_c0021",
+      "category": "copy_fatigue_response",
+      "event_description": "카피/소재 피로 대응: 할인 혜택 강조 헤드라인 카피 긴급 교체",
+      "brand": "핀포인트 파이낸스",
+      "campaign_ref": "C0021",
+      "query": "핀포인트 파이낸스 C0021 집행할 때 메인 카피 피로도 심해져서 할인 혜택 부각하는 쪽으로 문구 급하게 바꿨던 일지 공유 좀 해주세요.",
+      "target_document_keys": [
+        "c0021:memo_07"
+      ],
+      "target_document_ids": [
+        "449c79f3-fd27-595b-8bf2-bcbbffadd458"
+      ],
+      "target_titles": [
+        "C0021 2월 3주차 헤드라인 카피 교체 메모"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_copy_fatigue_c0022",
+      "category": "copy_fatigue_response",
+      "event_description": "카피/소재 피로 대응: 할인 혜택 강조 헤드라인 카피 긴급 교체",
+      "brand": "핀포인트 파이낸스",
+      "campaign_ref": "C0022",
+      "query": "핀포인트 파이낸스 C0022에서 헤드라인 피로감 생겨서 할인 혜택 강조 카피로 긴급 변경했던 기록 찾아봐줄 수 있어?",
+      "target_document_keys": [
+        "c0022:memo_07"
+      ],
+      "target_document_ids": [
+        "0b1c8e1b-5da5-5498-9450-f2c066257e0d"
+      ],
+      "target_titles": [
+        "C0022 2월 3주차 헤드라인 카피 교체 메모"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_copy_fatigue_c0023",
+      "category": "copy_fatigue_response",
+      "event_description": "카피/소재 피로 대응: 할인 혜택 강조 헤드라인 카피 긴급 교체",
+      "brand": "핀포인트 파이낸스",
+      "campaign_ref": "C0023",
+      "query": "C0023(핀포인트 파이낸스) 운영 중에 헤드라인 효율 떨어져서 혜택 소구 카피 C안으로 전격 교체했던 메모 어디 있지?",
+      "target_document_keys": [
+        "c0023:memo_07"
+      ],
+      "target_document_ids": [
+        "6f8c8ae9-60da-5be6-9731-ef96c1831417"
+      ],
+      "target_titles": [
+        "C0023 2월 3주차 헤드라인 카피 교체 메모"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_copy_fatigue_c0024",
+      "category": "copy_fatigue_response",
+      "event_description": "카피/소재 피로 대응: 할인 혜택 강조 헤드라인 카피 긴급 교체",
+      "brand": "핀포인트 파이낸스",
+      "campaign_ref": "C0024",
+      "query": "핀포인트 파이낸스 C0024 캠페인 헤드라인 피로도 터져서 할인 혜택 중심 카피로 급하게 수정한 일지 링크 부탁해요.",
+      "target_document_keys": [
+        "c0024:memo_07"
+      ],
+      "target_document_ids": [
+        "169dc4cf-4558-5e14-a979-559d8f580678"
+      ],
+      "target_titles": [
+        "C0024 2월 3주차 헤드라인 카피 교체 메모"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_copy_fatigue_c0025",
+      "category": "copy_fatigue_response",
+      "event_description": "카피/소재 피로 대응: 할인 혜택 강조 헤드라인 카피 긴급 교체",
+      "brand": "핀포인트 파이낸스",
+      "campaign_ref": "C0025",
+      "query": "C0025 헤드라인 소재 피로 와서 할인 혜택 내세운 카피로 긴급 교체 조치했던 메모 좀 찾아줘요 (핀포인트 파이낸스).",
+      "target_document_keys": [
+        "c0025:memo_07"
+      ],
+      "target_document_ids": [
+        "bc7079db-dabf-568d-b3c0-2e08a0c92cc7"
+      ],
+      "target_titles": [
+        "C0025 2월 3주차 헤드라인 카피 교체 메모"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_copy_fatigue_c0026",
+      "category": "copy_fatigue_response",
+      "event_description": "카피/소재 피로 대응: 할인 혜택 강조 헤드라인 카피 긴급 교체",
+      "brand": "핀포인트 파이낸스",
+      "campaign_ref": "C0026",
+      "query": "핀포인트 파이낸스 C0026 카피 피로도 때문에 할인 혜택을 전면에 내건 헤드라인으로 전격 교체했던 운영 기록 확인 부탁드립니다.",
+      "target_document_keys": [
+        "c0026:memo_07"
+      ],
+      "target_document_ids": [
+        "cd8f64f8-2559-516e-ab72-99eefdb052f9"
+      ],
+      "target_titles": [
+        "C0026 2월 3주차 헤드라인 카피 교체 메모"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_copy_fatigue_c0027",
+      "category": "copy_fatigue_response",
+      "event_description": "카피/소재 피로 대응: 할인 혜택 강조 헤드라인 카피 긴급 교체",
+      "brand": "핀포인트 파이낸스",
+      "campaign_ref": "C0027",
+      "query": "C0027 핀포인트 파이낸스에서 헤드라인 피로 감지하고 할인 혜택 강조하는 C안 카피로 긴급 변경한 메모 공유 가능할까요?",
+      "target_document_keys": [
+        "c0027:memo_07"
+      ],
+      "target_document_ids": [
+        "d161c4ba-1a7c-5049-ab03-3daf4dab06b4"
+      ],
+      "target_titles": [
+        "C0027 2월 3주차 헤드라인 카피 교체 메모"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_copy_fatigue_c0028",
+      "category": "copy_fatigue_response",
+      "event_description": "카피/소재 피로 대응: 할인 혜택 강조 헤드라인 카피 긴급 교체",
+      "brand": "핀포인트 파이낸스",
+      "campaign_ref": "C0028",
+      "query": "핀포인트 파이낸스 C0028 담당자님, 헤드라인 피로도 올라서 할인 혜택 강조 카피로 긴급 변경했던 일지 어디에 있나요?",
+      "target_document_keys": [
+        "c0028:memo_07"
+      ],
+      "target_document_ids": [
+        "7e4ee2d3-174e-5c94-8c53-4c5b9000fad4"
+      ],
+      "target_titles": [
+        "C0028 2월 3주차 헤드라인 카피 교체 메모"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_copy_fatigue_c0029",
+      "category": "copy_fatigue_response",
+      "event_description": "카피/소재 피로 대응: 할인 혜택 강조 헤드라인 카피 긴급 교체",
+      "brand": "핀포인트 파이낸스",
+      "campaign_ref": "C0029",
+      "query": "C0029 헤드라인 피로 때문에 할인 혜택 강조형 카피로 급히 갈아끼웠던 조치 기록 좀 찾아줘 (핀포인트 파이낸스).",
+      "target_document_keys": [
+        "c0029:memo_07"
+      ],
+      "target_document_ids": [
+        "e73c54aa-94c9-55a7-a274-c8809af0fbee"
+      ],
+      "target_titles": [
+        "C0029 2월 3주차 헤드라인 카피 교체 메모"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_copy_fatigue_c0030",
+      "category": "copy_fatigue_response",
+      "event_description": "카피/소재 피로 대응: 할인 혜택 강조 헤드라인 카피 긴급 교체",
+      "brand": "핀포인트 파이낸스",
+      "campaign_ref": "C0030",
+      "query": "핀포인트 파이낸스 C0030 헤드라인 반응 떨어져서 할인 혜택 강조하는 신규 카피로 긴급 변경했던 운영 메모 부탁드립니다.",
+      "target_document_keys": [
+        "c0030:memo_07"
+      ],
+      "target_document_ids": [
+        "48d6bfcb-c495-52ec-b124-996bdeb89434"
+      ],
+      "target_titles": [
+        "C0030 2월 3주차 헤드라인 카피 교체 메모"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_video_fatigue_c0001",
+      "category": "video_fatigue_response",
+      "event_description": "영상 빈도수 피로 대응: 릴스 빈도수 상승에 따른 15초 리뷰 영상 교체",
+      "brand": "오로라 리테일",
+      "campaign_ref": "C0001",
+      "query": "오로라 리테일 C0001 릴스 영상 빈도수가 4점대 넘어가면서 피로도 심해져서 15초 실사용 리뷰 영상으로 갈아끼웠던 메모 찾아줄래?",
+      "target_document_keys": [
+        "c0001:memo_11"
+      ],
+      "target_document_ids": [
+        "1fa2ffb8-2cb3-5429-b780-8e2d35a12a20"
+      ],
+      "target_titles": [
+        "C0001 3월 3주차 숏폼 영상 소재 2차 교체 일지"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의"
+    },
+    {
+      "case_id": "v3_video_fatigue_c0002",
+      "category": "video_fatigue_response",
+      "event_description": "영상 빈도수 피로 대응: 릴스 빈도수 상승에 따른 15초 리뷰 영상 교체",
+      "brand": "오로라 리테일",
+      "campaign_ref": "C0002",
+      "query": "오로라 리테일 C0002 Meta 릴스 소재 빈도수가 너무 높아져서 15초짜리 고객 리뷰 영상으로 2차 교체했던 일지 어디 있나요?",
+      "target_document_keys": [
+        "c0002:memo_11"
+      ],
+      "target_document_ids": [
+        "71608926-f816-5008-accf-d7051ab70fc6"
+      ],
+      "target_titles": [
+        "C0002 3월 3주차 숏폼 영상 소재 2차 교체 일지"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의"
+    },
+    {
+      "case_id": "v3_video_fatigue_c0003",
+      "category": "video_fatigue_response",
+      "event_description": "영상 빈도수 피로 대응: 릴스 빈도수 상승에 따른 15초 리뷰 영상 교체",
+      "brand": "오로라 리테일",
+      "campaign_ref": "C0003",
+      "query": "C0003(오로라 리테일) 릴스 광고 빈도수 과열로 피로도 올라서 15초 리뷰 영상 소재로 긴급 교체 투입했던 기록 공유 부탁해요.",
+      "target_document_keys": [
+        "c0003:memo_11"
+      ],
+      "target_document_ids": [
+        "1086469e-fece-56b5-9ec5-2dc3e0c1c8c0"
+      ],
+      "target_titles": [
+        "C0003 3월 3주차 숏폼 영상 소재 2차 교체 일지"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의"
+    },
+    {
+      "case_id": "v3_video_fatigue_c0004",
+      "category": "video_fatigue_response",
+      "event_description": "영상 빈도수 피로 대응: 릴스 빈도수 상승에 따른 15초 리뷰 영상 교체",
+      "brand": "오로라 리테일",
+      "campaign_ref": "C0004",
+      "query": "오로라 리테일 C0004 숏폼 릴스 영상 피로도 누적돼서 15초 실사용자 리뷰 영상으로 교체했던 운영 일지 좀 확인해주세요.",
+      "target_document_keys": [
+        "c0004:memo_11"
+      ],
+      "target_document_ids": [
+        "c337bf3c-7951-5109-9f9f-ad3030d73c3b"
+      ],
+      "target_titles": [
+        "C0004 3월 3주차 숏폼 영상 소재 2차 교체 일지"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의"
+    },
+    {
+      "case_id": "v3_video_fatigue_c0005",
+      "category": "video_fatigue_response",
+      "event_description": "영상 빈도수 피로 대응: 릴스 빈도수 상승에 따른 15초 리뷰 영상 교체",
+      "brand": "오로라 리테일",
+      "campaign_ref": "C0005",
+      "query": "C0005 Meta 릴스 영상 빈도수 치솟았을 때 15초 리뷰 영상으로 교체해서 투입했던 메모 부탁드립니다 (오로라 리테일).",
+      "target_document_keys": [
+        "c0005:memo_11"
+      ],
+      "target_document_ids": [
+        "2dc2d3bb-3e74-55d9-8a61-388345f116f5"
+      ],
+      "target_titles": [
+        "C0005 3월 3주차 숏폼 영상 소재 2차 교체 일지"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의"
+    },
+    {
+      "case_id": "v3_video_fatigue_c0006",
+      "category": "video_fatigue_response",
+      "event_description": "영상 빈도수 피로 대응: 릴스 빈도수 상승에 따른 15초 리뷰 영상 교체",
+      "brand": "오로라 리테일",
+      "campaign_ref": "C0006",
+      "query": "오로라 리테일 C0006 릴스 소재 피로도 발생해서 15초 리뷰 영상으로 교체 진행했던 건 일지 링크 있을까요?",
+      "target_document_keys": [
+        "c0006:memo_11"
+      ],
+      "target_document_ids": [
+        "b9feb629-f96c-5b0c-8e82-fde89899c2dd"
+      ],
+      "target_titles": [
+        "C0006 3월 3주차 숏폼 영상 소재 2차 교체 일지"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의"
+    },
+    {
+      "case_id": "v3_video_fatigue_c0007",
+      "category": "video_fatigue_response",
+      "event_description": "영상 빈도수 피로 대응: 릴스 빈도수 상승에 따른 15초 리뷰 영상 교체",
+      "brand": "오로라 리테일",
+      "campaign_ref": "C0007",
+      "query": "C0007 오로라 리테일에서 릴스 영상 빈도수 너무 높아져서 15초 리뷰 영상으로 바꿨던 소재 교체 일지 좀 찾아줘.",
+      "target_document_keys": [
+        "c0007:memo_11"
+      ],
+      "target_document_ids": [
+        "e0c2b1e2-9f02-5fff-bbc6-3bd4d4165b9e"
+      ],
+      "target_titles": [
+        "C0007 3월 3주차 숏폼 영상 소재 2차 교체 일지"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의"
+    },
+    {
+      "case_id": "v3_video_fatigue_c0008",
+      "category": "video_fatigue_response",
+      "event_description": "영상 빈도수 피로 대응: 릴스 빈도수 상승에 따른 15초 리뷰 영상 교체",
+      "brand": "오로라 리테일",
+      "campaign_ref": "C0008",
+      "query": "오로라 리테일 C0008 릴스 빈도수 피로 때문에 15초 리뷰 영상 소재로 긴급 투입했던 조치 메모 어디서 볼 수 있죠?",
+      "target_document_keys": [],
+      "target_document_ids": [],
+      "target_titles": [],
+      "is_negative": true,
+      "notes": "소형 캠페인의 경우 memo_11 미존재하여 target=[] 처리됨"
+    },
+    {
+      "case_id": "v3_video_fatigue_c0009",
+      "category": "video_fatigue_response",
+      "event_description": "영상 빈도수 피로 대응: 릴스 빈도수 상승에 따른 15초 리뷰 영상 교체",
+      "brand": "오로라 리테일",
+      "campaign_ref": "C0009",
+      "query": "C0009 숏폼 릴스 빈도수 급증으로 15초 리뷰 영상으로 갈아치웠던 운영 메모 공유 부탁해요 (오로라 리테일).",
+      "target_document_keys": [],
+      "target_document_ids": [],
+      "target_titles": [],
+      "is_negative": true,
+      "notes": "소형 캠페인의 경우 memo_11 미존재하여 target=[] 처리됨"
+    },
+    {
+      "case_id": "v3_video_fatigue_c0010",
+      "category": "video_fatigue_response",
+      "event_description": "영상 빈도수 피로 대응: 릴스 빈도수 상승에 따른 15초 리뷰 영상 교체",
+      "brand": "오로라 리테일",
+      "campaign_ref": "C0010",
+      "query": "오로라 리테일 C0010 릴스 광고 피로도 터져서 15초 고객 후기 리뷰 영상으로 교체 적용했던 일지 찾아봐주세요.",
+      "target_document_keys": [],
+      "target_document_ids": [],
+      "target_titles": [],
+      "is_negative": true,
+      "notes": "소형 캠페인의 경우 memo_11 미존재하여 target=[] 처리됨"
+    },
+    {
+      "case_id": "v3_video_fatigue_c0011",
+      "category": "video_fatigue_response",
+      "event_description": "영상 빈도수 피로 대응: 릴스 빈도수 상승에 따른 15초 리뷰 영상 교체",
+      "brand": "넥스트앱스 글로벌",
+      "campaign_ref": "C0011",
+      "query": "넥스트앱스 글로벌 C0011 릴스 영상 빈도수가 4점대 넘어가면서 피로도 심해져서 15초 실사용 리뷰 영상으로 갈아끼웠던 메모 찾아줄래?",
+      "target_document_keys": [
+        "c0011:memo_11"
+      ],
+      "target_document_ids": [
+        "77f3713b-19e9-5bb3-ac13-f1f02345fce6"
+      ],
+      "target_titles": [
+        "C0011 3월 3주차 숏폼 영상 소재 2차 교체 일지"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의"
+    },
+    {
+      "case_id": "v3_video_fatigue_c0012",
+      "category": "video_fatigue_response",
+      "event_description": "영상 빈도수 피로 대응: 릴스 빈도수 상승에 따른 15초 리뷰 영상 교체",
+      "brand": "넥스트앱스 글로벌",
+      "campaign_ref": "C0012",
+      "query": "넥스트앱스 글로벌 C0012 Meta 릴스 소재 빈도수가 너무 높아져서 15초짜리 고객 리뷰 영상으로 2차 교체했던 일지 어디 있나요?",
+      "target_document_keys": [
+        "c0012:memo_11"
+      ],
+      "target_document_ids": [
+        "402b746f-8414-5b1d-ba82-bbd0d43b1580"
+      ],
+      "target_titles": [
+        "C0012 3월 3주차 숏폼 영상 소재 2차 교체 일지"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의"
+    },
+    {
+      "case_id": "v3_video_fatigue_c0013",
+      "category": "video_fatigue_response",
+      "event_description": "영상 빈도수 피로 대응: 릴스 빈도수 상승에 따른 15초 리뷰 영상 교체",
+      "brand": "넥스트앱스 글로벌",
+      "campaign_ref": "C0013",
+      "query": "C0013(넥스트앱스 글로벌) 릴스 광고 빈도수 과열로 피로도 올라서 15초 리뷰 영상 소재로 긴급 교체 투입했던 기록 공유 부탁해요.",
+      "target_document_keys": [
+        "c0013:memo_11"
+      ],
+      "target_document_ids": [
+        "ddc5ba1c-45f0-5804-9360-98eb11b8d905"
+      ],
+      "target_titles": [
+        "C0013 3월 3주차 숏폼 영상 소재 2차 교체 일지"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의"
+    },
+    {
+      "case_id": "v3_video_fatigue_c0014",
+      "category": "video_fatigue_response",
+      "event_description": "영상 빈도수 피로 대응: 릴스 빈도수 상승에 따른 15초 리뷰 영상 교체",
+      "brand": "넥스트앱스 글로벌",
+      "campaign_ref": "C0014",
+      "query": "넥스트앱스 글로벌 C0014 숏폼 릴스 영상 피로도 누적돼서 15초 실사용자 리뷰 영상으로 교체했던 운영 일지 좀 확인해주세요.",
+      "target_document_keys": [
+        "c0014:memo_11"
+      ],
+      "target_document_ids": [
+        "9d819480-d58e-5491-9e2b-c59c8d8e8ee4"
+      ],
+      "target_titles": [
+        "C0014 3월 3주차 숏폼 영상 소재 2차 교체 일지"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의"
+    },
+    {
+      "case_id": "v3_video_fatigue_c0015",
+      "category": "video_fatigue_response",
+      "event_description": "영상 빈도수 피로 대응: 릴스 빈도수 상승에 따른 15초 리뷰 영상 교체",
+      "brand": "넥스트앱스 글로벌",
+      "campaign_ref": "C0015",
+      "query": "C0015 Meta 릴스 영상 빈도수 치솟았을 때 15초 리뷰 영상으로 교체해서 투입했던 메모 부탁드립니다 (넥스트앱스 글로벌).",
+      "target_document_keys": [
+        "c0015:memo_11"
+      ],
+      "target_document_ids": [
+        "9cde1234-4f9a-5a1d-bf95-d59ccd69d95a"
+      ],
+      "target_titles": [
+        "C0015 3월 3주차 숏폼 영상 소재 2차 교체 일지"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의"
+    },
+    {
+      "case_id": "v3_video_fatigue_c0016",
+      "category": "video_fatigue_response",
+      "event_description": "영상 빈도수 피로 대응: 릴스 빈도수 상승에 따른 15초 리뷰 영상 교체",
+      "brand": "넥스트앱스 글로벌",
+      "campaign_ref": "C0016",
+      "query": "넥스트앱스 글로벌 C0016 릴스 소재 피로도 발생해서 15초 리뷰 영상으로 교체 진행했던 건 일지 링크 있을까요?",
+      "target_document_keys": [
+        "c0016:memo_11"
+      ],
+      "target_document_ids": [
+        "5a2c2721-e74d-54a7-89e9-4a6a87cc7978"
+      ],
+      "target_titles": [
+        "C0016 3월 3주차 숏폼 영상 소재 2차 교체 일지"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의"
+    },
+    {
+      "case_id": "v3_video_fatigue_c0017",
+      "category": "video_fatigue_response",
+      "event_description": "영상 빈도수 피로 대응: 릴스 빈도수 상승에 따른 15초 리뷰 영상 교체",
+      "brand": "넥스트앱스 글로벌",
+      "campaign_ref": "C0017",
+      "query": "C0017 넥스트앱스 글로벌에서 릴스 영상 빈도수 너무 높아져서 15초 리뷰 영상으로 바꿨던 소재 교체 일지 좀 찾아줘.",
+      "target_document_keys": [
+        "c0017:memo_11"
+      ],
+      "target_document_ids": [
+        "ee62f587-5ec3-553f-b610-12d73542eb8a"
+      ],
+      "target_titles": [
+        "C0017 3월 3주차 숏폼 영상 소재 2차 교체 일지"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의"
+    },
+    {
+      "case_id": "v3_video_fatigue_c0018",
+      "category": "video_fatigue_response",
+      "event_description": "영상 빈도수 피로 대응: 릴스 빈도수 상승에 따른 15초 리뷰 영상 교체",
+      "brand": "넥스트앱스 글로벌",
+      "campaign_ref": "C0018",
+      "query": "넥스트앱스 글로벌 C0018 릴스 빈도수 피로 때문에 15초 리뷰 영상 소재로 긴급 투입했던 조치 메모 어디서 볼 수 있죠?",
+      "target_document_keys": [],
+      "target_document_ids": [],
+      "target_titles": [],
+      "is_negative": true,
+      "notes": "소형 캠페인의 경우 memo_11 미존재하여 target=[] 처리됨"
+    },
+    {
+      "case_id": "v3_video_fatigue_c0019",
+      "category": "video_fatigue_response",
+      "event_description": "영상 빈도수 피로 대응: 릴스 빈도수 상승에 따른 15초 리뷰 영상 교체",
+      "brand": "넥스트앱스 글로벌",
+      "campaign_ref": "C0019",
+      "query": "C0019 숏폼 릴스 빈도수 급증으로 15초 리뷰 영상으로 갈아치웠던 운영 메모 공유 부탁해요 (넥스트앱스 글로벌).",
+      "target_document_keys": [],
+      "target_document_ids": [],
+      "target_titles": [],
+      "is_negative": true,
+      "notes": "소형 캠페인의 경우 memo_11 미존재하여 target=[] 처리됨"
+    },
+    {
+      "case_id": "v3_video_fatigue_c0020",
+      "category": "video_fatigue_response",
+      "event_description": "영상 빈도수 피로 대응: 릴스 빈도수 상승에 따른 15초 리뷰 영상 교체",
+      "brand": "넥스트앱스 글로벌",
+      "campaign_ref": "C0020",
+      "query": "넥스트앱스 글로벌 C0020 릴스 광고 피로도 터져서 15초 고객 후기 리뷰 영상으로 교체 적용했던 일지 찾아봐주세요.",
+      "target_document_keys": [],
+      "target_document_ids": [],
+      "target_titles": [],
+      "is_negative": true,
+      "notes": "소형 캠페인의 경우 memo_11 미존재하여 target=[] 처리됨"
+    },
+    {
+      "case_id": "v3_video_fatigue_c0021",
+      "category": "video_fatigue_response",
+      "event_description": "영상 빈도수 피로 대응: 릴스 빈도수 상승에 따른 15초 리뷰 영상 교체",
+      "brand": "핀포인트 파이낸스",
+      "campaign_ref": "C0021",
+      "query": "핀포인트 파이낸스 C0021 릴스 영상 빈도수가 4점대 넘어가면서 피로도 심해져서 15초 실사용 리뷰 영상으로 갈아끼웠던 메모 찾아줄래?",
+      "target_document_keys": [
+        "c0021:memo_11"
+      ],
+      "target_document_ids": [
+        "eb755ad3-c405-5aea-82ef-015b422d35d0"
+      ],
+      "target_titles": [
+        "C0021 3월 3주차 숏폼 영상 소재 2차 교체 일지"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의"
+    },
+    {
+      "case_id": "v3_video_fatigue_c0022",
+      "category": "video_fatigue_response",
+      "event_description": "영상 빈도수 피로 대응: 릴스 빈도수 상승에 따른 15초 리뷰 영상 교체",
+      "brand": "핀포인트 파이낸스",
+      "campaign_ref": "C0022",
+      "query": "핀포인트 파이낸스 C0022 Meta 릴스 소재 빈도수가 너무 높아져서 15초짜리 고객 리뷰 영상으로 2차 교체했던 일지 어디 있나요?",
+      "target_document_keys": [
+        "c0022:memo_11"
+      ],
+      "target_document_ids": [
+        "05f25fe4-c66f-53d6-b465-26561fd71d87"
+      ],
+      "target_titles": [
+        "C0022 3월 3주차 숏폼 영상 소재 2차 교체 일지"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의"
+    },
+    {
+      "case_id": "v3_video_fatigue_c0023",
+      "category": "video_fatigue_response",
+      "event_description": "영상 빈도수 피로 대응: 릴스 빈도수 상승에 따른 15초 리뷰 영상 교체",
+      "brand": "핀포인트 파이낸스",
+      "campaign_ref": "C0023",
+      "query": "C0023(핀포인트 파이낸스) 릴스 광고 빈도수 과열로 피로도 올라서 15초 리뷰 영상 소재로 긴급 교체 투입했던 기록 공유 부탁해요.",
+      "target_document_keys": [
+        "c0023:memo_11"
+      ],
+      "target_document_ids": [
+        "17f36a52-090e-5ee9-94e9-b614f72d80fd"
+      ],
+      "target_titles": [
+        "C0023 3월 3주차 숏폼 영상 소재 2차 교체 일지"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의"
+    },
+    {
+      "case_id": "v3_video_fatigue_c0024",
+      "category": "video_fatigue_response",
+      "event_description": "영상 빈도수 피로 대응: 릴스 빈도수 상승에 따른 15초 리뷰 영상 교체",
+      "brand": "핀포인트 파이낸스",
+      "campaign_ref": "C0024",
+      "query": "핀포인트 파이낸스 C0024 숏폼 릴스 영상 피로도 누적돼서 15초 실사용자 리뷰 영상으로 교체했던 운영 일지 좀 확인해주세요.",
+      "target_document_keys": [
+        "c0024:memo_11"
+      ],
+      "target_document_ids": [
+        "ce6fc99b-f86b-5f26-a11f-a801f1fd189b"
+      ],
+      "target_titles": [
+        "C0024 3월 3주차 숏폼 영상 소재 2차 교체 일지"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의"
+    },
+    {
+      "case_id": "v3_video_fatigue_c0025",
+      "category": "video_fatigue_response",
+      "event_description": "영상 빈도수 피로 대응: 릴스 빈도수 상승에 따른 15초 리뷰 영상 교체",
+      "brand": "핀포인트 파이낸스",
+      "campaign_ref": "C0025",
+      "query": "C0025 Meta 릴스 영상 빈도수 치솟았을 때 15초 리뷰 영상으로 교체해서 투입했던 메모 부탁드립니다 (핀포인트 파이낸스).",
+      "target_document_keys": [
+        "c0025:memo_11"
+      ],
+      "target_document_ids": [
+        "ec1ce672-78a9-561f-8887-2c107b922a8f"
+      ],
+      "target_titles": [
+        "C0025 3월 3주차 숏폼 영상 소재 2차 교체 일지"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의"
+    },
+    {
+      "case_id": "v3_video_fatigue_c0026",
+      "category": "video_fatigue_response",
+      "event_description": "영상 빈도수 피로 대응: 릴스 빈도수 상승에 따른 15초 리뷰 영상 교체",
+      "brand": "핀포인트 파이낸스",
+      "campaign_ref": "C0026",
+      "query": "핀포인트 파이낸스 C0026 릴스 소재 피로도 발생해서 15초 리뷰 영상으로 교체 진행했던 건 일지 링크 있을까요?",
+      "target_document_keys": [
+        "c0026:memo_11"
+      ],
+      "target_document_ids": [
+        "50a7e5f8-d9c3-592e-b5a7-c0f657d0468a"
+      ],
+      "target_titles": [
+        "C0026 3월 3주차 숏폼 영상 소재 2차 교체 일지"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의"
+    },
+    {
+      "case_id": "v3_video_fatigue_c0027",
+      "category": "video_fatigue_response",
+      "event_description": "영상 빈도수 피로 대응: 릴스 빈도수 상승에 따른 15초 리뷰 영상 교체",
+      "brand": "핀포인트 파이낸스",
+      "campaign_ref": "C0027",
+      "query": "C0027 핀포인트 파이낸스에서 릴스 영상 빈도수 너무 높아져서 15초 리뷰 영상으로 바꿨던 소재 교체 일지 좀 찾아줘.",
+      "target_document_keys": [
+        "c0027:memo_11"
+      ],
+      "target_document_ids": [
+        "6167bc2b-3825-59d7-8c16-64f357d08418"
+      ],
+      "target_titles": [
+        "C0027 3월 3주차 숏폼 영상 소재 2차 교체 일지"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의"
+    },
+    {
+      "case_id": "v3_video_fatigue_c0028",
+      "category": "video_fatigue_response",
+      "event_description": "영상 빈도수 피로 대응: 릴스 빈도수 상승에 따른 15초 리뷰 영상 교체",
+      "brand": "핀포인트 파이낸스",
+      "campaign_ref": "C0028",
+      "query": "핀포인트 파이낸스 C0028 릴스 빈도수 피로 때문에 15초 리뷰 영상 소재로 긴급 투입했던 조치 메모 어디서 볼 수 있죠?",
+      "target_document_keys": [],
+      "target_document_ids": [],
+      "target_titles": [],
+      "is_negative": true,
+      "notes": "소형 캠페인의 경우 memo_11 미존재하여 target=[] 처리됨"
+    },
+    {
+      "case_id": "v3_video_fatigue_c0029",
+      "category": "video_fatigue_response",
+      "event_description": "영상 빈도수 피로 대응: 릴스 빈도수 상승에 따른 15초 리뷰 영상 교체",
+      "brand": "핀포인트 파이낸스",
+      "campaign_ref": "C0029",
+      "query": "C0029 숏폼 릴스 빈도수 급증으로 15초 리뷰 영상으로 갈아치웠던 운영 메모 공유 부탁해요 (핀포인트 파이낸스).",
+      "target_document_keys": [],
+      "target_document_ids": [],
+      "target_titles": [],
+      "is_negative": true,
+      "notes": "소형 캠페인의 경우 memo_11 미존재하여 target=[] 처리됨"
+    },
+    {
+      "case_id": "v3_video_fatigue_c0030",
+      "category": "video_fatigue_response",
+      "event_description": "영상 빈도수 피로 대응: 릴스 빈도수 상승에 따른 15초 리뷰 영상 교체",
+      "brand": "핀포인트 파이낸스",
+      "campaign_ref": "C0030",
+      "query": "핀포인트 파이낸스 C0030 릴스 광고 피로도 터져서 15초 고객 후기 리뷰 영상으로 교체 적용했던 일지 찾아봐주세요.",
+      "target_document_keys": [],
+      "target_document_ids": [],
+      "target_titles": [],
+      "is_negative": true,
+      "notes": "소형 캠페인의 경우 memo_11 미존재하여 target=[] 처리됨"
+    },
+    {
+      "case_id": "v3_pacing_reduction_c0001",
+      "category": "budget_pacing_reduction",
+      "event_description": "예산 과다소진 페이싱 삭감: 소진 속도 120% 초과로 일 예산 15% 일시 삭감",
+      "brand": "오로라 리테일",
+      "campaign_ref": "C0001",
+      "query": "오로라 리테일 C0001 1월 말에 목표치 대비 광고비 소진 속도 120% 넘어서 일 예산 15% 일시 삭감했던 페이싱 조정 메모 좀 찾아줘.",
+      "target_document_keys": [
+        "c0001:memo_02"
+      ],
+      "target_document_ids": [
+        "8cf58221-98cf-5d7e-b157-3912382ffb55"
+      ],
+      "target_titles": [
+        "C0001 1월 말 예산 페이싱 속도 재조정 메모"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_pacing_reduction_c0002",
+      "category": "budget_pacing_reduction",
+      "event_description": "예산 과다소진 페이싱 삭감: 소진 속도 120% 초과로 일 예산 15% 일시 삭감",
+      "brand": "오로라 리테일",
+      "campaign_ref": "C0002",
+      "query": "오로라 리테일 C0002 월말 예산 너무 가파르게 타들어가서 일 예산 15% 긴급 삭감 조치했던 일지 어디 있나요?",
+      "target_document_keys": [
+        "c0002:memo_02"
+      ],
+      "target_document_ids": [
+        "fab1eea4-8aa4-5d1f-9ad3-78a7219339c1"
+      ],
+      "target_titles": [
+        "C0002 1월 말 예산 페이싱 속도 재조정 메모"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_pacing_reduction_c0003",
+      "category": "budget_pacing_reduction",
+      "event_description": "예산 과다소진 페이싱 삭감: 소진 속도 120% 초과로 일 예산 15% 일시 삭감",
+      "brand": "오로라 리테일",
+      "campaign_ref": "C0003",
+      "query": "C0003(오로라 리테일) 예산 소진 페이싱이 120% 초과해서 일 예산 15% 일시적으로 줄였던 기록 공유 부탁드립니다.",
+      "target_document_keys": [
+        "c0003:memo_02"
+      ],
+      "target_document_ids": [
+        "44f586b9-5a0c-5a8c-80f6-b812f4baa085"
+      ],
+      "target_titles": [
+        "C0003 1월 말 예산 페이싱 속도 재조정 메모"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_pacing_reduction_c0004",
+      "category": "budget_pacing_reduction",
+      "event_description": "예산 과다소진 페이싱 삭감: 소진 속도 120% 초과로 일 예산 15% 일시 삭감",
+      "brand": "오로라 리테일",
+      "campaign_ref": "C0004",
+      "query": "오로라 리테일 C0004 광고비 소진 속도 과열로 일 예산 15% 깎아서 페이싱 맞췄던 1월 말 운영 메모 링크 줄 수 있어?",
+      "target_document_keys": [
+        "c0004:memo_02"
+      ],
+      "target_document_ids": [
+        "8f55a5b0-fcd7-565f-8517-98874379e7b1"
+      ],
+      "target_titles": [
+        "C0004 1월 말 예산 페이싱 속도 재조정 메모"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_pacing_reduction_c0005",
+      "category": "budget_pacing_reduction",
+      "event_description": "예산 과다소진 페이싱 삭감: 소진 속도 120% 초과로 일 예산 15% 일시 삭감",
+      "brand": "오로라 리테일",
+      "campaign_ref": "C0005",
+      "query": "C0005 예산 소진율 120% 튀어서 일일 예산 15% 일시 삭감했던 페이싱 긴급 조치 메모 찾아줘 (오로라 리테일).",
+      "target_document_keys": [
+        "c0005:memo_02"
+      ],
+      "target_document_ids": [
+        "1a73ba46-6d51-529d-b9d9-7723f9af1df4"
+      ],
+      "target_titles": [
+        "C0005 1월 말 예산 페이싱 속도 재조정 메모"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_pacing_reduction_c0006",
+      "category": "budget_pacing_reduction",
+      "event_description": "예산 과다소진 페이싱 삭감: 소진 속도 120% 초과로 일 예산 15% 일시 삭감",
+      "brand": "오로라 리테일",
+      "campaign_ref": "C0006",
+      "query": "오로라 리테일 C0006 1월 말 목표 대비 소진 속도 빨라져서 일 예산 15% 깎았던 페이싱 조정 일지 부탁해요.",
+      "target_document_keys": [
+        "c0006:memo_02"
+      ],
+      "target_document_ids": [
+        "bd892644-6b90-5bcc-889a-9b4642c7c548"
+      ],
+      "target_titles": [
+        "C0006 1월 말 예산 페이싱 속도 재조정 메모"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_pacing_reduction_c0007",
+      "category": "budget_pacing_reduction",
+      "event_description": "예산 과다소진 페이싱 삭감: 소진 속도 120% 초과로 일 예산 15% 일시 삭감",
+      "brand": "오로라 리테일",
+      "campaign_ref": "C0007",
+      "query": "C0007 오로라 리테일에서 광고비 과다 소진으로 일 예산 15% 삭감 처리했던 페이싱 메모 어디서 확인하죠?",
+      "target_document_keys": [
+        "c0007:memo_02"
+      ],
+      "target_document_ids": [
+        "a3fd73fb-72ef-5832-9b6c-646add5ce39e"
+      ],
+      "target_titles": [
+        "C0007 1월 말 예산 페이싱 속도 재조정 메모"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_pacing_reduction_c0008",
+      "category": "budget_pacing_reduction",
+      "event_description": "예산 과다소진 페이싱 삭감: 소진 속도 120% 초과로 일 예산 15% 일시 삭감",
+      "brand": "오로라 리테일",
+      "campaign_ref": "C0008",
+      "query": "오로라 리테일 C0008 예산 소진 속도 120% 초과 대응으로 일 예산 15% 삭감 조치 들어갔던 메모 공유 부탁드립니다.",
+      "target_document_keys": [
+        "c0008:memo_02"
+      ],
+      "target_document_ids": [
+        "1a3e3782-5f3b-55df-9d34-2d7fc1e82318"
+      ],
+      "target_titles": [
+        "C0008 1월 말 예산 페이싱 속도 재조정 메모"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_pacing_reduction_c0009",
+      "category": "budget_pacing_reduction",
+      "event_description": "예산 과다소진 페이싱 삭감: 소진 속도 120% 초과로 일 예산 15% 일시 삭감",
+      "brand": "오로라 리테일",
+      "campaign_ref": "C0009",
+      "query": "C0009 1월 말 페이싱 꼬여서 일 예산 15% 일시적으로 삭감 조치했던 기록 좀 확인해줘 (오로라 리테일).",
+      "target_document_keys": [
+        "c0009:memo_02"
+      ],
+      "target_document_ids": [
+        "8127a704-23fe-55ab-9561-12cb8e8c282d"
+      ],
+      "target_titles": [
+        "C0009 1월 말 예산 페이싱 속도 재조정 메모"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_pacing_reduction_c0010",
+      "category": "budget_pacing_reduction",
+      "event_description": "예산 과다소진 페이싱 삭감: 소진 속도 120% 초과로 일 예산 15% 일시 삭감",
+      "brand": "오로라 리테일",
+      "campaign_ref": "C0010",
+      "query": "오로라 리테일 C0010 광고비가 목표보다 너무 빨리 소진돼서 일 예산 15% 삭감했던 페이싱 일지 찾아봐주세요.",
+      "target_document_keys": [
+        "c0010:memo_02"
+      ],
+      "target_document_ids": [
+        "a06d4856-dfac-5b4d-bda3-80996c1a7db0"
+      ],
+      "target_titles": [
+        "C0010 1월 말 예산 페이싱 속도 재조정 메모"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_pacing_reduction_c0011",
+      "category": "budget_pacing_reduction",
+      "event_description": "예산 과다소진 페이싱 삭감: 소진 속도 120% 초과로 일 예산 15% 일시 삭감",
+      "brand": "넥스트앱스 글로벌",
+      "campaign_ref": "C0011",
+      "query": "넥스트앱스 글로벌 C0011 1월 말에 목표치 대비 광고비 소진 속도 120% 넘어서 일 예산 15% 일시 삭감했던 페이싱 조정 메모 좀 찾아줘.",
+      "target_document_keys": [
+        "c0011:memo_02"
+      ],
+      "target_document_ids": [
+        "a211f50e-8499-5ccc-a536-4c9b242b9e29"
+      ],
+      "target_titles": [
+        "C0011 1월 말 예산 페이싱 속도 재조정 메모"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_pacing_reduction_c0012",
+      "category": "budget_pacing_reduction",
+      "event_description": "예산 과다소진 페이싱 삭감: 소진 속도 120% 초과로 일 예산 15% 일시 삭감",
+      "brand": "넥스트앱스 글로벌",
+      "campaign_ref": "C0012",
+      "query": "넥스트앱스 글로벌 C0012 월말 예산 너무 가파르게 타들어가서 일 예산 15% 긴급 삭감 조치했던 일지 어디 있나요?",
+      "target_document_keys": [
+        "c0012:memo_02"
+      ],
+      "target_document_ids": [
+        "498791fb-32ba-5564-afa2-7d84ce8aa6de"
+      ],
+      "target_titles": [
+        "C0012 1월 말 예산 페이싱 속도 재조정 메모"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_pacing_reduction_c0013",
+      "category": "budget_pacing_reduction",
+      "event_description": "예산 과다소진 페이싱 삭감: 소진 속도 120% 초과로 일 예산 15% 일시 삭감",
+      "brand": "넥스트앱스 글로벌",
+      "campaign_ref": "C0013",
+      "query": "C0013(넥스트앱스 글로벌) 예산 소진 페이싱이 120% 초과해서 일 예산 15% 일시적으로 줄였던 기록 공유 부탁드립니다.",
+      "target_document_keys": [
+        "c0013:memo_02"
+      ],
+      "target_document_ids": [
+        "de38a525-6776-5de5-9f62-7b33a9b98586"
+      ],
+      "target_titles": [
+        "C0013 1월 말 예산 페이싱 속도 재조정 메모"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_pacing_reduction_c0014",
+      "category": "budget_pacing_reduction",
+      "event_description": "예산 과다소진 페이싱 삭감: 소진 속도 120% 초과로 일 예산 15% 일시 삭감",
+      "brand": "넥스트앱스 글로벌",
+      "campaign_ref": "C0014",
+      "query": "넥스트앱스 글로벌 C0014 광고비 소진 속도 과열로 일 예산 15% 깎아서 페이싱 맞췄던 1월 말 운영 메모 링크 줄 수 있어?",
+      "target_document_keys": [
+        "c0014:memo_02"
+      ],
+      "target_document_ids": [
+        "e8e17931-6444-59e3-b5fa-14feaf77861d"
+      ],
+      "target_titles": [
+        "C0014 1월 말 예산 페이싱 속도 재조정 메모"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_pacing_reduction_c0015",
+      "category": "budget_pacing_reduction",
+      "event_description": "예산 과다소진 페이싱 삭감: 소진 속도 120% 초과로 일 예산 15% 일시 삭감",
+      "brand": "넥스트앱스 글로벌",
+      "campaign_ref": "C0015",
+      "query": "C0015 예산 소진율 120% 튀어서 일일 예산 15% 일시 삭감했던 페이싱 긴급 조치 메모 찾아줘 (넥스트앱스 글로벌).",
+      "target_document_keys": [
+        "c0015:memo_02"
+      ],
+      "target_document_ids": [
+        "09e27546-c008-54ee-9d85-f865042a3d90"
+      ],
+      "target_titles": [
+        "C0015 1월 말 예산 페이싱 속도 재조정 메모"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_pacing_reduction_c0016",
+      "category": "budget_pacing_reduction",
+      "event_description": "예산 과다소진 페이싱 삭감: 소진 속도 120% 초과로 일 예산 15% 일시 삭감",
+      "brand": "넥스트앱스 글로벌",
+      "campaign_ref": "C0016",
+      "query": "넥스트앱스 글로벌 C0016 1월 말 목표 대비 소진 속도 빨라져서 일 예산 15% 깎았던 페이싱 조정 일지 부탁해요.",
+      "target_document_keys": [
+        "c0016:memo_02"
+      ],
+      "target_document_ids": [
+        "496891d5-6db7-5c30-83f7-d7ac6980d441"
+      ],
+      "target_titles": [
+        "C0016 1월 말 예산 페이싱 속도 재조정 메모"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_pacing_reduction_c0017",
+      "category": "budget_pacing_reduction",
+      "event_description": "예산 과다소진 페이싱 삭감: 소진 속도 120% 초과로 일 예산 15% 일시 삭감",
+      "brand": "넥스트앱스 글로벌",
+      "campaign_ref": "C0017",
+      "query": "C0017 넥스트앱스 글로벌에서 광고비 과다 소진으로 일 예산 15% 삭감 처리했던 페이싱 메모 어디서 확인하죠?",
+      "target_document_keys": [
+        "c0017:memo_02"
+      ],
+      "target_document_ids": [
+        "fa1ff97d-c04d-54e6-a8ed-bbb166b2c845"
+      ],
+      "target_titles": [
+        "C0017 1월 말 예산 페이싱 속도 재조정 메모"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_pacing_reduction_c0018",
+      "category": "budget_pacing_reduction",
+      "event_description": "예산 과다소진 페이싱 삭감: 소진 속도 120% 초과로 일 예산 15% 일시 삭감",
+      "brand": "넥스트앱스 글로벌",
+      "campaign_ref": "C0018",
+      "query": "넥스트앱스 글로벌 C0018 예산 소진 속도 120% 초과 대응으로 일 예산 15% 삭감 조치 들어갔던 메모 공유 부탁드립니다.",
+      "target_document_keys": [
+        "c0018:memo_02"
+      ],
+      "target_document_ids": [
+        "c3f7d76e-eb7b-508f-824f-11732882576d"
+      ],
+      "target_titles": [
+        "C0018 1월 말 예산 페이싱 속도 재조정 메모"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_pacing_reduction_c0019",
+      "category": "budget_pacing_reduction",
+      "event_description": "예산 과다소진 페이싱 삭감: 소진 속도 120% 초과로 일 예산 15% 일시 삭감",
+      "brand": "넥스트앱스 글로벌",
+      "campaign_ref": "C0019",
+      "query": "C0019 1월 말 페이싱 꼬여서 일 예산 15% 일시적으로 삭감 조치했던 기록 좀 확인해줘 (넥스트앱스 글로벌).",
+      "target_document_keys": [
+        "c0019:memo_02"
+      ],
+      "target_document_ids": [
+        "04dafb10-8563-5cf8-b120-a4815d99d9b7"
+      ],
+      "target_titles": [
+        "C0019 1월 말 예산 페이싱 속도 재조정 메모"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_pacing_reduction_c0020",
+      "category": "budget_pacing_reduction",
+      "event_description": "예산 과다소진 페이싱 삭감: 소진 속도 120% 초과로 일 예산 15% 일시 삭감",
+      "brand": "넥스트앱스 글로벌",
+      "campaign_ref": "C0020",
+      "query": "넥스트앱스 글로벌 C0020 광고비가 목표보다 너무 빨리 소진돼서 일 예산 15% 삭감했던 페이싱 일지 찾아봐주세요.",
+      "target_document_keys": [
+        "c0020:memo_02"
+      ],
+      "target_document_ids": [
+        "74580b41-74e5-5336-b10f-b96c411cd5f0"
+      ],
+      "target_titles": [
+        "C0020 1월 말 예산 페이싱 속도 재조정 메모"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_pacing_reduction_c0021",
+      "category": "budget_pacing_reduction",
+      "event_description": "예산 과다소진 페이싱 삭감: 소진 속도 120% 초과로 일 예산 15% 일시 삭감",
+      "brand": "핀포인트 파이낸스",
+      "campaign_ref": "C0021",
+      "query": "핀포인트 파이낸스 C0021 1월 말에 목표치 대비 광고비 소진 속도 120% 넘어서 일 예산 15% 일시 삭감했던 페이싱 조정 메모 좀 찾아줘.",
+      "target_document_keys": [
+        "c0021:memo_02"
+      ],
+      "target_document_ids": [
+        "5654e9bc-85d4-5f50-81e9-9479fc1cbc52"
+      ],
+      "target_titles": [
+        "C0021 1월 말 예산 페이싱 속도 재조정 메모"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_pacing_reduction_c0022",
+      "category": "budget_pacing_reduction",
+      "event_description": "예산 과다소진 페이싱 삭감: 소진 속도 120% 초과로 일 예산 15% 일시 삭감",
+      "brand": "핀포인트 파이낸스",
+      "campaign_ref": "C0022",
+      "query": "핀포인트 파이낸스 C0022 월말 예산 너무 가파르게 타들어가서 일 예산 15% 긴급 삭감 조치했던 일지 어디 있나요?",
+      "target_document_keys": [
+        "c0022:memo_02"
+      ],
+      "target_document_ids": [
+        "d2f761bb-120c-5b3c-b400-73199d5d3163"
+      ],
+      "target_titles": [
+        "C0022 1월 말 예산 페이싱 속도 재조정 메모"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_pacing_reduction_c0023",
+      "category": "budget_pacing_reduction",
+      "event_description": "예산 과다소진 페이싱 삭감: 소진 속도 120% 초과로 일 예산 15% 일시 삭감",
+      "brand": "핀포인트 파이낸스",
+      "campaign_ref": "C0023",
+      "query": "C0023(핀포인트 파이낸스) 예산 소진 페이싱이 120% 초과해서 일 예산 15% 일시적으로 줄였던 기록 공유 부탁드립니다.",
+      "target_document_keys": [
+        "c0023:memo_02"
+      ],
+      "target_document_ids": [
+        "079e6ec8-0eec-5bcd-a6dd-de9bf610b3ee"
+      ],
+      "target_titles": [
+        "C0023 1월 말 예산 페이싱 속도 재조정 메모"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_pacing_reduction_c0024",
+      "category": "budget_pacing_reduction",
+      "event_description": "예산 과다소진 페이싱 삭감: 소진 속도 120% 초과로 일 예산 15% 일시 삭감",
+      "brand": "핀포인트 파이낸스",
+      "campaign_ref": "C0024",
+      "query": "핀포인트 파이낸스 C0024 광고비 소진 속도 과열로 일 예산 15% 깎아서 페이싱 맞췄던 1월 말 운영 메모 링크 줄 수 있어?",
+      "target_document_keys": [
+        "c0024:memo_02"
+      ],
+      "target_document_ids": [
+        "59582df1-aac2-5a67-9b15-bf557572c6f9"
+      ],
+      "target_titles": [
+        "C0024 1월 말 예산 페이싱 속도 재조정 메모"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_pacing_reduction_c0025",
+      "category": "budget_pacing_reduction",
+      "event_description": "예산 과다소진 페이싱 삭감: 소진 속도 120% 초과로 일 예산 15% 일시 삭감",
+      "brand": "핀포인트 파이낸스",
+      "campaign_ref": "C0025",
+      "query": "C0025 예산 소진율 120% 튀어서 일일 예산 15% 일시 삭감했던 페이싱 긴급 조치 메모 찾아줘 (핀포인트 파이낸스).",
+      "target_document_keys": [
+        "c0025:memo_02"
+      ],
+      "target_document_ids": [
+        "28398d59-5512-590c-8a1d-905b56ea7551"
+      ],
+      "target_titles": [
+        "C0025 1월 말 예산 페이싱 속도 재조정 메모"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_pacing_reduction_c0026",
+      "category": "budget_pacing_reduction",
+      "event_description": "예산 과다소진 페이싱 삭감: 소진 속도 120% 초과로 일 예산 15% 일시 삭감",
+      "brand": "핀포인트 파이낸스",
+      "campaign_ref": "C0026",
+      "query": "핀포인트 파이낸스 C0026 1월 말 목표 대비 소진 속도 빨라져서 일 예산 15% 깎았던 페이싱 조정 일지 부탁해요.",
+      "target_document_keys": [
+        "c0026:memo_02"
+      ],
+      "target_document_ids": [
+        "2704f54a-8c54-5044-ac38-48b6c815adbe"
+      ],
+      "target_titles": [
+        "C0026 1월 말 예산 페이싱 속도 재조정 메모"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_pacing_reduction_c0027",
+      "category": "budget_pacing_reduction",
+      "event_description": "예산 과다소진 페이싱 삭감: 소진 속도 120% 초과로 일 예산 15% 일시 삭감",
+      "brand": "핀포인트 파이낸스",
+      "campaign_ref": "C0027",
+      "query": "C0027 핀포인트 파이낸스에서 광고비 과다 소진으로 일 예산 15% 삭감 처리했던 페이싱 메모 어디서 확인하죠?",
+      "target_document_keys": [
+        "c0027:memo_02"
+      ],
+      "target_document_ids": [
+        "7cbfced9-3c6d-5844-b656-ee51bca2a1dd"
+      ],
+      "target_titles": [
+        "C0027 1월 말 예산 페이싱 속도 재조정 메모"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_pacing_reduction_c0028",
+      "category": "budget_pacing_reduction",
+      "event_description": "예산 과다소진 페이싱 삭감: 소진 속도 120% 초과로 일 예산 15% 일시 삭감",
+      "brand": "핀포인트 파이낸스",
+      "campaign_ref": "C0028",
+      "query": "핀포인트 파이낸스 C0028 예산 소진 속도 120% 초과 대응으로 일 예산 15% 삭감 조치 들어갔던 메모 공유 부탁드립니다.",
+      "target_document_keys": [
+        "c0028:memo_02"
+      ],
+      "target_document_ids": [
+        "c366f61d-cc4a-5c0d-84f8-20058b285bb8"
+      ],
+      "target_titles": [
+        "C0028 1월 말 예산 페이싱 속도 재조정 메모"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_pacing_reduction_c0029",
+      "category": "budget_pacing_reduction",
+      "event_description": "예산 과다소진 페이싱 삭감: 소진 속도 120% 초과로 일 예산 15% 일시 삭감",
+      "brand": "핀포인트 파이낸스",
+      "campaign_ref": "C0029",
+      "query": "C0029 1월 말 페이싱 꼬여서 일 예산 15% 일시적으로 삭감 조치했던 기록 좀 확인해줘 (핀포인트 파이낸스).",
+      "target_document_keys": [
+        "c0029:memo_02"
+      ],
+      "target_document_ids": [
+        "be5d7b62-517f-5368-afef-351d0e5851c9"
+      ],
+      "target_titles": [
+        "C0029 1월 말 예산 페이싱 속도 재조정 메모"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_pacing_reduction_c0030",
+      "category": "budget_pacing_reduction",
+      "event_description": "예산 과다소진 페이싱 삭감: 소진 속도 120% 초과로 일 예산 15% 일시 삭감",
+      "brand": "핀포인트 파이낸스",
+      "campaign_ref": "C0030",
+      "query": "핀포인트 파이낸스 C0030 광고비가 목표보다 너무 빨리 소진돼서 일 예산 15% 삭감했던 페이싱 일지 찾아봐주세요.",
+      "target_document_keys": [
+        "c0030:memo_02"
+      ],
+      "target_document_ids": [
+        "05cad888-1fdb-56ac-9f69-dc946356ed37"
+      ],
+      "target_titles": [
+        "C0030 1월 말 예산 페이싱 속도 재조정 메모"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_pacing_guide_c0001",
+      "category": "initial_pacing_guide",
+      "event_description": "초기 페이싱 원칙 가이드: 일별 변동 즉각 개입 지양 및 주간 단위 조정 지침",
+      "brand": "오로라 리테일",
+      "campaign_ref": "C0001",
+      "query": "오로라 리테일 C0001 런칭 초기에 일별 지표 튄다고 바로 개입하지 말고 주간 단위로 조정하라던 페이싱 가이드 문서 좀 찾아줘.",
+      "target_document_keys": [
+        "c0001:brief_02"
+      ],
+      "target_document_ids": [
+        "9751b084-2288-56e1-994c-2fe511800143"
+      ],
+      "target_titles": [
+        "C0001 타겟 오디언스 및 페이싱 기준 가이드"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_pacing_guide_c0002",
+      "category": "initial_pacing_guide",
+      "event_description": "초기 페이싱 원칙 가이드: 일별 변동 즉각 개입 지양 및 주간 단위 조정 지침",
+      "brand": "오로라 리테일",
+      "campaign_ref": "C0002",
+      "query": "오로라 리테일 C0002 일 예산 20% 초과 소진 시 긴급 페이싱 조치 발동하고 평소엔 주간 단위로 보라던 초기 가이드 어디 있나요?",
+      "target_document_keys": [
+        "c0002:brief_02"
+      ],
+      "target_document_ids": [
+        "04349643-3ca0-5c95-985a-3664e42ca855"
+      ],
+      "target_titles": [
+        "C0002 타겟 오디언스 및 페이싱 기준 가이드"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_pacing_guide_c0003",
+      "category": "initial_pacing_guide",
+      "event_description": "초기 페이싱 원칙 가이드: 일별 변동 즉각 개입 지양 및 주간 단위 조정 지침",
+      "brand": "오로라 리테일",
+      "campaign_ref": "C0003",
+      "query": "C0003(오로라 리테일) 일별 변동에 일희일비해서 즉각 건드리지 말고 주간 단위로 단계별 조정하라는 페이싱 지침 공유 부탁해요.",
+      "target_document_keys": [
+        "c0003:brief_02"
+      ],
+      "target_document_ids": [
+        "72f0b736-232b-5f9e-80c0-beaceccf7c5c"
+      ],
+      "target_titles": [
+        "C0003 타겟 오디언스 및 페이싱 기준 가이드"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_pacing_guide_c0004",
+      "category": "initial_pacing_guide",
+      "event_description": "초기 페이싱 원칙 가이드: 일별 변동 즉각 개입 지양 및 주간 단위 조정 지침",
+      "brand": "오로라 리테일",
+      "campaign_ref": "C0004",
+      "query": "오로라 리테일 C0004 런칭 때 합의한 예산 페이싱 원칙 문서(일별 개입 최소화, 주간 기준 조정) 어디서 볼 수 있어?",
+      "target_document_keys": [
+        "c0004:brief_02"
+      ],
+      "target_document_ids": [
+        "39595c37-d340-5c3e-a7ce-dbadd696adf1"
+      ],
+      "target_titles": [
+        "C0004 타겟 오디언스 및 페이싱 기준 가이드"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_pacing_guide_c0005",
+      "category": "initial_pacing_guide",
+      "event_description": "초기 페이싱 원칙 가이드: 일별 변동 즉각 개입 지양 및 주간 단위 조정 지침",
+      "brand": "오로라 리테일",
+      "campaign_ref": "C0005",
+      "query": "C0005 초반에 일별 급격한 변동 개입 줄이고 주간 성과 보고 조정하라던 페이싱 운영 지침 찾아줘 (오로라 리테일).",
+      "target_document_keys": [
+        "c0005:brief_02"
+      ],
+      "target_document_ids": [
+        "7f93b8b5-f8af-5e06-af39-44f927d8f244"
+      ],
+      "target_titles": [
+        "C0005 타겟 오디언스 및 페이싱 기준 가이드"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_pacing_guide_c0006",
+      "category": "initial_pacing_guide",
+      "event_description": "초기 페이싱 원칙 가이드: 일별 변동 즉각 개입 지양 및 주간 단위 조정 지침",
+      "brand": "오로라 리테일",
+      "campaign_ref": "C0006",
+      "query": "오로라 리테일 C0006 일 예산 20% 초과할 때만 긴급 조치하고 일상 변동은 주간 단위로 보라던 초기 페이싱 가이드 링크 부탁드립니다.",
+      "target_document_keys": [
+        "c0006:brief_02"
+      ],
+      "target_document_ids": [
+        "9434143b-f2bc-5698-88dc-e6b28cdb7654"
+      ],
+      "target_titles": [
+        "C0006 타겟 오디언스 및 페이싱 기준 가이드"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_pacing_guide_c0007",
+      "category": "initial_pacing_guide",
+      "event_description": "초기 페이싱 원칙 가이드: 일별 변동 즉각 개입 지양 및 주간 단위 조정 지침",
+      "brand": "오로라 리테일",
+      "campaign_ref": "C0007",
+      "query": "C0007 오로라 리테일에서 일별 변동 개입 최소화하고 주간 단위로 페이싱 조정하라고 했던 초기 기준 문서가 뭐였죠?",
+      "target_document_keys": [
+        "c0007:brief_02"
+      ],
+      "target_document_ids": [
+        "ff49b825-001b-518d-a30a-d65a81a43687"
+      ],
+      "target_titles": [
+        "C0007 타겟 오디언스 및 페이싱 기준 가이드"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_pacing_guide_c0008",
+      "category": "initial_pacing_guide",
+      "event_description": "초기 페이싱 원칙 가이드: 일별 변동 즉각 개입 지양 및 주간 단위 조정 지침",
+      "brand": "오로라 리테일",
+      "campaign_ref": "C0008",
+      "query": "오로라 리테일 C0008 초기 오디언스 및 예산 페이싱 지침(일별 즉각 개입 금지, 주간 지표 기준) 메모 확인 부탁해요.",
+      "target_document_keys": [
+        "c0008:brief_02"
+      ],
+      "target_document_ids": [
+        "758c5c0d-47f5-5e46-8a74-57a79305f056"
+      ],
+      "target_titles": [
+        "C0008 타겟 오디언스 및 페이싱 기준 가이드"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_pacing_guide_c0009",
+      "category": "initial_pacing_guide",
+      "event_description": "초기 페이싱 원칙 가이드: 일별 변동 즉각 개입 지양 및 주간 단위 조정 지침",
+      "brand": "오로라 리테일",
+      "campaign_ref": "C0009",
+      "query": "C0009 런칭 단계에서 일별 수치 흔들려도 바로 손대지 말고 주간 단위로 단계적 조정하라던 지침서 찾아줘 (오로라 리테일).",
+      "target_document_keys": [
+        "c0009:brief_02"
+      ],
+      "target_document_ids": [
+        "020b7e54-b136-5155-ba55-f125dd744dc6"
+      ],
+      "target_titles": [
+        "C0009 타겟 오디언스 및 페이싱 기준 가이드"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_pacing_guide_c0010",
+      "category": "initial_pacing_guide",
+      "event_description": "초기 페이싱 원칙 가이드: 일별 변동 즉각 개입 지양 및 주간 단위 조정 지침",
+      "brand": "오로라 리테일",
+      "campaign_ref": "C0010",
+      "query": "오로라 리테일 C0010 캠페인 시작할 때 정한 페이싱 운영 지침(일 예산 20% 초과 시 긴급 페이싱, 일별 개입 최소화) 공유 부탁드립니다.",
+      "target_document_keys": [
+        "c0010:brief_02"
+      ],
+      "target_document_ids": [
+        "5e40979c-838a-5f3f-9410-6e8453e8bc7b"
+      ],
+      "target_titles": [
+        "C0010 타겟 오디언스 및 페이싱 기준 가이드"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_pacing_guide_c0011",
+      "category": "initial_pacing_guide",
+      "event_description": "초기 페이싱 원칙 가이드: 일별 변동 즉각 개입 지양 및 주간 단위 조정 지침",
+      "brand": "넥스트앱스 글로벌",
+      "campaign_ref": "C0011",
+      "query": "넥스트앱스 글로벌 C0011 런칭 초기에 일별 지표 튄다고 바로 개입하지 말고 주간 단위로 조정하라던 페이싱 가이드 문서 좀 찾아줘.",
+      "target_document_keys": [
+        "c0011:brief_02"
+      ],
+      "target_document_ids": [
+        "20922632-9210-50fb-8b3e-bb234c6bbfc6"
+      ],
+      "target_titles": [
+        "C0011 타겟 오디언스 및 페이싱 기준 가이드"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_pacing_guide_c0012",
+      "category": "initial_pacing_guide",
+      "event_description": "초기 페이싱 원칙 가이드: 일별 변동 즉각 개입 지양 및 주간 단위 조정 지침",
+      "brand": "넥스트앱스 글로벌",
+      "campaign_ref": "C0012",
+      "query": "넥스트앱스 글로벌 C0012 일 예산 20% 초과 소진 시 긴급 페이싱 조치 발동하고 평소엔 주간 단위로 보라던 초기 가이드 어디 있나요?",
+      "target_document_keys": [
+        "c0012:brief_02"
+      ],
+      "target_document_ids": [
+        "d891a9c0-e48e-5231-be59-d65c86959a31"
+      ],
+      "target_titles": [
+        "C0012 타겟 오디언스 및 페이싱 기준 가이드"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_pacing_guide_c0013",
+      "category": "initial_pacing_guide",
+      "event_description": "초기 페이싱 원칙 가이드: 일별 변동 즉각 개입 지양 및 주간 단위 조정 지침",
+      "brand": "넥스트앱스 글로벌",
+      "campaign_ref": "C0013",
+      "query": "C0013(넥스트앱스 글로벌) 일별 변동에 일희일비해서 즉각 건드리지 말고 주간 단위로 단계별 조정하라는 페이싱 지침 공유 부탁해요.",
+      "target_document_keys": [
+        "c0013:brief_02"
+      ],
+      "target_document_ids": [
+        "e5d7b9db-00a2-5a26-872c-2b3bde5a5bd3"
+      ],
+      "target_titles": [
+        "C0013 타겟 오디언스 및 페이싱 기준 가이드"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_pacing_guide_c0014",
+      "category": "initial_pacing_guide",
+      "event_description": "초기 페이싱 원칙 가이드: 일별 변동 즉각 개입 지양 및 주간 단위 조정 지침",
+      "brand": "넥스트앱스 글로벌",
+      "campaign_ref": "C0014",
+      "query": "넥스트앱스 글로벌 C0014 런칭 때 합의한 예산 페이싱 원칙 문서(일별 개입 최소화, 주간 기준 조정) 어디서 볼 수 있어?",
+      "target_document_keys": [
+        "c0014:brief_02"
+      ],
+      "target_document_ids": [
+        "aa7943d2-a10d-5cf8-8a50-1df924e4bf62"
+      ],
+      "target_titles": [
+        "C0014 타겟 오디언스 및 페이싱 기준 가이드"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_pacing_guide_c0015",
+      "category": "initial_pacing_guide",
+      "event_description": "초기 페이싱 원칙 가이드: 일별 변동 즉각 개입 지양 및 주간 단위 조정 지침",
+      "brand": "넥스트앱스 글로벌",
+      "campaign_ref": "C0015",
+      "query": "C0015 초반에 일별 급격한 변동 개입 줄이고 주간 성과 보고 조정하라던 페이싱 운영 지침 찾아줘 (넥스트앱스 글로벌).",
+      "target_document_keys": [
+        "c0015:brief_02"
+      ],
+      "target_document_ids": [
+        "bbdfda4c-c1dc-50be-a9e0-86f477059dc6"
+      ],
+      "target_titles": [
+        "C0015 타겟 오디언스 및 페이싱 기준 가이드"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_pacing_guide_c0016",
+      "category": "initial_pacing_guide",
+      "event_description": "초기 페이싱 원칙 가이드: 일별 변동 즉각 개입 지양 및 주간 단위 조정 지침",
+      "brand": "넥스트앱스 글로벌",
+      "campaign_ref": "C0016",
+      "query": "넥스트앱스 글로벌 C0016 일 예산 20% 초과할 때만 긴급 조치하고 일상 변동은 주간 단위로 보라던 초기 페이싱 가이드 링크 부탁드립니다.",
+      "target_document_keys": [
+        "c0016:brief_02"
+      ],
+      "target_document_ids": [
+        "070c2a3d-dd4c-5085-ba22-c4ea0807b53c"
+      ],
+      "target_titles": [
+        "C0016 타겟 오디언스 및 페이싱 기준 가이드"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_pacing_guide_c0017",
+      "category": "initial_pacing_guide",
+      "event_description": "초기 페이싱 원칙 가이드: 일별 변동 즉각 개입 지양 및 주간 단위 조정 지침",
+      "brand": "넥스트앱스 글로벌",
+      "campaign_ref": "C0017",
+      "query": "C0017 넥스트앱스 글로벌에서 일별 변동 개입 최소화하고 주간 단위로 페이싱 조정하라고 했던 초기 기준 문서가 뭐였죠?",
+      "target_document_keys": [
+        "c0017:brief_02"
+      ],
+      "target_document_ids": [
+        "e8aea534-7126-5c5f-bead-350b89230506"
+      ],
+      "target_titles": [
+        "C0017 타겟 오디언스 및 페이싱 기준 가이드"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_pacing_guide_c0018",
+      "category": "initial_pacing_guide",
+      "event_description": "초기 페이싱 원칙 가이드: 일별 변동 즉각 개입 지양 및 주간 단위 조정 지침",
+      "brand": "넥스트앱스 글로벌",
+      "campaign_ref": "C0018",
+      "query": "넥스트앱스 글로벌 C0018 초기 오디언스 및 예산 페이싱 지침(일별 즉각 개입 금지, 주간 지표 기준) 메모 확인 부탁해요.",
+      "target_document_keys": [
+        "c0018:brief_02"
+      ],
+      "target_document_ids": [
+        "72db29ab-1209-5ede-9404-11e7f78d6558"
+      ],
+      "target_titles": [
+        "C0018 타겟 오디언스 및 페이싱 기준 가이드"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_pacing_guide_c0019",
+      "category": "initial_pacing_guide",
+      "event_description": "초기 페이싱 원칙 가이드: 일별 변동 즉각 개입 지양 및 주간 단위 조정 지침",
+      "brand": "넥스트앱스 글로벌",
+      "campaign_ref": "C0019",
+      "query": "C0019 런칭 단계에서 일별 수치 흔들려도 바로 손대지 말고 주간 단위로 단계적 조정하라던 지침서 찾아줘 (넥스트앱스 글로벌).",
+      "target_document_keys": [
+        "c0019:brief_02"
+      ],
+      "target_document_ids": [
+        "c6d67a2b-2bc7-5c44-808a-efaffb0bf124"
+      ],
+      "target_titles": [
+        "C0019 타겟 오디언스 및 페이싱 기준 가이드"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_pacing_guide_c0020",
+      "category": "initial_pacing_guide",
+      "event_description": "초기 페이싱 원칙 가이드: 일별 변동 즉각 개입 지양 및 주간 단위 조정 지침",
+      "brand": "넥스트앱스 글로벌",
+      "campaign_ref": "C0020",
+      "query": "넥스트앱스 글로벌 C0020 캠페인 시작할 때 정한 페이싱 운영 지침(일 예산 20% 초과 시 긴급 페이싱, 일별 개입 최소화) 공유 부탁드립니다.",
+      "target_document_keys": [
+        "c0020:brief_02"
+      ],
+      "target_document_ids": [
+        "86fcc8cb-55df-5813-80d7-af91efcb4ce0"
+      ],
+      "target_titles": [
+        "C0020 타겟 오디언스 및 페이싱 기준 가이드"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_pacing_guide_c0021",
+      "category": "initial_pacing_guide",
+      "event_description": "초기 페이싱 원칙 가이드: 일별 변동 즉각 개입 지양 및 주간 단위 조정 지침",
+      "brand": "핀포인트 파이낸스",
+      "campaign_ref": "C0021",
+      "query": "핀포인트 파이낸스 C0021 런칭 초기에 일별 지표 튄다고 바로 개입하지 말고 주간 단위로 조정하라던 페이싱 가이드 문서 좀 찾아줘.",
+      "target_document_keys": [
+        "c0021:brief_02"
+      ],
+      "target_document_ids": [
+        "761127a1-d0a9-5bf7-b375-ab75fb056548"
+      ],
+      "target_titles": [
+        "C0021 타겟 오디언스 및 페이싱 기준 가이드"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_pacing_guide_c0022",
+      "category": "initial_pacing_guide",
+      "event_description": "초기 페이싱 원칙 가이드: 일별 변동 즉각 개입 지양 및 주간 단위 조정 지침",
+      "brand": "핀포인트 파이낸스",
+      "campaign_ref": "C0022",
+      "query": "핀포인트 파이낸스 C0022 일 예산 20% 초과 소진 시 긴급 페이싱 조치 발동하고 평소엔 주간 단위로 보라던 초기 가이드 어디 있나요?",
+      "target_document_keys": [
+        "c0022:brief_02"
+      ],
+      "target_document_ids": [
+        "efc88e01-fed3-5a45-983a-bcdcd9b69270"
+      ],
+      "target_titles": [
+        "C0022 타겟 오디언스 및 페이싱 기준 가이드"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_pacing_guide_c0023",
+      "category": "initial_pacing_guide",
+      "event_description": "초기 페이싱 원칙 가이드: 일별 변동 즉각 개입 지양 및 주간 단위 조정 지침",
+      "brand": "핀포인트 파이낸스",
+      "campaign_ref": "C0023",
+      "query": "C0023(핀포인트 파이낸스) 일별 변동에 일희일비해서 즉각 건드리지 말고 주간 단위로 단계별 조정하라는 페이싱 지침 공유 부탁해요.",
+      "target_document_keys": [
+        "c0023:brief_02"
+      ],
+      "target_document_ids": [
+        "026b5992-782f-5531-90b1-f0919d1c5162"
+      ],
+      "target_titles": [
+        "C0023 타겟 오디언스 및 페이싱 기준 가이드"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_pacing_guide_c0024",
+      "category": "initial_pacing_guide",
+      "event_description": "초기 페이싱 원칙 가이드: 일별 변동 즉각 개입 지양 및 주간 단위 조정 지침",
+      "brand": "핀포인트 파이낸스",
+      "campaign_ref": "C0024",
+      "query": "핀포인트 파이낸스 C0024 런칭 때 합의한 예산 페이싱 원칙 문서(일별 개입 최소화, 주간 기준 조정) 어디서 볼 수 있어?",
+      "target_document_keys": [
+        "c0024:brief_02"
+      ],
+      "target_document_ids": [
+        "a1476b61-0a7c-56bd-a198-ce2502809ee4"
+      ],
+      "target_titles": [
+        "C0024 타겟 오디언스 및 페이싱 기준 가이드"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_pacing_guide_c0025",
+      "category": "initial_pacing_guide",
+      "event_description": "초기 페이싱 원칙 가이드: 일별 변동 즉각 개입 지양 및 주간 단위 조정 지침",
+      "brand": "핀포인트 파이낸스",
+      "campaign_ref": "C0025",
+      "query": "C0025 초반에 일별 급격한 변동 개입 줄이고 주간 성과 보고 조정하라던 페이싱 운영 지침 찾아줘 (핀포인트 파이낸스).",
+      "target_document_keys": [
+        "c0025:brief_02"
+      ],
+      "target_document_ids": [
+        "e5c32103-6397-5583-b283-aa72352d0007"
+      ],
+      "target_titles": [
+        "C0025 타겟 오디언스 및 페이싱 기준 가이드"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_pacing_guide_c0026",
+      "category": "initial_pacing_guide",
+      "event_description": "초기 페이싱 원칙 가이드: 일별 변동 즉각 개입 지양 및 주간 단위 조정 지침",
+      "brand": "핀포인트 파이낸스",
+      "campaign_ref": "C0026",
+      "query": "핀포인트 파이낸스 C0026 일 예산 20% 초과할 때만 긴급 조치하고 일상 변동은 주간 단위로 보라던 초기 페이싱 가이드 링크 부탁드립니다.",
+      "target_document_keys": [
+        "c0026:brief_02"
+      ],
+      "target_document_ids": [
+        "3eb15010-861a-5659-8694-bfa5895841bd"
+      ],
+      "target_titles": [
+        "C0026 타겟 오디언스 및 페이싱 기준 가이드"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_pacing_guide_c0027",
+      "category": "initial_pacing_guide",
+      "event_description": "초기 페이싱 원칙 가이드: 일별 변동 즉각 개입 지양 및 주간 단위 조정 지침",
+      "brand": "핀포인트 파이낸스",
+      "campaign_ref": "C0027",
+      "query": "C0027 핀포인트 파이낸스에서 일별 변동 개입 최소화하고 주간 단위로 페이싱 조정하라고 했던 초기 기준 문서가 뭐였죠?",
+      "target_document_keys": [
+        "c0027:brief_02"
+      ],
+      "target_document_ids": [
+        "8ddb3a6e-65bd-5f2c-9c0b-a829599ae990"
+      ],
+      "target_titles": [
+        "C0027 타겟 오디언스 및 페이싱 기준 가이드"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_pacing_guide_c0028",
+      "category": "initial_pacing_guide",
+      "event_description": "초기 페이싱 원칙 가이드: 일별 변동 즉각 개입 지양 및 주간 단위 조정 지침",
+      "brand": "핀포인트 파이낸스",
+      "campaign_ref": "C0028",
+      "query": "핀포인트 파이낸스 C0028 초기 오디언스 및 예산 페이싱 지침(일별 즉각 개입 금지, 주간 지표 기준) 메모 확인 부탁해요.",
+      "target_document_keys": [
+        "c0028:brief_02"
+      ],
+      "target_document_ids": [
+        "6b74b681-fc78-5636-a4c0-6c88023e53ea"
+      ],
+      "target_titles": [
+        "C0028 타겟 오디언스 및 페이싱 기준 가이드"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_pacing_guide_c0029",
+      "category": "initial_pacing_guide",
+      "event_description": "초기 페이싱 원칙 가이드: 일별 변동 즉각 개입 지양 및 주간 단위 조정 지침",
+      "brand": "핀포인트 파이낸스",
+      "campaign_ref": "C0029",
+      "query": "C0029 런칭 단계에서 일별 수치 흔들려도 바로 손대지 말고 주간 단위로 단계적 조정하라던 지침서 찾아줘 (핀포인트 파이낸스).",
+      "target_document_keys": [
+        "c0029:brief_02"
+      ],
+      "target_document_ids": [
+        "216c3c5e-f9f2-52ec-b809-cc5f3c23c723"
+      ],
+      "target_titles": [
+        "C0029 타겟 오디언스 및 페이싱 기준 가이드"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_pacing_guide_c0030",
+      "category": "initial_pacing_guide",
+      "event_description": "초기 페이싱 원칙 가이드: 일별 변동 즉각 개입 지양 및 주간 단위 조정 지침",
+      "brand": "핀포인트 파이낸스",
+      "campaign_ref": "C0030",
+      "query": "핀포인트 파이낸스 C0030 캠페인 시작할 때 정한 페이싱 운영 지침(일 예산 20% 초과 시 긴급 페이싱, 일별 개입 최소화) 공유 부탁드립니다.",
+      "target_document_keys": [
+        "c0030:brief_02"
+      ],
+      "target_document_ids": [
+        "2b0fa66d-5578-5148-b409-7c83ed740024"
+      ],
+      "target_titles": [
+        "C0030 타겟 오디언스 및 페이싱 기준 가이드"
+      ],
+      "is_negative": false,
+      "notes": "실무 슬랙 구어체 질의, 내부 시스템 코드 배제"
+    },
+    {
+      "case_id": "v3_cross_aurora_large",
+      "category": "cross_campaign_comparison",
+      "event_description": "크로스 캠페인 비교: 메인 이미지 배너 CTR 급락에 따른 B 할인 소재 교체 이력 비교",
+      "brand": "오로라 리테일",
+      "campaign_ref": "C0001, C0002, C0003",
+      "query": "오로라 리테일 대형 주력 캠페인들(C0001, C0002, C0003) 중에서 메인 이미지 배너 A 클릭률 0.9%대로 급락해서 할인 배너 B로 교체했던 일지들 전부 비교해줘.",
+      "target_document_keys": [
+        "c0001:memo_05",
+        "c0002:memo_05",
+        "c0003:memo_05"
+      ],
+      "target_document_ids": [
+        "267496d7-7aae-5f49-8d1d-2c9fd157d014",
+        "c72c5641-8b1b-563b-96c1-6e4cebdd3fbe",
+        "9afac355-186c-5deb-bc75-72122114ee6d"
+      ],
+      "target_titles": [
+        "C0001 2월 1주차 이미지 배너 소재 교체 일지",
+        "C0002 2월 1주차 이미지 배너 소재 교체 일지",
+        "C0003 2월 1주차 이미지 배너 소재 교체 일지"
+      ],
+      "is_negative": false,
+      "notes": "크로스 캠페인 비교 질의"
+    },
+    {
+      "case_id": "v3_cross_aurora_medium",
+      "category": "cross_campaign_comparison",
+      "event_description": "크로스 캠페인 비교: 메인 이미지 배너 CTR 급락에 따른 B 할인 소재 교체 이력 비교",
+      "brand": "오로라 리테일",
+      "campaign_ref": "C0004, C0005, C0006, C0007",
+      "query": "오로라 리테일 C0004부터 C0007까지 미디엄 캠페인들 메인 배너 클릭률 떨어져서 할인 B 소재로 긴급 교체 집행했던 기록들 모아서 대조해줄 수 있어?",
+      "target_document_keys": [
+        "c0004:memo_05",
+        "c0005:memo_05",
+        "c0006:memo_05",
+        "c0007:memo_05"
+      ],
+      "target_document_ids": [
+        "289832c8-c4dc-58f0-b7a3-c21f1a588eea",
+        "dc5b1b36-8679-555e-8222-e766a416b3ec",
+        "0e144e32-8058-50f5-b982-7bc5d08b9a9e",
+        "f533e326-49ed-5c07-97aa-568b5bcf87b2"
+      ],
+      "target_titles": [
+        "C0004 2월 1주차 이미지 배너 소재 교체 일지",
+        "C0005 2월 1주차 이미지 배너 소재 교체 일지",
+        "C0006 2월 1주차 이미지 배너 소재 교체 일지",
+        "C0007 2월 1주차 이미지 배너 소재 교체 일지"
+      ],
+      "is_negative": false,
+      "notes": "크로스 캠페인 비교 질의"
+    },
+    {
+      "case_id": "v3_cross_aurora_small",
+      "category": "cross_campaign_comparison",
+      "event_description": "크로스 캠페인 비교: 메인 이미지 배너 CTR 급락에 따른 B 할인 소재 교체 이력 비교",
+      "brand": "오로라 리테일",
+      "campaign_ref": "C0008, C0009, C0010",
+      "query": "오로라 리테일 소액 캠페인(C0008, C0009, C0010)에서 메인 이미지 배너 효율 급락해서 B 할인 배너로 바꿨던 운영 메모들 비교 부탁드립니다.",
+      "target_document_keys": [
+        "c0008:memo_05",
+        "c0009:memo_05",
+        "c0010:memo_05"
+      ],
+      "target_document_ids": [
+        "b613e5fd-5c20-50b7-b5f4-944d96550f93",
+        "467839ca-4d86-5f7e-84b1-cf53ad7591f7",
+        "eb813b17-cf72-5944-9a9d-9f6c31ccc72f"
+      ],
+      "target_titles": [
+        "C0008 2월 1주차 이미지 배너 소재 교체 일지",
+        "C0009 2월 1주차 이미지 배너 소재 교체 일지",
+        "C0010 2월 1주차 이미지 배너 소재 교체 일지"
+      ],
+      "is_negative": false,
+      "notes": "크로스 캠페인 비교 질의"
+    },
+    {
+      "case_id": "v3_cross_nextapps_large",
+      "category": "cross_campaign_comparison",
+      "event_description": "크로스 캠페인 비교: 메인 이미지 배너 CTR 급락에 따른 B 할인 소재 교체 이력 비교",
+      "brand": "넥스트앱스 글로벌",
+      "campaign_ref": "C0011, C0012, C0013",
+      "query": "넥스트앱스 글로벌 C0011, C0012, C0013 주력 프로모션에서 메인 이미지 배너 CTR 떨어져서 할인 B 소재로 전면 교체한 일지들 묶어서 확인해줘.",
+      "target_document_keys": [
+        "c0011:memo_05",
+        "c0012:memo_05",
+        "c0013:memo_05"
+      ],
+      "target_document_ids": [
+        "6744fcb9-9f98-5a87-b695-6ba0c26813af",
+        "02c17731-3d9f-566a-85f7-3eb347ff3764",
+        "6ace6f00-1ea6-579c-8a5c-7be63c8d72be"
+      ],
+      "target_titles": [
+        "C0011 2월 1주차 이미지 배너 소재 교체 일지",
+        "C0012 2월 1주차 이미지 배너 소재 교체 일지",
+        "C0013 2월 1주차 이미지 배너 소재 교체 일지"
+      ],
+      "is_negative": false,
+      "notes": "크로스 캠페인 비교 질의"
+    },
+    {
+      "case_id": "v3_cross_nextapps_medium",
+      "category": "cross_campaign_comparison",
+      "event_description": "크로스 캠페인 비교: 메인 이미지 배너 CTR 급락에 따른 B 할인 소재 교체 이력 비교",
+      "brand": "넥스트앱스 글로벌",
+      "campaign_ref": "C0014, C0015, C0016, C0017",
+      "query": "넥스트앱스 글로벌 C0014~C0017 캠페인들 메인 배너 A 클릭률 급락으로 신규 B 소재 갈아끼웠던 이력 비교해서 정리 부탁해요.",
+      "target_document_keys": [
+        "c0014:memo_05",
+        "c0015:memo_05",
+        "c0016:memo_05",
+        "c0017:memo_05"
+      ],
+      "target_document_ids": [
+        "66ea4b14-f45e-5472-9f89-849da5d16fa8",
+        "da63dadc-9a42-5fd6-ae25-48afbfa6de8f",
+        "b263a215-a5cb-5fbe-8a67-2d4c38488c4b",
+        "eade7b55-9f1d-590b-8371-ebacc7c662cc"
+      ],
+      "target_titles": [
+        "C0014 2월 1주차 이미지 배너 소재 교체 일지",
+        "C0015 2월 1주차 이미지 배너 소재 교체 일지",
+        "C0016 2월 1주차 이미지 배너 소재 교체 일지",
+        "C0017 2월 1주차 이미지 배너 소재 교체 일지"
+      ],
+      "is_negative": false,
+      "notes": "크로스 캠페인 비교 질의"
+    },
+    {
+      "case_id": "v3_cross_nextapps_small",
+      "category": "cross_campaign_comparison",
+      "event_description": "크로스 캠페인 비교: 메인 이미지 배너 CTR 급락에 따른 B 할인 소재 교체 이력 비교",
+      "brand": "넥스트앱스 글로벌",
+      "campaign_ref": "C0018, C0019, C0020",
+      "query": "넥스트앱스 소형 캠페인 C0018부터 C0020까지 메인 배너 클릭률 저하 대응으로 B 할인 배너 교체했던 일지들 비교해줄래?",
+      "target_document_keys": [
+        "c0018:memo_05",
+        "c0019:memo_05",
+        "c0020:memo_05"
+      ],
+      "target_document_ids": [
+        "8cf94bcb-b046-581a-804e-9896dd2d4af4",
+        "1c8b939d-bfe7-5032-842c-655bc8be1d8b",
+        "bd273539-42a8-5beb-bfc3-0d445225f598"
+      ],
+      "target_titles": [
+        "C0018 2월 1주차 이미지 배너 소재 교체 일지",
+        "C0019 2월 1주차 이미지 배너 소재 교체 일지",
+        "C0020 2월 1주차 이미지 배너 소재 교체 일지"
+      ],
+      "is_negative": false,
+      "notes": "크로스 캠페인 비교 질의"
+    },
+    {
+      "case_id": "v3_cross_pinpoint_large",
+      "category": "cross_campaign_comparison",
+      "event_description": "크로스 캠페인 비교: 메인 이미지 배너 CTR 급락에 따른 B 할인 소재 교체 이력 비교",
+      "brand": "핀포인트 파이낸스",
+      "campaign_ref": "C0021, C0022, C0023",
+      "query": "핀포인트 파이낸스 대형 캠페인(C0021, C0022, C0023) 메인 이미지 배너 A의 CTR 급락으로 B 할인 배너로 교체했던 내역 비교 부탁드립니다.",
+      "target_document_keys": [
+        "c0021:memo_05",
+        "c0022:memo_05",
+        "c0023:memo_05"
+      ],
+      "target_document_ids": [
+        "befbe79c-d729-59d9-aec4-466e2ae586ed",
+        "373324ec-d8ac-5567-b871-cc58a4c86a72",
+        "74fef8cd-3f00-54ed-beab-d61d555aa8c2"
+      ],
+      "target_titles": [
+        "C0021 2월 1주차 이미지 배너 소재 교체 일지",
+        "C0022 2월 1주차 이미지 배너 소재 교체 일지",
+        "C0023 2월 1주차 이미지 배너 소재 교체 일지"
+      ],
+      "is_negative": false,
+      "notes": "크로스 캠페인 비교 질의"
+    },
+    {
+      "case_id": "v3_cross_pinpoint_medium",
+      "category": "cross_campaign_comparison",
+      "event_description": "크로스 캠페인 비교: 메인 이미지 배너 CTR 급락에 따른 B 할인 소재 교체 이력 비교",
+      "brand": "핀포인트 파이낸스",
+      "campaign_ref": "C0024, C0025, C0026, C0027",
+      "query": "핀포인트 파이낸스 C0024~C0027 중에서 메인 배너 클릭률 떨어져서 할인 B 소재로 전격 교체했던 캠페인 기록들 대조해줘.",
+      "target_document_keys": [
+        "c0024:memo_05",
+        "c0025:memo_05",
+        "c0026:memo_05",
+        "c0027:memo_05"
+      ],
+      "target_document_ids": [
+        "a7ade830-0fa1-5f36-825e-2271d810f482",
+        "7d17a985-8f6c-5dd3-8fac-b436e1449a02",
+        "714e3af0-da3b-5874-b032-8b3590b11c09",
+        "179cde3b-43a3-578d-bf6d-4d32c94d4c2a"
+      ],
+      "target_titles": [
+        "C0024 2월 1주차 이미지 배너 소재 교체 일지",
+        "C0025 2월 1주차 이미지 배너 소재 교체 일지",
+        "C0026 2월 1주차 이미지 배너 소재 교체 일지",
+        "C0027 2월 1주차 이미지 배너 소재 교체 일지"
+      ],
+      "is_negative": false,
+      "notes": "크로스 캠페인 비교 질의"
+    },
+    {
+      "case_id": "v3_cross_pinpoint_small",
+      "category": "cross_campaign_comparison",
+      "event_description": "크로스 캠페인 비교: 메인 이미지 배너 CTR 급락에 따른 B 할인 소재 교체 이력 비교",
+      "brand": "핀포인트 파이낸스",
+      "campaign_ref": "C0028, C0029, C0030",
+      "query": "핀포인트 파이낸스 C0028, C0029, C0030 소액 캠페인 메인 이미지 배너 CTR 하락 대응 할인 배너 교체 메모들 비교 부탁해요.",
+      "target_document_keys": [
+        "c0028:memo_05",
+        "c0029:memo_05",
+        "c0030:memo_05"
+      ],
+      "target_document_ids": [
+        "eaef8d32-af3a-54d1-9328-0e0216238cdd",
+        "43f88a08-e7f2-5e5d-a274-275047e6e2fb",
+        "be7ffdf0-914b-5ae1-bca0-c39f8ec91e5d"
+      ],
+      "target_titles": [
+        "C0028 2월 1주차 이미지 배너 소재 교체 일지",
+        "C0029 2월 1주차 이미지 배너 소재 교체 일지",
+        "C0030 2월 1주차 이미지 배너 소재 교체 일지"
+      ],
+      "is_negative": false,
+      "notes": "크로스 캠페인 비교 질의"
+    },
+    {
+      "case_id": "v3_cross_allbrands_flagship",
+      "category": "cross_campaign_comparison",
+      "event_description": "크로스 캠페인 비교: 메인 이미지 배너 CTR 급락에 따른 B 할인 소재 교체 이력 비교",
+      "brand": "3개 브랜드 통합",
+      "campaign_ref": "C0001, C0011, C0021",
+      "query": "3개 브랜드 1번 플래그십 캠페인(C0001, C0011, C0021)에서 메인 이미지 배너 클릭률 급락으로 B 할인 소재 교체했던 일지들 한눈에 비교하게 모아줘.",
+      "target_document_keys": [
+        "c0001:memo_05",
+        "c0011:memo_05",
+        "c0021:memo_05"
+      ],
+      "target_document_ids": [
+        "267496d7-7aae-5f49-8d1d-2c9fd157d014",
+        "6744fcb9-9f98-5a87-b695-6ba0c26813af",
+        "befbe79c-d729-59d9-aec4-466e2ae586ed"
+      ],
+      "target_titles": [
+        "C0001 2월 1주차 이미지 배너 소재 교체 일지",
+        "C0011 2월 1주차 이미지 배너 소재 교체 일지",
+        "C0021 2월 1주차 이미지 배너 소재 교체 일지"
+      ],
+      "is_negative": false,
+      "notes": "크로스 캠페인 비교 질의"
+    },
+    {
+      "case_id": "v3_negative_01_tiktok_may_promo",
+      "category": "negative_unexecuted_query",
+      "event_description": "네거티브 질의: 틱톡 채널 미집행 및 5월 인플루언서 챌린지 부존재",
+      "brand": "오로라 리테일",
+      "campaign_ref": "C0001",
+      "query": "오로라 리테일 C0001에서 지난 5월에 틱톡 채널에 집행했던 숏폼 인플루언서 챌린지 성과 일지 좀 찾아줘.",
+      "target_document_keys": [],
+      "target_document_ids": [],
+      "target_titles": [],
+      "is_negative": true,
+      "notes": "부존재 사실 질의 -> target=[] 매핑 (틱톡 채널 미집행 및 5월 인플루언서 챌린지 부존재)"
+    },
+    {
+      "case_id": "v3_negative_02_twitter_viral",
+      "category": "negative_unexecuted_query",
+      "event_description": "네거티브 질의: 트위터(X) 채널 미집행 및 리트윗 전환 분석 부존재",
+      "brand": "넥스트앱스 글로벌",
+      "campaign_ref": "C0011",
+      "query": "넥스트앱스 C0011 트위터(X) 실시간 트렌드 광고 집행하고 리트윗당 전환율 분석했던 결과 보고서 공유해줄 수 있어?",
+      "target_document_keys": [],
+      "target_document_ids": [],
+      "target_titles": [],
+      "is_negative": true,
+      "notes": "부존재 사실 질의 -> target=[] 매핑 (트위터(X) 채널 미집행 및 리트윗 전환 분석 부존재)"
+    },
+    {
+      "case_id": "v3_negative_03_family_month_50pct",
+      "category": "negative_unexecuted_query",
+      "event_description": "네거티브 질의: 5월 가정의 달 50% 할인 프로모션 부존재",
+      "brand": "오로라 리테일",
+      "campaign_ref": "C0002",
+      "query": "오로라 C0002 5월 가정의 달 기념 전품목 50% 할인 쿠폰 긴급 증액 프로모션 브리프 어디 있나요?",
+      "target_document_keys": [],
+      "target_document_ids": [],
+      "target_titles": [],
+      "is_negative": true,
+      "notes": "부존재 사실 질의 -> target=[] 매핑 (5월 가정의 달 50% 할인 프로모션 부존재)"
+    },
+    {
+      "case_id": "v3_negative_04_influencer_cpa_ratecard",
+      "category": "negative_unexecuted_query",
+      "event_description": "네거티브 질의: 인플루언서 섭외 단가 및 계약 조건 부존재",
+      "brand": "핀포인트 파이낸스",
+      "campaign_ref": "C0021",
+      "query": "핀포인트 파이낸스 C0021 금융 유튜버 5인 섭외 단가표랑 건당 CPA 계약 조건 정리된 합의서 찾아줘.",
+      "target_document_keys": [],
+      "target_document_ids": [],
+      "target_titles": [],
+      "is_negative": true,
+      "notes": "부존재 사실 질의 -> target=[] 매핑 (인플루언서 섭외 단가 및 계약 조건 부존재)"
+    },
+    {
+      "case_id": "v3_negative_05_tv_commercial_budget",
+      "category": "negative_unexecuted_query",
+      "event_description": "네거티브 질의: 지상파 TV CF 미집행",
+      "brand": "오로라 리테일",
+      "campaign_ref": "C0003",
+      "query": "오로라 리테일 C0003 공중파 TV CF 송출 관련해서 편성 시간대별 광고비 소진 페이싱 일지 좀 보여주세요.",
+      "target_document_keys": [],
+      "target_document_ids": [],
+      "target_titles": [],
+      "is_negative": true,
+      "notes": "부존재 사실 질의 -> target=[] 매핑 (지상파 TV CF 미집행)"
+    },
+    {
+      "case_id": "v3_negative_06_snapchat_genz",
+      "category": "negative_unexecuted_query",
+      "event_description": "네거티브 질의: 스냅챗 채널 미집행",
+      "brand": "넥스트앱스 글로벌",
+      "campaign_ref": "C0012",
+      "query": "넥스트앱스 글로벌 C0012 미국 젠지 타겟으로 스냅챗 AR 렌즈 필터 광고 돌렸던 효율 측정 일지 어디 있지?",
+      "target_document_keys": [],
+      "target_document_ids": [],
+      "target_titles": [],
+      "is_negative": true,
+      "notes": "부존재 사실 질의 -> target=[] 매핑 (스냅챗 채널 미집행)"
+    },
+    {
+      "case_id": "v3_negative_07_offline_popup_roas",
+      "category": "negative_unexecuted_query",
+      "event_description": "네거티브 질의: 오프라인 팝업스토어 미집행",
+      "brand": "오로라 리테일",
+      "campaign_ref": "C0005",
+      "query": "오로라 C0005 성수동 오프라인 팝업스토어 방문자 대상 앱 다운로드 QR코드 ROAS 결산 메모 찾아줘.",
+      "target_document_keys": [],
+      "target_document_ids": [],
+      "target_titles": [],
+      "is_negative": true,
+      "notes": "부존재 사실 질의 -> target=[] 매핑 (오프라인 팝업스토어 미집행)"
+    },
+    {
+      "case_id": "v3_negative_08_pinterest_catalog",
+      "category": "negative_unexecuted_query",
+      "event_description": "네거티브 질의: 핀터레스트 채널 미집행",
+      "brand": "오로라 리테일",
+      "campaign_ref": "C0006",
+      "query": "오로라 리테일 C0006 핀터레스트 쇼핑 카탈로그 피드 연동하고 결제 전환 추적했던 메모 링크 부탁해요.",
+      "target_document_keys": [],
+      "target_document_ids": [],
+      "target_titles": [],
+      "is_negative": true,
+      "notes": "부존재 사실 질의 -> target=[] 매핑 (핀터레스트 채널 미집행)"
+    },
+    {
+      "case_id": "v3_negative_09_april_fools_viral",
+      "category": "negative_unexecuted_query",
+      "event_description": "네거티브 질의: 만우절 게릴라 프로모션 부존재",
+      "brand": "넥스트앱스 글로벌",
+      "campaign_ref": "C0015",
+      "query": "넥스트앱스 C0015 4월 1일 만우절 기념 페이크 런칭 게릴라 카피 집행 건 결과 보고서 어디서 봐?",
+      "target_document_keys": [],
+      "target_document_ids": [],
+      "target_titles": [],
+      "is_negative": true,
+      "notes": "부존재 사실 질의 -> target=[] 매핑 (만우절 게릴라 프로모션 부존재)"
+    },
+    {
+      "case_id": "v3_negative_10_crypto_airdrop_pacing",
+      "category": "negative_unexecuted_query",
+      "event_description": "네거티브 질의: 가상자산 에어드랍 이벤트 부존재",
+      "brand": "핀포인트 파이낸스",
+      "campaign_ref": "C0023",
+      "query": "핀포인트 C0023 신규 가입자 대상 비트코인 에어드랍 이벤트 광고비 폭증해서 일 예산 50% 삭감했던 일지 찾아줘.",
+      "target_document_keys": [],
+      "target_document_ids": [],
+      "target_titles": [],
+      "is_negative": true,
+      "notes": "부존재 사실 질의 -> target=[] 매핑 (가상자산 에어드랍 이벤트 부존재)"
+    },
+    {
+      "case_id": "v3_negative_11_linkedin_b2b_leads",
+      "category": "negative_unexecuted_query",
+      "event_description": "네거티브 질의: 링크드인 광고 미집행",
+      "brand": "핀포인트 파이낸스",
+      "campaign_ref": "C0022",
+      "query": "핀포인트 파이낸스 C0022 링크드인 인메일 스폰서드 광고로 기업 B2B 리드 단가 5만원 달성했던 일지 공유해줘.",
+      "target_document_keys": [],
+      "target_document_ids": [],
+      "target_titles": [],
+      "is_negative": true,
+      "notes": "부존재 사실 질의 -> target=[] 매핑 (링크드인 광고 미집행)"
+    },
+    {
+      "case_id": "v3_negative_12_black_friday_preorder",
+      "category": "negative_unexecuted_query",
+      "event_description": "네거티브 질의: 여름 블랙프라이데이 사전예약 부존재",
+      "brand": "오로라 리테일",
+      "campaign_ref": "C0007",
+      "query": "오로라 C0007 6월 말 여름 블랙프라이데이 얼리버드 사전예약 프로모션 타겟 오디언스 세팅 가이드 어디 있나요?",
+      "target_document_keys": [],
+      "target_document_ids": [],
+      "target_titles": [],
+      "is_negative": true,
+      "notes": "부존재 사실 질의 -> target=[] 매핑 (여름 블랙프라이데이 사전예약 부존재)"
+    },
+    {
+      "case_id": "v3_negative_13_naver_band_silver",
+      "category": "negative_unexecuted_query",
+      "event_description": "네거티브 질의: 네이버 밴드 채널 미집행",
+      "brand": "핀포인트 파이낸스",
+      "campaign_ref": "C0025",
+      "query": "핀포인트 파이낸스 C0025 5060 실버 세대 타겟 네이버 밴드 피드 광고 CTR 급락 대응 일지 좀 찾아줄래?",
+      "target_document_keys": [],
+      "target_document_ids": [],
+      "target_titles": [],
+      "is_negative": true,
+      "notes": "부존재 사실 질의 -> target=[] 매핑 (네이버 밴드 채널 미집행)"
+    },
+    {
+      "case_id": "v3_negative_14_live_commerce_rebate",
+      "category": "negative_unexecuted_query",
+      "event_description": "네거티브 질의: 라이브 커머스 페이백 프로모션 부존재",
+      "brand": "오로라 리테일",
+      "campaign_ref": "C0004",
+      "query": "오로라 리테일 C0004 네이버 쇼핑라이브 진행 중에 실시간 구매자 20% 페이백 지급했던 프로모션 결과 일지 공유 부탁드려요.",
+      "target_document_keys": [],
+      "target_document_ids": [],
+      "target_titles": [],
+      "is_negative": true,
+      "notes": "부존재 사실 질의 -> target=[] 매핑 (라이브 커머스 페이백 프로모션 부존재)"
+    },
+    {
+      "case_id": "v3_negative_15_telegram_community_bounty",
+      "category": "negative_unexecuted_query",
+      "event_description": "네거티브 질의: 텔레그램 바운티 프로모션 부존재",
+      "brand": "넥스트앱스 글로벌",
+      "campaign_ref": "C0014",
+      "query": "넥스트앱스 C0014 텔레그램 공식 커뮤니티 가입자 바운티 지급 프로모션 예산 소진 일지 찾아봐줄 수 있어?",
+      "target_document_keys": [],
+      "target_document_ids": [],
+      "target_titles": [],
+      "is_negative": true,
+      "notes": "부존재 사실 질의 -> target=[] 매핑 (텔레그램 바운티 프로모션 부존재)"
+    },
+    {
+      "case_id": "v3_negative_16_kakao_story_retargeting",
+      "category": "negative_unexecuted_query",
+      "event_description": "네거티브 질의: 카카오스토리 채널 미집행",
+      "brand": "오로라 리테일",
+      "campaign_ref": "C0009",
+      "query": "오로라 C0009 카카오스토리 픽셀 리타게팅 광고 빈도수 5.0 도달해서 정지시켰던 메모 링크 좀 줘.",
+      "target_document_keys": [],
+      "target_document_ids": [],
+      "target_titles": [],
+      "is_negative": true,
+      "notes": "부존재 사실 질의 -> target=[] 매핑 (카카오스토리 채널 미집행)"
+    },
+    {
+      "case_id": "v3_negative_17_valentine_cashback",
+      "category": "negative_unexecuted_query",
+      "event_description": "네거티브 질의: 발렌타인데이 캐시백 프로모션 부존재",
+      "brand": "핀포인트 파이낸스",
+      "campaign_ref": "C0026",
+      "query": "핀포인트 파이낸스 C0026 발렌타인데이 연인 통장 개설 시 3만원 캐시백 증정 이벤트 성과 메모 어디 있지?",
+      "target_document_keys": [],
+      "target_document_ids": [],
+      "target_titles": [],
+      "is_negative": true,
+      "notes": "부존재 사실 질의 -> target=[] 매핑 (발렌타인데이 캐시백 프로모션 부존재)"
+    },
+    {
+      "case_id": "v3_negative_18_chuseok_earlybird_meta",
+      "category": "negative_unexecuted_query",
+      "event_description": "네거티브 질의: 6월 추석 얼리버드 프로모션 부존재",
+      "brand": "오로라 리테일",
+      "campaign_ref": "C0010",
+      "query": "오로라 리테일 C0010 6월 초 추석 선물세트 얼리버드 Meta 피드 광고 카피 교체 일지 공유 부탁드립니다.",
+      "target_document_keys": [],
+      "target_document_ids": [],
+      "target_titles": [],
+      "is_negative": true,
+      "notes": "부존재 사실 질의 -> target=[] 매핑 (6월 추석 얼리버드 프로모션 부존재)"
+    },
+    {
+      "case_id": "v3_negative_19_wechat_crossborder_pay",
+      "category": "negative_unexecuted_query",
+      "event_description": "네거티브 질의: 위챗 채널 미집행",
+      "brand": "넥스트앱스 글로벌",
+      "campaign_ref": "C0017",
+      "query": "넥스트앱스 글로벌 C0017 위챗페이 연동 기념 중화권 타겟 모바일 배너 광고 효율 분석 리포트 찾아줘.",
+      "target_document_keys": [],
+      "target_document_ids": [],
+      "target_titles": [],
+      "is_negative": true,
+      "notes": "부존재 사실 질의 -> target=[] 매핑 (위챗 채널 미집행)"
+    },
+    {
+      "case_id": "v3_negative_20_referral_double_coupon",
+      "category": "negative_unexecuted_query",
+      "event_description": "네거티브 질의: 주식 쿠폰 친구추천 바이럴 부존재",
+      "brand": "핀포인트 파이낸스",
+      "campaign_ref": "C0029",
+      "query": "핀포인트 C0029 친구 초대 시 양방향 5만원 주식 쿠폰 지급했던 바이럴 캠페인 일일 예산 페이싱 일지 어디 있나요?",
+      "target_document_keys": [],
+      "target_document_ids": [],
+      "target_titles": [],
+      "is_negative": true,
+      "notes": "부존재 사실 질의 -> target=[] 매핑 (주식 쿠폰 친구추천 바이럴 부존재)"
+    }
+  ]
+}
