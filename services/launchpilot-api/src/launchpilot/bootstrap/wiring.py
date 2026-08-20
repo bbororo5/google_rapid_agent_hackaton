@@ -112,6 +112,34 @@ def agent_model() -> BaseChatModel:
 
 
 @lru_cache
+def reranker_model() -> BaseChatModel:
+    config = settings()
+    try:
+        config.require_google_ai()
+    except RuntimeError as error:
+        from fastapi import HTTPException, status
+
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(error)
+        ) from error
+    model_options = {
+        "model": "gemini-2.5-flash" if "gemini" in config.llm_model else config.llm_model,
+        "temperature": 0.0,
+        "max_output_tokens": 50,
+        "max_retries": 2,
+        "vertexai": config.google_genai_use_vertexai,
+    }
+    if config.google_genai_use_vertexai:
+        model_options.update(
+            project=config.google_cloud_project,
+            location=config.google_cloud_location,
+        )
+    else:
+        model_options["api_key"] = config.google_api_key
+    return ChatGoogleGenerativeAI(**model_options)
+
+
+@lru_cache
 def settings() -> Settings:
     return Settings.from_environment()
 

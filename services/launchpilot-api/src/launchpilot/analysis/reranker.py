@@ -25,8 +25,9 @@ class MarketingDomainReranker:
             return tuple(hits)
 
         if not self._model:
-            from launchpilot.bootstrap.wiring import agent_model
-            self._model = agent_model()
+            from launchpilot.bootstrap.wiring import reranker_model
+
+            self._model = reranker_model()
 
         hit_map = {}
         candidates_text = []
