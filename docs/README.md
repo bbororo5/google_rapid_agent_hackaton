@@ -36,6 +36,7 @@ docs/
 | **🚀 Pull Request** | [docs/pull-request.md](pull-request.md) | V3 데이터셋 및 LangGraph 인-루프 파이프라인 완성 공식 PR 본문 |
 | **📘 마스터 결산서** | [docs/reports/master-engineering-report.md](reports/master-engineering-report.md) | 데이터셋 진화, 3단계 어블레이션, N=20 실측, 지연시간 83.4% 최적화 총결산 |
 | **🏛️ 시스템 아키텍처** | [docs/architecture/system-architecture.md](architecture/system-architecture.md) | 전처리 ➔ 본체 에이전트 ➔ 도구 ➔ 인-루프 리랭커 순환 토폴로지 |
+| **🎯 검색 평가 체계** | [docs/architecture/retrieval-evaluation-framework.md](architecture/retrieval-evaluation-framework.md) | 검색 단계 공식 5대 평가 척도 (Recall@5, MRR@5, Distractor Rejection 등) |
 | **🧪 데이터셋 진화** | [docs/reports/dataset-evolution.md](reports/dataset-evolution.md) | 30개 캠페인, 1,050개 코퍼스, 150건 무편향 블라인드 질의 설계 |
 | **📝 아키텍처 결정서** | [docs/architecture/adr/](architecture/adr/) | ADR 0001 ~ ADR 0007 핵심 설계 의사결정 기록 |
 
