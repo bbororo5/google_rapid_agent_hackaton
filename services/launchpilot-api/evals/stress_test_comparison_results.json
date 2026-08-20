@@ -1,0 +1,99 @@
+{
+  "phase2_raw": [
+    {
+      "case_id": "stress_1_temporal_collision",
+      "title": "시계열 방해물 충돌: 3월 초순 입찰가 미세 조정 차수 판별",
+      "status": "GROUNDED_FAITHFUL",
+      "latency": 45.457728957990184,
+      "tools": [
+        "search_documents_semantic",
+        "search_documents_semantic",
+        "search_documents_keyword",
+        "resolve_campaign_document",
+        "search_documents_semantic",
+        "traverse_campaign_graph"
+      ],
+      "answer": [
+        {
+          "type": "text",
+          "text": "오로라 리테일의 3월 초순 주간 입찰가 미세 조정 조치는 **15차 정기 주간 운영 및 입찰가 조정 일지** [surface | synthetic-marketing-v3:document:b0677d45-80b1-5c06-8b18-2686cc124a37 | 2025-03-02] 에서 확인됩니다.\n\n당시 조치 내용은 다음과 같습니다:\n정기 모니터링을 수행하였고, 타겟 CPA 범위 내에서 키워드 입찰가를 5% 미세 조정 완료했습니다. 해당 일지에는 단가 불안정으로 인한 조치라는 언급은 없습니다.",
+          "extras": {
+            "signature": "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"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "stress_2_cross_campaign",
+      "title": "동일 광고주 내 캠페인 크로스 판별: 2월 1주차 배너 교체 캠페인 판별",
+      "status": "GROUNDED_FAITHFUL",
+      "latency": 5.3795163329923525,
+      "tools": [
+        "traverse_campaign_graph"
+      ],
+      "answer": [
+        {
+          "type": "text",
+          "text": "2월 1주차에 메인 배너 클릭률 급락으로 신규 B안 할인 배너로 전면 교체 집행했던 캠페인은 **C0001**입니다 [campaign_code | 8950acf8-295d-57a9-8cf8-1af3868d9249 | 2025-06-01 00:00:00 UTC].\n\n당시 교체 근거는 메인 이미지 배너 소재 A의 클릭률이 0.9%로 급락했기 때문입니다. 이에 따라 신규 B 소재(할인 배너)로 전면 교체 집행되었습니다 [C0001 2월 1주차 이미지 배너 소재 교체 일지 | c0001:memo_05 | 2025-01-21].",
+          "extras": {
+            "signature": "CuoHAY89a1+QhnKGIEF5OzMHNPNoTnEU504FTKc4LKl8tJGRjaFAXjCgMyewmuNPDOnXLpASers3o/AORqQkbpY833JhN6XapZ2a07xGfgSZc0CfOUvo86lQmIjC2SPvVbPHVTLnb3nuom2fxfTUmwNtrQuPDhrB0tdT1ktC4wO4wlAnXd9nSdtWCywOF20NiIW9Lm/QLLTMEb2mtBXzOtpGnQFm414P2l4OdTXl34k6jLTt/hKqrgW/0QRaVIuRf5NQNX0tc76za2aqfBGmI5ZvwEwxBbqKvISQxhMsFHdI3Tas+l7yDb43M7ZcbVlOZONLRGFfBjncHu16aZEj7s+MmchKGff46R1U6lukHWmycAu2zXUl/HTFhNghb9JdUotrCnIcLGS7gvLR+PgwK9AUep0d1Yku4CeRf/GXG7T0bWVIPFFT7xN7RJli/BAfdypCM2heIQswm4DqnRGR25Rso9t0/FOl8B7gktI4taNz1bPDyT6N56OtAtO6M/P2+iwS23d4AS2QOkx2UcZYvfwPAvbSpCrBWuYODknKPWUAg2SuI4kRJz9/Pdp28nVnONhIvPdBZOjdc6msXpSJ8IzP2LEhxRDIIxsWlTHDZcFfxCNzWCCGHrKCMyiY8CmsC5BvedgWuc/nzXItzFJnUgKvRykDajLsWYr6WlSv3JWpIshnonnuUo2JT0tdrhr4n95ajHAlRv/TKfbf6X+JKOoJKPtL1Q8+u25lnsMv8XI5DvtomWzcHG5lClKlkhIFHK00f0RpOow3fYLTPBrI2j27qaE69CE+PVmkx+GLUnnjXhnzkWJnVzYqqJIrfuTdD7UYJoRFt2WIodcbfiELbwoxqdofkjnpW95W5fcuxMTz/W8f+c0HfaQrg/Vjj/sWCT5U773tJfbm5LqaRPBe1peo+3DR8rJbP1877CLrGMUKgShQYhO54XV2BA2St2x8xy9A9Qgooi4JtxKA6RrEiU6npF7HPnCB0UAus3HczQhCp4mIJ3RUOL/ad4u2567azVZyMBKCbY1lBnzwhfpd0zHxvwdjHkoi25hkvbvBObvNt+vTDqqkR8x2nkevZQYE0NdURc+3MDoc3QvJGv/vlvwYT3rGJlC0Ta38Bg2s7YdIeyrJbRK7jtD7x5+4Jwkh99ttf9TEIoRZhHHBQZYMUhSzUMbqAppKJMqD0EoCo74u9uR+bqcThlOx73MU/6J/bM/zem7XMTF4WJzSa9sEbzqZOSH4ObfXIGw+uiT78rmew0qlQB42cKcjWz036UkSdrgk+GgxAYjttjNxlebLU+c8mtahWrOQHJjZldx89qXcSx7WzWF4bGEMRWU/"
+          }
+        }
+      ]
+    },
+    {
+      "case_id": "stress_3_3hop_causal",
+      "title": "지표-조치-회고 3-Hop 결합 추론: 1월 말 삭감 조치와 2월 회고 리포트의 결론",
+      "status": "GROUNDED_FAITHFUL",
+      "latency": 45.27407845802372,
+      "tools": [
+        "traverse_campaign_graph",
+        "search_documents_semantic",
+        "resolve_campaign_document"
+      ],
+      "answer": [
+        {
+          "type": "text",
+          "text": "오로라 리테일 C0001 캠페인의 2월 월간 성과 분석서 [603bd676-b268-5fd3-bcd8-1956c47c95de | synthetic-marketing-v3:document:603bd676-b268-5fd3-bcd8-1956c47c95de | 2026-08-20T03:24:12.501464Z]에서는 1월 말 예산 소진율 초과로 인한 일 예산 15% 삭감 조치(페이싱 조치)의 효과와 ROAS 변화에 대한 직접적인 평가 내용은 포함되어 있지 않습니다.\n\n해당 분석서에서는 대신 2월 중순의 카피/소재 피로에 따른 CPA 상승 원인과 이에 대한 교체 조치의 효과를 분석하고 있으며, 교체 후 7일간 ROAS가 1.5로 반등했음을 확인하고 있습니다.",
+          "extras": {
+            "signature": "CusHAY89a1/tnMw3q7M6ITHdlshzuECq5zopvTeNqjv4GsduMIuvTBA2UsLGO/wp4+X4jLD7lBCfe1i6umsSB9TL4Xw1ZZE67p8rnVIKtbWS0eMnabqbBShfgCtKmnI/aFptmyb1ub+OS5DycVc4Z5sGbeFOO3EKVyuu5iQw3XUkNK6klKnQdODs2oWpK4HGEaLPTR6BgDfHaQ+6pyfLm+sSlOoZjSrSxWq/YqnNSXJIe7myX+NE7oF+Kb49bUpP5Sk/rNVzEIvSvyJYGMAFb+OqZr7Xx0rtc16dwKjvRoeYqxMbn9OG2j8dzfFmch6zQs7NKyvWDh6YxCEKVmyjNNrio2v+QH9X1Dj8mGx9CZqRGAokx/1zT9fAFeKpOwTL95DwD74yimNIjY5NPx+Bg03e1Dh8Ox+qaT0MvCgQsy8VZ5Ft2DEBUI9DyEsTEtxQ7l0ANJ4quWqnq0ecAMvS9j0eqRgWptQX8RW2vcx81957srSrZcW5kjrSXsiIgeaHK9ivfEAS3/FOL8RD3rQtDGVzw+kNdYgLUqcT1KpJymNIhiW58pbg+lqu+qiNgD1EVyVwuIjeuY89cRIHkxxnniJfQhrA+KP03XECuCqHAPcGSyg1W7nxgJjTSbx7wsYGx2vov9HS5bCnskg67xdQyoX9CS4EP+hRfNebKEU3EV0qXvfUp3JtF2YVeeFYLfzdA0Wwp7aEDaKTnnAWmWCitwKQq7GjaLkWqe5r4k1J1hSLVC1EHEHiptd5rRIyfvGYvCBb2i699kI905AnIw0+T+XopA9bdr/ttRAClT3gRxCnDtX0ks34F4G/EVls6xP/kvpIbivb5nmdXxcEskGm4ZLvSjVRrraAPbRLChvHPgq81odVToAWwz1xYS+Y5/DKYPdWA5splVIrCeQCZlxt91XY21lLNiorMYfmYboqZDdA0I4vFCGFRP4XQkumupshm1tel/RbOAw7MoC3hSL2EhLeapaqpkQMsuKpNF+a1S0WtyeK5ThMzjvwTWpM5H2Czbz31aRfySoa99Mv3EWOPCaV66ZUlc05MfCpK6SitNbTapCnS2aPxtYds1B2JkQ7Hr1C1/BuJKYB5PW19LVq8sjrX2fLHvDLw2RRkbFIjBATjNnLrBjUMF0SLhLaBP2IkYi+XPdcSHn4GUBmd3wtNnqyepgZRCy3deOihGnMRVXcw4tEhNi2i4oIg/osp/AiRA8LVOrGJz5g0lgdh3XFmQgNYX+MfG8hU3Nnc4m9TNQ9TFmIE37DTG2ixWYjfnRt2x1SB4/Choh1N5SVcH/qgVdLPIi1hOWheM8ifwht1x9F8MjL+JZoT0MgMz74GA=="
+          }
+        }
+      ]
+    }
+  ],
+  "phase3_reranker": [
+    {
+      "case_id": "stress_1_temporal_collision",
+      "title": "시계열 방해물 충돌: 3월 초순 입찰가 미세 조정 차수 판별",
+      "status": "GROUNDED_FAITHFUL",
+      "latency": 57.372310290986206,
+      "tools": [
+        "search_documents_keyword",
+        "resolve_campaign_document",
+        "search_documents_semantic"
+      ],
+      "answer": "오로라 리테일의 3월 초순 단가 불안정으로 인한 주간 입찰가 미세 조정 조치와 관련된 특정 일지를 정확히 식별하기 어렵습니다. 검색된 문서들은 \"C0001 X차 정기 주간 운영 및 입찰가 조정 일지\"와 같이 여러 차수에 걸쳐 유사한 내용의 조치가 기록되어 있습니다.\n\n모든 관련 일지의 조치 내용은 동일하게 \"[C0001] 정기 모니터링 수행. 타겟 CPA 범위 내 유지 중이며 키워드 입찰가 5% 미세 조정 완료.\" [MEMO | synthetic-marketing-v3:document:47aab429-1d56-5388-acd3-caed0c4c02e8 | 2026-08-20T03:24:43.786232Z] 으로 요약됩니다. 이는 정기적인 모니터링을 통해 목표 CPA 범위 내에서 키워드 입찰가를 5% 미세 조정했다는 내용입니다.\n\n현재 도구로는 문서의 생성일이 아닌 문서 내용에 언급된 특정 이벤트 날짜를 기준으로 문서를 필터링할 수 없으므로, '3월 초순'에 해당하는 정확히 몇 차 일지였는지 특정하기 어렵습니다."
+    },
+    {
+      "case_id": "stress_2_cross_campaign",
+      "title": "동일 광고주 내 캠페인 크로스 판별: 2월 1주차 배너 교체 캠페인 판별",
+      "status": "GROUNDED_FAITHFUL",
+      "latency": 17.57154720800463,
+      "tools": [
+        "search_documents_keyword"
+      ],
+      "answer": "2월 1주차에 메인 배너 클릭률 급락으로 신규 B안 할인 배너로 전면 교체 집행했던 캠페인은 **C0001** 입니다 [synthetic-marketing-v3:document:267496d7-7aae-5f49-8d1d-2c9fd157d014 | 2025-06-01 00:00:00 UTC].\n\n당시 교체 근거는 메인 이미지 배너 소재 A의 클릭률이 0.9%로 급락했기 때문입니다 [synthetic-marketing-v3:document:267496d7-7aae-5f49-8d1d-2c9fd157d014 | 2025-06-01 00:00:00 UTC]."
+    },
+    {
+      "case_id": "stress_3_3hop_causal",
+      "title": "지표-조치-회고 3-Hop 결합 추론: 1월 말 삭감 조치와 2월 회고 리포트의 결론",
+      "status": "GROUNDED_FAITHFUL",
+      "latency": 9.025727249972988,
+      "tools": [
+        "traverse_campaign_graph"
+      ],
+      "answer": "오로라 리테일 C0001 캠페인의 1월 말 예산 소진율 120% 초과로 인한 일 예산 15% 일시 삭감 조치 이후, 2월 월간 성과 분석서에서는 이 페이싱 조치의 직접적인 ROAS 변화 효과를 명시적으로 평가하지 않았습니다.\n\n대신, \"C0001 2월 월간 성과 분석 및 소재 피로 진단서\" [analysis | c0001:analysis_02 | 2025-01-21]에서는 2월 중순에 발생한 카피/소재 피로로 인한 CPA 상승을 주요 원인으로 지목했습니다. 해당 분석서에 따르면, 소재 교체 조치 이후 7일간 ROAS가 1.5로 반등한 것을 확인했습니다. 따라서, 예산 페이싱 조치 이후 ROAS 변화는 소재 교체에 따른 효과로 평가되었습니다."
+    }
+  ]
+}

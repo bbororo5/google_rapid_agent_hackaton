@@ -1,0 +1,100 @@
+{
+  "golden_version": "golden-v3",
+  "auditor": "Adversarial Constraint Auditor Subagent",
+  "audit_timestamp": "2026-08-20T00:47:45.269279+00:00",
+  "overall_status": "PASS",
+  "summary": {
+    "total_cases_audited": 150,
+    "positive_cases": 121,
+    "negative_cases": 29,
+    "total_documents_in_corpus": 1050,
+    "total_qrels_generated": 144,
+    "tune_cases": 90,
+    "validation_cases": 30,
+    "holdout_cases": 30
+  },
+  "audit_checks": {
+    "1_system_code_leakage": {
+      "status": "PASS",
+      "tested_patterns": [
+        "\\bW0?[1-9]\\b|\\bW1[0-9]\\b|\\bW20\\b",
+        "brief[_\\-\\s]?\\d+",
+        "memo[_\\-\\s]?\\d+",
+        "report[_\\-\\s]?\\d+",
+        "doc[_\\-\\s]?\\d+",
+        "obs[_\\-\\s]?\\d+",
+        "c\\d{4}:",
+        "[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}"
+      ],
+      "violations_count": 0,
+      "details": "All 150 queries passed regex scan with zero internal system codes (W01~W20, brief_01, memo_02, etc.)."
+    },
+    "2_document_title_copy": {
+      "status": "PASS",
+      "exact_title_matches": 0,
+      "max_jaccard_similarity": 0.3182,
+      "threshold": 0.4,
+      "violations_count": 0,
+      "details": "Zero exact title matches. Maximum Jaccard similarity across 150 queries x 1,050 documents is 0.3182 (< 0.40)."
+    },
+    "3_negative_query_integrity": {
+      "status": "PASS",
+      "total_negative_cases": 29,
+      "dedicated_unexecuted_cases": 20,
+      "tier_conditioned_unanswerable_cases": 9,
+      "empty_target_verified": true,
+      "corpus_hallucination_leakage": 0,
+      "details": "All negative cases have empty ground-truth target lists ([]) and zero false positive matching content in the corpus."
+    },
+    "4_ml_split_distribution": {
+      "status": "PASS",
+      "tune_ratio": "60.0% (90 cases)",
+      "validation_ratio": "20.0% (30 cases)",
+      "holdout_ratio": "20.0% (30 cases)",
+      "stratification_details": {
+        "copy_fatigue_response": {
+          "tune": 18,
+          "validation": 6,
+          "holdout": 6,
+          "total": 30
+        },
+        "video_fatigue_response_positive": {
+          "tune": 13,
+          "validation": 4,
+          "holdout": 4,
+          "total": 21
+        },
+        "video_fatigue_response_negative": {
+          "tune": 5,
+          "validation": 2,
+          "holdout": 2,
+          "total": 9
+        },
+        "budget_pacing_reduction": {
+          "tune": 18,
+          "validation": 6,
+          "holdout": 6,
+          "total": 30
+        },
+        "initial_pacing_guide": {
+          "tune": 18,
+          "validation": 6,
+          "holdout": 6,
+          "total": 30
+        },
+        "cross_campaign_comparison": {
+          "tune": 6,
+          "validation": 2,
+          "holdout": 2,
+          "total": 10
+        },
+        "negative_unexecuted_query": {
+          "tune": 12,
+          "validation": 4,
+          "holdout": 4,
+          "total": 20
+        }
+      }
+    }
+  }
+}

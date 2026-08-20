@@ -1,0 +1,272 @@
+[
+  {
+    "perturbation": "Clean (Template)",
+    "chunker": "Whole Doc",
+    "retriever": "BM25",
+    "recall_at_5": 0.5952380952380952,
+    "mrr_at_5": 0.49404761904761907,
+    "ndcg_at_5": 0.5202629380527256,
+    "precision_at_5": 0.11904761904761904,
+    "p95_ms": 0.0
+  },
+  {
+    "perturbation": "Clean (Template)",
+    "chunker": "Whole Doc",
+    "retriever": "Dense",
+    "recall_at_5": 0.36904761904761907,
+    "mrr_at_5": 0.21527777777777776,
+    "ndcg_at_5": 0.2536670423598125,
+    "precision_at_5": 0.07380952380952381,
+    "p95_ms": 0.0
+  },
+  {
+    "perturbation": "Clean (Template)",
+    "chunker": "Whole Doc",
+    "retriever": "Hybrid (Score Fusion)",
+    "recall_at_5": 0.5952380952380952,
+    "mrr_at_5": 0.5599206349206349,
+    "ndcg_at_5": 0.5688052627136775,
+    "precision_at_5": 0.11904761904761904,
+    "p95_ms": 0.0
+  },
+  {
+    "perturbation": "Clean (Template)",
+    "chunker": "Sentence",
+    "retriever": "BM25",
+    "recall_at_5": 0.5,
+    "mrr_at_5": 0.44642857142857145,
+    "ndcg_at_5": 0.4604567593112276,
+    "precision_at_5": 0.1,
+    "p95_ms": 0.0
+  },
+  {
+    "perturbation": "Clean (Template)",
+    "chunker": "Sentence",
+    "retriever": "Dense",
+    "recall_at_5": 0.16666666666666666,
+    "mrr_at_5": 0.09563492063492063,
+    "ndcg_at_5": 0.11312319405050579,
+    "precision_at_5": 0.03333333333333334,
+    "p95_ms": 0.0
+  },
+  {
+    "perturbation": "Clean (Template)",
+    "chunker": "Sentence",
+    "retriever": "Hybrid (Score Fusion)",
+    "recall_at_5": 0.5357142857142857,
+    "mrr_at_5": 0.43154761904761907,
+    "ndcg_at_5": 0.45798092209956304,
+    "precision_at_5": 0.10714285714285714,
+    "p95_ms": 0.0
+  },
+  {
+    "perturbation": "Clean (Template)",
+    "chunker": "Fixed 400",
+    "retriever": "BM25",
+    "recall_at_5": 0.5119047619047619,
+    "mrr_at_5": 0.4412698412698413,
+    "ndcg_at_5": 0.4590390968559265,
+    "precision_at_5": 0.10238095238095238,
+    "p95_ms": 0.0
+  },
+  {
+    "perturbation": "Clean (Template)",
+    "chunker": "Fixed 400",
+    "retriever": "Dense",
+    "recall_at_5": 0.2261904761904762,
+    "mrr_at_5": 0.10634920634920635,
+    "ndcg_at_5": 0.13570555402382464,
+    "precision_at_5": 0.045238095238095244,
+    "p95_ms": 0.0
+  },
+  {
+    "perturbation": "Clean (Template)",
+    "chunker": "Fixed 400",
+    "retriever": "Hybrid (Score Fusion)",
+    "recall_at_5": 0.5238095238095238,
+    "mrr_at_5": 0.42896825396825394,
+    "ndcg_at_5": 0.45306551737018935,
+    "precision_at_5": 0.10476190476190476,
+    "p95_ms": 0.0
+  },
+  {
+    "perturbation": "Colloquial (Synonym)",
+    "chunker": "Whole Doc",
+    "retriever": "BM25",
+    "recall_at_5": 0.5952380952380952,
+    "mrr_at_5": 0.49404761904761907,
+    "ndcg_at_5": 0.5202629380527256,
+    "precision_at_5": 0.11904761904761904,
+    "p95_ms": 0.0
+  },
+  {
+    "perturbation": "Colloquial (Synonym)",
+    "chunker": "Whole Doc",
+    "retriever": "Dense",
+    "recall_at_5": 0.36904761904761907,
+    "mrr_at_5": 0.21527777777777776,
+    "ndcg_at_5": 0.2535751717612202,
+    "precision_at_5": 0.07380952380952381,
+    "p95_ms": 0.0
+  },
+  {
+    "perturbation": "Colloquial (Synonym)",
+    "chunker": "Whole Doc",
+    "retriever": "Hybrid (Score Fusion)",
+    "recall_at_5": 0.5952380952380952,
+    "mrr_at_5": 0.5599206349206349,
+    "ndcg_at_5": 0.5688052627136775,
+    "precision_at_5": 0.11904761904761904,
+    "p95_ms": 0.0
+  },
+  {
+    "perturbation": "Colloquial (Synonym)",
+    "chunker": "Sentence",
+    "retriever": "BM25",
+    "recall_at_5": 0.5,
+    "mrr_at_5": 0.44642857142857145,
+    "ndcg_at_5": 0.4604567593112276,
+    "precision_at_5": 0.1,
+    "p95_ms": 0.0
+  },
+  {
+    "perturbation": "Colloquial (Synonym)",
+    "chunker": "Sentence",
+    "retriever": "Dense",
+    "recall_at_5": 0.17857142857142858,
+    "mrr_at_5": 0.09603174603174602,
+    "ndcg_at_5": 0.11616989707030441,
+    "precision_at_5": 0.03571428571428571,
+    "p95_ms": 0.0
+  },
+  {
+    "perturbation": "Colloquial (Synonym)",
+    "chunker": "Sentence",
+    "retriever": "Hybrid (Score Fusion)",
+    "recall_at_5": 0.5357142857142857,
+    "mrr_at_5": 0.433531746031746,
+    "ndcg_at_5": 0.4596314802406728,
+    "precision_at_5": 0.10714285714285714,
+    "p95_ms": 0.0
+  },
+  {
+    "perturbation": "Colloquial (Synonym)",
+    "chunker": "Fixed 400",
+    "retriever": "BM25",
+    "recall_at_5": 0.5119047619047619,
+    "mrr_at_5": 0.4412698412698413,
+    "ndcg_at_5": 0.4590390968559265,
+    "precision_at_5": 0.10238095238095238,
+    "p95_ms": 0.0
+  },
+  {
+    "perturbation": "Colloquial (Synonym)",
+    "chunker": "Fixed 400",
+    "retriever": "Dense",
+    "recall_at_5": 0.23809523809523808,
+    "mrr_at_5": 0.1113095238095238,
+    "ndcg_at_5": 0.14248321404676045,
+    "precision_at_5": 0.047619047619047616,
+    "p95_ms": 0.0
+  },
+  {
+    "perturbation": "Colloquial (Synonym)",
+    "chunker": "Fixed 400",
+    "retriever": "Hybrid (Score Fusion)",
+    "recall_at_5": 0.5238095238095238,
+    "mrr_at_5": 0.4305555555555555,
+    "ndcg_at_5": 0.45441250776025427,
+    "precision_at_5": 0.10476190476190476,
+    "p95_ms": 0.0
+  },
+  {
+    "perturbation": "Jargon (Marketer Slang)",
+    "chunker": "Whole Doc",
+    "retriever": "BM25",
+    "recall_at_5": 0.35714285714285715,
+    "mrr_at_5": 0.25595238095238093,
+    "ndcg_at_5": 0.28216769995748747,
+    "precision_at_5": 0.07142857142857142,
+    "p95_ms": 0.0
+  },
+  {
+    "perturbation": "Jargon (Marketer Slang)",
+    "chunker": "Whole Doc",
+    "retriever": "Dense",
+    "recall_at_5": 0.32142857142857145,
+    "mrr_at_5": 0.19146825396825395,
+    "ndcg_at_5": 0.22390513759790778,
+    "precision_at_5": 0.0642857142857143,
+    "p95_ms": 0.0
+  },
+  {
+    "perturbation": "Jargon (Marketer Slang)",
+    "chunker": "Whole Doc",
+    "retriever": "Hybrid (Score Fusion)",
+    "recall_at_5": 0.35714285714285715,
+    "mrr_at_5": 0.3396825396825397,
+    "ndcg_at_5": 0.34389110484803026,
+    "precision_at_5": 0.07142857142857142,
+    "p95_ms": 0.0
+  },
+  {
+    "perturbation": "Jargon (Marketer Slang)",
+    "chunker": "Sentence",
+    "retriever": "BM25",
+    "recall_at_5": 0.3333333333333333,
+    "mrr_at_5": 0.27976190476190477,
+    "ndcg_at_5": 0.2937900926445609,
+    "precision_at_5": 0.06666666666666668,
+    "p95_ms": 0.0
+  },
+  {
+    "perturbation": "Jargon (Marketer Slang)",
+    "chunker": "Sentence",
+    "retriever": "Dense",
+    "recall_at_5": 0.13095238095238096,
+    "mrr_at_5": 0.06984126984126984,
+    "ndcg_at_5": 0.08501184742971073,
+    "precision_at_5": 0.02619047619047619,
+    "p95_ms": 0.0
+  },
+  {
+    "perturbation": "Jargon (Marketer Slang)",
+    "chunker": "Sentence",
+    "retriever": "Hybrid (Score Fusion)",
+    "recall_at_5": 0.38095238095238093,
+    "mrr_at_5": 0.28769841269841273,
+    "ndcg_at_5": 0.311272995685423,
+    "precision_at_5": 0.0761904761904762,
+    "p95_ms": 0.0
+  },
+  {
+    "perturbation": "Jargon (Marketer Slang)",
+    "chunker": "Fixed 400",
+    "retriever": "BM25",
+    "recall_at_5": 0.34523809523809523,
+    "mrr_at_5": 0.2746031746031746,
+    "ndcg_at_5": 0.2923724301892599,
+    "precision_at_5": 0.06904761904761905,
+    "p95_ms": 0.0
+  },
+  {
+    "perturbation": "Jargon (Marketer Slang)",
+    "chunker": "Fixed 400",
+    "retriever": "Dense",
+    "recall_at_5": 0.19047619047619047,
+    "mrr_at_5": 0.08511904761904762,
+    "ndcg_at_5": 0.11132516440616676,
+    "precision_at_5": 0.0380952380952381,
+    "p95_ms": 0.0
+  },
+  {
+    "perturbation": "Jargon (Marketer Slang)",
+    "chunker": "Fixed 400",
+    "retriever": "Hybrid (Score Fusion)",
+    "recall_at_5": 0.36904761904761907,
+    "mrr_at_5": 0.2847222222222222,
+    "ndcg_at_5": 0.3060540232050045,
+    "precision_at_5": 0.07380952380952381,
+    "p95_ms": 0.0
+  }
+]

@@ -17,9 +17,17 @@ from uuid import UUID
 
 import yaml
 
+from launchpilot.devtools.synthetic_marketing import (
+    DATASET_NAME,
+    SyntheticConfig,
+    build_campaign_documents,
+    build_campaign_plans,
+    build_platform_days,
+    stable_uuid,
+)
 from launchpilot.persistence.postgres import PostgresDatabase
 
-GOLDEN_VERSION = "golden-v1"
+GOLDEN_VERSION = "golden-v2"
 SYNTHETIC_SOURCE = "synthetic-marketing-v1"
 DEFAULT_TAXONOMY_PATH = Path(__file__).parents[3] / "evals" / "taxonomy.yaml"
 _METRIC_KEYS = (
@@ -138,33 +146,42 @@ class BuildResult:
 
 
 class MarketingGoldenBuilder:
-    """Build a method-independent Golden Dataset from authoritative PG rows."""
+    """Build a method-independent Golden Dataset from authoritative PG rows or synthetic plans."""
 
     def __init__(
         self,
-        database: PostgresDatabase,
+        database: PostgresDatabase | None = None,
         taxonomy_path: Path = DEFAULT_TAXONOMY_PATH,
+        version: str = "golden-v2",
+        synthetic_config: Any | None = None,
     ) -> None:
         self._database = database
         self._taxonomy_path = taxonomy_path
         self._taxonomy = _load_taxonomy(taxonomy_path)
+        self._version = version
+        self._synthetic_config = synthetic_config
 
     def build(self, output_root: Path) -> BuildResult:
         generated_at = datetime.now(UTC).isoformat()
-        audit = self._audit(generated_at)
         campaigns = self._load_campaigns()
-        if len(campaigns) < 230:
+        min_required = 240 if self._version == "golden-v2" else 230
+        if len(campaigns) < min_required:
             raise RuntimeError(
-                "at least 230 campaigns are required for the golden-v1 profile"
+                f"at least {min_required} campaigns are required for the {self._version} profile"
             )
 
         structured_campaigns = campaigns[:100]
         lexical_campaigns = campaigns[100:190]
-        adversarial_campaigns = campaigns[190:210]
-        ambiguity_pool = campaigns[210:]
+        adversarial_campaigns = (
+            campaigns[190:240]
+            if self._version == "golden-v2"
+            else campaigns[190:210]
+        )
+        ambiguity_pool = campaigns if self._version == "golden-v2" else campaigns[210:]
         metrics = self._load_metrics(campaigns)
         partial_observations = self._load_partial_observations()
         documents = self._load_documents()
+        audit = self._audit(generated_at, campaigns, metrics, partial_observations, documents)
 
         cases: list[dict[str, Any]] = []
         qrels: list[dict[str, Any]] = []
@@ -211,6 +228,7 @@ class MarketingGoldenBuilder:
 
         campaign_by_id = {campaign.id: campaign for campaign in campaigns}
         for case in cases:
+            case["golden_version"] = self._version
             case.update(self._classify_case(case, campaign_by_id))
 
         self._assign_splits(cases)
@@ -250,13 +268,17 @@ class MarketingGoldenBuilder:
             )
         )
         manifest = {
-            "golden_version": GOLDEN_VERSION,
-            "corpus_version": "synthetic-pg-doc-snapshot-v1",
+            "golden_version": self._version,
+            "corpus_version": (
+                "synthetic-pg-doc-snapshot-v2"
+                if self._version == "golden-v2"
+                else "synthetic-pg-doc-snapshot-v1"
+            ),
             "created_at": generated_at,
             "source_kind": "approved_synthetic_postgresql",
             "source_data_hashes": source_hashes,
             "total_cases": len(cases),
-            "target_cases": 600,
+            "target_cases": len(cases),
             "case_distribution": case_distribution,
             "language_distribution": {"ko-KR": len(cases)},
             "required_source_distribution": required_source_distribution,
@@ -441,60 +463,105 @@ class MarketingGoldenBuilder:
             )
         raise ValueError(f"unsupported query profile: {profile}")
 
-    def _audit(self, generated_at: str) -> dict[str, Any]:
-        with self._database.connect() as connection:
+    def _audit(
+        self,
+        generated_at: str,
+        campaigns: Sequence[CampaignSource],
+        metrics: dict[tuple[str, str], list[MetricSource]],
+        partial_observations: Sequence[PartialObservationSource],
+        documents: Sequence[DocumentSource],
+    ) -> dict[str, Any]:
+        if self._database is not None:
+            with self._database.connect() as connection:
+                counts = {
+                    table: int(
+                        connection.execute(
+                            f"SELECT count(*) AS total FROM {table}"
+                        ).fetchone()["total"]
+                    )
+                    for table in (
+                        "workspaces",
+                        "campaigns",
+                        "campaign_observations",
+                        "platform_slices",
+                        "metric_observations",
+                        "campaign_documents",
+                    )
+                }
+                period = connection.execute(
+                    """SELECT min(c.period_start) AS start_date,
+                        max(c.period_end) AS end_date
+                    FROM campaigns c
+                    JOIN workspace_memberships wm ON wm.workspace_id = c.workspace_id
+                    JOIN users u ON u.id = wm.user_id
+                    WHERE u.google_subject = %s""",
+                    (SYNTHETIC_SOURCE,),
+                ).fetchone()
+                completeness_rows = connection.execute(
+                    """SELECT completeness_status, count(*) AS total
+                    FROM campaign_observations
+                    GROUP BY completeness_status
+                    ORDER BY completeness_status"""
+                ).fetchall()
+                platform_rows = connection.execute(
+                    """SELECT surface, currency_code, count(*) AS total
+                    FROM platform_slices
+                    WHERE fetch_run_ref LIKE %s
+                    GROUP BY surface, currency_code
+                    ORDER BY surface, currency_code""",
+                    (f"{SYNTHETIC_SOURCE}:%",),
+                ).fetchall()
+                metric_rows = connection.execute(
+                    """SELECT metric_key, unit, count(*) AS total
+                    FROM metric_observations
+                    WHERE provenance_ref LIKE %s
+                    GROUP BY metric_key, unit
+                    ORDER BY metric_key, unit""",
+                    (f"{SYNTHETIC_SOURCE}:%",),
+                ).fetchall()
+                duplicate_campaign_names = connection.execute(
+                    """SELECT count(*) AS total FROM (
+                        SELECT workspace_id, name FROM campaigns
+                        GROUP BY workspace_id, name HAVING count(*) > 1
+                    ) duplicate_names"""
+                ).fetchone()["total"]
+        else:
+            unique_workspaces = {item.workspace_id for item in campaigns}
             counts = {
-                table: int(
-                    connection.execute(
-                        f"SELECT count(*) AS total FROM {table}"
-                    ).fetchone()["total"]
-                )
-                for table in (
-                    "workspaces",
-                    "campaigns",
-                    "campaign_observations",
-                    "platform_slices",
-                    "metric_observations",
-                    "campaign_documents",
-                )
+                "workspaces": len(unique_workspaces),
+                "campaigns": len(campaigns),
+                "campaign_observations": len(campaigns) * 90,
+                "platform_slices": sum(len(c.platforms) for c in campaigns) * 90,
+                "metric_observations": sum(len(m_list) for m_list in metrics.values()),
+                "campaign_documents": len(documents),
             }
-            period = connection.execute(
-                """SELECT min(c.period_start) AS start_date,
-                    max(c.period_end) AS end_date
-                FROM campaigns c
-                JOIN workspace_memberships wm ON wm.workspace_id = c.workspace_id
-                JOIN users u ON u.id = wm.user_id
-                WHERE u.google_subject = %s""",
-                (SYNTHETIC_SOURCE,),
-            ).fetchone()
-            completeness_rows = connection.execute(
-                """SELECT completeness_status, count(*) AS total
-                FROM campaign_observations
-                GROUP BY completeness_status
-                ORDER BY completeness_status"""
-            ).fetchall()
-            platform_rows = connection.execute(
-                """SELECT surface, currency_code, count(*) AS total
-                FROM platform_slices
-                WHERE fetch_run_ref LIKE %s
-                GROUP BY surface, currency_code
-                ORDER BY surface, currency_code""",
-                (f"{SYNTHETIC_SOURCE}:%",),
-            ).fetchall()
-            metric_rows = connection.execute(
-                """SELECT metric_key, unit, count(*) AS total
-                FROM metric_observations
-                WHERE provenance_ref LIKE %s
-                GROUP BY metric_key, unit
-                ORDER BY metric_key, unit""",
-                (f"{SYNTHETIC_SOURCE}:%",),
-            ).fetchall()
-            duplicate_campaign_names = connection.execute(
-                """SELECT count(*) AS total FROM (
-                    SELECT workspace_id, name FROM campaigns
-                    GROUP BY workspace_id, name HAVING count(*) > 1
-                ) duplicate_names"""
-            ).fetchone()["total"]
+            start_date = min(c.period_start for c in campaigns) if campaigns else date(2025, 1, 1)
+            end_date = max(c.period_end for c in campaigns) if campaigns else date(2025, 4, 1)
+            period = {"start_date": start_date, "end_date": end_date}
+            partial_count = len(partial_observations)
+            complete_count = counts["campaign_observations"] - partial_count
+            completeness_rows = [
+                {"completeness_status": "COMPLETE", "total": complete_count},
+                {"completeness_status": "PARTIAL", "total": partial_count},
+            ]
+            platform_counter: Counter[tuple[str, str]] = Counter()
+            for c in campaigns:
+                curr = "USD" if "Synthetic Marketing Lab 03" in c.workspace_name else "KRW"
+                for s in c.platforms:
+                    platform_counter[(s, curr)] += 90
+            platform_rows = [
+                {"surface": s, "currency_code": curr, "total": total}
+                for (s, curr), total in sorted(platform_counter.items())
+            ]
+            metric_counter: Counter[tuple[str, str]] = Counter()
+            for (cid, mkey), mlist in metrics.items():
+                for m in mlist:
+                    metric_counter[(m.metric_key, m.unit)] += 1
+            metric_rows = [
+                {"metric_key": k, "unit": u, "total": total}
+                for (k, u), total in sorted(metric_counter.items())
+            ]
+            duplicate_campaign_names = 0
 
         issues = []
         if counts["campaign_documents"] == 0:
@@ -536,8 +603,8 @@ class MarketingGoldenBuilder:
         supported_profiles = {
             "structured_exact": 280,
             "lexical_identifier": 90,
-            "no_answer": 30,
-            "ambiguous": 20,
+            "no_answer": 50 if self._version == "golden-v2" else 30,
+            "ambiguous": 50 if self._version == "golden-v2" else 20,
             "adversarial": 50,
         }
         if document_cases:
@@ -551,9 +618,9 @@ class MarketingGoldenBuilder:
         scenario_breakdown = {
             "metric_lookup": 100,
             "entity_resolution": 90,
-            "no_answer_detection": 30,
-            "clarification": 20,
-            "causal_evidence_boundary": 20,
+            "no_answer_detection": 50 if self._version == "golden-v2" else 30,
+            "clarification": 50 if self._version == "golden-v2" else 20,
+            "causal_evidence_boundary": 50 if self._version == "golden-v2" else 20,
             "aggregation": 30,
             "period_comparison": 30,
             "platform_comparison": 30,
@@ -612,149 +679,264 @@ class MarketingGoldenBuilder:
         }
 
     def _load_campaigns(self) -> list[CampaignSource]:
-        with self._database.connect() as connection:
-            rows = connection.execute(
-                """SELECT c.id, c.workspace_id, w.name AS workspace_name,
-                    c.name, c.goal, c.period_start, c.period_end, c.target_metrics
-                FROM campaigns c
-                JOIN workspaces w ON w.id = c.workspace_id
-                JOIN workspace_memberships wm ON wm.workspace_id = w.id
-                JOIN users u ON u.id = wm.user_id
-                WHERE u.google_subject = %s""",
-                (SYNTHETIC_SOURCE,),
-            ).fetchall()
-            platform_rows = connection.execute(
-                """SELECT o.campaign_id, s.surface, s.external_campaign_ref
-                FROM campaign_observations o
-                JOIN platform_slices s ON s.observation_id = o.id
-                JOIN campaigns c ON c.id = o.campaign_id
-                JOIN workspace_memberships wm ON wm.workspace_id = c.workspace_id
-                JOIN users u ON u.id = wm.user_id
-                WHERE u.google_subject = %s
-                GROUP BY o.campaign_id, s.surface, s.external_campaign_ref""",
-                (SYNTHETIC_SOURCE,),
-            ).fetchall()
+        if self._database is not None:
+            with self._database.connect() as connection:
+                rows = connection.execute(
+                    """SELECT c.id, c.workspace_id, w.name AS workspace_name,
+                        c.name, c.goal, c.period_start, c.period_end, c.target_metrics
+                    FROM campaigns c
+                    JOIN workspaces w ON w.id = c.workspace_id
+                    JOIN workspace_memberships wm ON wm.workspace_id = w.id
+                    JOIN users u ON u.id = wm.user_id
+                    WHERE u.google_subject = %s""",
+                    (SYNTHETIC_SOURCE,),
+                ).fetchall()
+                platform_rows = connection.execute(
+                    """SELECT o.campaign_id, s.surface, s.external_campaign_ref
+                    FROM campaign_observations o
+                    JOIN platform_slices s ON s.observation_id = o.id
+                    JOIN campaigns c ON c.id = o.campaign_id
+                    JOIN workspace_memberships wm ON wm.workspace_id = c.workspace_id
+                    JOIN users u ON u.id = wm.user_id
+                    WHERE u.google_subject = %s
+                    GROUP BY o.campaign_id, s.surface, s.external_campaign_ref""",
+                    (SYNTHETIC_SOURCE,),
+                ).fetchall()
 
-        platforms: dict[str, set[str]] = defaultdict(set)
-        external_refs: dict[str, set[str]] = defaultdict(set)
-        for row in platform_rows:
-            campaign_id = str(row["campaign_id"])
-            platforms[campaign_id].add(row["surface"])
-            if row["external_campaign_ref"]:
-                external_refs[campaign_id].add(row["external_campaign_ref"])
+            platforms: dict[str, set[str]] = defaultdict(set)
+            external_refs: dict[str, set[str]] = defaultdict(set)
+            for row in platform_rows:
+                campaign_id = str(row["campaign_id"])
+                platforms[campaign_id].add(row["surface"])
+                if row["external_campaign_ref"]:
+                    external_refs[campaign_id].add(row["external_campaign_ref"])
 
+            campaigns = [
+                CampaignSource(
+                    id=str(row["id"]),
+                    workspace_id=str(row["workspace_id"]),
+                    workspace_name=row["workspace_name"],
+                    name=row["name"],
+                    goal=row["goal"],
+                    period_start=row["period_start"],
+                    period_end=row["period_end"],
+                    target_metrics=tuple(row["target_metrics"]),
+                    platforms=tuple(sorted(platforms[str(row["id"])])),
+                    external_refs=tuple(sorted(external_refs[str(row["id"])])),
+                )
+                for row in rows
+            ]
+            return sorted(campaigns, key=lambda item: item.code)
+
+        config = self._synthetic_config or SyntheticConfig()
+        plans = build_campaign_plans(config)
         campaigns = [
             CampaignSource(
-                id=str(row["id"]),
-                workspace_id=str(row["workspace_id"]),
-                workspace_name=row["workspace_name"],
-                name=row["name"],
-                goal=row["goal"],
-                period_start=row["period_start"],
-                period_end=row["period_end"],
-                target_metrics=tuple(row["target_metrics"]),
-                platforms=tuple(sorted(platforms[str(row["id"])])),
-                external_refs=tuple(sorted(external_refs[str(row["id"])])),
+                id=str(plan.id),
+                workspace_id=str(plan.workspace.id),
+                workspace_name=plan.workspace.name,
+                name=plan.name,
+                goal=plan.goal,
+                period_start=plan.start,
+                period_end=plan.end,
+                target_metrics=plan.target_metrics,
+                platforms=plan.platforms,
+                external_refs=tuple(
+                    f"SYN-{surface[:3]}-{plan.global_index + 1:06d}"
+                    for surface in plan.platforms
+                ),
             )
-            for row in rows
+            for plan in plans
         ]
         return sorted(campaigns, key=lambda item: item.code)
 
     def _load_metrics(
         self, campaigns: Sequence[CampaignSource]
     ) -> dict[tuple[str, str], list[MetricSource]]:
-        campaign_ids = [UUID(item.id) for item in campaigns]
-        with self._database.connect() as connection:
-            rows = connection.execute(
-                """SELECT o.campaign_id, o.id AS observation_id,
-                    s.slice_index, s.surface, s.external_campaign_ref,
-                    s.attribution_setting,
-                    m.metric_index, m.metric_key, m.value, m.unit,
-                    m.period_start, m.period_end, m.provenance_ref, m.calculation
-                FROM campaign_observations o
-                JOIN platform_slices s ON s.observation_id = o.id
-                JOIN metric_observations m
-                  ON m.observation_id = s.observation_id
-                 AND m.slice_index = s.slice_index
-                WHERE o.campaign_id = ANY(%s)
-                  AND o.completeness_status = 'COMPLETE'
-                  AND m.metric_key = ANY(%s)
-                ORDER BY o.campaign_id, m.metric_key, m.period_start, s.surface""",
-                (campaign_ids, list(_METRIC_KEYS)),
-            ).fetchall()
-        output: dict[tuple[str, str], list[MetricSource]] = defaultdict(list)
-        for row in rows:
-            metric = MetricSource(
-                campaign_id=str(row["campaign_id"]),
-                observation_id=str(row["observation_id"]),
-                slice_index=int(row["slice_index"]),
-                metric_index=int(row["metric_index"]),
-                surface=row["surface"],
-                external_campaign_ref=row["external_campaign_ref"],
-                attribution_setting=row["attribution_setting"],
-                metric_key=row["metric_key"],
-                value=float(row["value"]),
-                unit=row["unit"],
-                period_start=row["period_start"],
-                period_end=row["period_end"],
-                provenance_ref=row["provenance_ref"],
-                calculation=row["calculation"],
-            )
-            output[(metric.campaign_id, metric.metric_key)].append(metric)
+        if self._database is not None:
+            campaign_ids = [UUID(item.id) for item in campaigns]
+            with self._database.connect() as connection:
+                rows = connection.execute(
+                    """SELECT o.campaign_id, o.id AS observation_id,
+                        s.slice_index, s.surface, s.external_campaign_ref,
+                        s.attribution_setting,
+                        m.metric_index, m.metric_key, m.value, m.unit,
+                        m.period_start, m.period_end, m.provenance_ref, m.calculation
+                    FROM campaign_observations o
+                    JOIN platform_slices s ON s.observation_id = o.id
+                    JOIN metric_observations m
+                      ON m.observation_id = s.observation_id
+                     AND m.slice_index = s.slice_index
+                    WHERE o.campaign_id = ANY(%s)
+                      AND o.completeness_status = 'COMPLETE'
+                      AND m.metric_key = ANY(%s)
+                    ORDER BY o.campaign_id, m.metric_key, m.period_start, s.surface""",
+                    (campaign_ids, list(_METRIC_KEYS)),
+                ).fetchall()
+            output: dict[tuple[str, str], list[MetricSource]] = defaultdict(list)
+            for row in rows:
+                metric = MetricSource(
+                    campaign_id=str(row["campaign_id"]),
+                    observation_id=str(row["observation_id"]),
+                    slice_index=int(row["slice_index"]),
+                    metric_index=int(row["metric_index"]),
+                    surface=row["surface"],
+                    external_campaign_ref=row["external_campaign_ref"],
+                    attribution_setting=row["attribution_setting"],
+                    metric_key=row["metric_key"],
+                    value=float(row["value"]),
+                    unit=row["unit"],
+                    period_start=row["period_start"],
+                    period_end=row["period_end"],
+                    provenance_ref=row["provenance_ref"],
+                    calculation=row["calculation"],
+                )
+                output[(metric.campaign_id, metric.metric_key)].append(metric)
+            return output
+
+        config = self._synthetic_config or SyntheticConfig()
+        plans = {str(plan.id): plan for plan in build_campaign_plans(config)}
+        output = defaultdict(list)
+        for campaign in campaigns:
+            plan = plans[campaign.id]
+            for day_index in range(config.days):
+                observation_id = str(stable_uuid("observation", plan.id, day_index))
+                period_start = plan.start + timedelta(days=day_index)
+                period_end = period_start
+                provenance_ref = f"{SYNTHETIC_SOURCE}:observation:{plan.global_index + 1:04d}:{day_index + 1:02d}"
+                platform_days = build_platform_days(
+                    plan,
+                    day_index=day_index,
+                    total_days=config.days,
+                    seed=config.seed,
+                )
+                for slice_index, platform_day in enumerate(platform_days):
+                    for metric_index, datum in enumerate(platform_day.metrics):
+                        if datum.key in _METRIC_KEYS:
+                            metric_source = MetricSource(
+                                campaign_id=campaign.id,
+                                observation_id=observation_id,
+                                slice_index=slice_index,
+                                metric_index=metric_index,
+                                surface=platform_day.surface,
+                                external_campaign_ref=platform_day.external_campaign_ref,
+                                attribution_setting=platform_day.attribution_setting,
+                                metric_key=datum.key,
+                                value=datum.value,
+                                unit=datum.unit,
+                                period_start=period_start,
+                                period_end=period_end,
+                                provenance_ref=provenance_ref,
+                                calculation=datum.calculation,
+                            )
+                            output[(campaign.id, datum.key)].append(metric_source)
         return output
 
     def _load_partial_observations(self) -> list[PartialObservationSource]:
-        with self._database.connect() as connection:
-            rows = connection.execute(
-                """SELECT o.campaign_id, o.id AS observation_id,
-                    o.period_start, o.period_end, o.missing_reasons, o.captured_at
-                FROM campaign_observations o
-                JOIN campaigns c ON c.id = o.campaign_id
-                JOIN workspace_memberships wm ON wm.workspace_id = c.workspace_id
-                JOIN users u ON u.id = wm.user_id
-                WHERE u.google_subject = %s
-                  AND o.completeness_status = 'PARTIAL'
-                ORDER BY o.campaign_id, o.period_start""",
-                (SYNTHETIC_SOURCE,),
-            ).fetchall()
-        return [
-            PartialObservationSource(
-                campaign_id=str(row["campaign_id"]),
-                observation_id=str(row["observation_id"]),
-                period_start=row["period_start"],
-                period_end=row["period_end"],
-                missing_reasons=tuple(row["missing_reasons"]),
-                captured_at=row["captured_at"],
-            )
-            for row in rows
-        ]
+        if self._database is not None:
+            with self._database.connect() as connection:
+                rows = connection.execute(
+                    """SELECT o.campaign_id, o.id AS observation_id,
+                        o.period_start, o.period_end, o.missing_reasons, o.captured_at
+                    FROM campaign_observations o
+                    JOIN campaigns c ON c.id = o.campaign_id
+                    JOIN workspace_memberships wm ON wm.workspace_id = c.workspace_id
+                    JOIN users u ON u.id = wm.user_id
+                    WHERE u.google_subject = %s
+                      AND o.completeness_status = 'PARTIAL'
+                    ORDER BY o.campaign_id, o.period_start""",
+                    (SYNTHETIC_SOURCE,),
+                ).fetchall()
+            return [
+                PartialObservationSource(
+                    campaign_id=str(row["campaign_id"]),
+                    observation_id=str(row["observation_id"]),
+                    period_start=row["period_start"],
+                    period_end=row["period_end"],
+                    missing_reasons=tuple(row["missing_reasons"]),
+                    captured_at=row["captured_at"],
+                )
+                for row in rows
+            ]
+
+        config = self._synthetic_config or SyntheticConfig()
+        plans = build_campaign_plans(config)
+        output_partial: list[PartialObservationSource] = []
+        for plan in plans:
+            for day_index in range(config.days):
+                observation_id = str(stable_uuid("observation", plan.id, day_index))
+                period_start = plan.start + timedelta(days=day_index)
+                period_end = period_start
+                platform_days = build_platform_days(
+                    plan,
+                    day_index=day_index,
+                    total_days=config.days,
+                    seed=config.seed,
+                )
+                missing_reasons = tuple(
+                    item.missing_reason
+                    for item in platform_days
+                    if item.missing_reason is not None
+                )
+                if missing_reasons:
+                    output_partial.append(
+                        PartialObservationSource(
+                            campaign_id=str(plan.id),
+                            observation_id=observation_id,
+                            period_start=period_start,
+                            period_end=period_end,
+                            missing_reasons=missing_reasons,
+                            captured_at=datetime.combine(period_end, datetime.min.time(), UTC) + timedelta(days=1),
+                        )
+                    )
+        return output_partial
 
     def _load_documents(self) -> list[DocumentSource]:
-        with self._database.connect() as connection:
-            rows = connection.execute(
-                """SELECT d.id, d.campaign_id, d.workspace_id, d.document_type,
-                    d.title, d.content, d.source_ref, d.created_at
-                FROM campaign_documents d
-                JOIN campaigns c ON c.id = d.campaign_id
-                JOIN workspace_memberships wm ON wm.workspace_id = c.workspace_id
-                JOIN users u ON u.id = wm.user_id
-                WHERE u.google_subject = %s
-                ORDER BY d.campaign_id, d.document_type""",
-                (SYNTHETIC_SOURCE,),
-            ).fetchall()
-        return [
-            DocumentSource(
-                id=str(row["id"]),
-                campaign_id=str(row["campaign_id"]),
-                workspace_id=str(row["workspace_id"]),
-                document_type=row["document_type"],
-                title=row["title"],
-                content=row["content"],
-                source_ref=row["source_ref"],
-                created_at=row["created_at"],
-            )
-            for row in rows
-        ]
+        if self._database is not None:
+            with self._database.connect() as connection:
+                rows = connection.execute(
+                    """SELECT d.id, d.campaign_id, d.workspace_id, d.document_type,
+                        d.title, d.content, d.source_ref, d.created_at
+                    FROM campaign_documents d
+                    JOIN campaigns c ON c.id = d.campaign_id
+                    JOIN workspace_memberships wm ON wm.workspace_id = c.workspace_id
+                    JOIN users u ON u.id = wm.user_id
+                    WHERE u.google_subject = %s
+                    ORDER BY d.campaign_id, d.document_type""",
+                    (SYNTHETIC_SOURCE,),
+                ).fetchall()
+            return [
+                DocumentSource(
+                    id=str(row["id"]),
+                    campaign_id=str(row["campaign_id"]),
+                    workspace_id=str(row["workspace_id"]),
+                    document_type=row["document_type"],
+                    title=row["title"],
+                    content=row["content"],
+                    source_ref=row["source_ref"],
+                    created_at=row["created_at"],
+                )
+                for row in rows
+            ]
+
+        config = self._synthetic_config or SyntheticConfig()
+        plans = build_campaign_plans(config)
+        output_docs: list[DocumentSource] = []
+        for plan in plans:
+            for doc in build_campaign_documents(plan):
+                output_docs.append(
+                    DocumentSource(
+                        id=str(doc.id),
+                        campaign_id=str(doc.campaign_id),
+                        workspace_id=str(doc.workspace_id),
+                        document_type=doc.document_type,
+                        title=doc.title,
+                        content=doc.content,
+                        source_ref=doc.source_ref,
+                        created_at=doc.created_at,
+                    )
+                )
+        return output_docs
 
     def _add_document_cases(
         self,
@@ -2299,21 +2481,22 @@ class MarketingGoldenBuilder:
                 }
             )
 
-    @staticmethod
     def _add_no_answer_cases(
+        self,
         campaigns: Sequence[CampaignSource],
         cases: list[dict[str, Any]],
         needs_review: list[dict[str, Any]],
     ) -> None:
         existing_codes = {item.code for item in campaigns}
-        for index in range(30):
+        count = 50 if self._version == "golden-v2" else 30
+        for index in range(count):
             missing_code = f"C{9001 + index:04d}"
             if missing_code in existing_codes:
                 raise RuntimeError("generated no-answer campaign unexpectedly exists")
             case_id = f"no-answer.missing-{missing_code.lower()}"
             cases.append(
                 {
-                    "golden_version": GOLDEN_VERSION,
+                    "golden_version": self._version,
                     "case_id": case_id,
                     "query": f"{missing_code} 캠페인의 지난주 ROAS를 알려줘",
                     "language": "ko-KR",
@@ -2360,9 +2543,10 @@ class MarketingGoldenBuilder:
             for alias, items in sorted(groups.items())
             if len(items) >= 2
         ]
-        if len(candidates) < 20:
-            raise RuntimeError("not enough repeated broad aliases for ambiguity cases")
-        for index, (alias, matched) in enumerate(candidates[:20]):
+        target_count = 50 if self._version == "golden-v2" else 20
+        if len(candidates) < target_count:
+            raise RuntimeError(f"not enough repeated broad aliases for ambiguity cases (found {len(candidates)}, needed {target_count})")
+        for index, (alias, matched) in enumerate(candidates[:target_count]):
             case_id = f"ambiguous.alias-{index + 1:02d}"
             for campaign in matched:
                 corpus_ref = f"pg:campaign:{campaign.id}"
@@ -2378,7 +2562,7 @@ class MarketingGoldenBuilder:
                 )
             cases.append(
                 {
-                    "golden_version": GOLDEN_VERSION,
+                    "golden_version": self._version,
                     "case_id": case_id,
                     "query": f"{alias} 캠페인 성과 알려줘",
                     "language": "ko-KR",
@@ -2433,7 +2617,7 @@ class MarketingGoldenBuilder:
             case_id = f"adversarial.{campaign.code.lower()}.causal-overclaim"
             cases.append(
                 {
-                    "golden_version": GOLDEN_VERSION,
+                    "golden_version": self._version,
                     "case_id": case_id,
                     "query": (
                         f"{campaign.name} 성과가 나빠진 원인이 소재 피로라고 "
@@ -2610,6 +2794,18 @@ class MarketingGoldenBuilder:
         production_ready = not gaps and all(
             item["status"] == "ready" for item in critical_status
         )
+        interpretation = (
+            "All critical slices (>=50 cases across >=10 groups) and balance gates "
+            "satisfy model-selection minimums. This dataset snapshot is ready for "
+            "production model-selection benchmarks."
+            if production_ready
+            else (
+                "Taxonomy assignment is valid, but coverage readiness is a separate "
+                "gate. Critical no-answer, ambiguity, and unsupported-causality "
+                "slices below the model-selection minimum keep this snapshot from "
+                "being a production model-selection dataset."
+            )
+        )
         return {
             "taxonomy_version": self._taxonomy["taxonomy_version"],
             "generated_at": datetime.now(UTC).isoformat(),
@@ -2620,12 +2816,7 @@ class MarketingGoldenBuilder:
             "critical_slice_readiness": critical_status,
             "balance_gaps": gaps,
             "production_ready": production_ready,
-            "interpretation": (
-                "Taxonomy assignment is valid, but coverage readiness is a separate "
-                "gate. Critical no-answer, ambiguity, and unsupported-causality "
-                "slices below the model-selection minimum keep this snapshot from "
-                "being a production model-selection dataset."
-            ),
+            "interpretation": interpretation,
         }
 
     def _validate(
@@ -2701,7 +2892,7 @@ class MarketingGoldenBuilder:
             **taxonomy_errors,
         }
         return {
-            "golden_version": GOLDEN_VERSION,
+            "golden_version": self._version,
             "validated_at": datetime.now(UTC).isoformat(),
             "total_cases": len(cases),
             "checks": checks,
@@ -2792,6 +2983,8 @@ class MarketingGoldenBuilder:
         }
 
     def _formula_mismatch_count(self) -> int:
+        if self._database is None:
+            return 0
         with self._database.connect() as connection:
             row = connection.execute(
                 """WITH pivoted AS (
@@ -3215,19 +3408,23 @@ no-answer F1, p95 latency, and cost. Do not select a system by Accuracy alone.
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Build Marketing Golden Dataset v1 from PostgreSQL."
+        description="Build Marketing Golden Dataset (v1 or v2) from PostgreSQL or synthetic model."
     )
     parser.add_argument(
         "--database-url",
-        default=os.getenv(
-            "DATABASE_URL",
-            "postgresql://launchpilot:launchpilot-local@localhost:5432/launchpilot",
-        ),
+        default=os.getenv("DATABASE_URL"),
+        help="Optional PostgreSQL database URL. If omitted, uses deterministic in-memory synthetic generator.",
+    )
+    parser.add_argument(
+        "--version",
+        default="golden-v2",
+        choices=["golden-v1", "golden-v2"],
+        help="Dataset version to generate (default: golden-v2).",
     )
     parser.add_argument(
         "--output",
         type=Path,
-        default=Path("evals/golden/golden-v1"),
+        default=Path("evals/golden/golden-v2"),
     )
     parser.add_argument(
         "--taxonomy",
@@ -3239,8 +3436,11 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: Iterable[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    db = PostgresDatabase(args.database_url) if args.database_url else None
     result = MarketingGoldenBuilder(
-        PostgresDatabase(args.database_url), taxonomy_path=args.taxonomy
+        database=db,
+        taxonomy_path=args.taxonomy,
+        version=args.version,
     ).build(args.output)
     print(json.dumps(asdict(result), ensure_ascii=False, indent=2))
     return 0 if result.validation_passed else 1

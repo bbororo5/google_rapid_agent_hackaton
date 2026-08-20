@@ -1,0 +1,352 @@
+{
+  "1. Pure BM25 (어휘 역색인)": {
+    "total_cases": 150,
+    "solvable_cases": 121,
+    "negative_cases": 29,
+    "recall_at_5": 0.124,
+    "mrr_at_5": 0.0521,
+    "precision_at_1": 0.0165,
+    "top1_count": 2,
+    "negative_abstentions": 5,
+    "split_metrics": {
+      "tune": {
+        "solvable_cases": 72,
+        "recall_at_5": 0.1389,
+        "mrr_at_5": 0.0565,
+        "precision_at_1": 0.0139,
+        "top1_count": 1
+      },
+      "validation": {
+        "solvable_cases": 26,
+        "recall_at_5": 0.0769,
+        "mrr_at_5": 0.0462,
+        "precision_at_1": 0.0385,
+        "top1_count": 1
+      },
+      "holdout": {
+        "solvable_cases": 23,
+        "recall_at_5": 0.1304,
+        "mrr_at_5": 0.0449,
+        "precision_at_1": 0.0,
+        "top1_count": 0
+      }
+    },
+    "task_metrics": {
+      "copy_fatigue_action": {
+        "solvable_cases": 30,
+        "recall_at_5": 0.0,
+        "mrr_at_5": 0.0,
+        "precision_at_1": 0.0,
+        "top1_count": 0
+      },
+      "pacing_cut_action": {
+        "solvable_cases": 30,
+        "recall_at_5": 0.0,
+        "mrr_at_5": 0.0,
+        "precision_at_1": 0.0,
+        "top1_count": 0
+      },
+      "brief_guideline_lookup": {
+        "solvable_cases": 30,
+        "recall_at_5": 0.0,
+        "mrr_at_5": 0.0,
+        "precision_at_1": 0.0,
+        "top1_count": 0
+      },
+      "video_fatigue_action": {
+        "solvable_cases": 21,
+        "recall_at_5": 0.0,
+        "mrr_at_5": 0.0,
+        "precision_at_1": 0.0476,
+        "top1_count": 1
+      },
+      "cross_campaign_comparison": {
+        "solvable_cases": 10,
+        "recall_at_5": 0.0,
+        "mrr_at_5": 0.0,
+        "precision_at_1": 0.1,
+        "top1_count": 1
+      }
+    }
+  },
+  "2. Pure Dense (시맨틱 임베딩)": {
+    "total_cases": 150,
+    "solvable_cases": 121,
+    "negative_cases": 29,
+    "recall_at_5": 0.0826,
+    "mrr_at_5": 0.0377,
+    "precision_at_1": 0.0165,
+    "top1_count": 2,
+    "negative_abstentions": 5,
+    "split_metrics": {
+      "tune": {
+        "solvable_cases": 72,
+        "recall_at_5": 0.0972,
+        "mrr_at_5": 0.0421,
+        "precision_at_1": 0.0139,
+        "top1_count": 1
+      },
+      "validation": {
+        "solvable_cases": 26,
+        "recall_at_5": 0.0769,
+        "mrr_at_5": 0.0462,
+        "precision_at_1": 0.0385,
+        "top1_count": 1
+      },
+      "holdout": {
+        "solvable_cases": 23,
+        "recall_at_5": 0.0435,
+        "mrr_at_5": 0.0145,
+        "precision_at_1": 0.0,
+        "top1_count": 0
+      }
+    },
+    "task_metrics": {
+      "copy_fatigue_action": {
+        "solvable_cases": 30,
+        "recall_at_5": 0.0,
+        "mrr_at_5": 0.0,
+        "precision_at_1": 0.0,
+        "top1_count": 0
+      },
+      "pacing_cut_action": {
+        "solvable_cases": 30,
+        "recall_at_5": 0.0,
+        "mrr_at_5": 0.0,
+        "precision_at_1": 0.0,
+        "top1_count": 0
+      },
+      "brief_guideline_lookup": {
+        "solvable_cases": 30,
+        "recall_at_5": 0.0,
+        "mrr_at_5": 0.0,
+        "precision_at_1": 0.0,
+        "top1_count": 0
+      },
+      "video_fatigue_action": {
+        "solvable_cases": 21,
+        "recall_at_5": 0.0,
+        "mrr_at_5": 0.0,
+        "precision_at_1": 0.0476,
+        "top1_count": 1
+      },
+      "cross_campaign_comparison": {
+        "solvable_cases": 10,
+        "recall_at_5": 0.0,
+        "mrr_at_5": 0.0,
+        "precision_at_1": 0.1,
+        "top1_count": 1
+      }
+    }
+  },
+  "3. Score-Fused Hybrid (BM25_norm 0.5 + Dense_norm 0.5)": {
+    "total_cases": 150,
+    "solvable_cases": 121,
+    "negative_cases": 29,
+    "recall_at_5": 0.124,
+    "mrr_at_5": 0.0521,
+    "precision_at_1": 0.0165,
+    "top1_count": 2,
+    "negative_abstentions": 0,
+    "split_metrics": {
+      "tune": {
+        "solvable_cases": 72,
+        "recall_at_5": 0.1389,
+        "mrr_at_5": 0.0565,
+        "precision_at_1": 0.0139,
+        "top1_count": 1
+      },
+      "validation": {
+        "solvable_cases": 26,
+        "recall_at_5": 0.0769,
+        "mrr_at_5": 0.0462,
+        "precision_at_1": 0.0385,
+        "top1_count": 1
+      },
+      "holdout": {
+        "solvable_cases": 23,
+        "recall_at_5": 0.1304,
+        "mrr_at_5": 0.0449,
+        "precision_at_1": 0.0,
+        "top1_count": 0
+      }
+    },
+    "task_metrics": {
+      "copy_fatigue_action": {
+        "solvable_cases": 30,
+        "recall_at_5": 0.0,
+        "mrr_at_5": 0.0,
+        "precision_at_1": 0.0,
+        "top1_count": 0
+      },
+      "pacing_cut_action": {
+        "solvable_cases": 30,
+        "recall_at_5": 0.0,
+        "mrr_at_5": 0.0,
+        "precision_at_1": 0.0,
+        "top1_count": 0
+      },
+      "brief_guideline_lookup": {
+        "solvable_cases": 30,
+        "recall_at_5": 0.0,
+        "mrr_at_5": 0.0,
+        "precision_at_1": 0.0,
+        "top1_count": 0
+      },
+      "video_fatigue_action": {
+        "solvable_cases": 21,
+        "recall_at_5": 0.0,
+        "mrr_at_5": 0.0,
+        "precision_at_1": 0.0476,
+        "top1_count": 1
+      },
+      "cross_campaign_comparison": {
+        "solvable_cases": 10,
+        "recall_at_5": 0.0,
+        "mrr_at_5": 0.0,
+        "precision_at_1": 0.1,
+        "top1_count": 1
+      }
+    }
+  },
+  "4. Pure Graph (브랜드 서브그래프 구조 순회)": {
+    "total_cases": 150,
+    "solvable_cases": 121,
+    "negative_cases": 29,
+    "recall_at_5": 0.0248,
+    "mrr_at_5": 0.0124,
+    "precision_at_1": 0.0,
+    "top1_count": 0,
+    "negative_abstentions": 0,
+    "split_metrics": {
+      "tune": {
+        "solvable_cases": 72,
+        "recall_at_5": 0.0417,
+        "mrr_at_5": 0.0208,
+        "precision_at_1": 0.0,
+        "top1_count": 0
+      },
+      "validation": {
+        "solvable_cases": 26,
+        "recall_at_5": 0.0,
+        "mrr_at_5": 0.0,
+        "precision_at_1": 0.0,
+        "top1_count": 0
+      },
+      "holdout": {
+        "solvable_cases": 23,
+        "recall_at_5": 0.0,
+        "mrr_at_5": 0.0,
+        "precision_at_1": 0.0,
+        "top1_count": 0
+      }
+    },
+    "task_metrics": {
+      "copy_fatigue_action": {
+        "solvable_cases": 30,
+        "recall_at_5": 0.0,
+        "mrr_at_5": 0.0,
+        "precision_at_1": 0.0,
+        "top1_count": 0
+      },
+      "pacing_cut_action": {
+        "solvable_cases": 30,
+        "recall_at_5": 0.0,
+        "mrr_at_5": 0.0,
+        "precision_at_1": 0.0,
+        "top1_count": 0
+      },
+      "brief_guideline_lookup": {
+        "solvable_cases": 30,
+        "recall_at_5": 0.0,
+        "mrr_at_5": 0.0,
+        "precision_at_1": 0.0,
+        "top1_count": 0
+      },
+      "video_fatigue_action": {
+        "solvable_cases": 21,
+        "recall_at_5": 0.0,
+        "mrr_at_5": 0.0,
+        "precision_at_1": 0.0,
+        "top1_count": 0
+      },
+      "cross_campaign_comparison": {
+        "solvable_cases": 10,
+        "recall_at_5": 0.0,
+        "mrr_at_5": 0.0,
+        "precision_at_1": 0.0,
+        "top1_count": 0
+      }
+    }
+  },
+  "5. Hybrid + Graph (브랜드 서브그래프 + 하이브리드 결합)": {
+    "total_cases": 150,
+    "solvable_cases": 121,
+    "negative_cases": 29,
+    "recall_at_5": 0.3388,
+    "mrr_at_5": 0.1355,
+    "precision_at_1": 0.0331,
+    "top1_count": 4,
+    "negative_abstentions": 0,
+    "split_metrics": {
+      "tune": {
+        "solvable_cases": 72,
+        "recall_at_5": 0.3611,
+        "mrr_at_5": 0.1347,
+        "precision_at_1": 0.0139,
+        "top1_count": 1
+      },
+      "validation": {
+        "solvable_cases": 26,
+        "recall_at_5": 0.2308,
+        "mrr_at_5": 0.1385,
+        "precision_at_1": 0.1154,
+        "top1_count": 3
+      },
+      "holdout": {
+        "solvable_cases": 23,
+        "recall_at_5": 0.3913,
+        "mrr_at_5": 0.1348,
+        "precision_at_1": 0.0,
+        "top1_count": 0
+      }
+    },
+    "task_metrics": {
+      "copy_fatigue_action": {
+        "solvable_cases": 30,
+        "recall_at_5": 0.0,
+        "mrr_at_5": 0.0,
+        "precision_at_1": 0.0,
+        "top1_count": 0
+      },
+      "pacing_cut_action": {
+        "solvable_cases": 30,
+        "recall_at_5": 0.0,
+        "mrr_at_5": 0.0,
+        "precision_at_1": 0.0,
+        "top1_count": 0
+      },
+      "brief_guideline_lookup": {
+        "solvable_cases": 30,
+        "recall_at_5": 0.0,
+        "mrr_at_5": 0.0,
+        "precision_at_1": 0.0,
+        "top1_count": 0
+      },
+      "video_fatigue_action": {
+        "solvable_cases": 21,
+        "recall_at_5": 0.0,
+        "mrr_at_5": 0.0,
+        "precision_at_1": 0.1429,
+        "top1_count": 3
+      },
+      "cross_campaign_comparison": {
+        "solvable_cases": 10,
+        "recall_at_5": 0.0,
+        "mrr_at_5": 0.0,
+        "precision_at_1": 0.1,
+        "top1_count": 1
+      }
+    }
+  }
+}

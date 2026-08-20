@@ -2,7 +2,21 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+from pathlib import Path
 from urllib.parse import urlparse
+
+# Auto-load .env from services/launchpilot-api/.env
+_env_path = Path(__file__).parents[3] / ".env"
+if _env_path.exists():
+    for line in _env_path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if line and not line.startswith("#") and "=" in line:
+            k, v = line.split("=", 1)
+            k = k.strip()
+            v = v.strip().strip('"').strip("'")
+            if k not in os.environ:
+                os.environ[k] = v
+
 
 
 def _local_mock_base_url(value: str | None) -> str | None:

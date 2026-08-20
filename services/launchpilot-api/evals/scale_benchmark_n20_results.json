@@ -1,0 +1,363 @@
+{
+  "phase2_raw": [
+    {
+      "case_id": "det_copy_c0001",
+      "status": "GROUNDED_FAITHFUL",
+      "passed": true,
+      "latency": 28.236904875026084,
+      "tools": [
+        "search_documents_semantic",
+        "resolve_campaign_document"
+      ]
+    },
+    {
+      "case_id": "det_copy_c0002",
+      "status": "GROUNDED_FAITHFUL",
+      "passed": true,
+      "latency": 7.459217165946029,
+      "tools": [
+        "traverse_campaign_graph"
+      ]
+    },
+    {
+      "case_id": "det_copy_c0003",
+      "status": "GROUNDED_FAITHFUL",
+      "passed": true,
+      "latency": 8.79391729197232,
+      "tools": [
+        "traverse_campaign_graph"
+      ]
+    },
+    {
+      "case_id": "det_copy_c0004",
+      "status": "GROUNDED_FAITHFUL",
+      "passed": true,
+      "latency": 23.431032082997262,
+      "tools": [
+        "search_documents_semantic"
+      ]
+    },
+    {
+      "case_id": "det_pacing_c0001",
+      "status": "UNGROUNDED_MISS",
+      "passed": false,
+      "latency": 7.552980292006396,
+      "tools": []
+    },
+    {
+      "case_id": "det_pacing_c0002",
+      "status": "GROUNDED_FAITHFUL",
+      "passed": true,
+      "latency": 17.067392166005448,
+      "tools": [
+        "search_documents_keyword"
+      ]
+    },
+    {
+      "case_id": "det_pacing_c0003",
+      "status": "GROUNDED_FAITHFUL",
+      "passed": true,
+      "latency": 8.014642374997493,
+      "tools": [
+        "traverse_campaign_graph"
+      ]
+    },
+    {
+      "case_id": "det_pacing_c0004",
+      "status": "GROUNDED_FAITHFUL",
+      "passed": true,
+      "latency": 10.192029375000857,
+      "tools": [
+        "traverse_campaign_graph"
+      ]
+    },
+    {
+      "case_id": "det_brief_c0001",
+      "status": "GROUNDED_FAITHFUL",
+      "passed": true,
+      "latency": 25.157980125048198,
+      "tools": [
+        "search_documents_semantic",
+        "resolve_campaign_document"
+      ]
+    },
+    {
+      "case_id": "det_brief_c0002",
+      "status": "GROUNDED_FAITHFUL",
+      "passed": true,
+      "latency": 4.378208208014257,
+      "tools": [
+        "search_documents_semantic"
+      ]
+    },
+    {
+      "case_id": "det_brief_c0003",
+      "status": "GROUNDED_FAITHFUL",
+      "passed": true,
+      "latency": 19.1266438330058,
+      "tools": [
+        "search_documents_semantic",
+        "resolve_campaign_document"
+      ]
+    },
+    {
+      "case_id": "det_brief_c0004",
+      "status": "GROUNDED_FAITHFUL",
+      "passed": true,
+      "latency": 25.27317195798969,
+      "tools": [
+        "search_documents_semantic"
+      ]
+    },
+    {
+      "case_id": "det_video_c0001",
+      "status": "UNGROUNDED_MISS",
+      "passed": false,
+      "latency": 7.964167916972656,
+      "tools": [
+        "search_documents_semantic",
+        "search_documents_keyword"
+      ]
+    },
+    {
+      "case_id": "det_video_c0002",
+      "status": "GROUNDED_FAITHFUL",
+      "passed": true,
+      "latency": 25.172652875015046,
+      "tools": [
+        "search_documents_semantic",
+        "resolve_campaign_document"
+      ]
+    },
+    {
+      "case_id": "det_video_c0003",
+      "status": "GROUNDED_FAITHFUL",
+      "passed": true,
+      "latency": 5.727840417006519,
+      "tools": [
+        "traverse_campaign_graph"
+      ]
+    },
+    {
+      "case_id": "det_video_c0004",
+      "status": "GROUNDED_FAITHFUL",
+      "passed": true,
+      "latency": 26.689791708020493,
+      "tools": [
+        "search_documents_keyword",
+        "resolve_campaign_document"
+      ]
+    },
+    {
+      "case_id": "det_video_c0008",
+      "status": "FAITHFUL_ABSTENTION",
+      "passed": true,
+      "latency": 4.295153625018429,
+      "tools": [
+        "traverse_campaign_graph"
+      ]
+    },
+    {
+      "case_id": "det_video_c0009",
+      "status": "FAITHFUL_ABSTENTION",
+      "passed": true,
+      "latency": 47.54703691700706,
+      "tools": [
+        "search_documents_semantic"
+      ]
+    }
+  ],
+  "phase3_reranker": [
+    {
+      "case_id": "det_copy_c0001",
+      "status": "GROUNDED_FAITHFUL",
+      "passed": true,
+      "latency": 20.604381458018906,
+      "tools": [
+        "search_documents_semantic",
+        "resolve_campaign_document"
+      ]
+    },
+    {
+      "case_id": "det_copy_c0002",
+      "status": "GROUNDED_FAITHFUL",
+      "passed": true,
+      "latency": 7.453491875028703,
+      "tools": [
+        "traverse_campaign_graph"
+      ]
+    },
+    {
+      "case_id": "det_copy_c0003",
+      "status": "GROUNDED_FAITHFUL",
+      "passed": true,
+      "latency": 7.55714354198426,
+      "tools": [
+        "traverse_campaign_graph"
+      ]
+    },
+    {
+      "case_id": "det_copy_c0004",
+      "status": "GROUNDED_FAITHFUL",
+      "passed": true,
+      "latency": 37.14949020801578,
+      "tools": [
+        "search_documents_keyword"
+      ]
+    },
+    {
+      "case_id": "det_pacing_c0001",
+      "status": "GROUNDED_FAITHFUL",
+      "passed": true,
+      "latency": 11.064361249969807,
+      "tools": [
+        "search_documents_keyword",
+        "resolve_campaign_document"
+      ]
+    },
+    {
+      "case_id": "det_pacing_c0002",
+      "status": "GROUNDED_FAITHFUL",
+      "passed": true,
+      "latency": 6.202653041982558,
+      "tools": [
+        "traverse_campaign_graph"
+      ]
+    },
+    {
+      "case_id": "det_pacing_c0003",
+      "status": "GROUNDED_FAITHFUL",
+      "passed": true,
+      "latency": 8.762420542014297,
+      "tools": [
+        "traverse_campaign_graph"
+      ]
+    },
+    {
+      "case_id": "det_pacing_c0004",
+      "status": "GROUNDED_FAITHFUL",
+      "passed": true,
+      "latency": 6.154702041996643,
+      "tools": [
+        "traverse_campaign_graph"
+      ]
+    },
+    {
+      "case_id": "det_brief_c0001",
+      "status": "GROUNDED_FAITHFUL",
+      "passed": true,
+      "latency": 13.775525333010592,
+      "tools": [
+        "search_documents_keyword"
+      ]
+    },
+    {
+      "case_id": "det_brief_c0002",
+      "status": "GROUNDED_FAITHFUL",
+      "passed": true,
+      "latency": 14.510942084016278,
+      "tools": [
+        "search_documents_semantic",
+        "resolve_campaign_document"
+      ]
+    },
+    {
+      "case_id": "det_brief_c0003",
+      "status": "GROUNDED_FAITHFUL",
+      "passed": true,
+      "latency": 15.01673945802031,
+      "tools": [
+        "search_documents_semantic"
+      ]
+    },
+    {
+      "case_id": "det_brief_c0004",
+      "status": "GROUNDED_FAITHFUL",
+      "passed": true,
+      "latency": 28.58359441702487,
+      "tools": [
+        "search_documents_semantic"
+      ]
+    },
+    {
+      "case_id": "det_video_c0001",
+      "status": "GROUNDED_FAITHFUL",
+      "passed": true,
+      "latency": 27.370158417033963,
+      "tools": [
+        "search_documents_semantic"
+      ]
+    },
+    {
+      "case_id": "det_video_c0002",
+      "status": "GROUNDED_FAITHFUL",
+      "passed": true,
+      "latency": 19.469733165984508,
+      "tools": [
+        "search_documents_keyword",
+        "resolve_campaign_document"
+      ]
+    },
+    {
+      "case_id": "det_video_c0003",
+      "status": "GROUNDED_FAITHFUL",
+      "passed": true,
+      "latency": 16.494677584036253,
+      "tools": [
+        "traverse_campaign_graph"
+      ]
+    },
+    {
+      "case_id": "det_video_c0004",
+      "status": "GROUNDED_FAITHFUL",
+      "passed": true,
+      "latency": 24.13170154200634,
+      "tools": [
+        "search_documents_keyword"
+      ]
+    },
+    {
+      "case_id": "det_video_c0008",
+      "status": "FAITHFUL_ABSTENTION",
+      "passed": true,
+      "latency": 6.73765841597924,
+      "tools": [
+        "traverse_campaign_graph"
+      ]
+    },
+    {
+      "case_id": "det_video_c0009",
+      "status": "FAITHFUL_ABSTENTION",
+      "passed": true,
+      "latency": 9.197759917005897,
+      "tools": [
+        "search_documents_semantic",
+        "search_documents_keyword"
+      ]
+    }
+  ],
+  "summary": {
+    "phase2": {
+      "accuracy": 80.0,
+      "avg_latency": 15.104038160352502,
+      "total_tools": 23,
+      "tool_distribution": {
+        "search_documents_semantic": 9,
+        "resolve_campaign_document": 5,
+        "traverse_campaign_graph": 6,
+        "search_documents_keyword": 3
+      }
+    },
+    "phase3": {
+      "accuracy": 90.0,
+      "avg_latency": 14.01185671465646,
+      "total_tools": 23,
+      "tool_distribution": {
+        "search_documents_semantic": 6,
+        "resolve_campaign_document": 4,
+        "traverse_campaign_graph": 7,
+        "search_documents_keyword": 6
+      }
+    }
+  }
+}
