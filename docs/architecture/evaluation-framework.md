@@ -94,7 +94,7 @@ launchpilot-compare-eval-runs \
   evals/runs/v0-trials.jsonl \
   evals/runs/v1-trials.jsonl \
   --minimum-trials 3 \
-  --pass-rate 0.67 \
+  --pass-rate 0.6666666666666666 \
   --output evals/runs/v0-v1-paired.json
 ```
 
@@ -113,6 +113,10 @@ benchmark-query-conditional로만 해석한다. release용 cluster-aware interva
 - answer-bearing evidence 확보율과 동일 cutoff의 known-relevant recall@k
 - latency/cost/tool-call delta와 success당 비용
 - trial success rate와 all-trials-pass case rate
+
+Optional quality/retrieval delta는 양쪽의 모든 paired trial에 값이 있고 retrieval cutoff가
+같을 때만 계산한다. 일부 trial만 채점된 조건부 평균은 각 system의 scored rate와 함께
+진단용으로 보여주되 architecture delta로 해석하지 않는다.
 
 ## 6. Capability와 utilization
 

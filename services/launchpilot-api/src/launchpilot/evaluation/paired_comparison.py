@@ -276,9 +276,14 @@ def compare_systems(
         answer_relevance_paired_cases=sum(
             case.answer_relevance_delta is not None for case in comparisons
         ),
-        answer_bearing_evidence_rate_delta=_optional_delta(
-            baseline_aggregate.answer_bearing_evidence_retrieval_rate,
-            candidate_aggregate.answer_bearing_evidence_retrieval_rate,
+        answer_bearing_evidence_rate_delta=(
+            _optional_delta(
+                baseline_aggregate.answer_bearing_evidence_retrieval_rate,
+                candidate_aggregate.answer_bearing_evidence_retrieval_rate,
+            )
+            if baseline_aggregate.answer_bearing_evidence_scored_trial_rate == 1.0
+            and candidate_aggregate.answer_bearing_evidence_scored_trial_rate == 1.0
+            else None
         ),
         known_relevant_recall_at_k_delta=(
             _optional_delta(
@@ -287,6 +292,8 @@ def compare_systems(
             )
             if baseline_aggregate.known_relevant_recall_cutoff_k
             == candidate_aggregate.known_relevant_recall_cutoff_k
+            and baseline_aggregate.known_relevant_recall_scored_trial_rate == 1.0
+            and candidate_aggregate.known_relevant_recall_scored_trial_rate == 1.0
             else None
         ),
         mean_latency_delta_ms=statistics.fmean(
@@ -440,11 +447,17 @@ def _compare_case(
         fact_coverage_delta=(
             candidate.required_fact_coverage - baseline.required_fact_coverage
         ),
-        groundedness_delta=_optional_delta(
-            baseline.groundedness, candidate.groundedness
+        groundedness_delta=(
+            _optional_delta(baseline.groundedness, candidate.groundedness)
+            if baseline.groundedness_scored_trials == baseline.trial_count
+            and candidate.groundedness_scored_trials == candidate.trial_count
+            else None
         ),
-        answer_relevance_delta=_optional_delta(
-            baseline.answer_relevance, candidate.answer_relevance
+        answer_relevance_delta=(
+            _optional_delta(baseline.answer_relevance, candidate.answer_relevance)
+            if baseline.answer_relevance_scored_trials == baseline.trial_count
+            and candidate.answer_relevance_scored_trials == candidate.trial_count
+            else None
         ),
         latency_delta_ms=candidate.mean_latency_ms - baseline.mean_latency_ms,
         cost_delta_usd=_optional_delta(baseline.mean_cost_usd, candidate.mean_cost_usd),
@@ -566,8 +579,8 @@ def _win_loss_tie(
     comparisons: Sequence[PairedCaseComparison],
     config: ComparisonConfig,
 ) -> tuple[int, int, int, int]:
-    metric: Callable[[CaseAggregate], float | None] = lambda case: getattr(
-        case, config.pairwise_metric.value
+    metric: Callable[[CaseAggregate], float | None] = lambda case: _pairwise_value(
+        case, config.pairwise_metric
     )
     wins = losses = ties = unscored = 0
     for comparison in comparisons:
@@ -584,6 +597,20 @@ def _win_loss_tie(
         else:
             ties += 1
     return wins, losses, ties, unscored
+
+
+def _pairwise_value(case: CaseAggregate, metric: PairwiseMetric) -> float | None:
+    if (
+        metric == PairwiseMetric.GROUNDEDNESS
+        and case.groundedness_scored_trials != case.trial_count
+    ):
+        return None
+    if (
+        metric == PairwiseMetric.ANSWER_RELEVANCE
+        and case.answer_relevance_scored_trials != case.trial_count
+    ):
+        return None
+    return getattr(case, metric.value)
 
 
 def _hierarchical_bootstrap_interval(

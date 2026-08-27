@@ -233,6 +233,10 @@ spec version, corpus/model/prompt, trial ID/requested seed를 확인한 뒤 다�
 - latency p95/standard deviation, cost/tool-call delta, success당 cost/latency
 - tool trace와 efficiency telemetry completeness
 
+Optional groundedness/relevance/retrieval delta는 양쪽 모든 paired trial의 scored coverage가
+완전하고 retrieval cutoff가 같을 때만 계산한다. coverage가 다르면 각 system의 조건부
+평균과 scored rate는 진단용으로 남기되 delta는 `null`로 둔다.
+
 run writer는 eval dataset lineage, 실제 Query/Eval Specification snapshot, grader와
 comparison 설정, randomized schedule, spec fingerprint, system별 trial JSONL,
 contrast별 report를 고유 임시 디렉터리에 쓴 뒤 한 번에 publish하며 기존 run을
