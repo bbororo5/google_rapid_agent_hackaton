@@ -23,6 +23,7 @@ docs/
 │       └── 0007-elimination-of-intent-parser-in-preprocessing.md
 │
 └── reports/                            # 📊 실측 실험 및 벤치마크 보고서
+    ├── evaluation-system-audit.md      # 🔎 Golden/Eval/Grader/Experiment 적대적 감사와 최소 재설계
     ├── master-engineering-report.md    # 📘 [마스터 결산서] V1~V3 데이터셋, 3단계 어블레이션, N=20 실측, 최적화
     └── dataset-evolution.md            # 🧪 V1 ➔ V2 ➔ V3 데이터셋 진화 및 적대적 감사 아키텍처
 ```
@@ -34,6 +35,7 @@ docs/
 | 카테고리 | 핵심 문서 | 주요 내용 |
 | :--- | :--- | :--- |
 | **🚀 Pull Request** | [docs/pull-request.md](pull-request.md) | V3 데이터셋 및 LangGraph 인-루프 파이프라인 완성 공식 PR 본문 |
+| **🔎 Evaluation 감사** | [docs/reports/evaluation-system-audit.md](reports/evaluation-system-audit.md) | Golden V1~V3, qrels, grader, runner, 과거 결과의 유효 범위와 최소 재설계 |
 | **📘 마스터 결산서** | [docs/reports/master-engineering-report.md](reports/master-engineering-report.md) | 데이터셋 진화, 3단계 어블레이션, N=20 실측, 지연시간 83.4% 최적화 총결산 |
 | **🏛️ 시스템 아키텍처** | [docs/architecture/system-architecture.md](architecture/system-architecture.md) | 전처리 ➔ 본체 에이전트 ➔ 도구 ➔ 인-루프 리랭커 순환 토폴로지 |
 | **🎯 2단계 분리 평가 체계** | [docs/architecture/evaluation-framework.md](architecture/evaluation-framework.md) | 검색(Retrieval) 5대 척도 & 생성(Generation) 4대 척도 분리 평가 체계 |
