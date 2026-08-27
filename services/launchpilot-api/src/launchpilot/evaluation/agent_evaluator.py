@@ -1,25 +1,17 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 from uuid import UUID
 
-from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage, ToolMessage
-from langchain_core.runnables import Runnable, RunnableLambda
-from langchain_core.tools import BaseTool
+from langchain_core.messages import AIMessage
 
-from launchpilot.analysis.contracts.campaign_analysis import AgentEvidenceRef, CampaignAnalysisResult
 from launchpilot.analysis.evidence import EvidenceCollector
 from launchpilot.analysis.graph import AnalysisGraph
-from launchpilot.analysis.prompts import format_system_prompt
-from launchpilot.analysis.router import QueryRoute, QueryRouter, ScopeRouter
 from launchpilot.analysis.scope import ExecutionScope
-from launchpilot.analysis.tools import CampaignToolset
-from launchpilot.campaigns.contracts.access import CampaignScope
 
 
 @dataclass(frozen=True)
@@ -29,7 +21,6 @@ class AgentCaseEvaluationResult:
     analysis_task: str
     answer_mode: str
     passed: bool
-    route_correct: bool
     tool_called: list[str]
     evidence_count: int
     final_answer: str
@@ -43,18 +34,22 @@ class AgentBenchmarkSummary:
     accuracy: float
     task_breakdown: dict[str, dict[str, float]]
     tool_call_distribution: dict[str, int]
+    interpretation: str = "legacy_smoke_pass_rate_not_answer_correctness"
 
 
 class GoldenAgentEvaluator:
-    """Runs End-to-End Agentic Benchmark over Golden Dataset v2 (680 cases)."""
+    """Legacy graph-plumbing smoke evaluator over Golden V2.
+
+    This class does not grade required facts or grounding and its accuracy is
+    not an answer-correctness metric. Architecture selection must use the
+    Query/EvalSpecification/TrialRunResult pipeline instead.
+    """
 
     def __init__(self, golden_root: Path) -> None:
         self._root = golden_root
         self._cases_path = golden_root / "queries" / "cases.jsonl"
         self._docs_path = golden_root / "corpus" / "documents.jsonl"
         self._metrics_path = golden_root / "corpus" / "metrics.jsonl"
-        self._router = QueryRouter()
-        self._scope_router = ScopeRouter()
 
     def load_cases(self) -> list[dict[str, Any]]:
         cases = []
@@ -72,16 +67,7 @@ class GoldenAgentEvaluator:
         query = case["query"]
         task = case.get("analysis_task", "unknown")
         answer_mode = case.get("answer_mode", "direct")
-        expected_route = self._map_task_to_expected_route(task, answer_mode)
-
-        # 1. Evaluate Pre-Retrieval Routing
-        classified_route = self._router.classify(query)
-        route_correct = (classified_route == expected_route) or (
-            expected_route == QueryRoute.ABSTAIN_OR_CLARIFY
-            and classified_route == QueryRoute.ABSTAIN_OR_CLARIFY
-        )
-
-        # 2. Execute Agent Graph
+        # Execute the agent without treating a taxonomy label as routing truth.
         transcript = graph.invoke(query)
         tools_called = [
             tc["name"]
@@ -90,23 +76,29 @@ class GoldenAgentEvaluator:
             for tc in msg.tool_calls
         ]
 
-        # 3. Check Evidence Collection
+        # Collect process diagnostics independently from the smoke pass condition.
         collector = EvidenceCollector()
         evidence = collector.collect(transcript)
         final_text = transcript.final_answer()
 
-        # 4. Evaluate Pass Criteria based on Answer Mode
+        # Legacy smoke criterion only. Do not interpret this as answer correctness.
         passed = True
         failure_reason = None
 
         if answer_mode == "abstention":
             acceptable = case.get("acceptable_answers", [])
             has_abstention_phrase = any(
-                phrase in final_text for phrase in (*acceptable, "직접 비교할 수 없습니다", "확정할 수 없습니다", "등록되어 있지 않습니다")
-            ) or (classified_route == QueryRoute.ABSTAIN_OR_CLARIFY)
-            if not has_abstention_phrase and not route_correct:
+                phrase in final_text
+                for phrase in (
+                    *acceptable,
+                    "직접 비교할 수 없습니다",
+                    "확정할 수 없습니다",
+                    "등록되어 있지 않습니다",
+                )
+            )
+            if not has_abstention_phrase:
                 passed = False
-                failure_reason = "Failed to abstain on adversarial/boundary query"
+                failure_reason = "Legacy abstention smoke phrase was absent"
         else:
             if not final_text.strip():
                 passed = False
@@ -118,7 +110,6 @@ class GoldenAgentEvaluator:
             analysis_task=task,
             answer_mode=answer_mode,
             passed=passed,
-            route_correct=route_correct,
             tool_called=tools_called,
             evidence_count=len(evidence),
             final_answer=final_text,
@@ -138,8 +129,12 @@ class GoldenAgentEvaluator:
         for case in all_cases:
             scope_dict = case.get("scope", {})
             scope = ExecutionScope.create(
-                workspace_id=UUID(scope_dict["workspace_id"]) if "workspace_id" in scope_dict else UUID("eb430fc4-5d88-58d2-ab66-993692e20b58"),
-                campaign_id=UUID(scope_dict["campaign_id"]) if "campaign_id" in scope_dict and scope_dict["campaign_id"] else None,
+                workspace_id=UUID(scope_dict["workspace_id"])
+                if "workspace_id" in scope_dict
+                else UUID("eb430fc4-5d88-58d2-ab66-993692e20b58"),
+                campaign_id=UUID(scope_dict["campaign_id"])
+                if scope_dict.get("campaign_id")
+                else None,
                 campaign_code=scope_dict.get("campaign_ref"),
                 reference_now=datetime(2026, 8, 19, 23, 50, 0, tzinfo=UTC),
             )
@@ -165,7 +160,9 @@ class GoldenAgentEvaluator:
             task: {
                 "total": stats["total"],
                 "passed": stats["passed"],
-                "accuracy": stats["passed"] / stats["total"] if stats["total"] > 0 else 0.0,
+                "accuracy": stats["passed"] / stats["total"]
+                if stats["total"] > 0
+                else 0.0,
             }
             for task, stats in task_stats.items()
         }
@@ -177,15 +174,3 @@ class GoldenAgentEvaluator:
             task_breakdown=task_breakdown,
             tool_call_distribution=tool_counts,
         )
-
-    def _map_task_to_expected_route(self, task: str, answer_mode: str) -> QueryRoute:
-        if answer_mode == "abstention":
-            return QueryRoute.ABSTAIN_OR_CLARIFY
-        task_lower = task.lower()
-        if "metric" in task_lower or "lookup" in task_lower:
-            return QueryRoute.STRUCTURED_METRIC
-        elif "document" in task_lower or "memo" in task_lower or "brief" in task_lower:
-            return QueryRoute.UNSTRUCTURED_DOCUMENT
-        elif "recommendation" in task_lower or "hybrid" in task_lower or "diagnosis" in task_lower:
-            return QueryRoute.HYBRID_RECOMMENDATION
-        return QueryRoute.HYBRID_RECOMMENDATION
