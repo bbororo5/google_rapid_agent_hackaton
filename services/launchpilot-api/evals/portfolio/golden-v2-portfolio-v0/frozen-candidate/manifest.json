@@ -1,0 +1,17 @@
+{
+  "contract_schema_version": "architecture-eval-v1",
+  "fingerprint": "be6595adb9f072d92d2ca5320a2bfd21301ae8ef41901bb02daee2b6187b884a",
+  "portfolio_role": "frozen",
+  "query_count": 64,
+  "query_source_distribution": {
+    "synthetic": 64
+  },
+  "review_status_distribution": {
+    "auto_validated": 48,
+    "needs_review": 16
+  },
+  "spec_version_distribution": {
+    "golden-v2-spec-v0": 64
+  },
+  "specification_count": 64
+}

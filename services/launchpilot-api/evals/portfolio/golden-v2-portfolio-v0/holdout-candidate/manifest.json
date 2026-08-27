@@ -1,0 +1,16 @@
+{
+  "contract_schema_version": "architecture-eval-v1",
+  "fingerprint": "82dcc7fe87473a904ebf9016303d15fb16a349f348454a1145c169a742f0706e",
+  "portfolio_role": "holdout",
+  "query_count": 50,
+  "query_source_distribution": {
+    "synthetic": 50
+  },
+  "review_status_distribution": {
+    "needs_review": 50
+  },
+  "spec_version_distribution": {
+    "golden-v2-spec-v0": 50
+  },
+  "specification_count": 50
+}
