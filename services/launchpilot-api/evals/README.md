@@ -288,3 +288,23 @@ launchpilot-build-golden \
 Golden 버전을 바꿀 때는 질문만 수정하지 않고 corpus hash, taxonomy snapshot,
 qrels, split, 검수 상태를 함께 기록해야 한다. 그래야 이전 실험과 새 실험의 차이가
 모델 변경 때문인지 Dataset 변경 때문인지 구분할 수 있다.
+
+## 12. Architecture version paired comparison
+
+새 architecture 비교는 `TrialRunResult` JSONL을 version별로 저장한 뒤 동일 query를
+paired 단위로 비교한다. Query, Eval Specification, Trial Run Result의 계약은
+`launchpilot.evaluation.contracts.architecture_eval`에 있다.
+
+```bash
+launchpilot-compare-eval-runs \
+  evals/runs/v0-trials.jsonl \
+  evals/runs/v1-trials.jsonl \
+  --minimum-trials 3 \
+  --pass-rate 0.67 \
+  --output evals/runs/v0-v1-paired.json
+```
+
+결과는 Newly Solved, Regression, Pass-to-Pass, Fail-to-Fail, metric별 win/loss/tie,
+required-fact/groundedness/relevance delta, latency/cost/tool-call delta를 별도로 제공한다.
+corpus, model, prompt, Eval Specification이 다르면 기본적으로 비교를 중단한다. index,
+toolset, code version은 architecture intervention이므로 달라도 된다.
