@@ -36,6 +36,7 @@ docs/
 | :--- | :--- | :--- |
 | **🚀 Pull Request** | [docs/pull-request.md](pull-request.md) | V3 데이터셋 및 LangGraph 인-루프 파이프라인 완성 공식 PR 본문 |
 | **🔎 Evaluation 감사** | [docs/reports/evaluation-system-audit.md](reports/evaluation-system-audit.md) | Golden V1~V3, qrels, grader, runner, 과거 결과의 유효 범위와 최소 재설계 |
+| **🧰 Eval portfolio 운영** | [services/launchpilot-api/evals/portfolio/README.md](../services/launchpilot-api/evals/portfolio/README.md) | Historical 동결, Frozen/Holdout 후보, pooling, controlled run의 현재 상태와 사용 경계 |
 | **📘 과거 실험 기록** | [docs/reports/master-engineering-report.md](reports/master-engineering-report.md) | 데이터셋 진화와 ablation 기록. 품질 주장은 Eval 감사의 유효 범위 안에서 해석 |
 | **🏛️ 시스템 아키텍처** | [docs/architecture/system-architecture.md](architecture/system-architecture.md) | 전처리 ➔ 본체 에이전트 ➔ 도구 ➔ 인-루프 리랭커 순환 토폴로지 |
 | **🎯 Evaluation architecture** | [docs/architecture/evaluation-framework.md](architecture/evaluation-framework.md) | Query/Spec/Trial 분리, 관계별 평가, paired architecture experiment |

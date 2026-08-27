@@ -182,3 +182,15 @@ def test_historical_scopes_cover_all_existing_golden_versions_and_results() -> N
         "result",
     }
     verify_manifest(service_root, manifest)
+
+
+def test_committed_historical_manifest_still_matches_frozen_artifacts() -> None:
+    service_root = Path(__file__).parents[1]
+    manifest = load_manifest(
+        service_root
+        / "evals/portfolio/historical/pre-redesign-historical-v1.json"
+    )
+
+    assert manifest.snapshot_version == "pre-redesign-historical-v1"
+    assert len(manifest.artifacts) == 50
+    verify_manifest(service_root, manifest)

@@ -1,5 +1,9 @@
 # Golden Dataset v1 설계 문서
 
+> 평가 재설계의 현재 artifact, 검수 gate, 실행 전제는
+> [`portfolio/README.md`](portfolio/README.md)를 먼저 확인한다. 이 문서는 historical
+> Golden V1의 설계를 설명하며, 완성된 production benchmark를 의미하지 않는다.
+
 이 문서는 `golden-v1`을 **어떤 데이터로, 어떤 질문 카테고리와 정답 구조로
 구성했는지** 설명한다. 검색 실험 결과는
 [`experiments/README.md`](experiments/README.md)에서 별도로 다룬다.

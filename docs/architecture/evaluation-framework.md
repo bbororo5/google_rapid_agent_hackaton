@@ -17,6 +17,19 @@ retrieval/agent architecture를 바꿨을 때 다음을 경험적으로 판단�
 proxy다. 특히 keyword 기반 faithfulness, 빈 distractor set의 rejection, 단일 gold의
 multi-hop coverage, 추정 retrieval latency는 release gate에서 제외한다.
 
+### 1.1 구현 상태
+
+Historical checksum snapshot, Golden V2 candidate selector, V3 priority review queue,
+judgment pooling 계약, controlled paired runner는 구현되었다. 그러나 V2 Frozen 후보
+64건 중 16건과 Holdout 후보 50건은 사람 검수 대기이며, Holdout 50건은 모두
+no-answer 계열이라 분포 대표성이 없다. Human grader calibration, production query
+sample, 새 pooled judgments, 실제 V0/V1/V2 live run도 아직 완료되지 않았다.
+
+따라서 현재 구현은 신뢰할 수 있는 실험을 수행하기 위한 기반이지 production
+capability gain의 증거가 아니다. artifact별 사용 가능 범위와 다음 작업은
+[Eval Portfolio 운영 가이드](../../services/launchpilot-api/evals/portfolio/README.md)에
+기록한다.
+
 ## 2. Artifact separation
 
 ```text
@@ -59,7 +72,7 @@ Retrieval과 agent process는 diagnosis다.
 - answer-bearing evidence 확보 여부
 - tool sequence, arguments, error, retry, recovery
 - redundant/repeated call, premature termination
-- forced tool/oracle condition과 realized agent condition의 차이
+- forced tool/known-gold evidence condition과 realized agent condition의 차이
 
 Efficiency는 quality와 분리한다.
 
@@ -89,8 +102,10 @@ launchpilot-compare-eval-runs \
 
 - Newly Solved / Regression / Net Gain
 - Pass→Pass와 Fail→Fail
-- required-fact, groundedness, relevance별 win/loss/tie와 delta
-- paired bootstrap interval
+- required-fact, groundedness, relevance별 win/loss/tie/unscored, scored denominator와 delta
+- leakage group과 matched stochastic trial을 반영한 paired hierarchical bootstrap interval,
+  independent cluster 수
+- answer-bearing evidence 확보율과 동일 cutoff의 known-relevant recall@k
 - latency/cost/tool-call delta와 success당 비용
 - trial success rate와 all-trials-pass case rate
 
@@ -103,8 +118,9 @@ launchpilot-compare-eval-runs \
 3. baseline + new tool forced/fused
 4. candidate agent-selected
 
-필요하면 oracle evidence injection을 추가한다. forced retrieval은 성공하지만
-agent-selected가 실패하면 routing/utilization 문제다. evidence injection도 실패하면
+필요하면 기존 qrels의 known-relevant evidence injection을 추가한다. 이는 불완전한
+known gold를 사용하므로 완전한 oracle ceiling이 아니다. forced retrieval은 성공하지만
+agent-selected가 실패하면 routing/utilization 문제다. known-gold injection도 실패하면
 generation 또는 Eval Specification/grader를 먼저 조사한다.
 
 ## 7. Portfolio와 release gate
