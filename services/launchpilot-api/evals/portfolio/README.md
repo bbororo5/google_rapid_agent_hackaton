@@ -181,7 +181,9 @@ failure가 아니다. pooling workflow는 다음과 같다.
 - V0/V1/V2 각각의 실제 executor adapter와 명시적인 system/index/toolset/code version
 - 모든 system에 동일한 corpus, model, prompt
 - 사전 선언한 contrast, hypothesis, 변경 필드, pass-rate threshold, trial 수
-- model/prompt/rubric/code/calibration version을 가진 grader provenance
+- 항상 grader ID/code/rubric version을 기록하고, spec rubric compatibility를 명시한
+  grader provenance. LLM judge에는 model/prompt version도 필수이며 calibration version은
+  실제 human calibration이 있을 때만 기록한다.
 - 실제 E2E latency, token, context, tool call, cost를 기록하는 telemetry
 - live model/tool 호출 비용과 데이터 접근에 대한 실행 승인
 
@@ -223,8 +225,8 @@ V0→V1, V1→V2처럼 marginal contrast를 각각 사전 선언한다. 비교�
 spec version, corpus/model/prompt, trial ID/requested seed를 확인한 뒤 다음을 분리한다.
 
 - Newly Solved, Regression, Pass→Pass, Fail→Fail, Net Gain
-- task success rate와 required-fact coverage의 leakage-cluster/query/trial paired
-  hierarchical bootstrap interval 및 effective independent cluster 수
+- task success rate와 required-fact coverage의 leakage-cluster → matched-trial-pair
+  hierarchical bootstrap interval 및 `independent_cluster_count`
 - groundedness/relevance의 scored denominator, win/loss/tie/unscored 및 delta
 - answer-bearing evidence 확보율과 동일 cutoff에서의 known-relevant recall@k
 - completed/failure/timeout rate와 all-trials-pass reliability

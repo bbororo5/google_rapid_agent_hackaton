@@ -98,6 +98,11 @@ launchpilot-compare-eval-runs \
   --output evals/runs/v0-v1-paired.json
 ```
 
+위 standalone CLI는 Query/Eval Specification의 leakage mapping을 받지 않으므로 CI를
+benchmark-query-conditional로만 해석한다. release용 cluster-aware interval은
+`controlled_runner.compare_bundle()`이 QueryRecord의 leakage connected component를
+전달하는 경로에서 생성한다.
+
 필수 보고 항목은 다음과 같다.
 
 - Newly Solved / Regression / Net Gain
