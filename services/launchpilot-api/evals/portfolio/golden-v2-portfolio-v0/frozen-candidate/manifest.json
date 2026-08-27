@@ -1,6 +1,6 @@
 {
   "contract_schema_version": "architecture-eval-v1",
-  "fingerprint": "be6595adb9f072d92d2ca5320a2bfd21301ae8ef41901bb02daee2b6187b884a",
+  "fingerprint": "bf15abb7ad688a228ae4c9d8d70837dfced11c39481a4ce92265f189c5f3c074",
   "portfolio_role": "frozen",
   "query_count": 64,
   "query_source_distribution": {

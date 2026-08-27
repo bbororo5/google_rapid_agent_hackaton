@@ -35,6 +35,7 @@ def convert_v2_cases(
     qrels: Sequence[Mapping[str, Any]],
     *,
     case_ids: set[str],
+    leakage_component_by_case: Mapping[str, str],
     portfolio: PortfolioRole,
     spec_version: str = "golden-v2-spec-v0",
 ) -> tuple[tuple[QueryRecord, ...], tuple[EvalSpecification, ...]]:
@@ -48,7 +49,19 @@ def convert_v2_cases(
     selected_ids = {str(case["case_id"]) for case in selected}
     if selected_ids != case_ids:
         raise ValueError(f"unknown selected case ids: {sorted(case_ids - selected_ids)}")
-    queries = tuple(_query_record(case, portfolio) for case in selected)
+    missing_components = case_ids - leakage_component_by_case.keys()
+    if missing_components:
+        raise ValueError(
+            f"selected cases missing leakage components: {sorted(missing_components)}"
+        )
+    queries = tuple(
+        _query_record(
+            case,
+            portfolio,
+            leakage_component_by_case[str(case["case_id"])],
+        )
+        for case in selected
+    )
     specs = tuple(
         _eval_specification(case, qrels_by_case[str(case["case_id"])], spec_version)
         for case in selected
@@ -95,7 +108,9 @@ def write_portfolio_contracts(
     )
 
 
-def _query_record(case: Mapping[str, Any], portfolio: PortfolioRole) -> QueryRecord:
+def _query_record(
+    case: Mapping[str, Any], portfolio: PortfolioRole, leakage_component_id: str
+) -> QueryRecord:
     profile = str(case["query_profile"])
     sources = {str(item) for item in case.get("required_sources", ())}
     ambiguity = case.get("ambiguity")
@@ -141,7 +156,12 @@ def _query_record(case: Mapping[str, Any], portfolio: PortfolioRole) -> QueryRec
             tags=tuple(sorted(str(item) for item in case.get("risk_types", ()))),
         ),
         leakage_group_ids=tuple(
-            sorted(str(item) for item in case.get("leakage_group_ids", ()))
+            sorted(
+                {
+                    *(str(item) for item in case.get("leakage_group_ids", ())),
+                    leakage_component_id,
+                }
+            )
         ),
     )
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import pytest
+
 from launchpilot.evaluation.contracts import (
     ArtifactVersions,
     EfficiencyObservation,
@@ -11,6 +12,7 @@ from launchpilot.evaluation.contracts import (
 )
 from launchpilot.evaluation.paired_comparison import (
     ComparisonConfig,
+    PairwiseMetric,
     Transition,
     compare_systems,
 )
@@ -23,12 +25,13 @@ def _trial(
     *,
     success: bool,
     fact_coverage: float,
-    groundedness: float,
-    relevance: float,
+    groundedness: float | None,
+    relevance: float | None,
     latency_ms: float,
-    cost_usd: float,
+    cost_usd: float | None,
     tool_calls: int = 1,
     corpus: str = "corpus-v1",
+    requested_seed: int | None = None,
 ) -> TrialRunResult:
     return TrialRunResult(
         run_id=f"run-{system}",
@@ -37,6 +40,7 @@ def _trial(
         spec_id=f"{query_id}.spec",
         spec_version="v1",
         trial_id=f"trial-{trial_number}",
+        requested_seed=(trial_number if requested_seed is None else requested_seed),
         versions=ArtifactVersions(
             corpus=corpus,
             index=f"index-{system}",
@@ -62,11 +66,13 @@ def _trial(
             )
             for index in range(tool_calls)
         ),
+        tool_trace_complete=True,
         efficiency=EfficiencyObservation(
             end_to_end_latency_ms=latency_ms,
             input_tokens=100,
             output_tokens=50,
             cost_usd=cost_usd,
+            telemetry_complete=True,
         ),
     )
 
@@ -280,6 +286,10 @@ def test_paired_transitions_quality_reliability_and_efficiency() -> None:
     assert summary.mean_tool_call_delta == 1
     assert summary.baseline.trial_success_rate == 0.5
     assert summary.candidate.trial_success_rate == 0.5
+    assert summary.task_success_rate_delta.mean_delta == 0.0
+    assert summary.baseline.completed_trial_rate == 1.0
+    assert summary.baseline.latency_p95_ms == 100
+    assert summary.baseline.latency_stddev_ms == 0
     assert summary.baseline.all_trials_passed_case_rate == 0.5
     assert summary.candidate.cost_per_successful_trial_usd == pytest.approx(0.04)
     assert {case.query_id: case.transition for case in summary.cases} == {
@@ -376,6 +386,10 @@ def test_trial_success_rate_exposes_stochastic_reliability() -> None:
     assert summary.baseline.all_trials_passed_case_rate == 1.0
     assert summary.candidate.all_trials_passed_case_rate == 0.0
     assert summary.candidate.trial_success_rate == pytest.approx(2 / 3)
+    assert summary.task_success_rate_delta.lower_95 < (
+        summary.task_success_rate_delta.upper_95
+    )
+    assert summary.task_success_rate_delta.method == "paired_hierarchical_bootstrap"
 
 
 def test_uncontrolled_corpus_change_is_rejected() -> None:
@@ -413,3 +427,93 @@ def test_uncontrolled_corpus_change_is_rejected() -> None:
             candidate,
             config=ComparisonConfig(bootstrap_samples=100),
         )
+
+
+def test_mismatched_trial_seed_is_rejected_as_unpaired() -> None:
+    baseline = [
+        _trial(
+            "v0",
+            "q1",
+            1,
+            success=True,
+            fact_coverage=1,
+            groundedness=1,
+            relevance=1,
+            latency_ms=10,
+            cost_usd=0.01,
+            requested_seed=17,
+        )
+    ]
+    candidate = [
+        _trial(
+            "v1",
+            "q1",
+            1,
+            success=True,
+            fact_coverage=1,
+            groundedness=1,
+            relevance=1,
+            latency_ms=10,
+            cost_usd=0.01,
+            requested_seed=18,
+        )
+    ]
+
+    with pytest.raises(ValueError, match="paired trial ids/seeds differ"):
+        compare_systems(
+            baseline,
+            candidate,
+            config=ComparisonConfig(bootstrap_samples=100),
+        )
+
+
+def test_missing_cost_tool_trace_and_quality_are_not_zero_or_ties() -> None:
+    baseline = _trial(
+        "v0",
+        "q1",
+        1,
+        success=True,
+        fact_coverage=1,
+        groundedness=1,
+        relevance=1,
+        latency_ms=10,
+        cost_usd=0.01,
+    )
+    candidate = _trial(
+        "v1",
+        "q1",
+        1,
+        success=True,
+        fact_coverage=1,
+        groundedness=None,
+        relevance=1,
+        latency_ms=10,
+        cost_usd=None,
+    ).model_copy(
+        update={
+            "tool_trace": (),
+            "tool_trace_complete": False,
+            "efficiency": EfficiencyObservation(
+                end_to_end_latency_ms=10,
+                telemetry_complete=False,
+            ),
+        }
+    )
+
+    summary = compare_systems(
+        [baseline],
+        [candidate],
+        config=ComparisonConfig(
+            pairwise_metric=PairwiseMetric.GROUNDEDNESS,
+            bootstrap_samples=100,
+        ),
+    )
+
+    assert summary.pairwise_unscored == 1
+    assert summary.pairwise_ties == 0
+    assert summary.candidate.mean_cost_usd is None
+    assert summary.mean_cost_delta_usd is None
+    assert summary.candidate.mean_tool_calls is None
+    assert summary.mean_tool_call_delta is None
+    assert summary.candidate.groundedness_scored_trial_rate == 0.0
+    assert summary.groundedness_paired_cases == 0

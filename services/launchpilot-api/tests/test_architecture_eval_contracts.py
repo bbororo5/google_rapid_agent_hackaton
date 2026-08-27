@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import pytest
+from pydantic import ValidationError
+
 from launchpilot.evaluation.contracts import (
     Answerability,
     ArtifactVersions,
@@ -17,6 +19,7 @@ from launchpilot.evaluation.contracts import (
     QueryRecord,
     QuerySource,
     RequiredFact,
+    RetrievalDiagnostics,
     ReviewStatus,
     SourceCardinality,
     TaskShape,
@@ -24,7 +27,6 @@ from launchpilot.evaluation.contracts import (
     ToolCallTrace,
     TrialRunResult,
 )
-from pydantic import ValidationError
 
 
 def _query() -> QueryRecord:
@@ -93,6 +95,14 @@ def test_unjudged_evidence_cannot_receive_a_relevance_grade() -> None:
         )
 
 
+def test_retrieval_metrics_require_an_explicit_cutoff_and_unknown_stays_none() -> None:
+    assert RetrievalDiagnostics().unjudged_at_k is None
+    with pytest.raises(ValidationError, match="require cutoff_k"):
+        RetrievalDiagnostics(known_relevant_recall_at_k=0.5)
+    with pytest.raises(ValidationError, match="cannot exceed cutoff_k"):
+        RetrievalDiagnostics(cutoff_k=5, unjudged_at_k=6)
+
+
 def test_evidence_can_only_support_declared_required_facts() -> None:
     with pytest.raises(ValidationError, match="unknown required facts"):
         EvalSpecification(
@@ -111,6 +121,36 @@ def test_evidence_can_only_support_declared_required_facts() -> None:
             ),
             review_status=ReviewStatus.NEEDS_REVIEW,
         )
+
+
+def test_evidence_and_human_review_provenance_invariants() -> None:
+    relevant = EvidenceAssessment(
+        evidence_ref="document:17",
+        judgment=EvidenceJudgment.KNOWN_RELEVANT,
+        relevance_grade=2,
+    )
+    duplicate_payload = _spec().model_dump(mode="json")
+    duplicate_payload["evidence_assessments"] = [
+        relevant.model_dump(mode="json"),
+        relevant.model_dump(mode="json"),
+    ]
+    with pytest.raises(ValidationError, match="evidence_ref values must be unique"):
+        EvalSpecification.model_validate(duplicate_payload)
+    with pytest.raises(ValidationError, match="only known relevant"):
+        EvidenceAssessment(
+            evidence_ref="document:irrelevant",
+            judgment=EvidenceJudgment.KNOWN_IRRELEVANT,
+            supports_fact_ids=("budget_change",),
+        )
+    with pytest.raises(ValidationError, match="require reviewer_ids"):
+        EvalSpecification.model_validate(
+            _spec().model_dump(mode="json", exclude={"reviewer_ids"})
+        )
+
+    missing_rubric = _spec().model_dump(mode="json")
+    missing_rubric["required_facts"][0]["grader"] = "human"
+    with pytest.raises(ValidationError, match="require grader_rubric_version"):
+        EvalSpecification.model_validate(missing_rubric)
 
 
 def test_trial_keeps_outcome_process_and_efficiency_separate() -> None:
@@ -169,6 +209,29 @@ def test_trial_keeps_outcome_process_and_efficiency_separate() -> None:
         "graph_search",
     ]
     assert trial.efficiency.cost_usd == 0.004
+
+    payload = trial.model_dump(mode="json")
+    payload["started_at"] = "2026-08-27T12:00:00"
+    with pytest.raises(ValidationError, match="must include a timezone"):
+        TrialRunResult.model_validate(payload)
+
+    contradictory_failure = trial.model_dump(mode="json")
+    contradictory_failure.update(
+        {
+            "status": "system_failed",
+            "failure_stage": "grading",
+            "error_type": "ProviderError",
+            "outcome": {
+                "task_success": False,
+                "required_fact_coverage": 0.0,
+                "groundedness": None,
+                "answer_relevance": None,
+                "behavior_correct": False,
+            },
+        }
+    )
+    with pytest.raises(ValidationError, match="require execution stage"):
+        TrialRunResult.model_validate(contradictory_failure)
 
 
 def test_tool_trace_requires_contiguous_sequence() -> None:

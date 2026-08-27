@@ -31,10 +31,12 @@ def test_v2_frozen_candidate_converts_to_separate_query_and_specs(
     cases = load_cases(GOLDEN / "queries/cases.jsonl")
     manifest = build_benchmark_portfolio(cases)
     frozen_ids = {item.case_id for item in manifest.frozen_records}
+    components = {item.case_id: item.leakage_component_id for item in manifest.records}
     queries, specs = convert_v2_cases(
         cases,
         _jsonl(GOLDEN / "judgments/qrels.jsonl"),
         case_ids=frozen_ids,
+        leakage_component_by_case=components,
         portfolio=PortfolioRole.FROZEN,
     )
 
@@ -44,6 +46,14 @@ def test_v2_frozen_candidate_converts_to_separate_query_and_specs(
     assert sum(item.review_status == ReviewStatus.AUTO_VALIDATED for item in specs) == 48
     assert sum(item.review_status == ReviewStatus.NEEDS_REVIEW for item in specs) == 16
     assert all("tool" not in item.model_dump_json().lower() for item in queries)
+    assert len(
+        {
+            group_id
+            for query in queries
+            for group_id in query.leakage_group_ids
+            if group_id.startswith("component:")
+        }
+    ) == 1
 
     causal_query = next(
         item for item in queries if item.query_id.endswith("causal-overclaim")
@@ -72,10 +82,12 @@ def test_v2_holdout_remains_review_gated_and_behavior_explicit() -> None:
     cases = load_cases(GOLDEN / "queries/cases.jsonl")
     manifest = build_benchmark_portfolio(cases)
     holdout_ids = {item.case_id for item in manifest.holdout_records}
+    components = {item.case_id: item.leakage_component_id for item in manifest.records}
     queries, specs = convert_v2_cases(
         cases,
         _jsonl(GOLDEN / "judgments/qrels.jsonl"),
         case_ids=holdout_ids,
+        leakage_component_by_case=components,
         portfolio=PortfolioRole.HOLDOUT,
     )
 
@@ -94,6 +106,7 @@ def test_converter_rejects_unknown_case_ids() -> None:
             cases,
             _jsonl(GOLDEN / "judgments/qrels.jsonl"),
             case_ids={"does.not.exist"},
+            leakage_component_by_case={},
             portfolio=PortfolioRole.FROZEN,
         )
     except ValueError as error:
@@ -105,10 +118,14 @@ def test_converter_rejects_unknown_case_ids() -> None:
 def test_writer_rejects_duplicate_query_ids(tmp_path: Path) -> None:
     cases = load_cases(GOLDEN / "queries/cases.jsonl")
     case_id = str(cases[0]["case_id"])
+    manifest = build_benchmark_portfolio(cases)
     queries, specs = convert_v2_cases(
         cases,
         _jsonl(GOLDEN / "judgments/qrels.jsonl"),
         case_ids={case_id},
+        leakage_component_by_case={
+            item.case_id: item.leakage_component_id for item in manifest.records
+        },
         portfolio=PortfolioRole.FROZEN,
     )
 

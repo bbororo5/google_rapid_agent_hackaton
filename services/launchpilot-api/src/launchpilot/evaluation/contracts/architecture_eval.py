@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+from datetime import datetime
 from enum import StrEnum
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class PortfolioRole(StrEnum):
@@ -84,6 +85,19 @@ class ToolCallStatus(StrEnum):
     SKIPPED = "skipped"
 
 
+class TrialStatus(StrEnum):
+    COMPLETED = "completed"
+    SYSTEM_FAILED = "system_failed"
+    TIMED_OUT = "timed_out"
+    HARNESS_FAILED = "harness_failed"
+
+
+class TrialFailureStage(StrEnum):
+    EXECUTION = "execution"
+    GRADING = "grading"
+    HARNESS = "harness"
+
+
 class QueryCharacteristics(BaseModel):
     """Explanatory slices only; these values must never prescribe a tool or route."""
 
@@ -150,6 +164,11 @@ class EvidenceAssessment(BaseModel):
                 raise ValueError("known irrelevant evidence can only have grade 0")
         elif self.relevance_grade is not None:
             raise ValueError("unjudged evidence must not have a relevance grade")
+        if (
+            self.judgment != EvidenceJudgment.KNOWN_RELEVANT
+            and self.supports_fact_ids
+        ):
+            raise ValueError("only known relevant evidence can support required facts")
         return self
 
 
@@ -195,6 +214,19 @@ class EvalSpecification(BaseModel):
             raise ValueError(
                 f"evidence references unknown required facts: {sorted(unknown_fact_ids)}"
             )
+        evidence_refs = [item.evidence_ref for item in self.evidence_assessments]
+        if len(evidence_refs) != len(set(evidence_refs)):
+            raise ValueError("evidence_ref values must be unique within a specification")
+        if len(self.reviewer_ids) != len(set(self.reviewer_ids)):
+            raise ValueError("reviewer_ids must be unique")
+        if self.review_status == ReviewStatus.HUMAN_REVIEWED and not self.reviewer_ids:
+            raise ValueError("human-reviewed specifications require reviewer_ids")
+        needs_rubric = any(
+            fact.grader in {GraderKind.LLM_JUDGE, GraderKind.HUMAN}
+            for fact in self.required_facts
+        )
+        if needs_rubric and not self.grader_rubric_version:
+            raise ValueError("LLM/human-graded facts require grader_rubric_version")
         return self
 
 
@@ -216,7 +248,7 @@ class ExperimentCondition(BaseModel):
 
     name: str = Field(min_length=1)
     forced_tools: tuple[str, ...] = ()
-    oracle_evidence_injected: bool = False
+    known_gold_evidence_injected: bool = False
 
 
 class OutcomeScores(BaseModel):
@@ -232,11 +264,30 @@ class OutcomeScores(BaseModel):
 class RetrievalDiagnostics(BaseModel):
     model_config = ConfigDict(frozen=True)
 
+    cutoff_k: int | None = Field(default=None, ge=1)
     known_relevant_recall_at_k: float | None = Field(default=None, ge=0.0, le=1.0)
     judged_precision_at_k: float | None = Field(default=None, ge=0.0, le=1.0)
     ndcg_at_k: float | None = Field(default=None, ge=0.0, le=1.0)
-    unjudged_at_k: int = Field(default=0, ge=0)
+    unjudged_at_k: int | None = Field(default=None, ge=0)
     answer_bearing_evidence_retrieved: bool | None = None
+
+    @model_validator(mode="after")
+    def require_cutoff_for_at_k_metrics(self) -> RetrievalDiagnostics:
+        at_k_values = (
+            self.known_relevant_recall_at_k,
+            self.judged_precision_at_k,
+            self.ndcg_at_k,
+            self.unjudged_at_k,
+        )
+        if any(value is not None for value in at_k_values) and self.cutoff_k is None:
+            raise ValueError("retrieval @k metrics require cutoff_k")
+        if (
+            self.unjudged_at_k is not None
+            and self.cutoff_k is not None
+            and self.unjudged_at_k > self.cutoff_k
+        ):
+            raise ValueError("unjudged_at_k cannot exceed cutoff_k")
+        return self
 
 
 class ToolCallTrace(BaseModel):
@@ -257,10 +308,12 @@ class EfficiencyObservation(BaseModel):
 
     end_to_end_latency_ms: float = Field(ge=0.0)
     retrieval_latency_ms: float | None = Field(default=None, ge=0.0)
-    input_tokens: int = Field(default=0, ge=0)
-    output_tokens: int = Field(default=0, ge=0)
-    retrieval_context_tokens: int = Field(default=0, ge=0)
+    input_tokens: int | None = Field(default=None, ge=0)
+    output_tokens: int | None = Field(default=None, ge=0)
+    retrieval_context_tokens: int | None = Field(default=None, ge=0)
     cost_usd: float | None = Field(default=None, ge=0.0)
+    telemetry_complete: bool = False
+    measurement_notes: str | None = None
 
 
 class TrialRunResult(BaseModel):
@@ -274,6 +327,15 @@ class TrialRunResult(BaseModel):
     spec_id: str = Field(min_length=1)
     spec_version: str = Field(min_length=1)
     trial_id: str = Field(min_length=1)
+    status: TrialStatus = TrialStatus.COMPLETED
+    requested_seed: int | None = Field(default=None, ge=0)
+    effective_seed: int | None = Field(default=None, ge=0)
+    requested_grader_seed: int | None = Field(default=None, ge=0)
+    effective_grader_seed: int | None = Field(default=None, ge=0)
+    grader_request_id: str | None = None
+    started_at: datetime | None = None
+    finished_at: datetime | None = None
+    provider_request_id: str | None = None
     versions: ArtifactVersions
     condition: ExperimentCondition = Field(
         default_factory=lambda: ExperimentCondition(name="agent_selected")
@@ -283,11 +345,46 @@ class TrialRunResult(BaseModel):
     outcome: OutcomeScores
     retrieval: RetrievalDiagnostics = Field(default_factory=RetrievalDiagnostics)
     tool_trace: tuple[ToolCallTrace, ...] = ()
+    tool_trace_complete: bool = False
     efficiency: EfficiencyObservation
+    error_type: str | None = None
+    error_message: str | None = Field(default=None, max_length=1000)
+    failure_stage: TrialFailureStage | None = None
+
+    @field_validator("started_at", "finished_at")
+    @classmethod
+    def timestamps_require_timezone(cls, value: datetime | None) -> datetime | None:
+        if value is not None and (value.tzinfo is None or value.utcoffset() is None):
+            raise ValueError("trial timestamps must include a timezone")
+        return value
 
     @model_validator(mode="after")
     def validate_tool_sequence(self) -> TrialRunResult:
         sequences = [call.sequence for call in self.tool_trace]
         if sequences != list(range(1, len(sequences) + 1)):
             raise ValueError("tool trace sequence must be contiguous and start at 1")
+        if self.started_at and self.finished_at and self.finished_at < self.started_at:
+            raise ValueError("finished_at must be on or after started_at")
+        if self.status == TrialStatus.COMPLETED:
+            if (
+                self.error_type is not None
+                or self.error_message is not None
+                or self.failure_stage is not None
+            ):
+                raise ValueError("completed trials cannot contain an error")
+        else:
+            if not self.error_type:
+                raise ValueError("non-completed trials require error_type")
+            if self.failure_stage is None:
+                raise ValueError("non-completed trials require failure_stage")
+            if self.outcome.task_success:
+                raise ValueError("non-completed trials cannot be task successes")
+            if self.status in {TrialStatus.SYSTEM_FAILED, TrialStatus.TIMED_OUT}:
+                if self.failure_stage != TrialFailureStage.EXECUTION:
+                    raise ValueError("system failures/timeouts require execution stage")
+            elif self.failure_stage not in {
+                TrialFailureStage.GRADING,
+                TrialFailureStage.HARNESS,
+            }:
+                raise ValueError("harness failures require grading or harness stage")
         return self

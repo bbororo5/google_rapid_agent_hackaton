@@ -24,7 +24,9 @@ from .architecture_eval import (
     TaskShape,
     ToolCallStatus,
     ToolCallTrace,
+    TrialFailureStage,
     TrialRunResult,
+    TrialStatus,
 )
 
 __all__ = [
@@ -51,5 +53,7 @@ __all__ = [
     "TaskShape",
     "ToolCallStatus",
     "ToolCallTrace",
+    "TrialFailureStage",
     "TrialRunResult",
+    "TrialStatus",
 ]
