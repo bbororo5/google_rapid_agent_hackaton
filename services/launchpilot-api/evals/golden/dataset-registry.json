@@ -1,0 +1,44 @@
+{
+  "schema_version": "1",
+  "datasets": {
+    "golden-v1": {
+      "lifecycle": "archived",
+      "allowed_uses": [
+        "historical_reproduction"
+      ],
+      "prohibited_uses": [
+        "active_benchmark_selection",
+        "active_gold_migration",
+        "regression_seed_selection",
+        "holdout_construction",
+        "architecture_release_decision"
+      ]
+    },
+    "golden-v2": {
+      "lifecycle": "archived",
+      "allowed_uses": [
+        "historical_reproduction"
+      ],
+      "prohibited_uses": [
+        "active_benchmark_selection",
+        "active_gold_migration",
+        "regression_seed_selection",
+        "holdout_construction",
+        "architecture_release_decision"
+      ]
+    },
+    "golden-v3": {
+      "lifecycle": "current_fixture",
+      "release_ready": false,
+      "allowed_uses": [
+        "dataset_audit",
+        "frontier_development",
+        "human_review_source",
+        "harness_validation"
+      ],
+      "prohibited_uses": [
+        "unqualified_production_capability_claim"
+      ]
+    }
+  }
+}

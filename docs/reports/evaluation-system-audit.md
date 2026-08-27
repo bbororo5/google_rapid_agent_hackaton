@@ -27,8 +27,10 @@
 - evidence pool 밖 문서는 `irrelevant`가 아니라 `unjudged`로 취급하고 review queue로
   보낸다.
 
-기존 V1/V2/V3 파일은 삭제하지 않는다. 재현 가능한 historical fixture로 동결하되,
-아래의 유효 범위를 넘어선 production claim에는 사용하지 않는다.
+기존 파일은 삭제하지 않는다. 특히 V1/V2는 재현 가능한 historical archive로만
+동결하며 신규 benchmark의 query, gold, slice, regression seed, holdout 선정에는
+사용하지 않는다. V3와 이후 production problem space를 기준으로 새 평가 계약과
+release benchmark를 별도로 versioning한다.
 
 ## 1. 감사 범위와 방법
 
@@ -46,7 +48,7 @@ grader 조건, runner가 전달하는 scope와 latency를 소스 수준에서 �
 
 ## 2. Dataset audit
 
-### 2.1 세 Golden은 같은 benchmark의 version이 아니다
+### 2.1 Archive inventory와 current fixture는 같은 benchmark가 아니다
 
 | 자산 | Query | 주된 목적 | 강점 | 사용 한계 |
 | --- | ---: | --- | --- | --- |
@@ -57,6 +59,9 @@ grader 조건, runner가 전달하는 scope와 latency를 소스 수준에서 �
 V1/V2는 structured, lexical, semantic, mixed, no-answer, ambiguity, adversarial을 함께
 다룬다. V3는 121 positive가 사실상 문서 lookup/비교 task에 집중되어 있다. 따라서
 V3 점수 상승을 전체 Agentic RAG 문제 공간의 capability gain으로 외삽할 수 없다.
+V1/V2의 넓은 표면적도 현재 대표성을 뜻하지 않으며 아래 내용은 archive provenance와
+과거 failure mode를 설명하기 위한 inventory다. Active dataset 선정 근거로 재사용하지
+않는다.
 
 ### 2.2 Query source와 representativeness
 
@@ -109,9 +114,10 @@ answerability, source cardinality, hop count 분포도 없다.
 
 ### 2.5 Holdout audit
 
-V1/V2는 `leakage_group_ids`로 campaign evidence group을 하나의 split에 유지한다. 이
-설계는 유지할 가치가 있다. 반면 V3는 case ID만 겹치지 않으면 split 독립이라고
-판정한다.
+V1/V2 archive에는 `leakage_group_ids`가 있었지만 그 split이나 case를 active 평가로
+이관하지 않는다. Entity/evidence leakage를 함께 차단한다는 일반 원칙만 current
+problem space에서 독립적으로 다시 구현해야 한다. 반면 V3는 case ID만 겹치지 않으면
+split 독립이라고 판정한다.
 
 - V3 tune에는 C0001~C0030 30개 campaign이 모두 등장한다.
 - validation과 holdout에는 각각 24개 campaign이 등장하며 대부분 tune에도 존재한다.
@@ -188,7 +194,7 @@ faithfulness, open-ended correctness라는 primary 이름으로 보고하면 안
 
 | 관계 | 현재 상태 | 판정 |
 | --- | --- | --- |
-| Query → Retrieval | V1/V2 runner의 exact ref/span Recall, MRR, nDCG는 유효 | 유지하되 incomplete qrels 표기 |
+| Query → Retrieval | archive runner와 V3 proxy 모두 현재 release 판단에는 부적합 | current pooled qrels로 재구축 |
 | Retrieval → Answer | claim-evidence entailment 없음 | 신규 추가 필요 |
 | Query → Answer | V3 required-fact/task success 불완전 | primary grader 재설계 필요 |
 | Reference → Answer | canonical string/keyword proxy | deterministic fact에만 제한 |
@@ -215,9 +221,9 @@ RAGAS도 retrieval context의 relevance, answer의 faithfulness, answer quality�
 case 수와 case별 campaign scope, 추정 retrieval latency 제거를 수정했다. 저장된 과거
 결과는 수정 전 evaluator의 산출물이므로 historical proxy로 남는다.
 
-V1/V2 experiment metric 구현은 exact document ref와 span overlap을 사용하므로 더
-신뢰할 수 있다. 단, unjudged를 0 gain으로 처리하고 denominator를 고정하므로 qrels
-completeness를 함께 보고해야 한다.
+V1/V2 experiment metric의 exact document ref와 span overlap은 과거 결과 해석에는
+도움이 되지만 active metric 구현의 입력이나 정당화 근거로 사용하지 않는다. Current
+pool에서 document-level judgment와 `unjudged` coverage를 새로 구축해야 한다.
 
 ### 4.3 Agent grader 구현 문제
 
@@ -370,9 +376,9 @@ condition은 production score와 섞지 않는다.
 
 | Portfolio | 목적 | 변경 정책 | 현재 자산의 배치 |
 | --- | --- | --- | --- |
-| Frozen Benchmark | version 간 공정 비교 | query/spec/qrels version 고정 | human-reviewed V2 subset부터 시작 |
+| Frozen Benchmark | version 간 공정 비교 | query/spec/qrels version 고정 | V3/current corpus와 production sample에서 신규 구축 |
 | Holdout | eval/routing overfit 탐지 | entity/source/template group blind | 새로 생성 필요 |
-| Regression | 실제 failure 재발 방지 | failure 발견 시 성장 | V1/V2 safety cases 일부 이관 |
+| Regression | 실제 failure 재발 방지 | current/production failure 발견 시 성장 | 현재 active system failure에서만 추가 |
 | Frontier | 새 capability hill-climbing | 자주 성장, release claim 제한 | V3 graph/multi-hop cases 정비 후 이관 |
 | Production Sample | 실제 분포/quality 상관 | 주기적 time-window sampling | 현재 없음 |
 
@@ -383,11 +389,10 @@ regression/frontier/production sample은 별도 cadence로 성장시킨다.
 
 ### A. 그대로 유지할 것
 
-- V1/V2의 stable corpus refs, span 기반 document judgment: chunker 독립적인 gold다.
-- V1/V2의 `leakage_group_ids` split: entity/evidence leakage를 막는 올바른 방식이다.
+- V1/V2 archive와 checksum lineage: 과거 구현과 결과를 재현하는 용도로만 유지한다.
 - deterministic formula validation: numeric fact의 가장 신뢰도 높은 grader다.
 - retrieval experiment manifest와 case-level result: paired 분석으로 확장하기 좋다.
-- synthetic fixtures: 빠르고 재현 가능한 regression/component test로 가치가 있다.
+- current problem space에서 새로 만드는 synthetic fixture: component test에 한정한다.
 - retrieval/generation 분리라는 방향: 관계별 평가로 더 세분화하면 된다.
 
 ### B. 수정해야 할 것
@@ -429,10 +434,10 @@ Historical artifact는 삭제하지 않고 `legacy/proxy`로 명시한다.
 1. 현재 V1/V2/V3와 결과를 historical snapshot으로 동결한다.
 2. 본 감사에서 확인한 invalid claim과 runner defect를 release 문서에서 정정한다.
 3. Query/EvalSpec/TrialRunResult schema를 도입한다.
-4. V2에서 자동 검증 가능한 case와 고가치 safety case를 선별해 Frozen v0를 만든다.
-5. V3 10개 comparison case와 29개 negative부터 human review한다.
+4. V3 10개 comparison case와 29개 negative부터 human review한다.
+5. 현재 corpus와 production sample에서 Query/Eval Specification을 새로 작성한다.
 6. pooled top results에 known relevant/irrelevant 판정을 추가하고 unjudged rate를 보고한다.
-7. campaign/source/template group 기반 새 holdout을 만든다.
+7. campaign/source/template group 기반 새 Frozen과 holdout을 만든다.
 8. V0/V1/V2를 동일 corpus/model/prompt 조건과 query당 3 trials로 다시 실행한다.
 9. paired transition, slice delta, cost/latency per success를 생성한다.
 10. forced tool/oracle evidence 실험으로 capability와 utilization을 분리한다.

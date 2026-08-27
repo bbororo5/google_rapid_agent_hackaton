@@ -6,9 +6,12 @@
 
 이 포트폴리오의 목적은 같은 문제 공간에서 retrieval/agent architecture를 바꿀 때
 capability gain, regression, reliability, cost를 paired experiment로 판단하는 것이다.
-기존 Golden V1~V3와 과거 결과를 폐기하거나 새 기준으로 소급 해석하지 않는다.
-기존 파일은 historical fixture로 보존하고, 새 Query/Eval Specification/Trial Result
-계약으로 앞으로의 실험을 실행한다.
+Golden V1/V2와 그 결과는 historical archive로만 보존한다. 신규 benchmark의 query,
+gold, slice, regression seed, holdout을 선정하거나 architecture 성능을 판단할 때
+V1/V2를 입력으로 사용하지 않는다. 현재 문제 공간은 V3와 이후의 production sample을
+감사해 새 Query/Eval Specification/Trial Result 계약으로 다시 구성한다.
+Dataset lifecycle의 machine-readable 기준은
+[`golden/dataset-registry.json`](../golden/dataset-registry.json)에 있다.
 
 상세한 감사 근거와 평가 철학은
 [Evaluation System Audit](../../../../docs/reports/evaluation-system-audit.md), target
@@ -21,8 +24,8 @@ architecture는
 | 자산 | 현재 상태 | 지금 가능한 사용 | 아직 하면 안 되는 주장 |
 | --- | --- | --- | --- |
 | Historical snapshot | 50개 파일의 경로·크기·SHA-256 동결 완료 | 과거 dataset/result drift 탐지, 재현성 기준점 | 과거 proxy score가 production quality를 입증한다는 주장 |
-| Golden V2 Frozen candidate | 64건 선별: 48건 `ready`, 16건 `pending_human_review` | 48건의 자동 검증 가능한 제한적 regression/component 평가 | 64건 전체가 human-validated Frozen이라는 주장 |
-| Golden V2 Holdout candidate | 50건, 전부 no-answer 계열이며 human review 대기 | split/leakage 문제를 드러내는 audit artifact | 전체 문제 분포를 대표하는 blind Holdout이라는 주장 |
+| Golden V1/V2 archive | checksum snapshot으로 보존 | 과거 구현·결과의 계보 확인 | 신규 benchmark나 regression source로 재사용 |
+| Active Frozen/Holdout | 아직 없음 | V3/current corpus와 production sample의 admission 기준 설계 | archive dataset을 변환해 현재 benchmark라고 주장 |
 | Golden V3 priority queue | 39건: negative 29건, comparison 10건 | 전문가 검수 작업의 우선순위와 lineage 관리 | queue가 새 relevance/answer gold를 이미 확정했다는 주장 |
 | Judgment pooling | schema, conflict detection, versioned merge 구현 | 여러 retriever의 top-k를 합쳐 판정 대기 pool 생성 | qrels에 없는 결과를 irrelevant로 처리하거나 pool이 완성됐다는 주장 |
 | Controlled runner | paired schedule, provenance, failure semantics, 비교 보고 구현 | 검수된 spec과 실제 adapter/grader가 준비된 뒤 V0/V1/V2 실행 | 현재 저장소가 실제 V0/V1/V2 capability gain을 이미 입증했다는 주장 |
@@ -40,16 +43,6 @@ evals/portfolio/
 ├─ README.md
 ├─ historical/
 │  └─ pre-redesign-historical-v1.json
-├─ golden-v2-portfolio-v0/
-│  ├─ selection-manifest.json
-│  ├─ frozen-candidate/
-│  │  ├─ queries.jsonl
-│  │  ├─ eval-specifications.jsonl
-│  │  └─ manifest.json
-│  └─ holdout-candidate/
-│     ├─ queries.jsonl
-│     ├─ eval-specifications.jsonl
-│     └─ manifest.json
 └─ review/
    ├─ v3-priority-review.jsonl
    └─ v3-priority-review.manifest.json
@@ -82,54 +75,25 @@ category, byte size, SHA-256을 저장한다.
 artifact와 함께 해석할 수 있도록 lineage를 고정하는 절차다. 수정이 필요하면 기존
 scope를 고치지 말고 새 dataset/result version을 만든다.
 
-## 4. Golden V2 후보 포트폴리오
+## 4. Active benchmark admission
 
-선별기는 Golden V2의 680개 synthetic case를 대상으로 tool/route hint나 기존 system
-score를 사용하지 않는다. declared leakage group, entity, evidence source,
-template-style key의 연결 성분을 만든 뒤 서로 다른 portfolio 사이에 성분이 겹치지
-않도록 배치한다.
+Golden V1/V2는 새 schema로 변환하거나 일부 case를 선별해 Frozen/Regression으로
+이관하지 않는다. archive의 구조적 완성도는 현재 information need 대표성의 근거가
+아니기 때문이다.
 
-### 4.1 Frozen candidate
+새 active portfolio는 다음 순서로만 만든다.
 
-현재 후보는 64건이다.
+1. V3와 현재 corpus·실행 경로를 감사해 실제 지원하려는 problem space를 정의한다.
+2. 비식별 production sample로 query/task/answerability 분포를 추정한다.
+3. Query와 Eval Specification을 처음부터 분리해 작성한다.
+4. evidence는 pooling 후 `known_relevant`, `known_irrelevant`, `unjudged`로 판정한다.
+5. entity/source/template leakage group 단위로 Frozen과 blind Holdout을 분리한다.
+6. human review와 grader calibration을 통과한 version만 release comparison에 사용한다.
 
-- 48건: deterministic fact로 대조 가능한 `auto_validated`, `ready`
-- 16건: 고가치 safety case, `needs_review`, `pending_human_review`
-
-16건은 Frozen에 포함할 가치가 있어 선별했을 뿐 review gate를 통과한 것이 아니다.
-따라서 검수 전에는 48건짜리 제한된 deterministic slice와 64건짜리 완성 Frozen을
-구분해서 보고한다. 48건 결과도 synthetic fixture에서의 상대 비교이며 production
-대표성 주장은 할 수 없다.
-
-### 4.2 Holdout candidate
-
-보수적인 leakage 연결 결과는 크기 630과 50인 두 성분뿐이다. 50건 성분을 분리하면
-leakage-disjoint 조건은 만족하지만, 그 50건은 모두 no-answer 계열이며 모두 human
-review 대기다. 그러므로 이 artifact는 다음 두 문제를 숨기지 않고 노출한다.
-
-- 기존 V2 생성 구조가 entity/source/template 차원에서 대부분 하나의 거대 성분으로
-  연결되어 있다.
-- 분리 가능한 50건은 task/answerability 분포를 대표하지 않는다.
-
-이 50건을 검수해도 대표 Holdout이 되는 것은 아니다. 실제 blind Holdout은 기존
-template·entity·source와 분리된 새 문제를 수집하고, answerable/ambiguous/insufficient,
-structured/unstructured/mixed 및 주요 task slice를 의도한 운영 분포에 맞게 포함해야
-한다. Holdout 내용이나 결과를 보고 architecture를 수정했다면 다음 Holdout version이
-필요하다.
-
-### 4.3 Query와 Eval Specification 분리
-
-V2 adapter는 선별 case를 두 계약으로 분리한다.
-
-- Query에는 text, source, portfolio, explanatory characteristics,
-  leakage group만 둔다. Dense/BM25/Graph 같은 expected tool은 넣지 않는다. V2
-  변환물은 selector가 계산한 leakage component도 보존하므로 통계 코드가 synthetic
-  near-duplicate를 독립 query로 세지 않는다.
-- Eval Specification에는 answerability, expected behavior, required atomic facts,
-  현재 known-relevant evidence와 review status를 둔다.
-
-`semantic`, `entity_centric`, `multi-hop` 같은 값은 slice 분석용 explanatory variable이다.
-올바른 route나 tool을 지정하는 정답 label로 사용하지 않는다.
+`semantic`, `entity_centric`, `multi-hop` 같은 값은 slice 분석용 explanatory variable일
+뿐 올바른 route나 tool을 지정하는 정답 label이 아니다. Active Frozen이 승인되기
+전까지 controlled runner 결과는 harness validation이지 architecture capability
+증거가 아니다.
 
 ## 5. Golden V3 priority review queue
 
@@ -244,10 +208,9 @@ contrast별 report를 고유 임시 디렉터리에 쓴 뒤 한 번에 publish�
 남겨 감사와 안전한 재시도가 가능하다. grader/harness failure가 있으면 raw trial은
 publish하되 comparison status를 `blocked`로 기록한다.
 
-현재 V2 Frozen 후보 64건은 모두 하나의 leakage connected component에 속한다. 따라서
-query 수가 64라고 해서 독립적인 일반화 표본이 64개인 것은 아니다. controlled report의
-`independent_cluster_count`가 1이면 interval은 trial stochasticity만 일부 반영할 뿐,
-새 campaign/template 분포로의 일반화 불확실성을 추정하지 못한다.
+Active benchmark는 leakage connected component를 독립 표본 단위로 기록해야 한다.
+query 수가 많아도 component 수가 작으면 새 entity/template 분포로의 일반화
+불확실성을 추정할 수 없다.
 
 Newly Solved/Regression은 사전 선언 threshold에 따른 point-estimate 기반 설명적 label이다.
 bootstrap interval이 이 label을 자동으로 통계적 유의 판정으로 바꾸지는 않는다.
@@ -263,8 +226,9 @@ primary grader로 연결해 live run을 먼저 실행하면 비용은 들지만 
 
 최소 실행 순서는 다음과 같다.
 
-1. Frozen candidate의 safety 16건과 V3 priority 39건을 독립 human review한다.
-2. 기존 V2와 독립적인 source/entity/template로 대표 Holdout을 새로 만든다.
+1. V3 priority 39건을 독립 human review한다.
+2. 현재 corpus와 production problem space에서 source/entity/template가 분리된 대표
+   Frozen과 Holdout을 새로 만든다.
 3. 비식별화한 production query sample과 human task-success sample을 구축한다.
 4. metric별 automated grader를 human judgment에 calibration하고 version을 고정한다.
 5. V0/V1/V2 top-k를 pooling해 unjudged evidence를 판정하고 qrels version을 올린다.
@@ -272,18 +236,15 @@ primary grader로 연결해 live run을 먼저 실행하면 비용은 들지만 
 7. paired transition, slice delta, reliability, marginal cost/latency로 architecture
    decision record를 작성한다.
 
-48개 ready case만으로 제한된 dry run을 먼저 수행할 수는 있다. 이 경우 결과 이름과
-보고서에 `synthetic-auto-validated-slice`를 명시하고, broad capability/release 결론에는
-사용하지 않는다. Human calibration과 production sample이 준비되기 전까지 automated
-score와 실제 사용자 task success의 상관은 검증되지 않은 상태다.
+Human calibration과 production sample이 준비되기 전까지 automated score와 실제
+사용자 task success의 상관은 검증되지 않은 상태다. Golden V1/V2를 이용한 dry run도
+active architecture evidence로 보고하지 않는다.
 
 ## 9. 구현 위치
 
 | 역할 | 코드 |
 | --- | --- |
 | Historical snapshot/verification | `launchpilot.evaluation.portfolio.snapshot` |
-| V2 candidate selection/leakage audit | `launchpilot.evaluation.portfolio.benchmark_builder` |
-| V2 Query/Eval Specification adapter | `launchpilot.evaluation.portfolio.v2_adapter` |
 | V3 priority review queue | `launchpilot.evaluation.portfolio.review_queue` |
 | Pooled judgments | `launchpilot.evaluation.portfolio.pooling` |
 | Query/Spec/Trial contracts | `launchpilot.evaluation.contracts.architecture_eval` |

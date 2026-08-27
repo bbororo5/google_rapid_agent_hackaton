@@ -19,11 +19,11 @@ multi-hop coverage, 추정 retrieval latency는 release gate에서 제외한다.
 
 ### 1.1 구현 상태
 
-Historical checksum snapshot, Golden V2 candidate selector, V3 priority review queue,
-judgment pooling 계약, controlled paired runner는 구현되었다. 그러나 V2 Frozen 후보
-64건 중 16건과 Holdout 후보 50건은 사람 검수 대기이며, Holdout 50건은 모두
-no-answer 계열이라 분포 대표성이 없다. Human grader calibration, production query
-sample, 새 pooled judgments, 실제 V0/V1/V2 live run도 아직 완료되지 않았다.
+Historical checksum snapshot, V3 priority review queue, judgment pooling 계약,
+controlled paired runner는 구현되었다. Golden V1/V2는 archive 전용이며 active
+benchmark의 입력으로 사용하지 않는다. Active Frozen/Holdout, human grader
+calibration, production query sample, 새 pooled judgments, 실제 V0/V1/V2 live run은
+아직 완료되지 않았다.
 
 따라서 현재 구현은 신뢰할 수 있는 실험을 수행하기 위한 기반이지 production
 capability gain의 증거가 아니다. artifact별 사용 가능 범위와 다음 작업은
