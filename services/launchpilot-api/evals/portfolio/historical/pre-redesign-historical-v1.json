@@ -1,0 +1,365 @@
+{
+  "artifacts": [
+    {
+      "category": "result",
+      "relative_path": "evals/agentic_benchmark_results_v2.json",
+      "sha256": "17531bf7bbe47f6ecd985606ec4792f4535ed8ee07e16dbd86ce3554c6bd5ac1",
+      "size_bytes": 1548
+    },
+    {
+      "category": "result",
+      "relative_path": "evals/agentic_progressive_ablation_results.json",
+      "sha256": "886c7728cb961d25857750d19294c029baa2c3b20fd804644a06e14a44754558",
+      "size_bytes": 10824
+    },
+    {
+      "category": "dataset",
+      "relative_path": "evals/golden/golden-v1/corpus/documents.jsonl",
+      "sha256": "ab192119123af0c58e147cb073761f8daff601cbea31d331a51951d61703d8d5",
+      "size_bytes": 5630456
+    },
+    {
+      "category": "dataset",
+      "relative_path": "evals/golden/golden-v1/corpus/observations.jsonl",
+      "sha256": "6bc1e8d4c8366fad2323aaf381121551e3aec2a4acc192078c0b1be69de097b3",
+      "size_bytes": 2507866
+    },
+    {
+      "category": "dataset",
+      "relative_path": "evals/golden/golden-v1/data_audit.json",
+      "sha256": "e8d6b707a8e862f663878fe985c47a73ab1be99db5c3927b2f9e3075f1e28f87",
+      "size_bytes": 4043
+    },
+    {
+      "category": "dataset",
+      "relative_path": "evals/golden/golden-v1/dataset_policy.md",
+      "sha256": "d3758352704fdf98deb26a7b2cb0eb73a80b68474c9c7df279d5509d81e55cc8",
+      "size_bytes": 1479
+    },
+    {
+      "category": "dataset",
+      "relative_path": "evals/golden/golden-v1/entity_aliases.jsonl",
+      "sha256": "091cd49a3274f8861f15191a833153560cd1ec3059d603653fd3526c7a817785",
+      "size_bytes": 150102
+    },
+    {
+      "category": "dataset",
+      "relative_path": "evals/golden/golden-v1/judgments/gold_spans.jsonl",
+      "sha256": "13f2d98260f7359aa1b8cbd3573da68aa1a61621a87eec712aee4781d9d6862d",
+      "size_bytes": 40231
+    },
+    {
+      "category": "dataset",
+      "relative_path": "evals/golden/golden-v1/judgments/qrels.jsonl",
+      "sha256": "c1d38df0d37a37b04d47ce9d9bca8f7d0044d9f0459a0ca1ed6bf7ff5f83660a",
+      "size_bytes": 782311
+    },
+    {
+      "category": "dataset",
+      "relative_path": "evals/golden/golden-v1/manifest.json",
+      "sha256": "84f2dbc549dfb93709e354df9329778b23b89a2c1e67dce7938343ab1845bff7",
+      "size_bytes": 5168
+    },
+    {
+      "category": "dataset",
+      "relative_path": "evals/golden/golden-v1/queries/cases.jsonl",
+      "sha256": "d741924a02f8b6c0565cedb5a0def76604f055e04a3d8da84bb0374d56dfb1c5",
+      "size_bytes": 1559808
+    },
+    {
+      "category": "dataset",
+      "relative_path": "evals/golden/golden-v1/review/case_catalog.csv",
+      "sha256": "1a362293cbadafbcf877d3a64e17091821da31f4f8a3f50f06dac2ee65064ccb",
+      "size_bytes": 267338
+    },
+    {
+      "category": "dataset",
+      "relative_path": "evals/golden/golden-v1/review/excluded_items.jsonl",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0
+    },
+    {
+      "category": "dataset",
+      "relative_path": "evals/golden/golden-v1/review/needs_review.jsonl",
+      "sha256": "9d6cc7330c44e98c91b32f2d4bae1251607195bd8af1f9c5c7e865e5fe03dae3",
+      "size_bytes": 43483
+    },
+    {
+      "category": "dataset",
+      "relative_path": "evals/golden/golden-v1/splits/splits.json",
+      "sha256": "1f78d49aea24297087b05ef93d147feb7c59e8cd1466599196362da61168ae64",
+      "size_bytes": 23005
+    },
+    {
+      "category": "dataset",
+      "relative_path": "evals/golden/golden-v1/taxonomy_snapshot.yaml",
+      "sha256": "553dde072a2908fb2df82a1bf075beabb2b52b4799961174ec83db7e4b1e2b27",
+      "size_bytes": 41131
+    },
+    {
+      "category": "dataset",
+      "relative_path": "evals/golden/golden-v1/validation/taxonomy_coverage.json",
+      "sha256": "9ad1f9821d33b805b2a114591fcaf9396b112eb87de57ee9e4241acf34a13114",
+      "size_bytes": 8103
+    },
+    {
+      "category": "dataset",
+      "relative_path": "evals/golden/golden-v1/validation/validation_report.json",
+      "sha256": "b88f79794ad72f0ade6c080428f1f46918c6df7feb35072aecc1bd0caf272f03",
+      "size_bytes": 875
+    },
+    {
+      "category": "dataset",
+      "relative_path": "evals/golden/golden-v2/corpus/documents.jsonl",
+      "sha256": "ab192119123af0c58e147cb073761f8daff601cbea31d331a51951d61703d8d5",
+      "size_bytes": 5630456
+    },
+    {
+      "category": "dataset",
+      "relative_path": "evals/golden/golden-v2/corpus/observations.jsonl",
+      "sha256": "d50e21fbdb32138c06c3444c3e3c4755046f27a861dbf513bcd97963a4e74200",
+      "size_bytes": 2455013
+    },
+    {
+      "category": "dataset",
+      "relative_path": "evals/golden/golden-v2/data_audit.json",
+      "sha256": "4336544874744a807d1ff36e412784d32f693631a521621c9421ae604eb22678",
+      "size_bytes": 3654
+    },
+    {
+      "category": "dataset",
+      "relative_path": "evals/golden/golden-v2/dataset_policy.md",
+      "sha256": "d3758352704fdf98deb26a7b2cb0eb73a80b68474c9c7df279d5509d81e55cc8",
+      "size_bytes": 1479
+    },
+    {
+      "category": "dataset",
+      "relative_path": "evals/golden/golden-v2/entity_aliases.jsonl",
+      "sha256": "091cd49a3274f8861f15191a833153560cd1ec3059d603653fd3526c7a817785",
+      "size_bytes": 150102
+    },
+    {
+      "category": "dataset",
+      "relative_path": "evals/golden/golden-v2/judgments/gold_spans.jsonl",
+      "sha256": "13f2d98260f7359aa1b8cbd3573da68aa1a61621a87eec712aee4781d9d6862d",
+      "size_bytes": 40231
+    },
+    {
+      "category": "dataset",
+      "relative_path": "evals/golden/golden-v2/judgments/qrels.jsonl",
+      "sha256": "d2eb095baba87117d89d6b6112199d2eb31fe4bc362357c7cc8053c16829629e",
+      "size_bytes": 813181
+    },
+    {
+      "category": "dataset",
+      "relative_path": "evals/golden/golden-v2/manifest.json",
+      "sha256": "5d595d1a824f9bcdf2fee11d2745c12ea58f9c3185656ebc42738582dac64307",
+      "size_bytes": 5174
+    },
+    {
+      "category": "dataset",
+      "relative_path": "evals/golden/golden-v2/queries/cases.jsonl",
+      "sha256": "4893e57b294da3299f65520d0d039cafe13143a229c432bd096bab6555d8c047",
+      "size_bytes": 1717079
+    },
+    {
+      "category": "dataset",
+      "relative_path": "evals/golden/golden-v2/review/case_catalog.csv",
+      "sha256": "6b7d679dfa7757a4eeb1f8aa4fd3c6d85d3958dec9db0bfa34d3c7f33ab8e5dd",
+      "size_bytes": 304362
+    },
+    {
+      "category": "dataset",
+      "relative_path": "evals/golden/golden-v2/review/excluded_items.jsonl",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size_bytes": 0
+    },
+    {
+      "category": "dataset",
+      "relative_path": "evals/golden/golden-v2/review/needs_review.jsonl",
+      "sha256": "81ae02f6a1b38f25ea38e8c83eb9f6b5228246988f6d06f2ed96f74174ac7517",
+      "size_bytes": 56643
+    },
+    {
+      "category": "dataset",
+      "relative_path": "evals/golden/golden-v2/splits/splits.json",
+      "sha256": "85880cae1794ac73913d9389dc483308bfdd333a7b607ba70e798c98eb0793f6",
+      "size_bytes": 25825
+    },
+    {
+      "category": "dataset",
+      "relative_path": "evals/golden/golden-v2/taxonomy_snapshot.yaml",
+      "sha256": "553dde072a2908fb2df82a1bf075beabb2b52b4799961174ec83db7e4b1e2b27",
+      "size_bytes": 41131
+    },
+    {
+      "category": "dataset",
+      "relative_path": "evals/golden/golden-v2/validation/taxonomy_coverage.json",
+      "sha256": "509ef7015e0eb6ab1bab24895f513dfa3efb65270b3f9884967081e4a9849b8a",
+      "size_bytes": 8043
+    },
+    {
+      "category": "dataset",
+      "relative_path": "evals/golden/golden-v2/validation/validation_report.json",
+      "sha256": "03564947d7995a839b5e8a4955ad2a07ed168f586dff6b6ae668211a5b0e2ebb",
+      "size_bytes": 875
+    },
+    {
+      "category": "dataset",
+      "relative_path": "evals/golden/golden-v3/benchmark_audit_report.json",
+      "sha256": "91e0c3e6f2eb1fa5a445b5f2101d9f54ed7e358495c6078a165d08b03960f231",
+      "size_bytes": 2958
+    },
+    {
+      "category": "dataset",
+      "relative_path": "evals/golden/golden-v3/corpus/documents.jsonl",
+      "sha256": "aa531c39324ca53ea1180b7e91b9f39715aaa553ff3fb073df8af1857da4d1d9",
+      "size_bytes": 539439
+    },
+    {
+      "category": "dataset",
+      "relative_path": "evals/golden/golden-v3/corpus/edges.jsonl",
+      "sha256": "c60cc6bc5a1ebc719721ac94449f7e4e8a195da3cb5c9f7f42ca5b957f5557d5",
+      "size_bytes": 131940
+    },
+    {
+      "category": "dataset",
+      "relative_path": "evals/golden/golden-v3/corpus/observations.jsonl",
+      "sha256": "07d0ab8d0e6e23ebe877785b69b57af8dffa29cff5d53daaaf4d99abb82752fd",
+      "size_bytes": 1548744
+    },
+    {
+      "category": "dataset",
+      "relative_path": "evals/golden/golden-v3/corpus_audit.json",
+      "sha256": "8b774f1b57d00a38ddeea25e95f18f88f3a669d7ca341c5459fa362f0a2b78d7",
+      "size_bytes": 246
+    },
+    {
+      "category": "dataset",
+      "relative_path": "evals/golden/golden-v3/judgments/generation_ground_truth.jsonl",
+      "sha256": "f0ecf852ce26d13a1e4cafda46350ca15d1fbb57612944ccc163425bf7924786",
+      "size_bytes": 112865
+    },
+    {
+      "category": "dataset",
+      "relative_path": "evals/golden/golden-v3/judgments/qrels.jsonl",
+      "sha256": "45c8cc9097328e468ad2d2a86fa181cb6e40a2ffd7e8c948986e3d38a3ed505e",
+      "size_bytes": 9518
+    },
+    {
+      "category": "dataset",
+      "relative_path": "evals/golden/golden-v3/queries/cases.jsonl",
+      "sha256": "95795307ef964c73e76b761363aae1c445d383a449d60d514088a0ee47b93236",
+      "size_bytes": 46359
+    },
+    {
+      "category": "dataset",
+      "relative_path": "evals/golden/golden-v3/raw_generated_cases.json",
+      "sha256": "d79dbef3a4eeb6b2aeef9ceb8e0a8bc388aca0525f9505bbb311193eac3cc5d7",
+      "size_bytes": 123716
+    },
+    {
+      "category": "dataset",
+      "relative_path": "evals/golden/golden-v3/splits/splits.json",
+      "sha256": "1a7d5283686f0052aa5a18fdaa66f84ef4fffa91e079a3732afd7949be8433a6",
+      "size_bytes": 3788
+    },
+    {
+      "category": "result",
+      "relative_path": "evals/phase2_ablation_results.json",
+      "sha256": "333b564be1b02e2b66ca3ded729cd0ccf4a9ebcd6ae10a4a73339181a9789a59",
+      "size_bytes": 2237
+    },
+    {
+      "category": "result",
+      "relative_path": "evals/phase3_ablation_results.json",
+      "sha256": "0134f61fab71a57f7940b3d4d7607aa86545da1c1036f14721f616ec9b433dea",
+      "size_bytes": 2226
+    },
+    {
+      "category": "result",
+      "relative_path": "evals/retrieval_benchmark_v3_results.json",
+      "sha256": "2570204379f88459ec0b995889b19737587b6ea78fd3bbcb6ad83ec75dea0d9c",
+      "size_bytes": 8731
+    },
+    {
+      "category": "result",
+      "relative_path": "evals/retrieval_experiment_results_v2.json",
+      "sha256": "b5ea38328f24d5f16db8f62dd45cc200ca2e943b0dd0bfe6ce2386bed2a39c5b",
+      "size_bytes": 7656
+    },
+    {
+      "category": "result",
+      "relative_path": "evals/scale_benchmark_n20_results.json",
+      "sha256": "6429cc4bcbe3c31dbcaffa2153bbdee589376a747eefc30d069d0f23241a8ac1",
+      "size_bytes": 8406
+    },
+    {
+      "category": "result",
+      "relative_path": "evals/stress_test_comparison_results.json",
+      "sha256": "7a8e445692aab8061bd2a1a5ae63cf00940f57288298067a745a93782b4a51d2",
+      "size_bytes": 13260
+    }
+  ],
+  "created_at": "2026-08-27T12:59:38.821254Z",
+  "schema": "launchpilot.eval-snapshot",
+  "schema_version": 1,
+  "scopes": [
+    {
+      "category": "result",
+      "kind": "file",
+      "relative_path": "evals/agentic_benchmark_results_v2.json"
+    },
+    {
+      "category": "result",
+      "kind": "file",
+      "relative_path": "evals/agentic_progressive_ablation_results.json"
+    },
+    {
+      "category": "dataset",
+      "kind": "directory",
+      "relative_path": "evals/golden/golden-v1"
+    },
+    {
+      "category": "dataset",
+      "kind": "directory",
+      "relative_path": "evals/golden/golden-v2"
+    },
+    {
+      "category": "dataset",
+      "kind": "directory",
+      "relative_path": "evals/golden/golden-v3"
+    },
+    {
+      "category": "result",
+      "kind": "file",
+      "relative_path": "evals/phase2_ablation_results.json"
+    },
+    {
+      "category": "result",
+      "kind": "file",
+      "relative_path": "evals/phase3_ablation_results.json"
+    },
+    {
+      "category": "result",
+      "kind": "file",
+      "relative_path": "evals/retrieval_benchmark_v3_results.json"
+    },
+    {
+      "category": "result",
+      "kind": "file",
+      "relative_path": "evals/retrieval_experiment_results_v2.json"
+    },
+    {
+      "category": "result",
+      "kind": "file",
+      "relative_path": "evals/scale_benchmark_n20_results.json"
+    },
+    {
+      "category": "result",
+      "kind": "file",
+      "relative_path": "evals/stress_test_comparison_results.json"
+    }
+  ],
+  "snapshot_version": "pre-redesign-historical-v1"
+}
