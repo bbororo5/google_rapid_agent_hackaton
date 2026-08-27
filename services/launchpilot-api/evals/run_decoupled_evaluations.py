@@ -34,9 +34,16 @@ splits = json.loads((V3_ROOT / "splits" / "splits.json").read_text(encoding="utf
 val_case_ids = set(splits["validation"])
 
 # Filter to validation cases (30 cases)
-val_cases = [c for c in cases if c["case_id"] in val_case_ids][:15] # run 15 stratified validation cases for speed
+val_cases = [c for c in cases if c["case_id"] in val_case_ids]
 
 conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+campaign_rows = conn.execute(
+    "SELECT campaign_code, id, workspace_id FROM campaigns"
+).fetchall()
+campaign_by_ref = {
+    row[0]: (UUID(row[1]), UUID(row[2]))
+    for row in campaign_rows
+}
 
 class LocalDocReader:
     def __init__(self, campaign_id: UUID, workspace_id: UUID) -> None:
@@ -64,9 +71,11 @@ class LocalDocReader:
         )
 
 class LocalPerfReader:
-    def __init__(self, campaign_id: UUID, workspace_id: UUID) -> None: pass
+    def __init__(self, campaign_id: UUID, workspace_id: UUID) -> None:
+        self.campaign_id = campaign_id
+
     def get_campaign_performance(self, q):
-        return CampaignPerformance(campaign=CampaignSummary(id=UUID("1e551ee8-0b16-5121-aa1c-a435e0d96105"), name="Aurora", goal="ROAS", period_start=None, period_end=None, target_metrics=()), metrics=())
+        return CampaignPerformance(campaign=CampaignSummary(id=self.campaign_id, name="Evaluation Campaign", goal="ROAS", period_start=None, period_end=None, target_metrics=()), metrics=())
 
 retrieval_evaluator = RetrievalStageEvaluator(top_k=5)
 generation_evaluator = GenerationStageEvaluator()
@@ -74,17 +83,26 @@ generation_evaluator = GenerationStageEvaluator()
 retrieval_results = []
 generation_results = []
 
-c_id = UUID("1e551ee8-0b16-5121-aa1c-a435e0d96105")
-ws_id = UUID("8950acf8-295d-57a9-8cf8-1af3868d9249")
-camp_scope = CampaignScope(campaign_id=c_id, workspace_id=ws_id, user_id=uuid4())
-exec_scope = ExecutionScope.create(workspace_id=ws_id, campaign_id=c_id, campaign_code="C0001")
-
 print(f"🚀 Running Decoupled 2-Stage Evaluations on {len(val_cases)} Stratified Cases...")
 
 for idx, case in enumerate(val_cases, 1):
     cid = case["case_id"]
     query = case["query"]
     is_neg = case.get("is_negative", False)
+    campaign_ref = case["campaign_ref"]
+    if campaign_ref not in campaign_by_ref:
+        raise ValueError(f"unknown campaign_ref for {cid}: {campaign_ref}")
+    c_id, ws_id = campaign_by_ref[campaign_ref]
+    camp_scope = CampaignScope(
+        campaign_id=c_id,
+        workspace_id=ws_id,
+        user_id=uuid4(),
+    )
+    exec_scope = ExecutionScope.create(
+        workspace_id=ws_id,
+        campaign_id=c_id,
+        campaign_code=campaign_ref,
+    )
     gt_dict = gts[cid]
     gt_obj = GenerationGroundTruth(
         case_id=cid,
@@ -137,7 +155,9 @@ for idx, case in enumerate(val_cases, 1):
     # 1. Evaluate Stage 1: Retrieval
     ret_res = retrieval_evaluator.evaluate_case(
         case_id=cid, query=query, target_refs=target_refs,
-        retrieved_hits=raw_hits, distractor_refs=set(), latency_ms=e2e_dur * 500 # approx retrieval slice
+        retrieved_hits=raw_hits,
+        distractor_refs=set(),
+        latency_ms=None,
     )
     retrieval_results.append(ret_res)
 
@@ -147,29 +167,30 @@ for idx, case in enumerate(val_cases, 1):
     )
     generation_results.append(gen_res)
 
-    status_icon = "✅" if gen_res.faithfulness_passed else "⚠️"
-    print(f"[{idx:02d}/{len(val_cases):02d}] {status_icon} Case: {cid:<16} | Recall: {ret_res.context_recall:.1f} | MRR: {ret_res.context_mrr:.1f} | Causal: L{gen_res.causal_triad_level} | Num: {gen_res.numeric_exactness} | Latency: {e2e_dur:.2f}s")
+    status_icon = "✅" if gen_res.lexical_proxy_passed else "⚠️"
+    recall = ret_res.known_relevant_recall or 0.0
+    mrr = ret_res.reciprocal_rank or 0.0
+    print(f"[{idx:02d}/{len(val_cases):02d}] {status_icon} Case: {cid:<16} | Known Recall: {recall:.1f} | MRR: {mrr:.1f} | Lexical proxy: L{gen_res.causal_triad_level} | Num: {gen_res.numeric_exactness} | E2E: {e2e_dur:.2f}s")
 
 
 ret_summary = retrieval_evaluator.summarize(retrieval_results)
 gen_summary = generation_evaluator.summarize(generation_results)
 
 print("\n" + "="*70)
-print("📊 [STAGE 1] RETRIEVAL EVALUATION METRIC RESULTS (5-METRICS)")
+print("📊 [STAGE 1] RETRIEVAL DIAGNOSTICS")
 print("="*70)
 print(f"  • Total Evaluated Cases     : {ret_summary.get("total_evaluated_queries", 0)}")
-print(f"  • Mean Context Recall@5     : {ret_summary.get("mean_context_recall_at_5", 0.0)*100:.1f}%")
-print(f"  • Mean Context MRR@5        : {ret_summary.get("mean_context_mrr_at_5", 0.0):.3f}")
-print(f"  • Distractor Rejection Rate : {ret_summary.get("mean_distractor_rejection_rate", 0.0)*100:.1f}%")
-print(f"  • Multi-Hop Chain Coverage  : {ret_summary.get("mean_multihop_chain_coverage", 0.0)*100:.1f}%")
-print(f"  • Mean Retrieval Latency    : {ret_summary.get("mean_retrieval_latency_ms", 0.0):.1f} ms")
+print(f"  • Known Relevant Recall@K   : {ret_summary.get("known_relevant_recall_at_k", 0.0)*100:.1f}%")
+print(f"  • Mean Reciprocal Rank@K    : {ret_summary.get("mean_reciprocal_rank_at_k", 0.0):.3f}")
+print(f"  • Mean Unjudged@K           : {ret_summary.get("mean_unjudged_at_k", 0.0):.2f}")
+print(f"  • Retrieval Latency         : not measured (no retrieval span)")
 
 print("\n" + "="*70)
-print("📊 [STAGE 2] GENERATION EVALUATION METRIC RESULTS (4-METRICS)")
+print("📊 [STAGE 2] LEGACY LEXICAL PROXY DIAGNOSTICS")
 print("="*70)
 print(f"  • Deterministic Numeric Rate: {gen_summary.get("numeric_exactness_rate", 0.0)*100:.1f}%")
 print(f"  • 3-Hop Causal Triad Rate   : {gen_summary.get("causal_triad_completion_rate", 0.0)*100:.1f}% (Level 2 Completion)")
 print(f"  • Provenance Citation Rate  : {gen_summary.get("citation_precision", 0.0)*100:.1f}% Precision / {gen_summary.get("citation_recall", 0.0)*100:.1f}% Recall")
 print(f"  • Negative Abstention Rate  : {gen_summary.get("negative_abstention_rate", 0.0)*100:.1f}% (Zero Hallucination on Negatives)")
-print(f"  • Overall Faithfulness Rate : {gen_summary.get("overall_faithfulness_rate", 0.0)*100:.1f}%")
+print(f"  • Overall Lexical Proxy Rate: {gen_summary.get("overall_lexical_proxy_pass_rate", 0.0)*100:.1f}%")
 print("="*70)

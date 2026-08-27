@@ -1,78 +1,132 @@
-# 🎯 LaunchPilot 2단계 분리 평가 체계 (End-to-End Evaluation Framework)
+# LaunchPilot Evaluation Architecture
 
-> **핵심 원칙**:
-> RAG 시스템의 평가는 **검색(Retrieval) 계층**과 **생성(Generation) 계층**으로 엄격히 분리(Decoupling)되어야 합니다.
-> * **검색 단계**: 에이전트의 워킹 메모리에 올라가는 후보 문서 풀의 신호 대 잡음비(SNR), 적시성, 인과 완결도를 독립 계측합니다.
-> * **생성 단계**: 범용 LLM-as-a-Judge의 수치 둔감증(Numeric Blindness)과 장식용 각주(Tacked-on Citations) 착시를 극복하고, **결정론적 수치 무결성, 3-Hop 인과 합성 완결도, 실존 출처 귀속성, 정직한 기권율**을 계측합니다.
+> 상태: 최소 target architecture
+> 상세 감사 근거: [Evaluation System Audit](../reports/evaluation-system-audit.md)
 
----
+## 1. 목적
 
-## 🧭 전체 목차 (Table of Contents)
-1. **[Part 1] 검색(Retrieval) 단계 공식 5대 평가 척도 및 수치 유도 근거 (확정)**
-2. **[Part 2] 생성(Generation) 단계 공식 4대 평가 척도 및 하이브리드 검증 프로토콜 (확정)**
-   * 2.1 결정론적 수치 무결성 (Deterministic Numeric Exactness)
-   * 2.2 마케팅 3-Hop 인과 합성 완결도 (Causal Triad Synthesis Score)
-   * 2.3 실존 출처 귀속 및 인용 무결성 (Provenance & Real UUID Citation)
-   * 2.4 부존재 질의 정직 기권율 (Calibrated Negative Abstention)
-   * 2.5 생성 평가기 구현 아키텍처 (Rule-based + NLI Judge)
+이 체계의 목적은 metric을 많이 만드는 것이 아니다. 동일한 사용자 문제와 corpus에서
+retrieval/agent architecture를 바꿨을 때 다음을 경험적으로 판단하는 것이다.
 
----
+- 실제 사용자 문제 해결 능력이 늘었는가?
+- 기존 capability regression은 없는가?
+- 새 tool의 잠재력과 agent utilization을 구분할 수 있는가?
+- 증가한 latency, cost, context, tool call이 정당한가?
 
-# 1. [Part 1] 검색(Retrieval) 단계 공식 5대 평가 척도
+과거 문서의 “공식 Retrieval 5대/Generation 4대 metric”은 historical synthetic V3
+proxy다. 특히 keyword 기반 faithfulness, 빈 distractor set의 rejection, 단일 gold의
+multi-hop coverage, 추정 retrieval latency는 release gate에서 제외한다.
 
-```mermaid
-flowchart TD
-    subgraph RetEval ["🎯 LaunchPilot 검색 단계 공식 5대 평가 척도"]
-        M1["1. Context Recall@5 (정답 포획율 >= 95.0%)<br/>• 글로벌 RAG 표준: 하류 환각 연쇄 실패 방어"]
-        M2["2. Context MRR@5 (최상단 집중도 >= 0.85)<br/>• TREC 랭킹 표준: 70% 이상 Rank 1 배치 요구"]
-        M3["3. Distractor Rejection (방해물 억제율 >= 90.0% ⭐)<br/>• 도메인 공학 유도: 1:10 유사 일지 억제"]
-        M4["4. Multi-Hop Chain Coverage (인과 완결율 >= 90.0% ⭐)<br/>• 도메인 공학 유도: 3-Hop 인과 경로 동시 포획"]
-        M5["5. Retrieval Latency (인출+리랭크 속도 <= 3.5s ⚡)<br/>• HCI 인지공학 SLA: 실시간 대화 임계치"]
-    end
+## 2. Artifact separation
+
+```text
+QueryRecord                 어떤 사용자 문제를 풀 것인가
+  ↓ query_id
+EvalSpecification           성공을 어떻게 정의할 것인가
+  ↓ query_id + spec_version
+TrialRunResult              특정 system/trial이 실제로 무엇을 했는가
 ```
 
-### 1.1 5대 검색 척도 정의 및 수치 유도 근거
+코드 계약은
+`launchpilot.evaluation.contracts.architecture_eval`에 있다. Query에는 expected tool이나
+route를 넣지 않는다. structured/unstructured, lexical/paraphrase, hop, task shape 같은
+taxonomy는 slice 설명에만 사용한다.
 
-| 번호 | 공식 척도명 | 목표치 (Target) | 수치 유도 근거 및 실무 의미 | 분류 |
-| :---: | :--- | :---: | :--- | :---: |
-| **1** | **Context Recall@5** | **>= 95.0%** | **글로벌 RAG 표준**: 검색 재현율이 90% 밑으로 떨어지면 하류 생성 LLM의 환각이 기하급수적으로 폭증함 (Cascading Failure 방어선) | **글로벌 표준** |
-| **2** | **Context MRR@5** | **>= 0.85** | **TREC/MS-MARCO 표준**: MRR = 1/Rank. 전체 질의의 최소 70%는 반드시 Rank 1에 꽂히고 나머지 30%도 Rank 2 안에 들어와야 달성되는 랭킹 품질선 | **글로벌 표준** |
-| **3** | **Distractor Rejection<br/>(방해물 억제율 ⭐)** | **>= 90.0%** | **코퍼스 구조 유도**: 캠페인당 10개의 유사 주간 일지가 공존하는 환경에서, 무관한 9개 방해물 일지를 상위 5위 밖으로 밀어내는 능력 (1 - 방해물수/10) | **도메인 특화** |
-| **4** | **Multi-Hop Coverage<br/>(인과 체인 완결도 ⭐)** | **>= 90.0%** | **3-Hop 인과 구조 유도**: [기획 -> 지표 -> 조치 -> 회고] 3단계 인과 단서 중 1개라도 빠지면 인과 추론 불가. 10개 복합 질의 중 9개 이상 완결 포획 요구 | **도메인 특화** |
-| **5** | **Retrieval Latency** | **<= 3.5s** | **HCI 인지공학 SLA**: 사용자가 챗봇 인터랙션에서 지연을 느끼지 않는 임계 시간(3~5초)을 만족하기 위해 검색 단계에 할당된 제한 시간 | **글로벌 표준** |
+## 3. 관계별 평가
 
-### 1.2 검색 평가기 도구
-* **모듈 위치**: `services/launchpilot-api/evals/retrieval_stage_evaluator.py`
-* **입력 데이터**: Golden V3 코퍼스 (1,050개 문서) + 150건 qrels 레이블
+| 관계 | 최소 metric | architecture decision |
+| --- | --- | --- |
+| Query → Retrieval | known-relevant Recall@K, MRR/nDCG, judged precision, unjudged@K | retriever/index/chunking 선택 |
+| Retrieval → Answer | claim support, citation correctness, unsupported claim rate | context assembly/generation 개선 |
+| Query → Answer | task success, required fact coverage, answer relevance, behavior correctness | release gate |
+| Reference → Answer | deterministic fact match 또는 calibrated semantic grader | gold가 충분한 task만 보조 사용 |
 
----
+qrels에 없는 evidence는 `unjudged`다. known irrelevant로 판정하기 전에는 precision
+failure로 처리하지 않는다. 새 run의 top result는 pooling review queue에 추가한다.
 
-# 2. [Part 2] 생성(Generation) 단계 공식 4대 평가 척도
+## 4. Outcome, process, efficiency
 
-```mermaid
-flowchart TD
-    subgraph GenEval ["🎯 LaunchPilot 생성 단계 공식 4대 평가 척도"]
-        G1["1. 결정론적 수치 무결성 (Numeric Exactness)<br/>• CPA, ROAS, 삭감률, 날짜 오차 0% (DB 코드 검증 100%)"]
-        G2["2. 3-Hop 인과 합성 완결도 (Causal Triad Synthesis ⭐)<br/>• [원인 지표 ➔ 조치 일지 ➔ 회고 결과] 3단계 인과 완성도 >= 90%"]
-        G3["3. 실존 출처 귀속성 (Provenance & Real UUID Citation)<br/>• [surface | UUID | timestamp] 규격 준수 & DB 실존 매칭 100%"]
-        G4["4. 보정된 정직 기권율 (Calibrated Abstention)<br/>• 29건 부존재 네거티브 질의에 대한 정직한 기권율 >= 95%"]
-    end
+Outcome이 primary다.
+
+- Task Success
+- Required Fact Coverage
+- Groundedness / Citation Support
+- Answer Relevance
+- Abstention / Clarification Correctness
+
+Retrieval과 agent process는 diagnosis다.
+
+- answer-bearing evidence 확보 여부
+- tool sequence, arguments, error, retry, recovery
+- redundant/repeated call, premature termination
+- forced tool/oracle condition과 realized agent condition의 차이
+
+Efficiency는 quality와 분리한다.
+
+- E2E 및 retrieval/tool/model latency
+- tool calls
+- input/output/context token
+- cost
+
+Quality gate를 통과한 candidate끼리 cost per successful trial, latency per successful
+trial, marginal cost/latency를 비교한다. 임의 weighted total score는 사용하지 않는다.
+
+## 5. Paired architecture experiment
+
+V0/V1/V2는 같은 query, Eval Specification, corpus, model, prompt에서 실행한다. index,
+toolset, code version은 의도한 intervention으로 달라질 수 있다.
+
+```bash
+launchpilot-compare-eval-runs \
+  evals/runs/v0-trials.jsonl \
+  evals/runs/v1-trials.jsonl \
+  --minimum-trials 3 \
+  --pass-rate 0.67 \
+  --output evals/runs/v0-v1-paired.json
 ```
 
-### 2.1 4대 생성 척도 상세 명세
+필수 보고 항목은 다음과 같다.
 
-| 번호 | 공식 척도명 | 검증 방식 및 알고리즘 | 목표치 (Target) | 엔지니어링 및 실무 의미 |
-| :---: | :--- | :--- | :---: | :--- |
-| **1** | **결정론적 수치 무결성<br/>(`Numeric Exactness`)** | Python 정규식 및 SQL 팩트 테이블과의 1:1 매칭 (LLM 미의존) | **100.0%** | 범용 LLM의 수치 둔감증을 배제하고 ROAS 1.2/1.5, 예산 15% 삭감 등 핵심 숫자의 무오차 보증 |
-| **2** | **3-Hop 인과 합성 완결도<br/>(`Causal Triad Score ⭐`)** | [트리거 지표 이상 ➔ 실행 조치 ➔ 회고 성과] 3단계 연결 상태 채점 (Level 0~2) | **>= 90.0%** | 단순 팩트 나열을 넘어, 마케터에게 필수적인 "원인-조치-후속영향" 인과 서사를 완결했는지 평가 |
-| **3** | **실존 출처 귀속성<br/>(`Real UUID Citation`)** | 본문 내 `[surface | UUID | timestamp]` 추출 후 DB 실존 전수 쿼리 | **100.0%** | 모델이 임의로 조작한 가짜/유령 UUID를 배제하고 실제 클릭 검증 가능한 권위 있는 출처 보장 |
-| **4** | **보정된 정직 기권율<br/>(`Calibrated Abstention`)** | 29건 부존재 네거티브 질의에 대한 명시적 거절 구문(`"기록이 없습니다"`) 검증 | **>= 95.0%** | 미집행 채널/미존재 사건에 대해 그럴듯한 거짓 보고서를 지어내지 않고 정직하게 거절하는 방어력 |
+- Newly Solved / Regression / Net Gain
+- Pass→Pass와 Fail→Fail
+- required-fact, groundedness, relevance별 win/loss/tie와 delta
+- paired bootstrap interval
+- latency/cost/tool-call delta와 success당 비용
+- trial success rate와 all-trials-pass case rate
 
----
+## 6. Capability와 utilization
 
-## 💻 3. 하이브리드 생성 평가기 아키텍처 (`generation_stage_evaluator.py`)
+새 tool은 네 조건으로 비교한다.
 
-1. **[결정론적 정적 검증기 (Deterministic Rule Engine)]**:
-   * 수치 팩트 정규식 매칭, UUID 실존 DB 조회, 네거티브 거절 키워드 판별.
-2. **[동적 NLI 인과 심판기 (Causal & Entailment Judge)]**:
-   * 3-Hop 인과 결합 수준(Level 0/1/2) 및 문장 단위 컨텍스트 귀속 여부 판정.
+1. baseline agent-selected
+2. new tool forced
+3. baseline + new tool forced/fused
+4. candidate agent-selected
+
+필요하면 oracle evidence injection을 추가한다. forced retrieval은 성공하지만
+agent-selected가 실패하면 routing/utilization 문제다. evidence injection도 실패하면
+generation 또는 Eval Specification/grader를 먼저 조사한다.
+
+## 7. Portfolio와 release gate
+
+- Frozen: 안정적인 version comparison
+- Holdout: entity/source/template group blind
+- Regression: 실제 failure 재발 방지
+- Frontier: 새 capability 개발
+- Production Sample: 실제 분포와 offline metric 상관 검증
+
+release candidate는 Frozen + Regression에서 non-inferior해야 하고, 고위험 slice의
+regression budget, grounding/reliability, cost/latency trade-off를 모두 통과해야 한다.
+Frontier 개선만으로 production release를 결정하지 않는다.
+
+## 8. Grader policy
+
+- exact fact/calculation: deterministic code/SQL
+- retrieval: IR metric + pooled judgment
+- open answer quality: calibrated LLM judge + human audit
+- groundedness: claim-evidence mapping + human adjudication sample
+- trajectory: deterministic trace diagnostic
+
+LLM judge마다 model/prompt/rubric version을 기록한다. human calibration set에서 agreement,
+false-positive/negative, order reversal consistency, repeated-judgment stability를 검증하지
+않은 judge는 primary release gate로 사용하지 않는다.

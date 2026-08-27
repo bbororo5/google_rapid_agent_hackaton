@@ -24,7 +24,7 @@ docs/
 │
 └── reports/                            # 📊 실측 실험 및 벤치마크 보고서
     ├── evaluation-system-audit.md      # 🔎 Golden/Eval/Grader/Experiment 적대적 감사와 최소 재설계
-    ├── master-engineering-report.md    # 📘 [마스터 결산서] V1~V3 데이터셋, 3단계 어블레이션, N=20 실측, 최적화
+    ├── master-engineering-report.md    # 📘 과거 V1~V3 실험 기록(감사 전 proxy 결과 포함)
     └── dataset-evolution.md            # 🧪 V1 ➔ V2 ➔ V3 데이터셋 진화 및 적대적 감사 아키텍처
 ```
 
@@ -36,9 +36,9 @@ docs/
 | :--- | :--- | :--- |
 | **🚀 Pull Request** | [docs/pull-request.md](pull-request.md) | V3 데이터셋 및 LangGraph 인-루프 파이프라인 완성 공식 PR 본문 |
 | **🔎 Evaluation 감사** | [docs/reports/evaluation-system-audit.md](reports/evaluation-system-audit.md) | Golden V1~V3, qrels, grader, runner, 과거 결과의 유효 범위와 최소 재설계 |
-| **📘 마스터 결산서** | [docs/reports/master-engineering-report.md](reports/master-engineering-report.md) | 데이터셋 진화, 3단계 어블레이션, N=20 실측, 지연시간 83.4% 최적화 총결산 |
+| **📘 과거 실험 기록** | [docs/reports/master-engineering-report.md](reports/master-engineering-report.md) | 데이터셋 진화와 ablation 기록. 품질 주장은 Eval 감사의 유효 범위 안에서 해석 |
 | **🏛️ 시스템 아키텍처** | [docs/architecture/system-architecture.md](architecture/system-architecture.md) | 전처리 ➔ 본체 에이전트 ➔ 도구 ➔ 인-루프 리랭커 순환 토폴로지 |
-| **🎯 2단계 분리 평가 체계** | [docs/architecture/evaluation-framework.md](architecture/evaluation-framework.md) | 검색(Retrieval) 5대 척도 & 생성(Generation) 4대 척도 분리 평가 체계 |
+| **🎯 Evaluation architecture** | [docs/architecture/evaluation-framework.md](architecture/evaluation-framework.md) | Query/Spec/Trial 분리, 관계별 평가, paired architecture experiment |
 | **🧪 데이터셋 진화** | [docs/reports/dataset-evolution.md](reports/dataset-evolution.md) | 30개 캠페인, 1,050개 코퍼스, 150건 무편향 블라인드 질의 설계 |
 | **📝 아키텍처 결정서** | [docs/architecture/adr/](architecture/adr/) | ADR 0001 ~ ADR 0007 핵심 설계 의사결정 기록 |
 

@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Any, Sequence
+from typing import Any
+
 
 @dataclass(frozen=True, slots=True)
 class GenerationGroundTruth:
@@ -12,6 +14,7 @@ class GenerationGroundTruth:
     expected_numbers: tuple[str, ...]
     causal_triad: dict[str, str]
     canonical_gold_answer: str
+
 
 @dataclass(frozen=True, slots=True)
 class GenerationEvaluationResult:
@@ -23,17 +26,22 @@ class GenerationEvaluationResult:
     citation_precision: float
     citation_recall: float
     abstention_passed: bool
-    faithfulness_passed: bool
+    lexical_proxy_passed: bool
     latency_ms: float
     details: dict[str, Any]
 
+    @property
+    def faithfulness_passed(self) -> bool:
+        """Deprecated compatibility alias; this result is not faithfulness."""
+        return self.lexical_proxy_passed
+
+
 class GenerationStageEvaluator:
-    """Pure Comparator Generation Stage Evaluator for LaunchPilot Agentic RAG.
-    
-    Architectural Principles:
-    1. Zero Hardcoding: Evaluator contains NO domain keywords or ad-hoc heuristics.
-    2. Zero Database Lookups: Evaluator does NOT fetch documents dynamically.
-    3. Pure Ground-Truth Comparison: Evaluator strictly compares (agent_answer) against (case.ground_truth).
+    """Legacy lexical-conformance comparator for the synthetic V3 fixture.
+
+    This class does not establish semantic correctness, causal reasoning, or
+    claim-to-evidence faithfulness. Its keyword, number-string, and UUID checks are
+    diagnostics only and must not be used as a production quality gate.
     """
 
     def evaluate_case(
@@ -48,7 +56,14 @@ class GenerationStageEvaluator:
 
         # 1. Negative Abstention Verification
         if ground_truth.is_negative:
-            abstain_phrases = ["기록이 없", "찾을 수 없", "존재하지 않", "집행된 적 없", "확인되지 않", "일치하는 정보가 없"]
+            abstain_phrases = [
+                "기록이 없",
+                "찾을 수 없",
+                "존재하지 않",
+                "집행된 적 없",
+                "확인되지 않",
+                "일치하는 정보가 없",
+            ]
             abstention_passed = any(p in ans for p in abstain_phrases) and len(ans) > 5
             return GenerationEvaluationResult(
                 case_id=ground_truth.case_id,
@@ -59,7 +74,7 @@ class GenerationStageEvaluator:
                 citation_precision=1.0,
                 citation_recall=1.0,
                 abstention_passed=abstention_passed,
-                faithfulness_passed=abstention_passed,
+                lexical_proxy_passed=abstention_passed,
                 latency_ms=latency_ms,
                 details={"abstention_passed": abstention_passed},
             )
@@ -77,7 +92,10 @@ class GenerationStageEvaluator:
         details["numeric_passed"] = numeric_passed
 
         # 3. Provenance & Expected Citation Matching
-        uuid_regex = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", re.IGNORECASE)
+        uuid_regex = re.compile(
+            r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
+            re.IGNORECASE,
+        )
         found_uuids = set(uuid_regex.findall(ans))
         expected_uuids = set(ground_truth.expected_document_ids)
 
@@ -99,9 +117,23 @@ class GenerationStageEvaluator:
         # 4. 3-Hop Causal Triad Synthesis Scoring (Level 0, 1, 2)
         # Evaluates against ground_truth.causal_triad entities
         triad = ground_truth.causal_triad
-        trigger_terms = [t for t in re.findall(r"[가-힣A-Za-z0-9_]+", triad.get("trigger_anomaly", "")) if len(t) >= 2]
-        action_terms = [t for t in re.findall(r"[가-힣A-Za-z0-9_]+", triad.get("action_decision", "")) if len(t) >= 2]
-        outcome_terms = [t for t in re.findall(r"[가-힣A-Za-z0-9_]+", triad.get("retrospective_outcome", "")) if len(t) >= 2]
+        trigger_terms = [
+            t
+            for t in re.findall(r"[가-힣A-Za-z0-9_]+", triad.get("trigger_anomaly", ""))
+            if len(t) >= 2
+        ]
+        action_terms = [
+            t
+            for t in re.findall(r"[가-힣A-Za-z0-9_]+", triad.get("action_decision", ""))
+            if len(t) >= 2
+        ]
+        outcome_terms = [
+            t
+            for t in re.findall(
+                r"[가-힣A-Za-z0-9_]+", triad.get("retrospective_outcome", "")
+            )
+            if len(t) >= 2
+        ]
 
         has_trigger = any(t.lower() in ans_lower for t in trigger_terms)
         has_action = any(t.lower() in ans_lower for t in action_terms)
@@ -133,12 +165,14 @@ class GenerationStageEvaluator:
             citation_precision=citation_precision,
             citation_recall=citation_recall,
             abstention_passed=True,
-            faithfulness_passed=faithfulness_passed,
+            lexical_proxy_passed=faithfulness_passed,
             latency_ms=latency_ms,
             details=details,
         )
 
-    def summarize(self, results: Sequence[GenerationEvaluationResult]) -> dict[str, Any]:
+    def summarize(
+        self, results: Sequence[GenerationEvaluationResult]
+    ) -> dict[str, Any]:
         if not results:
             return {}
         N = len(results)
@@ -147,10 +181,22 @@ class GenerationStageEvaluator:
 
         return {
             "total_evaluated_queries": N,
-            "numeric_exactness_rate": sum(1 for r in pos_results if r.numeric_exactness) / max(len(pos_results), 1),
-            "causal_triad_completion_rate": sum(1 for r in pos_results if r.causal_triad_level == 2) / max(len(pos_results), 1),
-            "citation_precision": sum(r.citation_precision for r in pos_results) / max(len(pos_results), 1),
-            "citation_recall": sum(r.citation_recall for r in pos_results) / max(len(pos_results), 1),
-            "negative_abstention_rate": sum(1 for r in neg_results if r.abstention_passed) / max(len(neg_results), 1),
-            "overall_faithfulness_rate": sum(1 for r in results if r.faithfulness_passed) / N,
+            "numeric_exactness_rate": sum(1 for r in pos_results if r.numeric_exactness)
+            / max(len(pos_results), 1),
+            "causal_triad_completion_rate": sum(
+                1 for r in pos_results if r.causal_triad_level == 2
+            )
+            / max(len(pos_results), 1),
+            "citation_precision": sum(r.citation_precision for r in pos_results)
+            / max(len(pos_results), 1),
+            "citation_recall": sum(r.citation_recall for r in pos_results)
+            / max(len(pos_results), 1),
+            "negative_abstention_rate": sum(
+                1 for r in neg_results if r.abstention_passed
+            )
+            / max(len(neg_results), 1),
+            "overall_lexical_proxy_pass_rate": sum(
+                1 for r in results if r.lexical_proxy_passed
+            )
+            / N,
         }

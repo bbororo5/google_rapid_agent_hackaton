@@ -199,7 +199,7 @@ RAGAS도 retrieval context의 relevance, answer의 faithfulness, answer quality�
 
 ### 4.2 Retrieval metric 구현 문제
 
-`retrieval_stage_evaluator.py`와 decoupled runner에는 다음 문제가 있다.
+감사 당시 `retrieval_stage_evaluator.py`와 decoupled runner에는 다음 문제가 있었다.
 
 - V3 positive는 target 1개이므로 hit rate, recall, multi-hop coverage가 동일하다.
 - `multihop_coverage = recall`로 직접 대입한다. 실제 hop 또는 dependency를 평가하지
@@ -210,6 +210,10 @@ RAGAS도 retrieval context의 relevance, answer의 faithfulness, answer quality�
 - retrieval latency를 E2E latency의 절반(`e2e_dur * 500`)으로 추정한다.
 - validation 30건 중 앞의 15건만 실행한다.
 - 모든 case에서 C0001 reader/scope를 사용해 case별 campaign 조건을 보존하지 않는다.
+
+이번 변경에서 negative/unjudged semantics, single-target multi-hop 제외, 실제 validation
+case 수와 case별 campaign scope, 추정 retrieval latency 제거를 수정했다. 저장된 과거
+결과는 수정 전 evaluator의 산출물이므로 historical proxy로 남는다.
 
 V1/V2 experiment metric 구현은 exact document ref와 span overlap을 사용하므로 더
 신뢰할 수 있다. 단, unjudged를 0 gain으로 처리하고 denominator를 고정하므로 qrels

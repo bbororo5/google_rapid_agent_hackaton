@@ -1,5 +1,10 @@
 # 마케팅 RAG 데이터셋 진화 보고서 (v1 → v2 → v3)
 
+> Historical design record. V3의 split independence, qrels completeness,
+> representativeness와 “무편향 보증”은 후속 감사에서 release benchmark 요건을
+> 충족하지 못한 것으로 판정되었다. 현재 판단은
+> [Evaluation System Audit](evaluation-system-audit.md)을 따른다.
+
 > **핵심 요약 (BLUF)**:
 > 1. **v1 (초기 폐쇄계)**: 캠페인당 3문서 폐쇄계로 인한 **Recall 1.0 착시(변별력 상실)** 발생.
 > 2. **v2 (광역 얕은 코퍼스)**: 300개 캠페인으로 전역 코퍼스를 열었으나, **캠페인 내부 시계열 깊이(3문서 한계) 부재**.
