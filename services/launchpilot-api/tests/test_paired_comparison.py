@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import pytest
-
 from launchpilot.evaluation.contracts import (
     ArtifactVersions,
     EfficiencyObservation,

@@ -6,7 +6,6 @@ from uuid import uuid4
 from langchain_core.messages import AIMessage
 from langchain_core.runnables import RunnableLambda
 from langchain_core.tools import StructuredTool
-
 from launchpilot.analysis.graph import AnalysisGraph
 from launchpilot.analysis.prompts import format_system_prompt
 from launchpilot.analysis.router import ScopeRouter

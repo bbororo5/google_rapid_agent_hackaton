@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 import pytest
-from pydantic import ValidationError
-
 from launchpilot.evaluation.contracts import (
     Answerability,
     ArtifactVersions,
@@ -26,6 +24,7 @@ from launchpilot.evaluation.contracts import (
     ToolCallTrace,
     TrialRunResult,
 )
+from pydantic import ValidationError
 
 
 def _query() -> QueryRecord:

@@ -5,7 +5,6 @@ from uuid import UUID
 
 from langchain_core.messages import AIMessage
 from langchain_core.runnables import RunnableLambda
-
 from launchpilot.analysis.graph import AnalysisGraph
 from launchpilot.analysis.reranker import MarketingDomainReranker
 from launchpilot.analysis.scope import ExecutionScope

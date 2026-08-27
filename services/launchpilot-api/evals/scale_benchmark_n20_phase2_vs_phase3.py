@@ -1,31 +1,34 @@
-from pathlib import Path
-import os
-import re
-import time
 import json
+import re
 import sqlite3
-from datetime import datetime, UTC
-from uuid import UUID, uuid4
+import time
 from collections import Counter
+from datetime import UTC, date, datetime
+from pathlib import Path
+from uuid import UUID, uuid4
 
-from launchpilot.bootstrap.wiring import agent_model
-from launchpilot.campaigns.contracts.access import CampaignScope
-from launchpilot.knowledge.contracts.retrieval import TextSearchHit, DocumentType, CampaignDocument
-from launchpilot.performance.contracts.retrieval import CampaignPerformance, CampaignSummary, CampaignMetricQuery
+from langgraph.graph import END, START, MessagesState, StateGraph
+from langgraph.prebuilt import ToolNode, tools_condition
+from launchpilot.analysis.graph import AgentNode, AnalysisGraph, RouterNode
+from launchpilot.analysis.graph_retriever import MarketingKnowledgeGraph
 from launchpilot.analysis.scope import ExecutionScope
 from launchpilot.analysis.tools import CampaignToolset
-from launchpilot.analysis.graph_retriever import MarketingKnowledgeGraph
-from launchpilot.analysis.reranker import MarketingDomainReranker
-from launchpilot.analysis.graph import AnalysisGraph, RouterNode, AgentNode
-from langgraph.graph import StateGraph, MessagesState, START, END
-from langgraph.prebuilt import ToolNode, tools_condition
+from launchpilot.bootstrap.wiring import agent_model
+from launchpilot.campaigns.contracts.access import CampaignScope
+from launchpilot.knowledge.contracts.retrieval import (
+    CampaignDocument,
+    DocumentType,
+    TextSearchHit,
+)
+from launchpilot.performance.contracts.retrieval import (
+    CampaignMetricQuery,
+    CampaignPerformance,
+    CampaignSummary,
+)
+from openinference.instrumentation.langchain import LangChainInstrumentor
 
 # Phoenix OTel
-try:
-    from openinference.instrumentation.langchain import LangChainInstrumentor
-    LangChainInstrumentor().instrument()
-except Exception:
-    pass
+LangChainInstrumentor().instrument()
 
 DB_PATH = "services/launchpilot-api/local_launchpilot.db"
 
@@ -136,15 +139,17 @@ class LocalPerfReader:
                 id=UUID(self.c_id),
                 name="오로라 리테일",
                 goal="ROAS 극대화",
-                period_start=datetime(2025, 1, 1).date(),
-                period_end=datetime(2025, 4, 30).date(),
+                period_start=date(2025, 1, 1),
+                period_end=date(2025, 4, 30),
                 target_metrics=(),
             ),
             metrics=(),
         )
 
 def build_app(c_code: str, use_reranker: bool):
-    c_info = camp_by_code.get(c_code, list(camp_by_code.values())[0])
+    c_info = camp_by_code.get(c_code)
+    if c_info is None:
+        c_info = next(iter(camp_by_code.values()))
     c_id, ws_id, _ = c_info
     scope = ExecutionScope(workspace_id=str(ws_id), campaign_id=str(c_id), reference_now=datetime(2025, 6, 1, tzinfo=UTC))
     camp_scope = CampaignScope(campaign_id=c_id, workspace_id=ws_id, user_id=uuid4())

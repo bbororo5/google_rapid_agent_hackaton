@@ -1,22 +1,28 @@
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parents[1]))
 import json
-import time
-import sqlite3
 import re
-from uuid import UUID, uuid4
+import sqlite3
+import sys
+import time
 from pathlib import Path
+from uuid import UUID, uuid4
 
+sys.path.insert(0, str(Path(__file__).parents[1]))
+
+from evals.generation_stage_evaluator import (
+    GenerationGroundTruth,
+    GenerationStageEvaluator,
+)
 from evals.retrieval_stage_evaluator import RetrievalStageEvaluator
-from evals.generation_stage_evaluator import GenerationStageEvaluator, GenerationGroundTruth
-from launchpilot.analysis.tools import CampaignToolset
-from launchpilot.analysis.scope import ExecutionScope
-from launchpilot.campaigns.contracts.access import CampaignScope
-from launchpilot.knowledge.contracts.retrieval import TextSearchHit, DocumentType
-from launchpilot.performance.contracts.retrieval import CampaignPerformance, CampaignSummary
 from launchpilot.analysis.graph import AnalysisGraph
+from launchpilot.analysis.scope import ExecutionScope
+from launchpilot.analysis.tools import CampaignToolset
 from launchpilot.bootstrap.wiring import agent_model
+from launchpilot.campaigns.contracts.access import CampaignScope
+from launchpilot.knowledge.contracts.retrieval import DocumentType, TextSearchHit
+from launchpilot.performance.contracts.retrieval import (
+    CampaignPerformance,
+    CampaignSummary,
+)
 
 V3_ROOT = Path(__file__).parents[1] / "evals" / "golden" / "golden-v3"
 DB_PATH = Path(__file__).parents[1] / "local_launchpilot.db"
@@ -144,8 +150,10 @@ for idx, case in enumerate(val_cases, 1):
                                     index_version="v3", chunker_version="v3", retriever_version="v3"
                                 )
                             )
-            except Exception:
-                pass
+            except (json.JSONDecodeError, TypeError, ValueError):
+                # Tool messages may legitimately contain non-JSON prose. Those messages
+                # are not retrieval hits and should remain outside retrieval metrics.
+                continue
 
 
     final_msg = transcript.messages[-1].content if transcript.messages else ""
@@ -183,7 +191,7 @@ print(f"  • Total Evaluated Cases     : {ret_summary.get("total_evaluated_quer
 print(f"  • Known Relevant Recall@K   : {ret_summary.get("known_relevant_recall_at_k", 0.0)*100:.1f}%")
 print(f"  • Mean Reciprocal Rank@K    : {ret_summary.get("mean_reciprocal_rank_at_k", 0.0):.3f}")
 print(f"  • Mean Unjudged@K           : {ret_summary.get("mean_unjudged_at_k", 0.0):.2f}")
-print(f"  • Retrieval Latency         : not measured (no retrieval span)")
+print("  • Retrieval Latency         : not measured (no retrieval span)")
 
 print("\n" + "="*70)
 print("📊 [STAGE 2] LEGACY LEXICAL PROXY DIAGNOSTICS")
