@@ -12,7 +12,7 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Protocol
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field, model_validator
 
 from launchpilot.evaluation.contracts import (
     ArtifactVersions,
@@ -22,6 +22,7 @@ from launchpilot.evaluation.contracts import (
     ExperimentCondition,
     GraderKind,
     OutcomeScores,
+    ProblemRecord,
     QueryRecord,
     RetrievalDiagnostics,
     ReviewStatus,
@@ -221,38 +222,57 @@ class TrialGrade(BaseModel):
 
 
 class ScheduledTrial(BaseModel):
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True, populate_by_name=True)
 
     system_version: str
-    query_id: str
+    problem_id: str = Field(
+        validation_alias=AliasChoices("problem_id", "query_id")
+    )
     trial_id: str
     requested_seed: int = Field(ge=0)
 
+    @property
+    def query_id(self) -> str:
+        return self.problem_id
+
 
 class ControlledExperimentBundle(BaseModel):
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True, populate_by_name=True)
 
     plan: ControlledExperimentPlan
-    query_ids: tuple[str, ...] = Field(min_length=1)
+    problem_ids: tuple[str, ...] = Field(
+        min_length=1,
+        validation_alias=AliasChoices("problem_ids", "query_ids"),
+    )
     specification_fingerprint: str = Field(pattern=r"^[0-9a-f]{64}$")
     execution_order: tuple[ScheduledTrial, ...]
     trials: tuple[TrialRunResult, ...]
-    queries: tuple[QueryRecord, ...]
+    problems: tuple[ProblemRecord, ...] = Field(
+        validation_alias=AliasChoices("problems", "queries")
+    )
     specifications: tuple[EvalSpecification, ...]
+
+    @property
+    def query_ids(self) -> tuple[str, ...]:
+        return self.problem_ids
+
+    @property
+    def queries(self) -> tuple[ProblemRecord, ...]:
+        return self.problems
 
     @model_validator(mode="after")
     def validate_schedule_pairing(self) -> ControlledExperimentBundle:
-        if self.query_ids != tuple(sorted(set(self.query_ids))):
-            raise ValueError("query_ids must be unique and sorted")
-        if tuple(sorted(item.query_id for item in self.queries)) != self.query_ids:
-            raise ValueError("query snapshot does not match query_ids")
-        if tuple(sorted(item.query_id for item in self.specifications)) != self.query_ids:
-            raise ValueError("specification snapshot does not match query_ids")
+        if self.problem_ids != tuple(sorted(set(self.problem_ids))):
+            raise ValueError("problem_ids must be unique and sorted")
+        if tuple(sorted(item.problem_id for item in self.problems)) != self.problem_ids:
+            raise ValueError("problem snapshot does not match problem_ids")
+        if tuple(sorted(item.problem_id for item in self.specifications)) != self.problem_ids:
+            raise ValueError("specification snapshot does not match problem_ids")
         if self.specification_fingerprint != _specification_fingerprint(
-            self.queries, self.specifications
+            self.problems, self.specifications
         ):
             raise ValueError("specification fingerprint does not match input snapshots")
-        expected_order = _schedule(self.plan, self.query_ids)
+        expected_order = _schedule(self.plan, self.problem_ids)
         if self.execution_order != expected_order:
             raise ValueError("execution schedule does not match the declared plan")
         scheduled = tuple(
@@ -276,10 +296,10 @@ class ControlledExperimentBundle(BaseModel):
         if actual != scheduled:
             raise ValueError("trial results do not exactly match the execution schedule")
         systems = {item.system_version: item for item in self.plan.systems}
-        specifications = {item.query_id: item for item in self.specifications}
+        specifications = {item.problem_id: item for item in self.specifications}
         for trial in self.trials:
             expected_system = systems[trial.system_version]
-            expected_specification = specifications[trial.query_id]
+            expected_specification = specifications[trial.problem_id]
             if trial.run_id != self.plan.run_id:
                 raise ValueError("trial run_id does not match the declared plan")
             if trial.versions != expected_system.versions:
@@ -298,7 +318,7 @@ class ControlledExperimentBundle(BaseModel):
             expected_grader_seed = (
                 _grader_trial_seed(
                     self.plan.grader.seed,
-                    trial.query_id,
+                    trial.problem_id,
                     trial.trial_id,
                 )
                 if grader_was_invoked
@@ -569,7 +589,7 @@ def write_controlled_bundle(
             partial_root / "schedule.json",
             {
                 "specification_fingerprint": bundle.specification_fingerprint,
-                "query_ids": bundle.query_ids,
+                "problem_ids": bundle.problem_ids,
                 "execution_order": [
                     item.model_dump(mode="json") for item in bundle.execution_order
                 ],
@@ -578,7 +598,7 @@ def write_controlled_bundle(
         _write_json(partial_root / "comparison-status.json", comparison_status)
         inputs_root = partial_root / "inputs"
         inputs_root.mkdir()
-        _write_jsonl(inputs_root / "queries.jsonl", bundle.queries)
+        _write_jsonl(inputs_root / "problems.jsonl", bundle.problems)
         _write_jsonl(
             inputs_root / "eval-specifications.jsonl", bundle.specifications
         )
@@ -783,7 +803,7 @@ def _specification_fingerprint(
     queries: Sequence[QueryRecord], specifications: Sequence[EvalSpecification]
 ) -> str:
     payload = {
-        "queries": [
+        "problems": [
             item.model_dump(mode="json")
             for item in sorted(queries, key=lambda item: item.query_id)
         ],

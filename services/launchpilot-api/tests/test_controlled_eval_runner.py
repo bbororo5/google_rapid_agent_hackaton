@@ -156,7 +156,13 @@ def test_controlled_runner_redacts_gold_pairs_blocks_and_writes_reports(
     assert len((run_root / "v0.jsonl").read_text().splitlines()) == 6
     assert (run_root / "v0-v1.json").exists()
     assert (run_root / "v1-v2.json").exists()
-    assert len((run_root / "inputs/queries.jsonl").read_text().splitlines()) == 2
+    problems = [
+        json.loads(line)
+        for line in (run_root / "inputs/problems.jsonl").read_text().splitlines()
+    ]
+    assert len(problems) == 2
+    assert {item["problem_id"] for item in problems} == {"q1", "q2"}
+    assert all("query_id" not in item and "text" not in item for item in problems)
     assert len(
         (run_root / "inputs/eval-specifications.jsonl").read_text().splitlines()
     ) == 2

@@ -15,6 +15,8 @@ from launchpilot.evaluation.contracts import (
     InformationModality,
     OutcomeScores,
     PortfolioRole,
+    ProblemRecord,
+    ProblemProvenance,
     QueryCharacteristics,
     QueryRecord,
     QuerySource,
@@ -22,6 +24,7 @@ from launchpilot.evaluation.contracts import (
     RetrievalDiagnostics,
     ReviewStatus,
     SourceCardinality,
+    SuppliedContext,
     TaskShape,
     ToolCallStatus,
     ToolCallTrace,
@@ -84,6 +87,48 @@ def test_query_is_independent_from_tool_and_success_definition() -> None:
     assert "route" not in QueryRecord.model_fields
     assert "answerability" not in QueryRecord.model_fields
     assert query.query_id == _spec().query_id
+
+
+def test_problem_is_the_canonical_serialized_unit_with_legacy_read_aliases() -> None:
+    problem = ProblemRecord(
+        problem_id="encounter.001",
+        user_utterance="지난달 조정 원인을 알려줘",
+        information_need="예산 조정의 원인과 근거를 확인한다.",
+        world_id="marketing-world-v1",
+        supplied_context=(
+            SuppliedContext(key="active_campaign_ref", value="C0017"),
+        ),
+        source=QuerySource.PRODUCTION,
+        portfolio=PortfolioRole.FRONTIER,
+        characteristics=QueryCharacteristics(
+            modalities=(InformationModality.MIXED,),
+            task_shape=TaskShape.LOOKUP,
+        ),
+        provenance=ProblemProvenance(
+            source_dataset="production-sample-2026-08",
+            source_record_id="request-17",
+            generation_method="production_sample",
+        ),
+    )
+
+    assert problem.query_id == problem.problem_id
+    assert problem.text == problem.user_utterance
+    assert problem.model_dump(mode="json")["problem_id"] == "encounter.001"
+    assert "query_id" not in problem.model_dump(mode="json")
+
+    legacy = ProblemRecord.model_validate(
+        {
+            "query_id": "legacy.001",
+            "text": "legacy query",
+            "source": "synthetic",
+            "portfolio": "frontier",
+            "characteristics": {
+                "modalities": ["unstructured"],
+                "task_shape": "lookup",
+            },
+        }
+    )
+    assert legacy.problem_id == "legacy.001"
 
 
 def test_unjudged_evidence_cannot_receive_a_relevance_grade() -> None:

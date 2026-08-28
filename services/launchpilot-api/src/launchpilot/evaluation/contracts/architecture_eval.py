@@ -3,7 +3,14 @@ from __future__ import annotations
 from datetime import datetime
 from enum import StrEnum
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import (
+    AliasChoices,
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_validator,
+    model_validator,
+)
 
 
 class PortfolioRole(StrEnum):
@@ -112,18 +119,79 @@ class QueryCharacteristics(BaseModel):
     tags: tuple[str, ...] = ()
 
 
-class QueryRecord(BaseModel):
-    """The user problem, independent of any success definition or system run."""
+class SuppliedContext(BaseModel):
+    """Context available to the system before it starts solving the problem."""
 
     model_config = ConfigDict(frozen=True)
 
-    query_id: str = Field(min_length=1, pattern=r"^[a-z0-9][a-z0-9._-]*$")
-    text: str = Field(min_length=1)
+    key: str = Field(min_length=1, pattern=r"^[a-z0-9][a-z0-9._-]*$")
+    value: str = Field(min_length=1)
+
+
+class ProblemProvenance(BaseModel):
+    """Where a problem came from; this is not part of its success definition."""
+
+    model_config = ConfigDict(frozen=True)
+
+    source_dataset: str = Field(min_length=1)
+    source_record_id: str = Field(min_length=1)
+    generation_method: str = Field(min_length=1)
+    legacy_split: str | None = None
+
+
+class ProblemRecord(BaseModel):
+    """A user problem, independent of success criteria, tools, and system runs.
+
+    ``query_id`` and ``text`` remain accepted as input aliases so historical code can
+    be read during migration. New artifacts always serialize ``problem_id`` and
+    ``user_utterance``.
+    """
+
+    model_config = ConfigDict(frozen=True, populate_by_name=True)
+
+    problem_id: str = Field(
+        min_length=1,
+        pattern=r"^[a-z0-9][a-z0-9._-]*$",
+        validation_alias=AliasChoices("problem_id", "query_id"),
+    )
+    user_utterance: str = Field(
+        min_length=1,
+        validation_alias=AliasChoices("user_utterance", "text"),
+    )
+    information_need: str | None = Field(default=None, min_length=1)
+    world_id: str = Field(default="unspecified", min_length=1)
+    supplied_context: tuple[SuppliedContext, ...] = ()
     language: str = Field(default="ko-KR", min_length=2)
     source: QuerySource
     portfolio: PortfolioRole
     characteristics: QueryCharacteristics
     leakage_group_ids: tuple[str, ...] = ()
+    provenance: ProblemProvenance | None = None
+
+    @property
+    def query_id(self) -> str:
+        """Compatibility accessor for pre-task-centric evaluation code."""
+
+        return self.problem_id
+
+    @property
+    def text(self) -> str:
+        """Compatibility accessor for pre-task-centric evaluation code."""
+
+        return self.user_utterance
+
+    @model_validator(mode="after")
+    def validate_context_and_leakage_groups(self) -> ProblemRecord:
+        context_keys = [item.key for item in self.supplied_context]
+        if len(context_keys) != len(set(context_keys)):
+            raise ValueError("supplied context keys must be unique")
+        if len(self.leakage_group_ids) != len(set(self.leakage_group_ids)):
+            raise ValueError("leakage_group_ids must be unique")
+        return self
+
+
+# Import compatibility only. Canonical artifacts and APIs use ProblemRecord.
+QueryRecord = ProblemRecord
 
 
 class RequiredFact(BaseModel):
@@ -173,13 +241,16 @@ class EvidenceAssessment(BaseModel):
 
 
 class EvalSpecification(BaseModel):
-    """Versioned success definition for a QueryRecord."""
+    """Versioned success definition for a ProblemRecord."""
 
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True, populate_by_name=True)
 
     spec_id: str = Field(min_length=1, pattern=r"^[a-z0-9][a-z0-9._-]*$")
     spec_version: str = Field(min_length=1)
-    query_id: str = Field(min_length=1)
+    problem_id: str = Field(
+        min_length=1,
+        validation_alias=AliasChoices("problem_id", "query_id"),
+    )
     answerability: Answerability
     required_facts: tuple[RequiredFact, ...] = ()
     expected_behaviors: tuple[ExpectedBehavior, ...] = Field(min_length=1)
@@ -187,6 +258,12 @@ class EvalSpecification(BaseModel):
     review_status: ReviewStatus
     reviewer_ids: tuple[str, ...] = ()
     grader_rubric_version: str | None = None
+
+    @property
+    def query_id(self) -> str:
+        """Compatibility accessor for historical query-keyed runners."""
+
+        return self.problem_id
 
     @model_validator(mode="after")
     def validate_behavior_and_fact_refs(self) -> EvalSpecification:
@@ -319,11 +396,14 @@ class EfficiencyObservation(BaseModel):
 class TrialRunResult(BaseModel):
     """One stochastic trial. Outcome, diagnostics, and efficiency stay separable."""
 
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True, populate_by_name=True)
 
     run_id: str = Field(min_length=1)
     system_version: str = Field(min_length=1)
-    query_id: str = Field(min_length=1)
+    problem_id: str = Field(
+        min_length=1,
+        validation_alias=AliasChoices("problem_id", "query_id"),
+    )
     spec_id: str = Field(min_length=1)
     spec_version: str = Field(min_length=1)
     trial_id: str = Field(min_length=1)
@@ -350,6 +430,12 @@ class TrialRunResult(BaseModel):
     error_type: str | None = None
     error_message: str | None = Field(default=None, max_length=1000)
     failure_stage: TrialFailureStage | None = None
+
+    @property
+    def query_id(self) -> str:
+        """Compatibility accessor for historical paired-comparison code."""
+
+        return self.problem_id
 
     @field_validator("started_at", "finished_at")
     @classmethod
