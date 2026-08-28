@@ -7,7 +7,6 @@ from launchpilot.evaluation.task_dataset import (
     load_task_dataset,
     verify_world_artifacts,
 )
-
 from launchpilot.evaluation.task_dataset_cli import inspect_task_dataset
 
 ROOT = Path(__file__).parents[1]

@@ -12,7 +12,7 @@ from typing import Any
 ROOT = Path(__file__).parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from launchpilot.evaluation.contracts import (  # noqa: E402
+from launchpilot.evaluation.contracts import (
     Answerability,
     EvalSpecification,
     EvidenceAssessment,
@@ -31,7 +31,7 @@ from launchpilot.evaluation.contracts import (  # noqa: E402
     SuppliedContext,
     TaskShape,
 )
-from launchpilot.evaluation.task_dataset import (  # noqa: E402
+from launchpilot.evaluation.task_dataset import (
     EvidenceJudgmentRecord,
     ReferenceAnswerRecord,
     TaskDatasetManifest,

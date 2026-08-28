@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 
 import pytest
+from pydantic import ValidationError
 
 from launchpilot.evaluation.task_dataset import (
     load_task_dataset,
@@ -131,7 +132,7 @@ def test_task_dataset_rejects_judgment_for_unknown_problem(tmp_path: Path) -> No
     # Reuse the contract directly to keep this failure focused on cross-artifact refs.
     from launchpilot.evaluation.task_dataset import EvidenceJudgmentRecord
 
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError):
         EvidenceJudgmentRecord.model_validate(
             {
                 "assessment": {
