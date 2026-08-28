@@ -26,6 +26,7 @@ from launchpilot.evaluation.contracts import (
     QueryRecord,
     RetrievalDiagnostics,
     ReviewStatus,
+    SuppliedContext,
     ToolCallTrace,
     TrialFailureStage,
     TrialRunResult,
@@ -36,6 +37,7 @@ from launchpilot.evaluation.paired_comparison import (
     PairedComparisonSummary,
     compare_systems,
 )
+from launchpilot.evaluation.task_dataset import TaskDataset
 
 _SAFE_ID = re.compile(r"^[a-z0-9][a-z0-9._-]*$")
 _INTERVENTION_FIELDS = {"index", "toolset", "code_commit", "condition"}
@@ -189,12 +191,14 @@ class ControlledExperimentPlan(BaseModel):
 
 
 class ExecutionQuery(BaseModel):
-    """Gold-redacted input visible to the system under test."""
+    """Gold-redacted problem input visible to the system under test."""
 
     model_config = ConfigDict(frozen=True)
 
     text: str
     language: str
+    world_id: str
+    supplied_context: tuple[SuppliedContext, ...] = ()
     known_gold_evidence_refs: tuple[str, ...] = ()
 
 
@@ -418,6 +422,8 @@ def run_controlled_experiment(
         execution_query = ExecutionQuery(
             text=query.text,
             language=query.language,
+            world_id=query.world_id,
+            supplied_context=query.supplied_context,
             known_gold_evidence_refs=_known_gold_refs(system.condition, spec),
         )
         started_at = datetime.now(UTC)
@@ -519,6 +525,60 @@ def run_controlled_experiment(
         specifications=tuple(
             sorted(specifications, key=lambda item: item.query_id)
         ),
+    )
+
+
+def run_controlled_task_dataset(
+    plan: ControlledExperimentPlan,
+    dataset: TaskDataset,
+    *,
+    executor: TrialExecutor,
+    grader: TrialGrader,
+    problem_ids: Sequence[str] | None = None,
+) -> ControlledExperimentBundle:
+    """Run a controlled experiment from canonical task-centric artifacts.
+
+    The dataset fingerprint and identity are part of the experiment control. Optional
+    selection changes which problems run, never their success definitions.
+    """
+
+    provenance = plan.evaluation_dataset
+    expected_fingerprint = f"sha256:{dataset.fingerprint}"
+    identity_errors = []
+    if provenance.dataset_id != dataset.manifest.dataset_id:
+        identity_errors.append("dataset_id")
+    if provenance.dataset_version != dataset.manifest.dataset_version:
+        identity_errors.append("dataset_version")
+    if provenance.source_artifact_fingerprint != expected_fingerprint:
+        identity_errors.append("source_artifact_fingerprint")
+    if identity_errors:
+        raise ValueError(
+            "experiment plan does not identify the loaded task dataset: "
+            f"{identity_errors}"
+        )
+
+    problem_by_id = {problem.problem_id: problem for problem in dataset.problems}
+    spec_by_id = {
+        specification.problem_id: specification
+        for specification in dataset.specifications
+    }
+    selected_ids = (
+        tuple(sorted(problem_by_id))
+        if problem_ids is None
+        else tuple(sorted(set(problem_ids)))
+    )
+    unknown = sorted(set(selected_ids) - problem_by_id.keys())
+    if unknown:
+        raise ValueError(f"selection references unknown problem ids: {unknown}")
+    if not selected_ids:
+        raise ValueError("task dataset selection is empty")
+
+    return run_controlled_experiment(
+        plan,
+        [problem_by_id[problem_id] for problem_id in selected_ids],
+        [spec_by_id[problem_id] for problem_id in selected_ids],
+        executor=executor,
+        grader=grader,
     )
 
 

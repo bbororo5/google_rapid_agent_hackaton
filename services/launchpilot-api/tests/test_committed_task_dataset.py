@@ -8,6 +8,8 @@ from launchpilot.evaluation.task_dataset import (
     verify_world_artifacts,
 )
 
+from launchpilot.evaluation.task_dataset_cli import inspect_task_dataset
+
 ROOT = Path(__file__).parents[1]
 DATASET_ROOT = ROOT / "evals" / "datasets" / "marketing-ops-task-v1"
 
@@ -59,3 +61,13 @@ def test_incomplete_legacy_evidence_is_preserved_as_a_knowledge_state() -> None:
     assert negative.evidence_assessments == ()
     assert negative.answerability.value == "insufficient_evidence"
     assert negative.expected_behaviors[0].value == "abstain"
+
+
+def test_dataset_readiness_report_blocks_release_without_human_review() -> None:
+    report = inspect_task_dataset(DATASET_ROOT)
+
+    assert report["release_ready"] is False
+    assert report["review_statuses"] == {"needs_review": 150}
+    assert report["problem_sources"] == {"synthetic": 150}
+    assert "150 specifications need review" in report["release_blockers"]
+    assert "no production-sourced problems" in report["release_blockers"]

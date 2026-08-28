@@ -49,7 +49,11 @@ class BaseBlackBoxRetriever(ABC):
 
 
 class AirGappedEvaluationHarness:
-    """Independent evaluation runner that isolates ground truth from the retriever."""
+    """Legacy retrieval-only harness retained for synthetic V3 reproduction.
+
+    It does not represent the task-centric evaluation entry point and must not be used
+    for architecture release decisions.
+    """
 
     def __init__(self, golden_root: Path = OUT_ROOT) -> None:
         self._root = golden_root

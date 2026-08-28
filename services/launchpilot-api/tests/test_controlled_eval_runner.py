@@ -36,6 +36,7 @@ from launchpilot.evaluation.controlled_runner import (
     TrialObservation,
     compare_bundle,
     run_controlled_experiment,
+    run_controlled_task_dataset,
     write_controlled_bundle,
 )
 from launchpilot.evaluation.paired_comparison import ComparisonConfig
@@ -114,6 +115,7 @@ def test_controlled_runner_redacts_gold_pairs_blocks_and_writes_reports(
     assert len(bundle.trials) == 18
     assert bundle.query_ids == ("q1", "q2")
     assert all(not item.known_gold_evidence_refs for item in executor.visible_queries)
+    assert all(item.world_id == "unspecified" for item in executor.visible_queries)
     assert all("query_id" not in type(item).model_fields for item in executor.visible_queries)
     assert all(
         "characteristics" not in type(item).model_fields
@@ -366,6 +368,105 @@ def test_leakage_groups_are_the_top_level_bootstrap_unit() -> None:
 
     interval = compare_bundle(bundle)["v0-v1"].summary.task_success_rate_delta
     assert interval.independent_cluster_count == 1
+
+
+def test_task_dataset_runner_binds_plan_to_dataset_and_preserves_context(
+    tmp_path: Path,
+) -> None:
+    from launchpilot.evaluation.contracts import ProblemRecord, SuppliedContext
+    from launchpilot.evaluation.task_dataset import (
+        TaskDataset,
+        TaskDatasetManifest,
+        WorldArtifact,
+        WorldManifest,
+    )
+
+    problem = ProblemRecord(
+        problem_id="q1",
+        user_utterance="question q1",
+        information_need="answer the task",
+        world_id="world-v1",
+        supplied_context=(SuppliedContext(key="active_campaign", value="C1"),),
+        source=QuerySource.SYNTHETIC,
+        portfolio=PortfolioRole.FRONTIER,
+        characteristics=QueryCharacteristics(
+            modalities=(InformationModality.STRUCTURED,),
+            task_shape=TaskShape.LOOKUP,
+        ),
+    )
+    dataset = TaskDataset(
+        manifest=TaskDatasetManifest(
+            dataset_id="task-dataset",
+            dataset_version="v1",
+            lifecycle="frontier",
+            release_ready=False,
+            source_fixture="fixture",
+            world_id="world-v1",
+            problem_count=1,
+            specification_count=1,
+            evidence_judgment_count=0,
+            reference_answer_count=0,
+            human_review_status="reviewed",
+        ),
+        world=WorldManifest(
+            world_id="world-v1",
+            world_version="v1",
+            source_type="synthetic",
+            description="fixture world",
+            artifacts=(
+                WorldArtifact(
+                    role="documents",
+                    path="documents.jsonl",
+                    sha256="a" * 64,
+                    record_count=1,
+                ),
+            ),
+        ),
+        problems=(problem,),
+        specifications=(_spec("q1"),),
+        evidence_judgments=(),
+    )
+    plan = _plan().model_copy(
+        update={
+            "evaluation_dataset": EvaluationDatasetProvenance(
+                dataset_id="task-dataset",
+                dataset_version="v1",
+                artifact_uri="memory://task-dataset",
+                source_artifact_fingerprint="sha256:" + dataset.fingerprint,
+                selection_id="q1",
+            )
+        }
+    )
+    executor = _Executor()
+
+    bundle = run_controlled_task_dataset(
+        plan,
+        dataset,
+        executor=executor,
+        grader=_Grader(),
+        problem_ids=("q1",),
+    )
+
+    assert bundle.problem_ids == ("q1",)
+    assert all(item.world_id == "world-v1" for item in executor.visible_queries)
+    assert all(
+        item.supplied_context[0].value == "C1" for item in executor.visible_queries
+    )
+
+    bad_plan = plan.model_copy(
+        update={
+            "evaluation_dataset": plan.evaluation_dataset.model_copy(
+                update={"source_artifact_fingerprint": "sha256:" + "b" * 64}
+            )
+        }
+    )
+    with pytest.raises(ValueError, match="does not identify"):
+        run_controlled_task_dataset(
+            bad_plan,
+            dataset,
+            executor=_Executor(),
+            grader=_Grader(),
+        )
 
 
 def _plan(

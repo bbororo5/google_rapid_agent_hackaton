@@ -1,3 +1,10 @@
+"""Legacy V3 lexical diagnostic.
+
+This script reads the pre-migration golden-v3 files directly and is retained only for
+historical reproduction. New architecture experiments must load a canonical TaskDataset
+and use ``run_controlled_task_dataset``; this script is not a release quality gate.
+"""
+
 import json
 import re
 import sqlite3
