@@ -1,6 +1,8 @@
 # LaunchPilot Evaluation Architecture
 
-> 상태: 최소 target architecture
+> 상태: task-centric 데이터 계약과 controlled runner 구현 완료. Release benchmark는
+> 검수·production sampling 전이므로 아직 미승인
+>
 > 상세 감사 근거: [Evaluation System Audit](../reports/evaluation-system-audit.md)
 
 ## 1. 목적
@@ -20,9 +22,10 @@ multi-hop coverage, 추정 retrieval latency는 release gate에서 제외한다.
 ### 1.1 구현 상태
 
 Historical checksum snapshot, V3 priority review queue, judgment pooling 계약,
-controlled paired runner는 구현되었다. Golden V1/V2는 archive 전용이며 active
-benchmark의 입력으로 사용하지 않는다. Active Frozen/Holdout, human grader
-calibration, production query sample, 새 pooled judgments, 실제 V0/V1/V2 live run은
+task-centric dataset loader와 controlled paired runner는 구현되었다. Golden V1/V2는
+archive 전용이며 active benchmark의 입력으로 사용하지 않는다. V3에서 이관한
+`marketing-ops-task-v1`은 frontier draft일 뿐이다. Active Frozen/Holdout, human grader
+calibration, production problem sample, 새 pooled judgments, 실제 V0/V1/V2 live run은
 아직 완료되지 않았다.
 
 따라서 현재 구현은 신뢰할 수 있는 실험을 수행하기 위한 기반이지 production
@@ -30,28 +33,44 @@ capability gain의 증거가 아니다. artifact별 사용 가능 범위와 다�
 [Eval Portfolio 운영 가이드](../../services/launchpilot-api/evals/portfolio/README.md)에
 기록한다.
 
-## 2. Artifact separation
+## 2. 본질적 artifact separation
 
 ```text
-QueryRecord                 어떤 사용자 문제를 풀 것인가
-  ↓ query_id
+World + ProblemRecord       어떤 현실에서 어떤 사용자 문제를 풀 것인가
+  ↓ problem_id
 EvalSpecification           성공을 어떻게 정의할 것인가
-  ↓ query_id + spec_version
-TrialRunResult              특정 system/trial이 실제로 무엇을 했는가
+  ↓ problem_id + spec_version
+TrialRunResult              특정 system/trial이 어떤 답·과정·비용을 만들었는가
 ```
 
 코드 계약은
-`launchpilot.evaluation.contracts.architecture_eval`에 있다. Query에는 expected tool이나
+`launchpilot.evaluation.contracts.architecture_eval`에 있다. 과거 `QueryRecord` 이름은
+호환 alias로만 남고 canonical 단위는 `ProblemRecord`다. Problem에는 expected tool이나
 route를 넣지 않는다. structured/unstructured, lexical/paraphrase, hop, task shape 같은
-taxonomy는 slice 설명에만 사용한다.
+taxonomy는 slice 설명에만 사용한다. 시스템에는 user utterance와 supplied context만
+보이고 information need, required facts와 evidence judgments는 evaluator 경계 안에 둔다.
+
+```text
+dataset/
+├─ manifest.json
+├─ world/manifest.json
+├─ problems/problems.jsonl
+├─ specifications/eval-specifications.jsonl
+├─ judgments/evidence-assessments.jsonl
+└─ references/answer-examples.jsonl
+```
+
+World는 corpus/fact snapshot이며 index, embedding, graph는 후보 시스템의 표현이다.
+Reference answer는 선택적 예시이며 `grading_authority=false`이면 정답 ontology로 쓰지
+않는다. qrels에 없는 evidence는 반드시 `unjudged`다.
 
 ## 3. 관계별 평가
 
 | 관계 | 최소 metric | architecture decision |
 | --- | --- | --- |
-| Query → Retrieval | known-relevant Recall@K, MRR/nDCG, judged precision, unjudged@K | retriever/index/chunking 선택 |
+| Problem → Retrieval | known-relevant Recall@K, MRR/nDCG, judged precision, unjudged@K | retriever/index/chunking 선택 |
 | Retrieval → Answer | claim support, citation correctness, unsupported claim rate | context assembly/generation 개선 |
-| Query → Answer | task success, required fact coverage, answer relevance, behavior correctness | release gate |
+| Problem → Answer | task success, required fact coverage, answer relevance, behavior correctness | release gate |
 | Reference → Answer | deterministic fact match 또는 calibrated semantic grader | gold가 충분한 task만 보조 사용 |
 
 qrels에 없는 evidence는 `unjudged`다. known irrelevant로 판정하기 전에는 precision
@@ -86,7 +105,8 @@ trial, marginal cost/latency를 비교한다. 임의 weighted total score는 사
 
 ## 5. Paired architecture experiment
 
-V0/V1/V2는 같은 query, Eval Specification, corpus, model, prompt에서 실행한다. index,
+V0/V1/V2는 dataset 세대가 아니라 같은 problem, Eval Specification, corpus, model,
+prompt에서 실행하는 system condition이다. index,
 toolset, code version은 의도한 intervention으로 달라질 수 있다.
 
 ```bash
@@ -100,7 +120,7 @@ launchpilot-compare-eval-runs \
 
 위 standalone CLI는 Query/Eval Specification의 leakage mapping을 받지 않으므로 CI를
 benchmark-query-conditional로만 해석한다. release용 cluster-aware interval은
-`controlled_runner.compare_bundle()`이 QueryRecord의 leakage connected component를
+`controlled_runner.compare_bundle()`이 ProblemRecord의 leakage connected component를
 전달하는 경로에서 생성한다.
 
 필수 보고 항목은 다음과 같다.

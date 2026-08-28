@@ -9,7 +9,10 @@ capability gain, regression, reliability, cost를 paired experiment로 판단하
 Golden V1/V2와 그 결과는 historical archive로만 보존한다. 신규 benchmark의 query,
 gold, slice, regression seed, holdout을 선정하거나 architecture 성능을 판단할 때
 V1/V2를 입력으로 사용하지 않는다. 현재 문제 공간은 V3와 이후의 production sample을
-감사해 새 Query/Eval Specification/Trial Result 계약으로 다시 구성한다.
+감사해 새 Problem/Eval Specification/Trial Result 계약으로 다시 구성한다. V3
+provenance의 첫 이관본은
+[`../datasets/marketing-ops-task-v1`](../datasets/marketing-ops-task-v1/)이며 frontier
+draft라서 release 판단에는 사용할 수 없다.
 Dataset lifecycle의 machine-readable 기준은
 [`golden/dataset-registry.json`](../golden/dataset-registry.json)에 있다.
 
@@ -48,9 +51,12 @@ evals/portfolio/
    └─ v3-priority-review.manifest.json
 ```
 
-- `queries.jsonl`: 사용자가 해결하려는 문제와 분석용 characteristics만 저장한다.
-- `eval-specifications.jsonl`: answerability, required facts, expected behavior, 현재까지
-  알려진 evidence judgment와 review status를 저장한다.
+- `datasets/*/problems/problems.jsonl`: 사용자가 해결하려는 problem, supplied context와
+  분석용 characteristics만 저장한다.
+- `datasets/*/specifications/eval-specifications.jsonl`: answerability, required facts,
+  expected behavior와 review status를 저장한다.
+- `datasets/*/judgments/evidence-assessments.jsonl`: 현재까지 판정된 evidence를
+  known relevant/irrelevant로 저장하며 목록 밖 evidence는 unjudged다.
 - 실제 실행 결과는 이 디렉터리에 섞지 않는다. `TrialRunResult`와 비교 보고서는
   versioned run 디렉터리에 별도로 기록한다.
 - manifest가 가리키는 source fingerprint와 spec fingerprint가 달라진 경우 같은
@@ -167,7 +173,7 @@ failure가 아니다. pooling workflow는 다음과 같다.
 
 ### 7.2 Gold leakage와 failure semantics
 
-일반 system executor에는 text와 language만 보인다. legacy query ID도
+일반 system executor에는 user utterance, language, world ID와 supplied context만 보인다. legacy query ID도
 `det_sem_*`, `structured.*`처럼 task/route hint를 담을 수 있어 harness envelope에만
 남긴다. taxonomy, required facts, known evidence도 grader 쪽에만 둔다. 기존 qrels의
 known-relevant evidence를 주입하는 실험은 별도 `known_gold_evidence_injected`

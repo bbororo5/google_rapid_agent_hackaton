@@ -13,6 +13,7 @@ docs/
 │
 ├── architecture/                       # 🏛️ 시스템 설계 및 아키텍처
 │   ├── system-architecture.md          # • LangGraph 4계층 순환 인지 토폴로지 (C3 다이어그램)
+│   ├── evaluation-framework.md         # • Problem 중심 Eval 데이터·실행 아키텍처
 │   └── adr/                            # • 아키텍처 결정서 (Architecture Decision Records)
 │       ├── 0001-retrieval-storage-strategy.md
 │       ├── 0002-source-of-truth-database.md
@@ -36,10 +37,12 @@ docs/
 | :--- | :--- | :--- |
 | **🚀 Pull Request** | [docs/pull-request.md](pull-request.md) | V3 데이터셋 및 LangGraph 인-루프 파이프라인 완성 공식 PR 본문 |
 | **🔎 Evaluation 감사** | [docs/reports/evaluation-system-audit.md](reports/evaluation-system-audit.md) | Golden V1~V3, qrels, grader, runner, 과거 결과의 유효 범위와 최소 재설계 |
+| **🧭 Eval 정문** | [services/launchpilot-api/evals/README.md](../services/launchpilot-api/evals/README.md) | 문제→답 멘탈 모델, canonical dataset tree, 파일별 읽는 법과 현재 release blocker |
+| **🗂️ Task dataset** | [services/launchpilot-api/evals/datasets/README.md](../services/launchpilot-api/evals/datasets/README.md) | 구현 독립적 world/problem/spec/judgment/reference 계약 |
 | **🧰 Eval portfolio 운영** | [services/launchpilot-api/evals/portfolio/README.md](../services/launchpilot-api/evals/portfolio/README.md) | Historical 동결, Frozen/Holdout 후보, pooling, controlled run의 현재 상태와 사용 경계 |
 | **📘 과거 실험 기록** | [docs/reports/master-engineering-report.md](reports/master-engineering-report.md) | 데이터셋 진화와 ablation 기록. 품질 주장은 Eval 감사의 유효 범위 안에서 해석 |
 | **🏛️ 시스템 아키텍처** | [docs/architecture/system-architecture.md](architecture/system-architecture.md) | 전처리 ➔ 본체 에이전트 ➔ 도구 ➔ 인-루프 리랭커 순환 토폴로지 |
-| **🎯 Evaluation architecture** | [docs/architecture/evaluation-framework.md](architecture/evaluation-framework.md) | Query/Spec/Trial 분리, 관계별 평가, paired architecture experiment |
+| **🎯 Evaluation architecture** | [docs/architecture/evaluation-framework.md](architecture/evaluation-framework.md) | Problem/Spec/Trial 분리, 관계별 평가, paired architecture experiment |
 | **🧪 데이터셋 진화** | [docs/reports/dataset-evolution.md](reports/dataset-evolution.md) | 30개 캠페인, 1,050개 코퍼스, 150건 무편향 블라인드 질의 설계 |
 | **📝 아키텍처 결정서** | [docs/architecture/adr/](architecture/adr/) | ADR 0001 ~ ADR 0007 핵심 설계 의사결정 기록 |
 

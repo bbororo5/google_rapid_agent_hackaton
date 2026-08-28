@@ -6,6 +6,12 @@
 > 결론: 현재 자산은 **합성 환경의 개발 진단**에는 유용하지만, 새 retrieval/agent
 > architecture의 production capability gain을 입증하는 단일 benchmark로는 부적합하다.
 
+> 전환 상태(2026-08-28): 이 감사 결과를 반영해 canonical 단위를 `ProblemRecord`로
+> 바꾸고 world/problems/specifications/judgments/references를 분리한
+> `marketing-ops-task-v1` frontier draft와 loader, readiness validator, controlled runner를
+> 구현했다. V1/V2는 사용하지 않았고 V3 provenance만 이관했다. 150개 specification이
+> 모두 미검수이고 production problem이 없으므로 release gate는 계속 닫혀 있다.
+
 ## 0. Executive decision
 
 현재 가장 큰 문제는 metric이 적어서가 아니다. 서로 다른 세대의 dataset과 runner가
