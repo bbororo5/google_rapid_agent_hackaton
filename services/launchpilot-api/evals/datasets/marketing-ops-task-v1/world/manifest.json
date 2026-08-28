@@ -1,0 +1,31 @@
+{
+  "artifacts": [
+    {
+      "path": "../../golden/golden-v3/corpus/documents.jsonl",
+      "record_count": 1050,
+      "role": "documents",
+      "sha256": "aa531c39324ca53ea1180b7e91b9f39715aaa553ff3fb073df8af1857da4d1d9"
+    },
+    {
+      "path": "../../golden/golden-v3/corpus/observations.jsonl",
+      "record_count": 5640,
+      "role": "structured_observations",
+      "sha256": "07d0ab8d0e6e23ebe877785b69b57af8dffa29cff5d53daaaf4d99abb82752fd"
+    },
+    {
+      "path": "../../golden/golden-v3/corpus/edges.jsonl",
+      "record_count": 231,
+      "role": "semantic_relation_annotations",
+      "sha256": "c60cc6bc5a1ebc719721ac94449f7e4e8a195da3cb5c9f7f42ca5b957f5557d5"
+    }
+  ],
+  "description": "Controlled synthetic marketing operations world inherited from golden-v3. It is a harness fixture, not a production distribution sample.",
+  "representation_notes": [
+    "Documents and observations are canonical world inputs.",
+    "Semantic relation annotations describe known relations but do not require a graph tool.",
+    "Indexes, embeddings, retrieval routes, and tool descriptions belong to the system under test."
+  ],
+  "source_type": "synthetic",
+  "world_id": "synthetic-marketing-ops-v3",
+  "world_version": "v3-snapshot"
+}

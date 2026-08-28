@@ -1,0 +1,19 @@
+{
+  "dataset_id": "marketing-ops-task",
+  "dataset_version": "v1-draft",
+  "evidence_judgment_count": 121,
+  "human_review_status": "awaiting_human_review",
+  "lifecycle": "frontier",
+  "problem_count": 150,
+  "prohibited_uses": [
+    "architecture_release_decision",
+    "production_capability_claim",
+    "treating_legacy_reference_answers_as_complete_truth",
+    "treating_unlisted_evidence_as_irrelevant"
+  ],
+  "reference_answer_count": 150,
+  "release_ready": false,
+  "source_fixture": "golden-v3",
+  "specification_count": 150,
+  "world_id": "synthetic-marketing-ops-v3"
+}

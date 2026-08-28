@@ -1,31 +1,34 @@
-from pathlib import Path
-import os
-import re
-import time
 import json
+import re
 import sqlite3
-from datetime import datetime, UTC
-from uuid import UUID, uuid4
+import time
 from collections import Counter
+from datetime import UTC, date, datetime
+from pathlib import Path
+from uuid import UUID, uuid4
 
-from launchpilot.bootstrap.wiring import agent_model
-from launchpilot.campaigns.contracts.access import CampaignScope
-from launchpilot.knowledge.contracts.retrieval import TextSearchHit, DocumentType, CampaignDocument
-from launchpilot.performance.contracts.retrieval import CampaignPerformance, CampaignSummary, CampaignMetricQuery
+from langgraph.graph import END, START, MessagesState, StateGraph
+from langgraph.prebuilt import ToolNode, tools_condition
+from launchpilot.analysis.graph import AgentNode, AnalysisGraph, RouterNode
+from launchpilot.analysis.graph_retriever import MarketingKnowledgeGraph
 from launchpilot.analysis.scope import ExecutionScope
 from launchpilot.analysis.tools import CampaignToolset
-from launchpilot.analysis.graph_retriever import MarketingKnowledgeGraph
-from launchpilot.analysis.reranker import MarketingDomainReranker
-from launchpilot.analysis.graph import AnalysisGraph, RouterNode, AgentNode
-from langgraph.graph import StateGraph, MessagesState, START, END
-from langgraph.prebuilt import ToolNode, tools_condition
+from launchpilot.bootstrap.wiring import agent_model
+from launchpilot.campaigns.contracts.access import CampaignScope
+from launchpilot.knowledge.contracts.retrieval import (
+    CampaignDocument,
+    DocumentType,
+    TextSearchHit,
+)
+from launchpilot.performance.contracts.retrieval import (
+    CampaignMetricQuery,
+    CampaignPerformance,
+    CampaignSummary,
+)
+from openinference.instrumentation.langchain import LangChainInstrumentor
 
 # Phoenix OTel
-try:
-    from openinference.instrumentation.langchain import LangChainInstrumentor
-    LangChainInstrumentor().instrument()
-except Exception:
-    pass
+LangChainInstrumentor().instrument()
 
 DB_PATH = "services/launchpilot-api/local_launchpilot.db"
 
@@ -50,16 +53,20 @@ for q in qrels:
         target_map[cid] = set()
     target_map[cid].add(q["corpus_ref"])
 
-# Sample 20 Stratified Balanced Cases (4 Copy, 4 Pacing, 4 Brief, 4 Video, 2 Comp, 2 Neg)
+# Sample 20 stratified cases (4 Copy, 4 Pacing, 4 Brief, 4 Video, 2 Comp, 2 Neg).
 def select_stratified_20():
-    selected = []
     copy_c = [c for c in cases if c["case_id"].startswith("det_copy")][:4]
     pacing_c = [c for c in cases if c["case_id"].startswith("det_pacing")][:4]
     brief_c = [c for c in cases if c["case_id"].startswith("det_brief")][:4]
     video_c = [c for c in cases if c["case_id"].startswith("det_video")][:4]
-    comp_c = [c for c in cases if c["case_id"].startswith("comp")][:2]
+    comp_c = [
+        c for c in cases if c.get("analysis_task") == "cross_campaign_comparison"
+    ][:2]
     neg_c = [c for c in cases if c.get("is_negative", False)][:2]
-    return copy_c + pacing_c + brief_c + video_c + comp_c + neg_c
+    selected = copy_c + pacing_c + brief_c + video_c + comp_c + neg_c
+    if len(selected) != 20:
+        raise ValueError(f"expected 20 stratified cases, found {len(selected)}")
+    return selected
 
 sample_20 = select_stratified_20()
 
@@ -132,15 +139,17 @@ class LocalPerfReader:
                 id=UUID(self.c_id),
                 name="오로라 리테일",
                 goal="ROAS 극대화",
-                period_start=datetime(2025, 1, 1).date(),
-                period_end=datetime(2025, 4, 30).date(),
+                period_start=date(2025, 1, 1),
+                period_end=date(2025, 4, 30),
                 target_metrics=(),
             ),
             metrics=(),
         )
 
 def build_app(c_code: str, use_reranker: bool):
-    c_info = camp_by_code.get(c_code, list(camp_by_code.values())[0])
+    c_info = camp_by_code.get(c_code)
+    if c_info is None:
+        c_info = next(iter(camp_by_code.values()))
     c_id, ws_id, _ = c_info
     scope = ExecutionScope(workspace_id=str(ws_id), campaign_id=str(c_id), reference_now=datetime(2025, 6, 1, tzinfo=UTC))
     camp_scope = CampaignScope(campaign_id=c_id, workspace_id=ws_id, user_id=uuid4())
@@ -211,7 +220,7 @@ def validate_response(ans_raw, is_negative: bool, targets: set[str]):
 
 def run_large_scale_benchmark():
     print("=================================================================")
-    print(f"🚀 STATISTICALLY POWERED N=20 BENCHMARK: PHASE 2 vs PHASE 3")
+    print("🚀 PAIRED N=20 DIAGNOSTIC BENCHMARK: PHASE 2 vs PHASE 3")
     print("=================================================================\n")
 
     results = {"phase2_raw": [], "phase3_reranker": []}
@@ -276,16 +285,19 @@ def run_large_scale_benchmark():
             "case_id": cid, "status": v["status"], "passed": v["passed"], "latency": dur, "tools": tools_called
         })
 
+    evaluated_count = len(sample_20)
     summary = {
+        "interpretation": "diagnostic_only_not_statistically_powered",
+        "paired_case_count": evaluated_count,
         "phase2": {
-            "accuracy": (p2_passed / 20) * 100,
-            "avg_latency": p2_latency / 20,
+            "accuracy": (p2_passed / evaluated_count) * 100,
+            "avg_latency": p2_latency / evaluated_count,
             "total_tools": sum(p2_tools.values()),
             "tool_distribution": dict(p2_tools)
         },
         "phase3": {
-            "accuracy": (p3_passed / 20) * 100,
-            "avg_latency": p3_latency / 20,
+            "accuracy": (p3_passed / evaluated_count) * 100,
+            "avg_latency": p3_latency / evaluated_count,
             "total_tools": sum(p3_tools.values()),
             "tool_distribution": dict(p3_tools)
         }

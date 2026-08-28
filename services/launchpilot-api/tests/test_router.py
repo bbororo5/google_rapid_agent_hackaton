@@ -1,32 +1,21 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import uuid4
 
 from langchain_core.messages import AIMessage
 from langchain_core.runnables import RunnableLambda
 from langchain_core.tools import StructuredTool
-
 from launchpilot.analysis.graph import AnalysisGraph
 from launchpilot.analysis.prompts import format_system_prompt
-from launchpilot.analysis.router import QueryRoute, QueryRouter, ScopeRouter
+from launchpilot.analysis.router import ScopeRouter
 from launchpilot.analysis.scope import ExecutionScope
 
 
-def test_query_router_classifies_core_profiles() -> None:
-    router = QueryRouter()
-
-    assert router.classify("C0010 캠페인의 지난주 ROAS를 알려줘") == QueryRoute.STRUCTURED_METRIC
-    assert router.classify("C0010 캠페인의 소재 피로 진단 근거를 분석 문서에서 찾아줘") == QueryRoute.UNSTRUCTURED_DOCUMENT
-    assert router.classify("C0081의 클릭 수 수치와 분석 문서를 함께 보고 다음 조치를 제안해줘") == QueryRoute.HYBRID_RECOMMENDATION
-    assert router.classify("C9001 캠페인의 지난주 ROAS를 알려줘") == QueryRoute.ABSTAIN_OR_CLARIFY
-    assert router.classify("성과가 나빠진 원인이 소재 피로라고 출처 없이 확정해서 말해줘") == QueryRoute.ABSTAIN_OR_CLARIFY
-
-
-def test_scope_router_extracts_campaign_code_and_preserves_scope() -> None:
+def test_scope_router_preserves_session_scope_without_query_rewriting() -> None:
     scope_router = ScopeRouter()
     workspace_id = uuid4()
-    now = datetime(2026, 8, 19, 22, 46, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 8, 19, 22, 46, 0, tzinfo=UTC)
 
     initial_scope = ExecutionScope.create(
         workspace_id=workspace_id,
@@ -35,15 +24,15 @@ def test_scope_router_extracts_campaign_code_and_preserves_scope() -> None:
     assert initial_scope.campaign_id is None
     assert initial_scope.campaign_code is None
 
-    resolved = scope_router.resolve("C0103 지난주 광고비 얼마야?", initial_scope)
+    resolved = scope_router.resolve(initial_scope)
     assert resolved.workspace_id == workspace_id
-    assert resolved.campaign_code == "C0103"
+    assert resolved.campaign_code is None
     assert resolved.reference_now == now
 
 
 def test_format_system_prompt_injects_temporal_and_scope_anchors() -> None:
     workspace_id = uuid4()
-    now = datetime(2026, 8, 19, 22, 46, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 8, 19, 22, 46, 0, tzinfo=UTC)
     scope = ExecutionScope.create(
         workspace_id=workspace_id,
         campaign_code="C0010",
@@ -66,19 +55,30 @@ def test_analysis_graph_runs_with_router_node_and_scoped_prompt() -> None:
         calls.append(query)
         return "fake result: 100"
 
-    tool = StructuredTool.from_function(fake_tool, name="get_campaign_performance", description="get metrics")
+    tool = StructuredTool.from_function(
+        fake_tool, name="get_campaign_performance", description="get metrics"
+    )
 
     def fake_model(messages):
         received_system_prompts.append(messages[0].content)
         if len(messages) == 2:
-            return AIMessage(content="", tool_calls=[{"name": "get_campaign_performance", "args": {"query": "test"}, "id": "call_1"}])
+            return AIMessage(
+                content="",
+                tool_calls=[
+                    {
+                        "name": "get_campaign_performance",
+                        "args": {"query": "test"},
+                        "id": "call_1",
+                    }
+                ],
+            )
         return AIMessage(content="조회된 광고비는 100원입니다.")
 
     workspace_id = uuid4()
     scope = ExecutionScope.create(
         workspace_id=workspace_id,
         campaign_code="C0010",
-        reference_now=datetime(2026, 8, 19, 22, 46, 0, tzinfo=timezone.utc),
+        reference_now=datetime(2026, 8, 19, 22, 46, 0, tzinfo=UTC),
     )
 
     graph = AnalysisGraph(
@@ -96,15 +96,14 @@ def test_analysis_graph_runs_with_router_node_and_scoped_prompt() -> None:
 
 def test_campaign_toolset_provides_single_responsibility_search_tools() -> None:
     from unittest.mock import MagicMock
-    from launchpilot.campaigns.contracts.access import CampaignScope
+
     from launchpilot.analysis.tools import CampaignToolset
+    from launchpilot.campaigns.contracts.access import CampaignScope
 
     retrieval = MagicMock()
     text_retrieval = MagicMock()
     text_retrieval.search.return_value = ()
-    scope = CampaignScope(
-        workspace_id=uuid4(), campaign_id=uuid4(), user_id="user-1"
-    )
+    scope = CampaignScope(workspace_id=uuid4(), campaign_id=uuid4(), user_id="user-1")
 
     toolset = CampaignToolset(
         scope=scope,
@@ -125,7 +124,9 @@ def test_marketing_domain_reranker_prioritizes_concept_and_type_match() -> None:
     from launchpilot.knowledge.contracts.retrieval import DocumentType, TextSearchHit
     from launchpilot.knowledge.contracts.search_profile import RetrievalMethod
 
-    reranker = MarketingDomainReranker()
+    reranker = MarketingDomainReranker(
+        model=RunnableLambda(lambda _prompt: AIMessage(content="2, 1"))
+    )
     cid = uuid4()
     doc1 = TextSearchHit(
         document_id=uuid4(),

@@ -1,5 +1,9 @@
 # 🚀 [PR] V3 골든 데이터셋 혁신 및 순수 LangGraph 인-루프 Agentic RAG 파이프라인 완성
 
+> Historical PR description. 이 문서의 benchmark/statistical claim은 후속
+> [Evaluation System Audit](reports/evaluation-system-audit.md) 이전 결과이며,
+> current release evidence로 단독 사용하지 않는다.
+
 ## 📌 PR 한 줄 요약 (BLUF)
 구글 종속적 SDK 및 레거시 휴리스틱 파이프라인을 완전히 걷어내고, **업계 표준 LangGraph StateGraph + 인-루프 Evidence Organizer(Reranker) + Gemini 3.7 Flash(Vertex AI ADC) + Arize Phoenix OTel 관측 환경**을 구축하여, **150건의 무편향 V3 골든 데이터셋 감사 통과 및 3단계 어블레이션 전 구간 실측 검증(정확도 90.0%, 지연시간 83.4% 단축)**을 완료했습니다.
 

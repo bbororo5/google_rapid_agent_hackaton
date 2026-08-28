@@ -1,5 +1,11 @@
 # 📘 LaunchPilot 엔지니어링 마스터 리포트: V1~V3 데이터셋 진화, 순수 LangGraph 전환 및 3단계 Agentic RAG 어블레이션 종합 검증
 
+> Historical experiment record. 이 문서의 Golden V3, N=20, faithfulness,
+> statistical significance 주장은 2026-08-27 감사 이전의 proxy 해석이다. 현재
+> architecture decision에는
+> [Evaluation System Audit](evaluation-system-audit.md)과
+> [Evaluation Architecture](../architecture/evaluation-framework.md)를 우선 적용한다.
+
 > **Executive Summary (BLUF)**:
 > 본 문서는 마케팅 도메인 특화 인과 분석 AI 에이전트 시스템 **LaunchPilot**의 **(1) V1 -> V2 -> V3 골든 데이터셋 진화**, **(2) 구글 SDK 탈피 및 순수 LangGraph StateGraph 마이그레이션**, **(3) Phase 1~3 점진적 어블레이션 실측**, **(4) 현실적 고난도 스트레스 테스트 및 리랭커 인-루프 토폴로지 검증**, **(5) 향후 발전 로드맵**까지의 전 여정을 단일 문서로 통합 집대성한 최종 엔지니어링 마스터 결산서입니다.
 
