@@ -446,6 +446,7 @@ class TrialRunResult(BaseModel):
     efficiency: EfficiencyObservation
     grader_efficiency: GraderEfficiencyObservation | None = None
     grade_artifact_ref: str | None = None
+    grade_details: dict[str, object] | None = None
     error_type: str | None = None
     error_message: str | None = Field(default=None, max_length=1000)
     failure_stage: TrialFailureStage | None = None

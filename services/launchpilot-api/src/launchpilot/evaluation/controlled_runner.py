@@ -6,7 +6,7 @@ import random
 import re
 import tempfile
 import time
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime
 from enum import StrEnum
 from pathlib import Path
@@ -20,6 +20,7 @@ from launchpilot.evaluation.contracts import (
     EvalSpecification,
     EvidenceJudgment,
     ExperimentCondition,
+    GraderEfficiencyObservation,
     GraderKind,
     OutcomeScores,
     ProblemRecord,
@@ -102,7 +103,10 @@ class GraderProvenance(BaseModel):
     code_commit: str = Field(min_length=1)
     rubric_version: str = Field(min_length=1)
     model: str | None = None
+    provider: str | None = None
+    thinking_level: str | None = None
     prompt_version: str | None = None
+    response_schema_version: str | None = None
     calibration_version: str | None = None
     seed: int | None = Field(default=None, ge=0)
     compatible_spec_rubric_versions: tuple[str, ...] = ()
@@ -115,6 +119,14 @@ class GraderProvenance(BaseModel):
             raise ValueError("compatible_spec_rubric_versions must be unique")
         if bool(self.model) != bool(self.prompt_version):
             raise ValueError("model and prompt_version must be declared together")
+        if self.model and not self.provider:
+            raise ValueError("model-based graders require provider provenance")
+        if self.model and not self.thinking_level:
+            raise ValueError("model-based graders require thinking_level provenance")
+        if self.model and not self.response_schema_version:
+            raise ValueError(
+                "model-based graders require response_schema_version provenance"
+            )
         return self
 
 
@@ -148,6 +160,7 @@ class ControlledExperimentPlan(BaseModel):
     warmup_policy: WarmupPolicy = WarmupPolicy.IDENTICAL_PER_SYSTEM
     accepted_review_statuses: tuple[ReviewStatus, ...] = (
         ReviewStatus.AUTO_VALIDATED,
+        ReviewStatus.MACHINE_ADJUDICATED,
         ReviewStatus.HUMAN_REVIEWED,
     )
 
@@ -223,6 +236,9 @@ class TrialGrade(BaseModel):
     retrieval: RetrievalDiagnostics = Field(default_factory=RetrievalDiagnostics)
     effective_seed: int | None = Field(default=None, ge=0)
     grader_request_id: str | None = None
+    grader_efficiency: GraderEfficiencyObservation | None = None
+    grade_artifact_ref: str | None = None
+    grade_details: dict[str, object] | None = None
 
 
 class ScheduledTrial(BaseModel):
@@ -477,7 +493,7 @@ def run_controlled_experiment(
         except Exception as error:  # noqa: BLE001 - preserve grader failures
             trials.append(
                 _failed_trial(
-                    plan, system, spec, scheduled, TrialStatus.HARNESS_FAILED,
+                    plan, system, spec, scheduled, TrialStatus.GRADING_FAILED,
                     error,
                     started_at,
                     started,
@@ -513,6 +529,9 @@ def run_controlled_experiment(
                 tool_trace=observation.tool_trace,
                 tool_trace_complete=observation.tool_trace_complete,
                 efficiency=observation.efficiency,
+                grader_efficiency=grade.grader_efficiency,
+                grade_artifact_ref=grade.grade_artifact_ref,
+                grade_details=grade.grade_details,
             )
         )
     return ControlledExperimentBundle(
@@ -585,12 +604,14 @@ def run_controlled_task_dataset(
 def compare_bundle(
     bundle: ControlledExperimentBundle,
 ) -> dict[str, ControlledComparisonReport]:
-    harness_failures = [
-        trial for trial in bundle.trials if trial.status == TrialStatus.HARNESS_FAILED
+    blocking_failures = [
+        trial
+        for trial in bundle.trials
+        if trial.status in {TrialStatus.HARNESS_FAILED, TrialStatus.GRADING_FAILED}
     ]
-    if harness_failures:
+    if blocking_failures:
         raise ValueError(
-            f"cannot compare a run with {len(harness_failures)} harness/grader failures"
+            f"cannot compare a run with {len(blocking_failures)} harness/grader failures"
         )
     by_system = {
         system.system_version: tuple(
@@ -623,12 +644,16 @@ def write_controlled_bundle(
     harness_failure_count = sum(
         trial.status == TrialStatus.HARNESS_FAILED for trial in bundle.trials
     )
-    if harness_failure_count:
+    grading_failure_count = sum(
+        trial.status == TrialStatus.GRADING_FAILED for trial in bundle.trials
+    )
+    if harness_failure_count or grading_failure_count:
         reports: dict[str, ControlledComparisonReport] = {}
         comparison_status = {
             "status": "blocked",
             "reason": "harness_or_grader_failures_present",
             "harness_failure_count": harness_failure_count,
+            "grading_failure_count": grading_failure_count,
         }
     else:
         reports = compare_bundle(bundle)
@@ -674,6 +699,21 @@ def write_controlled_bundle(
             _write_jsonl(
                 partial_root / f"{system.system_version}.jsonl", system_trials
             )
+            grade_records = [
+                {
+                    "problem_id": trial.problem_id,
+                    "trial_id": trial.trial_id,
+                    "grade_artifact_ref": trial.grade_artifact_ref,
+                    "grade_details": trial.grade_details,
+                }
+                for trial in system_trials
+                if trial.grade_details is not None
+            ]
+            if grade_records:
+                _write_jsonl(
+                    partial_root / "grader" / f"{system.system_version}.jsonl",
+                    grade_records,
+                )
         for contrast_id, report in reports.items():
             _write_json(
                 partial_root / f"{contrast_id}.json", report.model_dump(mode="json")
@@ -885,14 +925,21 @@ def _write_json(path: Path, payload: object) -> None:
     )
 
 
-def _write_jsonl(path: Path, items: Sequence[BaseModel]) -> None:
+def _write_jsonl(
+    path: Path, items: Sequence[BaseModel | Mapping[str, object]]
+) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
         "".join(
             json.dumps(
-                trial.model_dump(mode="json"), ensure_ascii=False, sort_keys=True
+                item.model_dump(mode="json")
+                if isinstance(item, BaseModel)
+                else dict(item),
+                ensure_ascii=False,
+                sort_keys=True,
             )
             + "\n"
-            for trial in items
+            for item in items
         ),
         encoding="utf-8",
     )

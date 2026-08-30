@@ -245,7 +245,7 @@ def test_system_failures_are_counted_but_harness_failures_block_comparison(
         executor=_Executor(),
         grader=BrokenGrader(),
     )
-    assert all(item.status == TrialStatus.HARNESS_FAILED for item in broken.trials)
+    assert all(item.status == TrialStatus.GRADING_FAILED for item in broken.trials)
     assert all(item.final_answer == "42" for item in broken.trials)
     assert all(item.failure_stage.value == "grading" for item in broken.trials)
     with pytest.raises(ValueError, match="harness/grader failures"):
@@ -255,7 +255,8 @@ def test_system_failures_are_counted_but_harness_failures_block_comparison(
         (blocked_root / "comparison-status.json").read_text()
     )
     assert comparison_status == {
-        "harness_failure_count": 9,
+        "grading_failure_count": 9,
+        "harness_failure_count": 0,
         "reason": "harness_or_grader_failures_present",
         "status": "blocked",
     }

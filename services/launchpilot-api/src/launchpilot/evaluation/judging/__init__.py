@@ -14,6 +14,7 @@ from .contracts import (
 )
 from .gemini_client import GeminiJudgeClient, JudgeProviderError
 from .policy import TaskGradingPolicy, retrieval_diagnostics
+from .task_grader import GeminiTaskTrialGrader, TaskAnswerRubric
 from .world_evidence import EvidenceResolution, ResolvedEvidence, WorldEvidenceResolver
 
 __all__ = [
@@ -24,12 +25,14 @@ __all__ = [
     "FactJudgment",
     "GeminiJudgeClient",
     "GeminiJudgeSettings",
+    "GeminiTaskTrialGrader",
     "JudgeCall",
     "JudgeCallMetadata",
     "JudgeProviderError",
     "JudgeVerdict",
     "RelevanceJudgment",
     "ResolvedEvidence",
+    "TaskAnswerRubric",
     "TaskGradingPolicy",
     "TaskJudgment",
     "WorldEvidenceResolver",
