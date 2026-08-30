@@ -6,6 +6,7 @@ from collections.abc import Callable, Mapping
 from typing import Any, TypeVar
 
 from google import genai
+from google.genai import types
 from google.genai.errors import ClientError, ServerError
 from pydantic import BaseModel, ValidationError
 
@@ -38,6 +39,7 @@ class GeminiJudgeClient:
             vertexai=True,
             project=settings.project,
             location=settings.location,
+            http_options=types.HttpOptions(api_version="v1"),
         )
         self._sleeper = sleeper
 
@@ -59,42 +61,46 @@ class GeminiJudgeClient:
         last_error: Exception | None = None
         for attempt in range(self.settings.max_retries + 1):
             try:
-                response = self._client.interactions.create(
+                response = self._client.models.generate_content(
                     model=self.settings.model,
-                    input=input_text,
-                    system_instruction=system_instruction,
-                    generation_config={
-                        "thinking_level": self.settings.thinking_level,
-                        "thinking_summaries": "none",
-                        "max_output_tokens": self.settings.max_output_tokens,
-                        **({"seed": requested_seed} if requested_seed is not None else {}),
-                    },
-                    response_format={
-                        "type": "text",
-                        "mime_type": "application/json",
-                        "schema": response_model.model_json_schema(),
-                    },
-                    labels=dict(labels or {}),
-                    store=False,
-                    timeout=self.settings.timeout_seconds,
+                    contents=input_text,
+                    config=types.GenerateContentConfig(
+                        system_instruction=system_instruction,
+                        thinking_config=types.ThinkingConfig(
+                            thinking_level=self.settings.thinking_level,
+                            include_thoughts=False,
+                        ),
+                        max_output_tokens=self.settings.max_output_tokens,
+                        seed=requested_seed,
+                        response_mime_type="application/json",
+                        response_json_schema=response_model.model_json_schema(),
+                        labels=dict(labels or {}),
+                        http_options=types.HttpOptions(
+                            timeout=int(self.settings.timeout_seconds * 1000)
+                        ),
+                    ),
                 )
-                output_text = response.output_text or ""
+                output_text = response.text or ""
                 payload = response_model.model_validate_json(output_text)
-                usage = getattr(response, "usage", None)
+                usage = getattr(response, "usage_metadata", None)
                 metadata = JudgeCallMetadata(
-                    model=getattr(response, "model", None) or self.settings.model,
+                    model=(
+                        getattr(response, "model_version", None) or self.settings.model
+                    ),
                     thinking_level=self.settings.thinking_level,
-                    request_id=getattr(response, "id", None),
+                    request_id=getattr(response, "response_id", None),
                     requested_seed=requested_seed,
                     latency_ms=(time.perf_counter() - started) * 1000,
-                    input_tokens=getattr(usage, "total_input_tokens", None),
-                    output_tokens=getattr(usage, "total_output_tokens", None),
-                    thought_tokens=getattr(usage, "total_thought_tokens", None),
+                    input_tokens=getattr(usage, "prompt_token_count", None),
+                    output_tokens=getattr(usage, "candidates_token_count", None),
+                    thought_tokens=getattr(usage, "thoughts_token_count", None),
                     retry_count=attempt,
                     response_fingerprint=(
                         "sha256:" + hashlib.sha256(output_text.encode()).hexdigest()
                     ),
-                    response_status=str(getattr(response, "status", "completed")),
+                    response_status=str(
+                        getattr(response, "model_status", None) or "completed"
+                    ),
                 )
                 return JudgeCall[ResponseT](payload=payload, metadata=metadata)
             except (ServerError, ValidationError) as error:

@@ -14,26 +14,26 @@ class _Verdict(BaseModel):
 
 @dataclass
 class _Usage:
-    total_input_tokens: int = 120
-    total_output_tokens: int = 20
-    total_thought_tokens: int = 40
+    prompt_token_count: int = 120
+    candidates_token_count: int = 20
+    thoughts_token_count: int = 40
 
 
 @dataclass
 class _Response:
-    output_text: str = '{"accepted":true}'
-    id: str = "interaction-1"
-    model: str = "gemini-3.7-flash"
-    status: str = "completed"
-    usage: _Usage = field(default_factory=_Usage)
+    text: str = '{"accepted":true}'
+    response_id: str = "response-1"
+    model_version: str = "gemini-3.7-flash"
+    model_status: str = "completed"
+    usage_metadata: _Usage = field(default_factory=_Usage)
 
 
-class _Interactions:
+class _Models:
     def __init__(self, responses: list[object]) -> None:
         self.responses = responses
         self.calls: list[dict[str, object]] = []
 
-    def create(self, **kwargs):
+    def generate_content(self, **kwargs):
         self.calls.append(kwargs)
         result = self.responses.pop(0)
         if isinstance(result, Exception):
@@ -43,7 +43,7 @@ class _Interactions:
 
 class _Client:
     def __init__(self, responses: list[object]) -> None:
-        self.interactions = _Interactions(responses)
+        self.models = _Models(responses)
 
 
 def _settings(**updates) -> GeminiJudgeSettings:
@@ -74,23 +74,24 @@ def test_client_uses_structured_output_medium_thinking_and_no_sampling_params() 
     )
 
     assert result.payload.accepted is True
-    assert result.metadata.request_id == "interaction-1"
+    assert result.metadata.request_id == "response-1"
     assert result.metadata.thought_tokens == 40
-    call = fake.interactions.calls[0]
+    call = fake.models.calls[0]
     assert call["model"] == "gemini-3.7-flash"
-    assert call["generation_config"] == {
-        "thinking_level": "medium",
-        "thinking_summaries": "none",
-        "max_output_tokens": 8192,
-        "seed": 17,
-    }
-    assert "temperature" not in call["generation_config"]
-    assert call["response_format"]["mime_type"] == "application/json"
-    assert call["store"] is False
+    config = call["config"]
+    assert config.thinking_config.thinking_level.value == "MEDIUM"
+    assert config.thinking_config.include_thoughts is False
+    assert config.max_output_tokens == 8192
+    assert config.seed == 17
+    assert config.temperature is None
+    assert config.top_p is None
+    assert config.top_k is None
+    assert config.response_mime_type == "application/json"
+    assert config.response_json_schema == _Verdict.model_json_schema()
 
 
 def test_invalid_structured_response_is_retried() -> None:
-    fake = _Client([_Response(output_text="not-json"), _Response()])
+    fake = _Client([_Response(text="not-json"), _Response()])
     sleeps: list[float] = []
     judge = GeminiJudgeClient(
         _settings(max_retries=1), client=fake, sleeper=sleeps.append
@@ -104,4 +105,4 @@ def test_invalid_structured_response_is_retried() -> None:
 
     assert result.metadata.retry_count == 1
     assert sleeps == [0.25]
-    assert len(fake.interactions.calls) == 2
+    assert len(fake.models.calls) == 2
