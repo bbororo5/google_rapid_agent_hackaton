@@ -35,6 +35,7 @@ launchpilot-build-golden = "launchpilot.evaluation.golden_builder:main"
 launchpilot-run-retrieval-evals = "launchpilot.evaluation.experiments.cli:main"
 launchpilot-compare-eval-runs = "launchpilot.evaluation.paired_comparison:main"
 launchpilot-validate-task-dataset = "launchpilot.evaluation.task_dataset_cli:main"
+launchpilot-eval-judge = "launchpilot.evaluation.judging.cli:main"
 
 [build-system]
 requires = ["hatchling>=1.25"]

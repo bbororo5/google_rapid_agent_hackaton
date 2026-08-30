@@ -13,6 +13,10 @@ from .contracts import (
     TaskJudgment,
 )
 from .gemini_client import GeminiJudgeClient, JudgeProviderError
+from .materialize import (
+    SpecificationAdjudicationOutcome,
+    materialize_judge_ready_dataset,
+)
 from .policy import TaskGradingPolicy, retrieval_diagnostics
 from .spec_adjudicator import (
     AdjudicationDecision,
@@ -40,11 +44,13 @@ __all__ = [
     "JudgeVerdict",
     "RelevanceJudgment",
     "ResolvedEvidence",
+    "SpecificationAdjudicationOutcome",
     "SpecificationAdjudicationRecord",
     "SpecificationAdjudicationRubric",
     "TaskAnswerRubric",
     "TaskGradingPolicy",
     "TaskJudgment",
     "WorldEvidenceResolver",
+    "materialize_judge_ready_dataset",
     "retrieval_diagnostics",
 ]
