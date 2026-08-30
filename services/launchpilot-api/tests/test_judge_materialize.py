@@ -2,7 +2,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from launchpilot.evaluation.contracts import GraderKind, ReviewStatus
+from launchpilot.evaluation.judging import materialize as materialize_module
 from launchpilot.evaluation.judging.contracts import (
     JudgeCall,
     JudgeCallMetadata,
@@ -77,6 +80,41 @@ def test_materializer_creates_new_partial_snapshot_without_mutating_source(
             output_root / "adjudication" / "machine-adjudications.jsonl"
         ).read_text(encoding="utf-8").splitlines()
     ) == 150
+
+
+def test_materializer_preserves_renamed_output_when_final_validation_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    source_root = (
+        Path(__file__).parents[1] / "evals" / "datasets" / "marketing-ops-task-v1"
+    )
+    source = load_task_dataset(source_root)
+    outcomes = tuple(
+        SpecificationAdjudicationOutcome(
+            problem_id=problem.problem_id,
+            decision=AdjudicationDecision.NEEDS_REVIEW,
+            reason="fixture",
+        )
+        for problem in source.problems
+    )
+    output_root = tmp_path / "judge-ready"
+
+    def fail_validation(path: Path):
+        raise ValueError(f"invalid materialized dataset: {path.name}")
+
+    monkeypatch.setattr(materialize_module, "load_task_dataset", fail_validation)
+    with pytest.raises(ValueError, match="invalid materialized dataset"):
+        materialize_judge_ready_dataset(
+            source_root=source_root,
+            source=source,
+            output_root=output_root,
+            outcomes=outcomes,
+        )
+
+    assert not output_root.exists()
+    failed = tuple(tmp_path.glob(".judge-ready.failed-*"))
+    assert len(failed) == 1
+    assert (failed[0] / "manifest.json").exists()
 
 
 def _record(problem_id: str) -> SpecificationAdjudicationRecord:

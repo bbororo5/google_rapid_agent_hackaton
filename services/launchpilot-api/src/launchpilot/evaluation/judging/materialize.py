@@ -134,15 +134,16 @@ def materialize_judge_ready_dataset(
             tuple(outcome_by_id[problem_id] for problem_id in sorted(problem_ids)),
         )
         partial_root.rename(output_root)
+        return load_task_dataset(output_root)
     except Exception:
         failed_root = partial_root.with_name(
             partial_root.name.replace(".partial-", ".failed-", 1)
         )
-        partial_root.rename(failed_root)
+        if partial_root.exists():
+            partial_root.rename(failed_root)
+        elif output_root.exists():
+            output_root.rename(failed_root)
         raise
-    return load_task_dataset(output_root)
-
-
 def _promote_specification(
     specification,
     *,
