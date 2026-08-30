@@ -31,6 +31,7 @@ def main() -> None:
     adjudicate.add_argument("--dataset-root", type=Path, required=True)
     adjudicate.add_argument("--output-root", type=Path, required=True)
     adjudicate.add_argument("--rubric", type=Path, required=True)
+    adjudicate.add_argument("--checkpoint", type=Path)
     adjudicate.add_argument("--limit", type=int)
     adjudicate.add_argument("--base-seed", type=int, default=1701)
     adjudicate.add_argument(
@@ -62,6 +63,12 @@ def main() -> None:
 
 def _adjudicate(args, client: GeminiJudgeClient) -> None:
     dataset = load_task_dataset(args.dataset_root)
+    source_fingerprint = "sha256:" + dataset.fingerprint
+    checkpoint = args.checkpoint or (
+        args.output_root.parent
+        / f".{args.output_root.name}.adjudication-checkpoint.jsonl"
+    )
+    completed = _load_checkpoint(checkpoint, source_fingerprint)
     answerable = sorted(
         (
             specification
@@ -70,7 +77,10 @@ def _adjudicate(args, client: GeminiJudgeClient) -> None:
         ),
         key=lambda item: item.problem_id,
     )
-    selected = answerable[: args.limit] if args.limit is not None else answerable
+    remaining = [item for item in answerable if item.problem_id not in completed]
+    if args.limit is not None and args.limit < 1:
+        raise ValueError("--limit must be positive")
+    selected = remaining[: args.limit] if args.limit is not None else remaining
     estimated_calls = len(selected) * 2
     if not args.confirm_live_calls:
         raise SystemExit(
@@ -82,8 +92,7 @@ def _adjudicate(args, client: GeminiJudgeClient) -> None:
         resolver=WorldEvidenceResolver(args.dataset_root, dataset.world),
         rubric=SpecificationAdjudicationRubric.load(args.rubric),
     )
-    selected_ids = {item.problem_id for item in selected}
-    outcome_by_id = {}
+    outcome_by_id = dict(completed)
     for index, specification in enumerate(selected, start=1):
         record = adjudicator.adjudicate(
             problem=problem_by_id[specification.problem_id],
@@ -96,11 +105,16 @@ def _adjudicate(args, client: GeminiJudgeClient) -> None:
             reason=record.decision_reason,
             record=record,
         )
+        _append_checkpoint(
+            checkpoint,
+            source_fingerprint,
+            outcome_by_id[specification.problem_id],
+        )
         print(
             f"[{index}/{len(selected)}] {specification.problem_id}: {record.decision}"
         )
     for specification in dataset.specifications:
-        if specification.problem_id in selected_ids:
+        if specification.problem_id in outcome_by_id:
             continue
         if specification.answerability != Answerability.ANSWERABLE:
             reason = (
@@ -134,6 +148,45 @@ def _adjudicate(args, client: GeminiJudgeClient) -> None:
             sort_keys=True,
         )
     )
+
+
+def _load_checkpoint(
+    path: Path, source_fingerprint: str
+) -> dict[str, SpecificationAdjudicationOutcome]:
+    if not path.exists():
+        return {}
+    outcomes = {}
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        payload = json.loads(line)
+        if payload.get("source_dataset_fingerprint") != source_fingerprint:
+            raise ValueError("checkpoint belongs to a different source dataset")
+        outcome = SpecificationAdjudicationOutcome.model_validate(payload["outcome"])
+        if outcome.problem_id in outcomes:
+            raise ValueError(f"duplicate checkpoint outcome: {outcome.problem_id}")
+        outcomes[outcome.problem_id] = outcome
+    return outcomes
+
+
+def _append_checkpoint(
+    path: Path,
+    source_fingerprint: str,
+    outcome: SpecificationAdjudicationOutcome,
+) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8") as handle:
+        handle.write(
+            json.dumps(
+                {
+                    "source_dataset_fingerprint": source_fingerprint,
+                    "outcome": outcome.model_dump(mode="json"),
+                },
+                ensure_ascii=False,
+                sort_keys=True,
+            )
+            + "\n"
+        )
 
 
 if __name__ == "__main__":
