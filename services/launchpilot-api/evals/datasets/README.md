@@ -19,7 +19,8 @@ Dataset에는 expected tool, route, index, embedding 또는 tool sequence를 저
 ├─ problems/problems.jsonl
 ├─ specifications/eval-specifications.jsonl
 ├─ judgments/evidence-assessments.jsonl
-└─ references/answer-examples.jsonl
+├─ references/answer-examples.jsonl
+└─ adjudication/machine-adjudications.jsonl  # machine-reviewed snapshot만
 ```
 
 - `world`: 모든 시스템에 동일하게 주어지는 corpus/fact snapshot. Index와 graph
@@ -35,10 +36,17 @@ Dataset에는 expected tool, route, index, embedding 또는 tool sequence를 저
 
 ## Current dataset
 
-`marketing-ops-task-v1`은 archived V1/V2가 아니라 `golden-v3` 합성 fixture만을
+`marketing-ops-task-v1`은 archived Golden V1/V2가 아니라 `golden-v3` 합성 fixture만을
 task-centric 계약으로 이관한 **frontier draft**다. 모든 specification은
 `needs_review`, 모든 legacy answer는 `grading_authority=false`이고 release decision은
 금지되어 있다.
+
+`marketing-ops-task-2026-08-judge-ready`는 원본을 덮어쓰지 않은 파생 snapshot이다.
+Gemini 3.7 Flash/medium의 두 pass가 모두 동의한 answerable spec 111건만
+`machine_adjudicated`로 승격한다. comparison 10건은 evidence/spec 불일치로 거절됐고,
+insufficient-evidence 29건은 exhaustive absence 검증 전까지 `needs_review`다. machine
+agreement는 human review나 production release 승인이 아니므로 manifest는 계속
+`release_ready=false`다.
 
 재생성 명령:
 

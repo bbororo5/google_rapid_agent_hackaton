@@ -168,25 +168,12 @@ launchpilot-seed-synthetic \
 `--replace` deletes only workspaces owned by the dedicated synthetic user. It
 does not delete real users, workspaces, campaigns, or platform observations.
 
-## Retrieval evaluation
+## Evaluation
 
-Golden과 corpus를 고정한 뒤 matrix의 chunker/retriever 설정만 교체한다.
-
-```bash
-launchpilot-build-golden \
-  --database-url postgresql://launchpilot:launchpilot-local@localhost:55432/launchpilot \
-  --output evals/golden/golden-v1
-
-launchpilot-run-retrieval-evals \
-  --matrix evals/experiments/retrieval-matrix-v1.yaml \
-  --golden-root evals/golden/golden-v1 \
-  --output evals/runs/retrieval-matrix-v1 \
-  --database-url postgresql://launchpilot:launchpilot-local@localhost:55432/launchpilot \
-  --require-completed
-```
-
-현재 선택 설정과 tune/validation/holdout 실행 ID는
-`evals/experiments/selected-retrieval-v1.yaml`에 고정되어 있다. 실행 결과 원문은
-gzip JSONL로 저장하고 조합·질문·taxonomy slice 지표는 PostgreSQL에 저장한다.
+현재 정문은 tool별 Golden V1/V2가 아니라 task-centric `evals/datasets/`다. 동일한
+Problem/Spec/World에서 시스템 조건만 바꾸고 paired multi-trial로 비교한다. 과거
+retrieval matrix와 Golden V1/V2 명령은 재현용 archive이며 새 architecture release
+decision의 입력으로 사용하지 않는다. dataset, Gemini judge, controlled runner의 현재
+구조와 실행법은 [Eval README](evals/README.md)와 [Judge handoff](evals/JUDGE.md)에 있다.
 
 테스트는 별도 `launchpilot_test` PostgreSQL DB를 사용한다.

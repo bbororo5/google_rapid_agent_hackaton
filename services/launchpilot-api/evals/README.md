@@ -39,7 +39,7 @@ Process나 비용이 좋아도 틀린 답을 정당화하지 않는다. 먼저 q
 evals/
 ├── datasets/                         # 현재 평가 입력의 유일한 정문
 │   ├── README.md
-│   ├── dataset-registry.json
+│   ├── registry.json
 │   └── marketing-ops-task-v1/
 │       ├── manifest.json
 │       ├── world/manifest.json
@@ -57,6 +57,12 @@ src/launchpilot/evaluation/
 ├── task_dataset.py                  # canonical dataset loader와 검증
 ├── task_dataset_cli.py              # readiness report
 ├── controlled_runner.py             # paired, multi-trial 실행 경계
+├── judging/                          # 사전 adjudication + 사후 answer grading
+│   ├── gemini_client.py              # Gemini 3.7 Flash/medium adapter
+│   ├── spec_adjudicator.py           # 두 번의 독립 spec 판정
+│   ├── task_grader.py                # trial 원자 판정
+│   ├── policy.py                     # 결정론적 score/task_success 집계
+│   └── materialize.py                # 원본 불변 파생 snapshot 생성
 └── harness_v3.py                    # 과거 V3 재현 전용; release gate 아님
 
 tests/
@@ -126,12 +132,13 @@ spec을 개선해도 problem 자체는 바뀌지 않으며, spec version과 prov
 required fact를 지지하는지도 연결할 수 있다.
 
 ```json
-{"problem_id":"v3-pos-001","evidence_ref":"memo-123","state":"known_relevant","supports_fact_ids":["cause"]}
+{"problem_id":"v3-pos-001","assessment":{"evidence_ref":"memo-123","judgment":"known_relevant","relevance_grade":3,"supports_fact_ids":["cause"]}}
 ```
 
 파일에 없는 문서는 `unjudged`다. 새 retriever가 찾은 evidence를 자동으로 irrelevant로
-취급하지 않는다. 비교할 retriever의 top-k를 pooling하고 사람이 판정해 judgment
-version을 확장한다.
+취급하지 않는다. 비교할 retriever의 top-k를 pooling하고 명시된 assessor가 판정해
+judgment version을 확장한다. 현재 프로젝트는 human review를 운영하지 않으므로 LLM
+판정은 반드시 `machine_adjudicated`로 표기하며 human review로 가장하지 않는다.
 
 ### `references/answer-examples.jsonl`
 
@@ -175,7 +182,7 @@ V0/V1/V2 같은 이름은 dataset 세대가 아니라 **동일 problem/spec/worl
 V1/V2 데이터는 사용하지 않았다. 현재 150개 problem과 specification, 121개
 known-relevant seed, 150개 non-authoritative answer example이 있다.
 
-그러나 다음 이유로 release benchmark가 아니다.
+원본 draft는 다음 이유로 release benchmark가 아니다.
 
 - 150개 specification 모두 `needs_review`
 - production-sourced problem 0개
@@ -189,16 +196,49 @@ known-relevant seed, 150개 non-authoritative answer example이 있다.
 ```
 
 현재 검증 결과가 실패가 아니라 `release_ready=false`와 blocker 목록을 출력하는 것이
-정상이다. 검수가 끝나기 전 실제 LLM 점수를 내는 것은 숫자를 만드는 행위이지 신뢰할
-수 있는 architecture experiment가 아니다.
+정상이다.
 
-## 7. 다음 admission 순서
+`marketing-ops-task-2026-08-judge-ready`는 이 원본을 Gemini 3.7 Flash
+thinking=medium으로 두 번씩 독립 판정한 파생 snapshot이다. answerable 121건 중 111건은
+accept/accept로 승격됐고 comparison 10건은 reject/reject였다. insufficient-evidence
+29건은 empty qrels가 부재를 증명하지 못하므로 미승격 상태다. 따라서 이 snapshot도
+`release_ready=false`이며, accepted answerable task를 대상으로 grader와 controlled
+runner를 개발하는 용도다.
 
-1. negative 29건과 comparison 10건부터 answerability/required facts를 전문가 검수한다.
-2. 나머지 spec을 검수하고 evidence pool을 여러 retriever 결과로 확장한다.
+## 7. Judge 경계
+
+```text
+Pre-run:  Problem + candidate Spec + known-positive Evidence
+                         │
+                         ├─ Gemini pass 1 ─┐
+                         └─ Gemini pass 2 ─┴─ consensus ─> derived Spec snapshot
+
+Post-run: Problem + accepted Spec + Answer + actually retrieved Evidence
+                         │
+                         └─ Gemini atomic verdicts
+                              ├─ fact entailment
+                              ├─ claim support
+                              ├─ behavior
+                              └─ relevance
+                                     │
+                          deterministic policy
+                                     └─ outcome scores/task_success
+```
+
+Judge는 `task_success`를 직접 출력하지 않는다. model verdict와 최종 집계를 분리해 prompt
+변경이 score 의미를 몰래 바꾸지 못하게 한다. 시스템 latency/token/cost와 judge
+latency/token/cost도 별도 필드다. provider/schema 오류는 `grading_failed`이며 시스템
+실패나 task failure로 계산하지 않는다. 자세한 실행법과 제약은
+[`JUDGE.md`](JUDGE.md)에 있다.
+
+## 8. 다음 admission 순서
+
+1. comparison 10건의 required facts와 양쪽 evidence seed를 다시 작성한다.
+2. negative 29건은 pooled/exhaustive-world 절차로 부재를 검증한다.
 3. 비식별 production encounter를 수집해 problem distribution과 missing slice를 본다.
 4. entity/source/template leakage group 기준으로 Frozen과 blind Holdout을 만든다.
-5. deterministic grader를 우선 만들고 LLM judge는 human calibration 후 사용한다.
+5. human review가 불가능하므로 mutation/consistency set과 deterministic invariant로 judge를
+   지속 qualification하고, 이를 human calibration의 대체물이라고 과장하지 않는다.
 6. 검수된 동일 dataset으로 baseline/forced-tool/agent-selected 조건을 paired rerun한다.
 7. quality non-inferiority를 먼저 확인한 뒤 marginal cost와 latency를 비교한다.
 
