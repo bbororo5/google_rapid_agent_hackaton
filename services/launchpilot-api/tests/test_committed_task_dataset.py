@@ -11,6 +11,9 @@ from launchpilot.evaluation.task_dataset_cli import inspect_task_dataset
 
 ROOT = Path(__file__).parents[1]
 DATASET_ROOT = ROOT / "evals" / "datasets" / "marketing-ops-task-v1"
+JUDGE_READY_ROOT = (
+    ROOT / "evals" / "datasets" / "marketing-ops-task-2026-08-judge-ready"
+)
 
 
 def test_committed_task_dataset_is_valid_and_explicitly_not_release_ready() -> None:
@@ -70,3 +73,26 @@ def test_dataset_readiness_report_blocks_release_without_human_review() -> None:
     assert report["problem_sources"] == {"synthetic": 150}
     assert "150 specifications need review" in report["release_blockers"]
     assert "no production-sourced problems" in report["release_blockers"]
+
+
+def test_committed_judge_ready_snapshot_is_valid_but_not_a_release_benchmark() -> None:
+    dataset = load_task_dataset(JUDGE_READY_ROOT)
+    verify_world_artifacts(JUDGE_READY_ROOT, dataset.world)
+
+    assert dataset.fingerprint == (
+        "620d7f14feffd743764244426ac9b1f1d06ca60872e013eef168d8ce859e82ab"
+    )
+    assert dataset.manifest.source_dataset_fingerprint == (
+        "sha256:b25f4db43bc099963b81d3497110cb780bd573b8a0388a76564ef2f0dde47c83"
+    )
+    assert dataset.manifest.release_ready is False
+    statuses = [item.review_status for item in dataset.specifications]
+    assert statuses.count(ReviewStatus.MACHINE_ADJUDICATED) == 111
+    assert statuses.count(ReviewStatus.NEEDS_REVIEW) == 39
+
+    report = inspect_task_dataset(JUDGE_READY_ROOT)
+    assert "39 specifications need review" in report["release_blockers"]
+    adjudications = (
+        JUDGE_READY_ROOT / "adjudication" / "machine-adjudications.jsonl"
+    ).read_text(encoding="utf-8").splitlines()
+    assert len(adjudications) == 150

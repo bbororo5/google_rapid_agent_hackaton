@@ -1,0 +1,39 @@
+{
+  "adjudication_policy": "spec-adjudication-v1+two-pass-consensus-v1",
+  "calls": 242,
+  "dataset_fingerprint": "sha256:620d7f14feffd743764244426ac9b1f1d06ca60872e013eef168d8ce859e82ab",
+  "decisions": {
+    "accepted": 111,
+    "needs_review": 29,
+    "rejected": 10
+  },
+  "estimated_cost": {
+    "amount_usd": 0.8199,
+    "input_usd_per_million_tokens": 0.75,
+    "output_and_reasoning_usd_per_million_tokens": 3.75,
+    "pricing_as_of": "2026-08-30"
+  },
+  "latency_ms": {
+    "max": 14976.24,
+    "mean": 6030.42,
+    "p95": 9165.91,
+    "sum": 1459360.65
+  },
+  "model": "gemini-3.7-flash",
+  "pass_pairs": {
+    "accept_accept": 111,
+    "reject_reject": 10
+  },
+  "release_ready": false,
+  "retry_count_total": 7,
+  "thinking_level": "medium",
+  "tokens": {
+    "input": 332792,
+    "output": 38747,
+    "reasoning": 113330
+  },
+  "unadjudicated_scope": {
+    "count": 29,
+    "reason": "Insufficient-evidence tasks require exhaustive-world absence adjudication; empty qrels do not prove absence."
+  }
+}

@@ -1,6 +1,21 @@
 {
   "schema_version": "1",
   "datasets": {
+    "marketing-ops-task-2026-08-judge-ready": {
+      "lifecycle": "frontier",
+      "release_ready": false,
+      "source_fixture": "marketing-ops-task:v1-draft",
+      "allowed_uses": [
+        "llm_judge_integration",
+        "controlled_experiment_development",
+        "answerable_task_frontier_analysis"
+      ],
+      "prohibited_uses": [
+        "architecture_release_decision",
+        "production_capability_claim",
+        "using_needs_review_specs_for_release_decisions"
+      ]
+    },
     "marketing-ops-task-v1": {
       "lifecycle": "frontier",
       "release_ready": false,

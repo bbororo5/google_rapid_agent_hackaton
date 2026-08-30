@@ -1,0 +1,23 @@
+{
+  "adjudication_policy": "spec-adjudication-v1+two-pass-consensus-v1",
+  "adjudication_status": "partial:111/150_accepted",
+  "dataset_id": "marketing-ops-task",
+  "dataset_version": "2026-08-judge-ready",
+  "evidence_judgment_count": 121,
+  "human_review_status": null,
+  "lifecycle": "frontier",
+  "problem_count": 150,
+  "prohibited_uses": [
+    "architecture_release_decision",
+    "production_capability_claim",
+    "treating_legacy_reference_answers_as_complete_truth",
+    "treating_unlisted_evidence_as_irrelevant",
+    "using_needs_review_specs_for_release_decisions"
+  ],
+  "reference_answer_count": 150,
+  "release_ready": false,
+  "source_dataset_fingerprint": "sha256:b25f4db43bc099963b81d3497110cb780bd573b8a0388a76564ef2f0dde47c83",
+  "source_fixture": "marketing-ops-task:v1-draft",
+  "specification_count": 150,
+  "world_id": "synthetic-marketing-ops-v3"
+}
