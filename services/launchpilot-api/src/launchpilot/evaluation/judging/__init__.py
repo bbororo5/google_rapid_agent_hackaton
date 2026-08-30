@@ -14,10 +14,17 @@ from .contracts import (
 )
 from .gemini_client import GeminiJudgeClient, JudgeProviderError
 from .policy import TaskGradingPolicy, retrieval_diagnostics
+from .spec_adjudicator import (
+    AdjudicationDecision,
+    GeminiSpecificationAdjudicator,
+    SpecificationAdjudicationRecord,
+    SpecificationAdjudicationRubric,
+)
 from .task_grader import GeminiTaskTrialGrader, TaskAnswerRubric
 from .world_evidence import EvidenceResolution, ResolvedEvidence, WorldEvidenceResolver
 
 __all__ = [
+    "AdjudicationDecision",
     "BehaviorJudgment",
     "ClaimJudgment",
     "ConfidenceLevel",
@@ -25,6 +32,7 @@ __all__ = [
     "FactJudgment",
     "GeminiJudgeClient",
     "GeminiJudgeSettings",
+    "GeminiSpecificationAdjudicator",
     "GeminiTaskTrialGrader",
     "JudgeCall",
     "JudgeCallMetadata",
@@ -32,6 +40,8 @@ __all__ = [
     "JudgeVerdict",
     "RelevanceJudgment",
     "ResolvedEvidence",
+    "SpecificationAdjudicationRecord",
+    "SpecificationAdjudicationRubric",
     "TaskAnswerRubric",
     "TaskGradingPolicy",
     "TaskJudgment",
