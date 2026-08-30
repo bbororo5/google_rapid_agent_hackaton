@@ -11,6 +11,7 @@ from launchpilot.evaluation.contracts import (
     EvidenceAssessment,
     EvidenceJudgment,
     ExpectedBehavior,
+    GraderEfficiencyObservation,
     GraderKind,
     InformationModality,
     OutcomeScores,
@@ -246,6 +247,14 @@ def test_trial_keeps_outcome_process_and_efficiency_separate() -> None:
             retrieval_context_tokens=500,
             cost_usd=0.004,
         ),
+        grader_efficiency=GraderEfficiencyObservation(
+            latency_ms=240.0,
+            input_tokens=500,
+            output_tokens=80,
+            thought_tokens=120,
+            cost_usd=0.002,
+            telemetry_complete=True,
+        ),
     )
 
     assert trial.outcome.task_success is True
@@ -254,6 +263,7 @@ def test_trial_keeps_outcome_process_and_efficiency_separate() -> None:
         "graph_search",
     ]
     assert trial.efficiency.cost_usd == 0.004
+    assert trial.grader_efficiency.cost_usd == 0.002
 
     payload = trial.model_dump(mode="json")
     payload["started_at"] = "2026-08-27T12:00:00"
@@ -277,6 +287,36 @@ def test_trial_keeps_outcome_process_and_efficiency_separate() -> None:
     )
     with pytest.raises(ValidationError, match="require execution stage"):
         TrialRunResult.model_validate(contradictory_failure)
+
+    grading_failure = trial.model_dump(mode="json")
+    grading_failure.update(
+        {
+            "status": "grading_failed",
+            "failure_stage": "execution",
+            "error_type": "JudgeProviderError",
+            "outcome": {
+                "task_success": False,
+                "required_fact_coverage": 0.0,
+                "groundedness": None,
+                "answer_relevance": None,
+                "behavior_correct": False,
+            },
+        }
+    )
+    with pytest.raises(ValidationError, match="require grading stage"):
+        TrialRunResult.model_validate(grading_failure)
+
+
+def test_machine_adjudication_is_distinct_from_human_review() -> None:
+    payload = _spec().model_dump(mode="json")
+    payload.update(
+        {
+            "review_status": "machine_adjudicated",
+            "reviewer_ids": [],
+        }
+    )
+    spec = EvalSpecification.model_validate(payload)
+    assert spec.review_status == ReviewStatus.MACHINE_ADJUDICATED
 
 
 def test_tool_trace_requires_contiguous_sequence() -> None:

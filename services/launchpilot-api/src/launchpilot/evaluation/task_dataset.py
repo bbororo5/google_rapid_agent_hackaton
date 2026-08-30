@@ -77,8 +77,23 @@ class TaskDatasetManifest(BaseModel):
     specification_count: int = Field(ge=0)
     evidence_judgment_count: int = Field(ge=0)
     reference_answer_count: int = Field(ge=0)
-    human_review_status: str = Field(min_length=1)
+    human_review_status: str | None = Field(default=None, min_length=1)
+    adjudication_status: str | None = Field(default=None, min_length=1)
+    adjudication_policy: str | None = Field(default=None, min_length=1)
+    source_dataset_fingerprint: str | None = Field(
+        default=None, pattern=r"^sha256:[0-9a-f]{64}$"
+    )
     prohibited_uses: tuple[str, ...] = ()
+
+    @model_validator(mode="after")
+    def require_a_review_or_adjudication_status(self) -> TaskDatasetManifest:
+        if self.human_review_status is None and self.adjudication_status is None:
+            raise ValueError(
+                "dataset manifest requires human_review_status or adjudication_status"
+            )
+        if self.adjudication_status is not None and self.adjudication_policy is None:
+            raise ValueError("adjudicated datasets require adjudication_policy")
+        return self
 
 
 class TaskDataset(BaseModel):

@@ -75,6 +75,7 @@ class EvidenceJudgment(StrEnum):
 
 class ReviewStatus(StrEnum):
     AUTO_VALIDATED = "auto_validated"
+    MACHINE_ADJUDICATED = "machine_adjudicated"
     HUMAN_REVIEWED = "human_reviewed"
     NEEDS_REVIEW = "needs_review"
 
@@ -96,6 +97,7 @@ class TrialStatus(StrEnum):
     COMPLETED = "completed"
     SYSTEM_FAILED = "system_failed"
     TIMED_OUT = "timed_out"
+    GRADING_FAILED = "grading_failed"
     HARNESS_FAILED = "harness_failed"
 
 
@@ -393,6 +395,21 @@ class EfficiencyObservation(BaseModel):
     measurement_notes: str | None = None
 
 
+class GraderEfficiencyObservation(BaseModel):
+    """Judge-side telemetry, kept separate from system-under-test efficiency."""
+
+    model_config = ConfigDict(frozen=True)
+
+    latency_ms: float = Field(ge=0.0)
+    input_tokens: int | None = Field(default=None, ge=0)
+    output_tokens: int | None = Field(default=None, ge=0)
+    thought_tokens: int | None = Field(default=None, ge=0)
+    cost_usd: float | None = Field(default=None, ge=0.0)
+    retry_count: int = Field(default=0, ge=0)
+    telemetry_complete: bool = False
+    measurement_notes: str | None = None
+
+
 class TrialRunResult(BaseModel):
     """One stochastic trial. Outcome, diagnostics, and efficiency stay separable."""
 
@@ -427,6 +444,8 @@ class TrialRunResult(BaseModel):
     tool_trace: tuple[ToolCallTrace, ...] = ()
     tool_trace_complete: bool = False
     efficiency: EfficiencyObservation
+    grader_efficiency: GraderEfficiencyObservation | None = None
+    grade_artifact_ref: str | None = None
     error_type: str | None = None
     error_message: str | None = Field(default=None, max_length=1000)
     failure_stage: TrialFailureStage | None = None
@@ -468,9 +487,9 @@ class TrialRunResult(BaseModel):
             if self.status in {TrialStatus.SYSTEM_FAILED, TrialStatus.TIMED_OUT}:
                 if self.failure_stage != TrialFailureStage.EXECUTION:
                     raise ValueError("system failures/timeouts require execution stage")
-            elif self.failure_stage not in {
-                TrialFailureStage.GRADING,
-                TrialFailureStage.HARNESS,
-            }:
-                raise ValueError("harness failures require grading or harness stage")
+            elif self.status == TrialStatus.GRADING_FAILED:
+                if self.failure_stage != TrialFailureStage.GRADING:
+                    raise ValueError("grading failures require grading stage")
+            elif self.failure_stage != TrialFailureStage.HARNESS:
+                raise ValueError("harness failures require harness stage")
         return self

@@ -144,6 +144,30 @@ def test_task_dataset_rejects_judgment_for_unknown_problem(tmp_path: Path) -> No
         )
 
 
+def test_adjudicated_manifest_requires_policy() -> None:
+    from launchpilot.evaluation.task_dataset import TaskDatasetManifest
+
+    payload = {
+        "dataset_id": "task-fixture",
+        "dataset_version": "2026-08-30",
+        "lifecycle": "frontier",
+        "release_ready": False,
+        "source_fixture": "task-fixture",
+        "world_id": "world-v1",
+        "problem_count": 0,
+        "specification_count": 0,
+        "evidence_judgment_count": 0,
+        "reference_answer_count": 0,
+        "adjudication_status": "complete",
+    }
+    with pytest.raises(ValidationError, match="require adjudication_policy"):
+        TaskDatasetManifest.model_validate(payload)
+
+    payload["adjudication_policy"] = "gemini-machine-adjudication-v1"
+    manifest = TaskDatasetManifest.model_validate(payload)
+    assert manifest.human_review_status is None
+
+
 def _json(path: Path, payload: object) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
